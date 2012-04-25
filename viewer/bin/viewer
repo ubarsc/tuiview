@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+
+from viewer import viewerapplication
+
+app = viewerapplication.ViewerApplication()
+app.exec_()
+
+
+
