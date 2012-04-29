@@ -20,7 +20,7 @@ class ViewerApplication(QApplication):
             # need to do this after show() otherwise
             # window size is wrong for some reason
             #self.mainw.openFileInternal(self.argv()[1], (1,), VIEWER_MODE_GREYSCALE, VIEWER_STRETCHMODE_2STDDEV)
-            #self.mainw.openFileInternal(self.argv()[1], (1,), VIEWER_MODE_COLORTABLE, VIEWER_STRETCHMODE_2STDDEV)
+            self.mainw.openFileInternal(self.argv()[1], (1,), VIEWER_MODE_COLORTABLE, VIEWER_STRETCHMODE_NONE)
             #self.mainw.openFileInternal(self.argv()[1], (3,2,1), VIEWER_MODE_RGB, VIEWER_STRETCHMODE_2STDDEV)
-            self.mainw.openFileInternal(self.argv()[1], (3,2,1), VIEWER_MODE_RGB, VIEWER_STRETCHMODE_NONE)
+            #self.mainw.openFileInternal(self.argv()[1], (3,2,1), VIEWER_MODE_RGB, VIEWER_STRETCHMODE_NONE)
 
