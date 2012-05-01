@@ -424,7 +424,7 @@ class ViewerWidget(QAbstractScrollArea):
                 gdalband = self.ds.GetRasterBand(band)
                 lut = self.createStretchLUT( gdalband, stretchmode )
                 luts.append(lut)
-            self.lut = bgraToNative(luts)
+            self.lut = luts
             
         else:
             msg = 'unsupported display mode'
@@ -476,8 +476,8 @@ class ViewerWidget(QAbstractScrollArea):
             # have to read 3 layers in
             # must be more efficient way
 
-            bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8)
             lutindex = 0
+            bgralist = []
             for bandnum in self.bands:
                 band = self.ds.GetRasterBand(bandnum)
                 if selectedovi.index > 0:
@@ -486,10 +486,17 @@ class ViewerWidget(QAbstractScrollArea):
                 data = band.ReadAsArray(x, y, xsize, ysize, winxsize, winysize )
                 # apply the lut on this band
                 bandbgra = self.lut[lutindex][data]
-                bgra[...,lutindex] = bandbgra
+                bgralist.append(bandbgra)
                 lutindex += 1
 
-            bgra[...,3].fill(255)   # alpha for rgb? set to 255
+            bgralist.append(numpy.zeros_like(bandbgra) + 255) # alpha for rgb? set to 255
+
+            bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8)
+            bgralist = bgraToNative(bgralist)
+            lutindex = 0
+            for b in bgralist:
+                bgra[...,lutindex] = b
+                lutindex += 1
 
         else:
             # must be single band
