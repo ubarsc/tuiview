@@ -4,6 +4,7 @@ Viewer Widget. Allows display of images,
 zooming and panning etc.
 """
 
+import sys
 import numpy
 from PyQt4.QtGui import QAbstractScrollArea, QPainter, QImage
 from PyQt4.QtCore import Qt
@@ -28,8 +29,21 @@ VIEWER_SCROLL_MULTIPLIER = 0.0002 # number of pixels scrolled
 VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction 
                             # on zoom out/ zoom in
 
+BIG_ENDIAN = sys.byteorder == 'big'
+
 # raise exceptions rather than returning None
 gdal.UseExceptions()
+
+def bgraToNative(bgra):
+    """
+    Qt expects the colours in BGRA order packed into
+    a 32bit int. We do this by inserting stuff into
+    a 8 bit numpy array, but this is endian specific
+    """
+    if BIG_ENDIAN:
+        bgra.reverse()
+    return bgra
+
 
 class WindowFraction(object):
     """
@@ -231,7 +245,8 @@ class ViewerWidget(QAbstractScrollArea):
             for i in range(ctcount):
                 entry = ct.GetColorEntry(i)
                 # entry is RGBA, need to store as BGRA
-                lut[i] = (entry[2], entry[1], entry[0], entry[3])
+                bgra = [entry[2], entry[1], entry[0], entry[3]]
+                lut[i] = bgraToNative(bgra)
             return lut
         else:
             msg = 'No color table present'
@@ -391,10 +406,12 @@ class ViewerWidget(QAbstractScrollArea):
 
             lut = self.createStretchLUT( gdalband, stretchmode )
             alpha = numpy.zeros_like(lut) + 255
+            bgra = bgraToNative([lut, lut, lut, alpha])
+            
             # just repeat the lut for each color to make it grey
             # column_stack seems to create Fortran arrays which stuffs up
             # the creation of QImage's from it.
-            self.lut = numpy.column_stack((lut, lut, lut, alpha)).copy('C')
+            self.lut = numpy.column_stack(bgra).copy('C')
 
         elif mode == VIEWER_MODE_RGB:
             if len(bands) != 3:
@@ -407,7 +424,7 @@ class ViewerWidget(QAbstractScrollArea):
                 gdalband = self.ds.GetRasterBand(band)
                 lut = self.createStretchLUT( gdalband, stretchmode )
                 luts.append(lut)
-            self.lut = luts
+            self.lut = bgraToNative(luts)
             
         else:
             msg = 'unsupported display mode'
