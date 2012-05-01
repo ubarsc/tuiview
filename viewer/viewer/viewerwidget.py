@@ -102,9 +102,9 @@ class WindowFraction(object):
         if viewfractiony > 1.0:
             viewfractiony = 1.0
 
+
         self.tlfraction = [tlfractionx, tlfractiony]
         self.viewfraction = [viewfractionx, viewfractiony]
-
 
 
 class OverviewInfo(object):
@@ -123,6 +123,7 @@ class OverviewManager(object):
     """
     def __init__(self):
         self.overviews = None
+        self.aspectratio = None
 
     def loadOverviewInfo(self, ds, bands):
         """
@@ -135,6 +136,8 @@ class OverviewManager(object):
         # add an info for the full res - this should always be location 0
         ovi = OverviewInfo(ds.RasterXSize, ds.RasterYSize, 0)
         self.overviews = [ovi]
+        # store the aspect ratio - used elsewhere
+        self.aspectratio = float(ovi.xsize) / float(ovi.ysize)
 
         # for the overviews
         # start with the first band and go from there
@@ -264,9 +267,9 @@ class ViewerWidget(QAbstractScrollArea):
             maxVal = int(maxVal)
             lut = numpy.where(values < minVal, 0, lut)
             lut = numpy.where(values >= maxVal, 255, lut)
-            mask = numpy.logical_and(values > stretchMin, values < stretchMax)
-            linstretch = numpy.linspace(0, 255, num=(stretchMax-stretchMin)).astype(numpy.uint8)
-            lut[stretchMin:stretchMax] = linstretch
+            mask = numpy.logical_and(values > minVal, values < maxVal)
+            linstretch = numpy.linspace(0, 255, num=(maxVal-minVal)).astype(numpy.uint8)
+            lut[minVal:maxVal] = linstretch
             return lut
 
         elif stretchmode == VIEWER_STRETCHMODE_2STDDEV:
@@ -290,6 +293,43 @@ class ViewerWidget(QAbstractScrollArea):
             linstretch = numpy.linspace(0, 255, num=(stretchMax-stretchMin)).astype(numpy.uint8)
             lut[stretchMin:stretchMax] = linstretch
             return lut
+
+        elif stretchmode == VIEWER_STRETCHMODE_HIST:
+            # must do progress
+            numBins = int(numpy.ceil(maxVal - minVal))
+            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, include_out_of_range=0, approx_ok=0)
+            sumPxl = sum(histo)
+
+            # Pete: what is this based on?
+            bandLower = sumPxl * 0.025
+            bandUpper = sumPxl * 0.01
+
+            # calc min and max from histo
+            # find bin number that bandLower/Upper fall into 
+            # maybe we can do better with numpy?
+            sumVals = 0
+            for i in range(numBins):
+                sumVals = sumVals + histo[i]
+                if sumVals > bandLower:
+                    stretchMin = minVal + ((maxVal - minVal) * (i / numBins))
+                    break
+            sumVals = 0
+            for i in range(numBins):
+                sumVals = sumVals + histo[-i]
+                if sumVals > bandUpper:
+                    stretchMax = maxVal + ((maxVal - minVal) * ((numBins - i - 1) / numBins))
+                    break
+
+            lut = numpy.empty(lutsize, numpy.uint8, 'C')
+            values = numpy.arange(lutsize)
+
+            lut = numpy.where(values < stretchMin, 0, lut)
+            lut = numpy.where(values >= stretchMax, 255, lut)
+            mask = numpy.logical_and(values > stretchMin, values < stretchMax)
+            linstretch = numpy.linspace(0, 255, num=(stretchMax-stretchMin)).astype(numpy.uint8)
+            lut[stretchMin:stretchMax] = linstretch
+            return lut
+
         else:
             msg = 'unsupported stretch mode'
             raise viewererrors.InvalidParameters(msg)
@@ -387,25 +427,19 @@ class ViewerWidget(QAbstractScrollArea):
         if self.ds is None:
             return
 
+        # the fraction we are displaying
+        viewfraction = self.windowfraction.viewfraction
+        tlfraction = self.windowfraction.tlfraction
+
         size = self.viewport().size()
         winxsize = size.width()
         winysize = size.height()
 
-        # the fraction we are displaying
-        viewfraction = self.windowfraction.viewfraction
-        tlfraction = self.windowfraction.tlfraction
 
         # grab the best overview for the number of
         # pixels in the window
         selectedovi = self.overviews.findBestOverview(winxsize, winysize, viewfraction)
         print selectedovi.index
-        xismax = winxsize > winysize
-
-        ratio = selectedovi.xsize / float(selectedovi.ysize)
-        if xismax:
-            winysize = int(winxsize / ratio)
-        else:
-            winxsize = int(winysize * ratio)
 
         x = int(selectedovi.xsize * tlfraction[0])
         y = int(selectedovi.ysize * tlfraction[1])
@@ -433,8 +467,8 @@ class ViewerWidget(QAbstractScrollArea):
 
                 data = band.ReadAsArray(x, y, xsize, ysize, winxsize, winysize )
                 # apply the lut on this band
-                bgra = self.lut[lutindex][data]
-                bgra[...,lutindex] = bgra
+                bandbgra = self.lut[lutindex][data]
+                bgra[...,lutindex] = bandbgra
                 lutindex += 1
 
             bgra[...,3].fill(255)   # alpha for rgb? set to 255
@@ -477,8 +511,8 @@ class ViewerWidget(QAbstractScrollArea):
         Handle the user moving the scroll bars
         """
         if not self.suppressscrollevent:
-            xamount = dx * -VIEWER_SCROLL_MULTIPLIER
-            yamount = dy * -VIEWER_SCROLL_MULTIPLIER
+            xamount = dx * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.viewfraction[0]
+            yamount = dy * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.viewfraction[1]
             self.windowfraction.moveView(xamount, yamount)
 
             self.getData()
