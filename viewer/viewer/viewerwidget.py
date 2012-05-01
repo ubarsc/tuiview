@@ -402,6 +402,7 @@ class ViewerWidget(QAbstractScrollArea):
                 raise viewererrors.InvalidParameters(msg)
 
             luts = []
+            bands.reverse() # user supplies RGB, we want BGR
             for band in bands:
                 gdalband = self.ds.GetRasterBand(band)
                 lut = self.createStretchLUT( gdalband, stretchmode )
