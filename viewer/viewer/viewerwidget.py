@@ -24,7 +24,7 @@ VIEWER_STRETCHMODE_2STDDEV = 2
 VIEWER_STRETCHMODE_HIST = 3
 
 
-VIEWER_SCROLL_MULTIPLIER = 0.0002 # number of pixels scrolled
+VIEWER_SCROLL_MULTIPLIER = 0.000002 # number of pixels scrolled
                                 # is multiplied by this to get fraction
 VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction 
                             # on zoom out/ zoom in
@@ -55,12 +55,16 @@ class WindowFraction(object):
     2) the fraction of the viewed portion relative
         to the whole thing
     """
-    def __init__(self):
+    def __init__(self, winsize, firstoverview):
         # initially we are looking at the whole image
-        self.tlfraction = [0.0, 0.0] # start at top left
-        self.viewfraction = [1.0, 1.0] # contain the whole thing
-        # this should always be True
-        # self.tlfraction  + self.viewfraction <= 1.0
+        # centred on the middle
+        self.centrefraction = [0.5, 0.5]
+
+        xperpix = float(firstoverview.xsize) / float(winsize.width())
+        yperpix = float(firstoverview.ysize) / float(winsize.height())
+        self.imgpixperwinpix = max(xperpix, yperpix)
+
+        
 
     def moveView(self, xfraction, yfraction):
         """
@@ -68,57 +72,27 @@ class WindowFraction(object):
         (positive to the right and down)
         """
         # try it and see what happens
-        tlfractionx = self.tlfraction[0] + xfraction
-        tlfractiony = self.tlfraction[1] + yfraction
+        centrefractionx = self.centrefraction[0] + xfraction
+        centrefractiony = self.centrefraction[1] + yfraction
 
-        if tlfractionx < 0:
-            tlfractionx = 0.0
-        elif (tlfractionx + self.viewfraction[0]) > 1.0:
-            tlfractionx = 1.0 - self.viewfraction[0]
+        if centrefractionx < 0:
+            centrefractionx = 0.0
+        elif centrefractionx > 1.0:
+            centrefractionx = 1.0
 
-        if tlfractiony < 0:
-            tlfractiony = 0.0
-        elif (tlfractiony + self.viewfraction[1]) > 1.0:
-            tlfractiony = 1.0 - self.viewfraction[1]
+        if centrefractiony < 0:
+            centrefractiony = 0.0
+        elif centrefractiony > 1.0:
+            centrefractiony = 1.0
 
-        self.tlfraction = [tlfractionx, tlfractiony]
+        self.centrefraction = [centrefractionx, centrefractiony]
 
     def zoomView(self, fraction):
         """
         zoom the view by fraction (positive 
         to zoom in)
         """
-        # work out the centre of the window as a fraction
-        centrefractionx = self.tlfraction[0] + (self.viewfraction[0] / 2.0)
-        centrefractiony = self.tlfraction[1] + (self.viewfraction[1] / 2.0)
-
-        # increase the view fraction by the required amount
-        viewfractionx = self.viewfraction[0] * (1.0 + fraction)
-        viewfractiony = self.viewfraction[1] * (1.0 + fraction)
-
-        # work out what the tl fraction would be
-        tlfractionx = centrefractionx - ( viewfractionx / 2.0 )
-        tlfractiony = centrefractiony - ( viewfractiony / 2.0 )
-
-        # bounds check
-        if (tlfractionx + viewfractionx) > 1.0:
-            tlfractionx = 1.0 - viewfractionx
-        if tlfractionx < 0:
-            tlfractionx = 0.0
-
-        if (tlfractiony + viewfractiony) > 1.0:
-            tlfractiony = 1.0 - viewfractiony
-        if tlfractiony < 0:
-            tlfractiony = 0.0
-
-        if viewfractionx > 1.0:
-            viewfractionx = 1.0
-        if viewfractiony > 1.0:
-            viewfractiony = 1.0
-
-
-        self.tlfraction = [tlfractionx, tlfractiony]
-        self.viewfraction = [viewfractionx, viewfractiony]
+        self.imgpixperwinpix *= (1.0 + fraction)
 
 
 class OverviewInfo(object):
@@ -137,7 +111,9 @@ class OverviewManager(object):
     """
     def __init__(self):
         self.overviews = None
-        self.aspectratio = None
+
+    def getFullRes(self):
+        return self.overviews[0]
 
     def loadOverviewInfo(self, ds, bands):
         """
@@ -150,8 +126,6 @@ class OverviewManager(object):
         # add an info for the full res - this should always be location 0
         ovi = OverviewInfo(ds.RasterXSize, ds.RasterYSize, 0)
         self.overviews = [ovi]
-        # store the aspect ratio - used elsewhere
-        self.aspectratio = float(ovi.xsize) / float(ovi.ysize)
 
         # for the overviews
         # start with the first band and go from there
@@ -244,8 +218,8 @@ class ViewerWidget(QAbstractScrollArea):
             lut = numpy.empty((ctcount, 4), numpy.uint8)
             for i in range(ctcount):
                 entry = ct.GetColorEntry(i)
-                # entry is RGBA, need to store as BGRA
-                bgra = [entry[2], entry[1], entry[0], entry[3]]
+                # entry is RGBA, need to store as BGRA - always 255 for alpha for now
+                bgra = [entry[2], entry[1], entry[0], 255]
                 lut[i] = bgraToNative(bgra)
             return lut
         else:
@@ -378,7 +352,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.overviews.loadOverviewInfo(self.ds, bands)
 
         # reset these values
-        self.windowfraction = WindowFraction()
+        size = self.viewport().size()
+        self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
         self.bands = bands
         self.mode = mode
 
@@ -446,30 +421,44 @@ class ViewerWidget(QAbstractScrollArea):
             return
 
         # the fraction we are displaying
-        viewfraction = self.windowfraction.viewfraction
-        tlfraction = self.windowfraction.tlfraction
+        centrefraction = self.windowfraction.centrefraction
+        imgpixperwinpix = self.windowfraction.imgpixperwinpix
+
+        fullres = self.overviews.getFullRes()
 
         size = self.viewport().size()
         winxsize = size.width()
         winysize = size.height()
 
 
+        fullres_winxsize = winxsize * imgpixperwinpix
+        fullres_winysize = winysize * imgpixperwinpix
+        if fullres_winxsize > fullres.xsize:
+            fullres_winxsize = fullres.xsize
+            winxsize = fullres_winxsize / imgpixperwinpix
+        if fullres_winysize > fullres.ysize:
+            fullres_winysize = fullres.ysize
+            winysize = fullres_winysize / imgpixperwinpix
+
+        # what proportion of the full res is that?
+        xprop = fullres_winxsize / float(fullres.xsize)
+        yprop = fullres_winysize / float(fullres.ysize)
+
         # grab the best overview for the number of
         # pixels in the window
-        selectedovi = self.overviews.findBestOverview(winxsize, winysize, viewfraction)
+        selectedovi = self.overviews.findBestOverview(winxsize, winysize, [xprop, yprop])
         print selectedovi.index
 
-        x = int(selectedovi.xsize * tlfraction[0])
-        y = int(selectedovi.ysize * tlfraction[1])
-        xsize = int(selectedovi.xsize * viewfraction[0])
-        ysize = int(selectedovi.ysize * viewfraction[1])
+        overview_xsize = int(xprop * selectedovi.xsize)
+        overview_ysize = int(yprop * selectedovi.ysize)
 
-        totalx = x + xsize
-        if totalx > selectedovi.xsize:
-            x -= (totalx - selectedovi.xsize)
-        totaly = y + ysize
-        if totaly > selectedovi.ysize:
-            y -= (totaly - selectedovi.ysize)
+        # how many overview res pixels from the top left is the centre of the image?
+        overview_centrex = centrefraction[0] * selectedovi.xsize
+        overview_centrey = centrefraction[1] * selectedovi.ysize
+
+        # then subtract half the height/width
+        overview_x = int(overview_centrex - (overview_xsize / 2.0))
+        overview_y = int(overview_centrey - (overview_ysize / 2.0))
 
         if self.mode == VIEWER_MODE_RGB:
 
@@ -483,7 +472,7 @@ class ViewerWidget(QAbstractScrollArea):
                 if selectedovi.index > 0:
                     band = band.GetOverview(selectedovi.index - 1)
 
-                data = band.ReadAsArray(x, y, xsize, ysize, winxsize, winysize )
+                data = band.ReadAsArray(overview_x, overview_y, overview_xsize, overview_ysize, winxsize, winysize )
                 # apply the lut on this band
                 bandbgra = self.lut[lutindex][data]
                 bgralist.append(bandbgra)
@@ -504,7 +493,7 @@ class ViewerWidget(QAbstractScrollArea):
             if selectedovi.index > 0:
                 band = band.GetOverview(selectedovi.index - 1)
 
-            data = band.ReadAsArray(x, y, xsize, ysize, winxsize, winysize )
+            data = band.ReadAsArray(overview_x, overview_y, overview_xsize, overview_ysize, winxsize, winysize )
 
             # Qt expects 32bit BGRA data for color images
             # our lut is already set up for this
@@ -512,7 +501,9 @@ class ViewerWidget(QAbstractScrollArea):
 
         # create QImage from numpy array
         # see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17961.html
-        self.image = QImage(bgra.data, winxsize, winysize, QImage.Format_RGB32)
+        # Since are alpa is always 255 we can use Format_ARGB32_Premultiplied which
+        # is supposedly faster
+        self.image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32_Premultiplied)
         self.image.ndarray = data # hold on to the data in case we
                             # want to change the lut and quickly re-apply it
 
@@ -520,12 +511,12 @@ class ViewerWidget(QAbstractScrollArea):
         # need to suppress processing of new scroll bar
         # events otherwise we end up in endless loop
         self.suppressscrollevent = True
-        self.horizontalScrollBar().setPageStep(xsize)
-        self.verticalScrollBar().setPageStep(ysize)
-        self.horizontalScrollBar().setRange(0, selectedovi.xsize - xsize)
-        self.verticalScrollBar().setRange(0, selectedovi.ysize - ysize)
-        self.horizontalScrollBar().setSliderPosition(x)
-        self.verticalScrollBar().setSliderPosition(y)
+        self.horizontalScrollBar().setPageStep(overview_xsize)
+        self.verticalScrollBar().setPageStep(overview_ysize)
+        self.horizontalScrollBar().setRange(0, selectedovi.xsize - overview_xsize)
+        self.verticalScrollBar().setRange(0, selectedovi.ysize - overview_ysize)
+        self.horizontalScrollBar().setSliderPosition(overview_x)
+        self.verticalScrollBar().setSliderPosition(overview_y)
         self.suppressscrollevent = False
 
         # force repaint
@@ -536,8 +527,8 @@ class ViewerWidget(QAbstractScrollArea):
         Handle the user moving the scroll bars
         """
         if not self.suppressscrollevent:
-            xamount = dx * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.viewfraction[0]
-            yamount = dy * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.viewfraction[1]
+            xamount = dx * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
+            yamount = dy * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
             self.windowfraction.moveView(xamount, yamount)
 
             self.getData()
