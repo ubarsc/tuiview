@@ -13,7 +13,7 @@ from . import viewererrors
 from . import viewerLUT
 
 
-VIEWER_SCROLL_MULTIPLIER = 0.000002 # number of pixels scrolled
+VIEWER_SCROLL_MULTIPLIER = 0.00002 # number of pixels scrolled
                                 # is multiplied by this to get fraction
 VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction 
                             # on zoom out/ zoom in
@@ -328,14 +328,10 @@ class ViewerWidget(QAbstractScrollArea):
         """
         Window has been resized - get new data
         """
-        oldsize = event.oldSize()
-        newsize = event.size()
-        # only bother grabbing more data
-        # if the area has got bigger
-        # the paint will just ignore the extra data if
-        # it is now smaller
-        if newsize.width() > oldsize.width() or newsize.height() > oldsize.height():
-            self.getData()
+        # should probably do something clever with
+        # only getting new data if bigger
+        # otherwise moving centre, but all too hard
+        self.getData()
                     
 
     def paintEvent(self, event):
