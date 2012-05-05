@@ -28,8 +28,8 @@ class ViewerWindow(QMainWindow):
 
         settings.endGroup()
 
-    def openFileInternal(self, fname, bands, mode, stretchmode):
-        self.viewwidget.open(fname, bands, mode, stretchmode)
+    def openFileInternal(self, fname, bands, stretch):
+        self.viewwidget.open(fname, bands, stretch)
         self.setWindowTitle(os.path.basename(fname))
 
     def closeEvent(self, event):

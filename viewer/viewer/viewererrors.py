@@ -10,3 +10,9 @@ class InvalidParameters(ViewerException):
 
 class InvalidColorTable(ViewerException):
     "A color table was requested but does not exist"
+
+class InvalidStretch(ViewerException):
+    "The requested stretch is invalid"
+
+class StatisticsError(ViewerException):
+    "Unable to retrieve statistics"

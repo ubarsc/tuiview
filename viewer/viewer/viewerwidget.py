@@ -4,24 +4,13 @@ Viewer Widget. Allows display of images,
 zooming and panning etc.
 """
 
-import sys
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter, QImage
+from PyQt4.QtGui import QAbstractScrollArea, QPainter
 from PyQt4.QtCore import Qt
 from osgeo import gdal
 
 from . import viewererrors
-
-# constants for specifying how to display an image to open()
-# as mode parameter
-VIEWER_MODE_COLORTABLE = 1
-VIEWER_MODE_GREYSCALE = 2
-VIEWER_MODE_RGB = 3
-
-VIEWER_STRETCHMODE_NONE = 0 # color table, or pre stretched data
-VIEWER_STRETCHMODE_LINEAR = 1
-VIEWER_STRETCHMODE_2STDDEV = 2
-VIEWER_STRETCHMODE_HIST = 3
+from . import viewerLUT
 
 
 VIEWER_SCROLL_MULTIPLIER = 0.000002 # number of pixels scrolled
@@ -29,21 +18,8 @@ VIEWER_SCROLL_MULTIPLIER = 0.000002 # number of pixels scrolled
 VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction 
                             # on zoom out/ zoom in
 
-BIG_ENDIAN = sys.byteorder == 'big'
-
 # raise exceptions rather than returning None
 gdal.UseExceptions()
-
-def bgraToNative(bgra):
-    """
-    Qt expects the colours in BGRA order packed into
-    a 32bit int. We do this by inserting stuff into
-    a 8 bit numpy array, but this is endian specific
-    """
-    if BIG_ENDIAN:
-        bgra.reverse()
-    return bgra
-
 
 class WindowFraction(object):
     """
@@ -192,10 +168,9 @@ class ViewerWidget(QAbstractScrollArea):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
         self.ds = None
+        self.transform = None
         self.overviews = OverviewManager()
-        self.lut = None # stretch is stored as a lookup table (0-255)
-                        # 2d lookup array for single band images (BGRA)
-                        # list of lut for each band for rgb
+        self.lut = viewerLUT.ViewerLUT()
         self.bands = None
         self.mode = None
         self.image = None
@@ -205,130 +180,11 @@ class ViewerWidget(QAbstractScrollArea):
         # events get fired that we wish to ignore
         self.suppressscrollevent = False
 
-    @staticmethod
-    def createColorTableLUT(gdalband):
-        """
-        Creates a LUT for a single band using 
-        the color table
-        """
-        ct = gdalband.GetColorTable()
-        if ct is not None and ct.GetPaletteInterpretation() == gdal.GPI_RGB:
-            # read in the colour table as lut
-            ctcount = ct.GetCount()
-            lut = numpy.empty((ctcount, 4), numpy.uint8)
-            for i in range(ctcount):
-                entry = ct.GetColorEntry(i)
-                # entry is RGBA, need to store as BGRA - always 255 for alpha for now
-                bgra = [entry[2], entry[1], entry[0], 255]
-                lut[i] = bgraToNative(bgra)
-            return lut
-        else:
-            msg = 'No color table present'
-            raise viewererrors.InvalidColorTable(msg)
 
-    @staticmethod
-    def createStretchLUT(gdalband, stretchmode):
-        """
-        Creates a LUT for a single band using the stretch
-        method specified
-        """
-        lutsize = 2 ** gdal.GetDataTypeSize(gdalband.DataType) 
-
-        if stretchmode == VIEWER_STRETCHMODE_NONE:
-            # just a linear stretch between 0 and 255
-            # for the range of possible values
-            lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
-            return lut
-
-        # following methods need stats
-        # need to catch this failing and calc statistics
-        # ourselves.
-        # not sure what happens on failure. Exception?
-        minVal, maxVal, mean, stdDev = gdalband.GetStatistics(0, 0)
-
-        if stretchmode == VIEWER_STRETCHMODE_LINEAR:
-            # just a linear stretch between 0 and 255
-            # for the range of the data
-            lut = numpy.empty(lutsize, numpy.uint8, 'C')
-            values = numpy.arange(lutsize)
-
-            minVal = int(minVal)
-            maxVal = int(maxVal)
-            lut = numpy.where(values < minVal, 0, lut)
-            lut = numpy.where(values >= maxVal, 255, lut)
-            mask = numpy.logical_and(values > minVal, values < maxVal)
-            linstretch = numpy.linspace(0, 255, num=(maxVal-minVal)).astype(numpy.uint8)
-            lut[minVal:maxVal] = linstretch
-            return lut
-
-        elif stretchmode == VIEWER_STRETCHMODE_2STDDEV:
-            # linear stretch 2 std deviations from the mean
-            stretchMin = mean - (2.0 * stdDev)
-            if stretchMin < minVal:
-                stretchMin = minVal
-            stretchMax = mean + (2.0 * stdDev)
-            if stretchMax > maxVal:
-                stretchMax = maxVal
-
-            stretchMin = int(stretchMin)
-            stretchMax = int(stretchMax)
-
-            lut = numpy.empty(lutsize, numpy.uint8, 'C')
-            values = numpy.arange(lutsize)
-
-            lut = numpy.where(values < stretchMin, 0, lut)
-            lut = numpy.where(values >= stretchMax, 255, lut)
-            mask = numpy.logical_and(values > stretchMin, values < stretchMax)
-            linstretch = numpy.linspace(0, 255, num=(stretchMax-stretchMin)).astype(numpy.uint8)
-            lut[stretchMin:stretchMax] = linstretch
-            return lut
-
-        elif stretchmode == VIEWER_STRETCHMODE_HIST:
-            # must do progress
-            numBins = int(numpy.ceil(maxVal - minVal))
-            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, include_out_of_range=0, approx_ok=0)
-            sumPxl = sum(histo)
-
-            # Pete: what is this based on?
-            bandLower = sumPxl * 0.025
-            bandUpper = sumPxl * 0.01
-
-            # calc min and max from histo
-            # find bin number that bandLower/Upper fall into 
-            # maybe we can do better with numpy?
-            sumVals = 0
-            for i in range(numBins):
-                sumVals = sumVals + histo[i]
-                if sumVals > bandLower:
-                    stretchMin = minVal + ((maxVal - minVal) * (i / numBins))
-                    break
-            sumVals = 0
-            for i in range(numBins):
-                sumVals = sumVals + histo[-i]
-                if sumVals > bandUpper:
-                    stretchMax = maxVal + ((maxVal - minVal) * ((numBins - i - 1) / numBins))
-                    break
-
-            lut = numpy.empty(lutsize, numpy.uint8, 'C')
-            values = numpy.arange(lutsize)
-
-            lut = numpy.where(values < stretchMin, 0, lut)
-            lut = numpy.where(values >= stretchMax, 255, lut)
-            mask = numpy.logical_and(values > stretchMin, values < stretchMax)
-            linstretch = numpy.linspace(0, 255, num=(stretchMax-stretchMin)).astype(numpy.uint8)
-            lut[stretchMin:stretchMax] = linstretch
-            return lut
-
-        else:
-            msg = 'unsupported stretch mode'
-            raise viewererrors.InvalidParameters(msg)
-        
-
-    def open(self, fname, bands, mode, stretchmode=VIEWER_STRETCHMODE_NONE):
+    def open(self, fname, bands, stretch):
         """
         Displays the specified image using bands (a tuple of 1 based indices)
-        and a specified mode (one of VIEWER_MODE_*) and a way of performing that mode
-        (on of VIEWER_STRETCHMODE_*).
+        and ViewerStretch instance
         This should be called after widget first shown to
         avoid unnecessary redraws
         """
@@ -340,13 +196,7 @@ class ViewerWidget(QAbstractScrollArea):
         if transform[2] != 0 or transform[4] != 0 or transform[1] != -transform[5]:
             msg = 'Only currently support square pixels and non-rotated images'
             raise viewererrors.InvalidDataset(msg)
-
-        # not sure what floating point means for LUT
-        # need to think about it
-        dtype = self.ds.GetRasterBand(1).DataType
-        if dtype == gdal.GDT_Float32 or dtype == gdal.GDT_Float64:
-            msg = 'Only support integer types at present'
-            raise viewererrors.InvalidDataset(msg)
+        self.transform = transform
 
         # load the valid overviews
         self.overviews.loadOverviewInfo(self.ds, bands)
@@ -355,55 +205,9 @@ class ViewerWidget(QAbstractScrollArea):
         size = self.viewport().size()
         self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
         self.bands = bands
-        self.mode = mode
 
-        if mode == VIEWER_MODE_COLORTABLE:
-
-            if len(bands) > 1:
-                msg = 'specify one band when opening a color table image'
-                raise viewererrors.InvalidParameters(msg)
-
-            if stretchmode != VIEWER_STRETCHMODE_NONE:
-                msg = 'stretchmode should be set to none for color tables'
-                raise viewererrors.InvalidParameters(msg)
-
-            band = bands[0]
-            gdalband = self.ds.GetRasterBand(band)
-
-            self.lut = self.createColorTableLUT(gdalband)
-
-        elif mode == VIEWER_MODE_GREYSCALE:
-            if len(bands) > 1:
-                msg = 'specify one band when opening a greyscale image'
-                raise viewererrors.InvalidParameters(msg)
-            band = bands[0]
-            gdalband = self.ds.GetRasterBand(band)
-
-            lut = self.createStretchLUT( gdalband, stretchmode )
-            alpha = numpy.zeros_like(lut) + 255
-            bgra = bgraToNative([lut, lut, lut, alpha])
-            
-            # just repeat the lut for each color to make it grey
-            # column_stack seems to create Fortran arrays which stuffs up
-            # the creation of QImage's from it.
-            self.lut = numpy.column_stack(bgra).copy('C')
-
-        elif mode == VIEWER_MODE_RGB:
-            if len(bands) != 3:
-                msg = 'must specify 3 bands when opening rgb'
-                raise viewererrors.InvalidParameters(msg)
-
-            luts = []
-            bands.reverse() # user supplies RGB, we want BGR
-            for band in bands:
-                gdalband = self.ds.GetRasterBand(band)
-                lut = self.createStretchLUT( gdalband, stretchmode )
-                luts.append(lut)
-            self.lut = luts
-            
-        else:
-            msg = 'unsupported display mode'
-            raise viewererrors.InvalidParameters(msg)
+        # read in the LUT
+        self.lut.createLUT(self.ds, bands, stretch)
 
         # now go and retrieve the data for the image
         self.getData()
@@ -433,6 +237,7 @@ class ViewerWidget(QAbstractScrollArea):
 
         fullres_winxsize = winxsize * imgpixperwinpix
         fullres_winysize = winysize * imgpixperwinpix
+        # adjust if the window is bigger than we need
         if fullres_winxsize > fullres.xsize:
             fullres_winxsize = fullres.xsize
             winxsize = fullres_winxsize / imgpixperwinpix
@@ -460,32 +265,18 @@ class ViewerWidget(QAbstractScrollArea):
         overview_x = int(overview_centrex - (overview_xsize / 2.0))
         overview_y = int(overview_centrey - (overview_ysize / 2.0))
 
-        if self.mode == VIEWER_MODE_RGB:
-
-            # have to read 3 layers in
-            # must be more efficient way
-
-            lutindex = 0
-            bgralist = []
+        if len(self.bands) == 3:
+            # rgb
+            datalist = []
             for bandnum in self.bands:
                 band = self.ds.GetRasterBand(bandnum)
                 if selectedovi.index > 0:
                     band = band.GetOverview(selectedovi.index - 1)
 
                 data = band.ReadAsArray(overview_x, overview_y, overview_xsize, overview_ysize, winxsize, winysize )
-                # apply the lut on this band
-                bandbgra = self.lut[lutindex][data]
-                bgralist.append(bandbgra)
-                lutindex += 1
-
-            bgralist.append(numpy.zeros_like(bandbgra) + 255) # alpha for rgb? set to 255
-
-            bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8)
-            bgralist = bgraToNative(bgralist)
-            lutindex = 0
-            for b in bgralist:
-                bgra[...,lutindex] = b
-                lutindex += 1
+                datalist.append(data)
+            
+            self.image = self.lut.applyLUTRGB(datalist)
 
         else:
             # must be single band
@@ -495,17 +286,7 @@ class ViewerWidget(QAbstractScrollArea):
 
             data = band.ReadAsArray(overview_x, overview_y, overview_xsize, overview_ysize, winxsize, winysize )
 
-            # Qt expects 32bit BGRA data for color images
-            # our lut is already set up for this
-            bgra = self.lut[data]
-
-        # create QImage from numpy array
-        # see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17961.html
-        # Since are alpa is always 255 we can use Format_ARGB32_Premultiplied which
-        # is supposedly faster
-        self.image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32_Premultiplied)
-        self.image.ndarray = data # hold on to the data in case we
-                            # want to change the lut and quickly re-apply it
+            self.image = self.lut.applyLUTSingle(data)
 
         # reset the scroll bars for new extent of window
         # need to suppress processing of new scroll bar
