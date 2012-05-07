@@ -126,8 +126,32 @@ class ViewerLUT(object):
         Save current stretch to a text file
         so it can be stored and manipulated
         """
-        # must to scales, offsets, mins and maxs also
-        numpy.savetxt(fname, self.lut, fmt='%6.3f')
+        fileobj = open(fname, 'w')
+
+        if self.lut.shape[1] == 4:
+            # color table - just one bandinfo - write it out
+            bi = self.bandinfo
+            fmt = 'scale = %f offset = %f lutsize = %d min = %f max = %f'
+            fmt = fmt % (bi.scale, bi.offset, bi.lutsize, bi.min, bi.max)
+            fileobj.write(fmt)
+            for code in RGB_CODES:
+                lutindex = CODE_TO_LUTINDEX[code]
+                lut = self.lut[...,lutindex]
+                numpy.savetxt(fileobj, lut, fmt='%6.3f')
+        else:
+            # rgb
+            for code in RGB_CODES:
+                lutindex = CODE_TO_LUTINDEX[code]
+
+                bi = self.bandinfo[code]
+                fmt = 'scale = %f offset = %f lutsize = %f min = %f max = %f'
+                fmt = fmt % (bi.scale, bi.offset, bi.lutsize, bi.min, bi.max)
+                fileobj.write(fmt)
+
+                lut = self.lut[lutindex]
+                numpy.savetxt(fileobj, lut, fmt='%6.3f')
+
+        fileobj.close()
 
     def loadColorTable(self, gdalband):
         """
@@ -220,9 +244,6 @@ class ViewerLUT(object):
             msg = 'unsupported stretch mode'
             raise viewererrors.InvalidParameters(msg)
 
-        # create an array with the actual values so we can index/max
-        values = numpy.linspace(bandinfo.min, bandinfo.max, bandinfo.lutsize)
-        
         # the location of the min/max values in the LUT
         minLoc = int((stretchMin + bandinfo.offset) * bandinfo.scale)
         maxLoc = int((stretchMax + bandinfo.offset) * bandinfo.scale)
@@ -231,8 +252,8 @@ class ViewerLUT(object):
         lut = numpy.empty(bandinfo.lutsize, numpy.uint8, 'C')
 
         # set values outside to 0/255
-        lut = numpy.where(values < stretchMin, 0, lut)
-        lut = numpy.where(values >= stretchMax, 255, lut)
+        lut[0:minLoc] = 0
+        lut[maxLoc:bandinfo.lutsize] = 255
 
         # create the stretch between stretchMin/Max ind insert into LUT 
         # at right place
