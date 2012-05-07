@@ -226,7 +226,6 @@ class ViewerLUT(object):
         # the location of the min/max values in the LUT
         minLoc = int((stretchMin + bandinfo.offset) * bandinfo.scale)
         maxLoc = int((stretchMax + bandinfo.offset) * bandinfo.scale)
-        print minLoc, maxLoc
 
         # create the LUT
         lut = numpy.empty(bandinfo.lutsize, numpy.uint8, 'C')
@@ -277,8 +276,8 @@ class ViewerLUT(object):
             # must be float or 32bit int
             # scale to the range of the data
             minVal, maxVal, mean, stdDev = self.getStatisticsWithProgress(gdalband)
-            scale = -minVal
-            offset = (maxVal - minVal) / DEFAULT_LUTSIZE
+            offset = -minVal
+            scale = (maxVal - minVal) / DEFAULT_LUTSIZE
             lutsize = DEFAULT_LUTSIZE
             min = minVal
             max = maxVal
@@ -410,9 +409,13 @@ class ViewerLUT(object):
         for (data, code) in zip(datalist, RGB_CODES):
             lutindex = CODE_TO_LUTINDEX[code]
             bandinfo = self.bandinfo[code]
-            
+
             # apply scaling
             data = (data + bandinfo.offset) * bandinfo.scale
+            # can only do lookups with integer data
+            if numpy.issubdtype(data.dtype, numpy.floating):
+                data = data.astype(numpy.integer)
+
             # do the lookup
             bgra[...,lutindex] = self.lut[lutindex][data]
         
