@@ -6,6 +6,7 @@ amongst other things
 
 import sys
 import numpy
+import json
 from PyQt4.QtGui import QImage
 from osgeo import gdal
 from . import viewererrors
@@ -129,27 +130,34 @@ class ViewerLUT(object):
         fileobj = open(fname, 'w')
 
         if self.lut.shape[1] == 4:
+            rep = {'nbands' : 1}
+            fileobj.write('%s\n' % json.dumps(rep))
+
             # color table - just one bandinfo - write it out
             bi = self.bandinfo
-            fmt = 'scale = %f offset = %f lutsize = %d min = %f max = %f'
-            fmt = fmt % (bi.scale, bi.offset, bi.lutsize, bi.min, bi.max)
-            fileobj.write(fmt)
+            rep = {'scale' : bi.scale, 'offset' : bi.offset, 
+                        'lutsize' : bi.lutsize, 'min' : bi.min, 'max' : bi.max}
+            fileobj.write('%s\n' % json.dumps(rep))
             for code in RGB_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
                 lut = self.lut[...,lutindex]
-                numpy.savetxt(fileobj, lut, fmt='%6.3f')
+                rep = {'code' : code, 'data' : lut.tolist()}
+                fileobj.write('%s\n' % json.dumps(rep))
         else:
             # rgb
+            rep = {'nbands' : 3}
+            fileobj.write('%s\n' % json.dumps(rep))
             for code in RGB_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
-
                 bi = self.bandinfo[code]
-                fmt = 'scale = %f offset = %f lutsize = %f min = %f max = %f'
-                fmt = fmt % (bi.scale, bi.offset, bi.lutsize, bi.min, bi.max)
-                fileobj.write(fmt)
+
+                rep = {'code' : code, 'scale' : bi.scale, 'offset' : bi.offset, 
+                        'lutsize' : bi.lutsize, 'min' : bi.min, 'max' : bi.max}
+                fileobj.write('%s\n' % json.dumps(rep))
 
                 lut = self.lut[lutindex]
-                numpy.savetxt(fileobj, lut, fmt='%6.3f')
+                rep = {'data' : lut.tolist()}
+                fileobj.write('%s\n' % json.dumps(rep))
 
         fileobj.close()
 
