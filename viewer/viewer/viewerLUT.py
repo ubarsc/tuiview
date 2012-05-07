@@ -161,6 +161,52 @@ class ViewerLUT(object):
 
         fileobj.close()
 
+    @staticmethod
+    def createFromFile(fname):
+
+        lutobj = ViewerLUT()
+        fileobj = open(fname)
+        s = fileobj.readline()
+        rep = json.loads(s)
+        nbands = rep['nbands']
+        if nbands == 1:
+            # color table
+            s = fileobj.readline()
+            rep = json.loads(s)
+            bi = BandLUTInfo(rep['scale'], rep['offset'], 
+                    rep['lutsize'], rep['min'], rep['max'])
+            lutobj.bandinfo = bi
+            lutobj.lut = numpy.empty((bi.lutsize, 4), numpy.uint8, 'C')
+            for n in range(len(RGB_CODES)):
+                s = fileobj.readline()
+                rep = json.loads(s)
+                code = rep['code']
+                lut = numpy.fromiter(rep['data'], numpy.uint8)
+                lutindex = CODE_TO_LUTINDEX[code]
+                lutobj.lut[...,lutindex] = lut
+        else:
+            # rgb
+            lutobj.bandinfo = {}
+            for n in range(len(RGB_CODES)):
+                s = fileobj.readline()
+                rep = json.loads(s)
+                bi = BandLUTInfo(rep['scale'], rep['offset'],
+                        rep['lutsize'], rep['min'], rep['max'])
+                code = rep['code']
+                lutobj.bandinfo[code] = bi
+                lutindex = CODE_TO_LUTINDEX[code]
+
+                if lutobj.lut is None:
+                    lutobj.lut = numpy.empty((4, bi.lutsize), numpy.uint8, 'C')
+        
+                s = fileobj.readline()
+                rep = json.loads(s)
+                lut = numpy.fromiter(rep['data'], numpy.uint8)
+                lutobj.lut[lutindex] = lut
+
+        fileobj.close()
+        return lutobj
+
     def loadColorTable(self, gdalband):
         """
         Creates a LUT for a single band using 
