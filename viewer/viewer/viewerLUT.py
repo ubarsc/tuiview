@@ -115,7 +115,7 @@ class ViewerLUT(object):
     """
     def __init__(self):
         # array shape [lutsize,4] for color table and greyscale
-        # shape [3, lutsize] for RGB
+        # shape [4, lutsize] for RGB
         self.lut = None
         # a single BandLUTInfo instance for single band
         # dictionary keyed on code for RGB
@@ -378,9 +378,9 @@ class ViewerLUT(object):
                 bandinfo = self.getInfoForBand(gdalband)
 
                 if self.lut == None:
-                    # LUT is shape [3,lutsize]. We apply the stretch seperately
-                    # to each band. Order is RGB (native order to make things easier)
-                    self.lut = numpy.empty((3, bandinfo.lutsize), numpy.uint8, 'C')
+                    # LUT is shape [4,lutsize]. We apply the stretch seperately
+                    # to each band. Order is RGBA (native order to make things easier)
+                    self.lut = numpy.empty((4, bandinfo.lutsize), numpy.uint8, 'C')
                 elif self.lut.shape[1] != bandinfo.lutsize:
                     msg = 'cannot handle bands with different LUT sizes'
                     raise viewererrors.InvalidStretch(msg)
