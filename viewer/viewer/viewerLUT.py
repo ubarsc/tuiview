@@ -226,6 +226,7 @@ class ViewerLUT(object):
         # the location of the min/max values in the LUT
         minLoc = int((stretchMin + bandinfo.offset) * bandinfo.scale)
         maxLoc = int((stretchMax + bandinfo.offset) * bandinfo.scale)
+        print minLoc, maxLoc
 
         # create the LUT
         lut = numpy.empty(bandinfo.lutsize, numpy.uint8, 'C')
