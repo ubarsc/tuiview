@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/viewer/images" >
+        <file>open.png</file>
+    </qresource>
+</RCC>
+

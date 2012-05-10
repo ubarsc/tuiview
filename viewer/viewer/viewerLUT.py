@@ -80,12 +80,36 @@ class ViewerStretch(object):
     def setStdDevStretch(self, stddev=2.0):
         "Do a standard deviation stretch"
         self.stretchmode = VIEWER_STRETCHMODE_STDDEV
-        self.stretchparam = stddev
+        self.stretchparam = (stddev,)
 
     def setHistStretch(self, min=0.025, max=0.01):
         "Do a histogram stretch"
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (min, max)
+
+    def toString(self, bands=None, name=None):
+        rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
+                'stretchparam' : self.stretchparam }
+        if not bands is None:
+            rep['bands'] = bands
+        if not name is None:
+            rep['name'] = name
+        return json.dumps(rep)
+
+    @staticmethod
+    def fromString(string):
+        rep = json.loads(str(string))
+
+        obj = ViewerStretch()
+        obj.mode = rep['mode']
+        obj.stretchmode = rep['stretchmode']
+        obj.stretchparam = rep['stretchparam']
+
+        if 'bands' in rep:
+            obj.bands = rep['bands']
+        if 'name' in rep:
+            obj.name = rep['name']
+        return obj
 
     @staticmethod
     def createForFile(filename):
@@ -257,7 +281,7 @@ class ViewerLUT(object):
 
         elif stretch.stretchmode == VIEWER_STRETCHMODE_STDDEV:
             # linear stretch n std deviations from the mean
-            nstddev = stretch.stretchparam
+            nstddev = stretch.stretchparam[0]
 
             stretchMin = mean - (nstddev * stdDev)
             if stretchMin < minVal:
