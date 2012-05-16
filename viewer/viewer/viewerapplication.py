@@ -4,7 +4,7 @@ import optparse
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
-from . import viewerLUT
+from . import viewerstretch
 
 def optionCallback(option, opt_str, value, parser):
     if opt_str == '-c' or opt_str == '--colortable':
@@ -21,17 +21,21 @@ def optionCallback(option, opt_str, value, parser):
         parser.stretch.setStdDevStretch()
     elif opt_str == '--hist':
         parser.stretch.setHistStretch()
+    elif opt_str == '-b' or opt_str == '--bands':
+        bandlist = [int(x) for x in value.split(',')]
+        parser.stretch.setBands(bandlist)
     else:
         raise ValueError("Unknown option %s" % opt_str)
 
 class CmdArgs(object):
     def __init__(self):
         self.parser = optparse.OptionParser()
-        self.parser.stretch = viewerLUT.ViewerStretch()
+        self.parser.stretch = viewerstretch.ViewerStretch()
 
 
         self.parser.add_option('-f', '--filename', dest="filename", help="Image to display")
-        self.parser.add_option('-b', '--bands', dest="bands", help="comma seperated list of bands to display")
+        self.parser.add_option('-b', '--bands', action="callback", callback=optionCallback,
+                            type="string", nargs=1,  help="comma seperated list of bands to display")
         self.parser.add_option('-c', '--colortable', action="callback", callback=optionCallback,
                                             help="Apply color table to image")
         self.parser.add_option('-g', '--greyscale', action="callback", callback=optionCallback,
@@ -54,12 +58,10 @@ class CmdArgs(object):
             print 'must specify filename'
             self.parser.print_help()
             sys.exit()
-        elif self.bands is None:
+        elif self.parser.stretch.bands is None:
             print 'must specify bands to display'
             self.parser.print_help()
             sys.exit()
-
-        self.bandlist = [int(x) for x in self.bands.split(',')]
 
 class ViewerApplication(QApplication):
     def __init__(self):
@@ -76,5 +78,5 @@ class ViewerApplication(QApplication):
 
         # need to do this after show() otherwise
         # window size is wrong for some reason
-        self.mainw.openFileInternal(cmdargs.filename, cmdargs.bandlist, cmdargs.parser.stretch)
+        self.mainw.openFileInternal(cmdargs.filename, cmdargs.parser.stretch)
 

@@ -10,20 +10,9 @@ import json
 from PyQt4.QtGui import QImage
 from osgeo import gdal
 from . import viewererrors
+from . import viewerstretch
 
-
-# constants for specifying how to display an image 
-VIEWER_MODE_DEFAULT = 0
-VIEWER_MODE_COLORTABLE = 1
-VIEWER_MODE_GREYSCALE = 2
-VIEWER_MODE_RGB = 3
-
-# how to stretch an image
-VIEWER_STRETCHMODE_DEFAULT = 0
-VIEWER_STRETCHMODE_NONE = 1 # color table, or pre stretched data
-VIEWER_STRETCHMODE_LINEAR = 2
-VIEWER_STRETCHMODE_STDDEV = 3
-VIEWER_STRETCHMODE_HIST = 4
+gdal.UseExceptions()
 
 # are we big endian or not?
 BIG_ENDIAN = sys.byteorder == 'big'
@@ -44,80 +33,6 @@ else:
 
 # to save creating this tuple all the time
 RGB_CODES = ('r', 'g', 'b')
-
-class ViewerStretch(object):
-    """
-    Class that represents the stretch. 
-    Use the methods here to set the type of
-    stretch you want.
-    """
-    def __init__(self):
-        self.mode = VIEWER_MODE_DEFAULT
-        self.stretchmode = VIEWER_STRETCHMODE_DEFAULT
-        self.stretchparam = None
-
-    def setColorTable(self):
-        "Use the color table in the image"
-        self.mode = VIEWER_MODE_COLORTABLE
-        self.stretchmode = VIEWER_STRETCHMODE_NONE
-
-    def setGreyScale(self):
-        "Display a single band in greyscale"
-        self.mode = VIEWER_MODE_GREYSCALE
-
-    def setRGB(self):
-        "Display 3 bands as RGB"
-        self.mode = VIEWER_MODE_RGB
-
-    def setNoStretch(self):
-        "Don't do a stretch - data is already stretched"
-        self.stretchmode = VIEWER_STRETCHMODE_NONE
-
-    def setLinearStretch(self):
-        "Just stretch linearly between min and max values"
-        self.stretchmode = VIEWER_STRETCHMODE_LINEAR
-
-    def setStdDevStretch(self, stddev=2.0):
-        "Do a standard deviation stretch"
-        self.stretchmode = VIEWER_STRETCHMODE_STDDEV
-        self.stretchparam = (stddev,)
-
-    def setHistStretch(self, min=0.025, max=0.01):
-        "Do a histogram stretch"
-        self.stretchmode = VIEWER_STRETCHMODE_HIST
-        self.stretchparam = (min, max)
-
-    def toString(self, bands=None, name=None):
-        rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
-                'stretchparam' : self.stretchparam }
-        if not bands is None:
-            rep['bands'] = bands
-        if not name is None:
-            rep['name'] = name
-        return json.dumps(rep)
-
-    @staticmethod
-    def fromString(string):
-        rep = json.loads(str(string))
-
-        obj = ViewerStretch()
-        obj.mode = rep['mode']
-        obj.stretchmode = rep['stretchmode']
-        obj.stretchparam = rep['stretchparam']
-
-        if 'bands' in rep:
-            obj.bands = rep['bands']
-        if 'name' in rep:
-            obj.name = rep['name']
-        return obj
-
-    @staticmethod
-    def createForFile(filename):
-        """
-        See if there is an entry in the GDAL metadata,
-        otherwise construct using standard rules
-        """
-        return None
 
 
 class BandLUTInfo(object):
@@ -263,7 +178,7 @@ class ViewerLUT(object):
         method specified and returns it
         """
 
-        if stretch.stretchmode == VIEWER_STRETCHMODE_NONE:
+        if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_NONE:
             # just a linear stretch between 0 and 255
             # for the range of possible values
             lut = numpy.linspace(0, 255, num=bandinfo.lutsize).astype(numpy.uint8)
@@ -274,12 +189,12 @@ class ViewerLUT(object):
 
         # code below sets stretchMin and stretchMax
 
-        if stretch.stretchmode == VIEWER_STRETCHMODE_LINEAR:
+        if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
             # stretch between reported min and max
             stretchMin = minVal
             stretchMax = maxVal
 
-        elif stretch.stretchmode == VIEWER_STRETCHMODE_STDDEV:
+        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             # linear stretch n std deviations from the mean
             nstddev = stretch.stretchparam[0]
 
@@ -290,7 +205,7 @@ class ViewerLUT(object):
             if stretchMax > maxVal:
                 stretchMax = maxVal
 
-        elif stretch.stretchmode == VIEWER_STRETCHMODE_HIST:
+        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             # must do progress
             numBins = int(numpy.ceil(maxVal - minVal))
             histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, include_out_of_range=0, approx_ok=0)
@@ -388,18 +303,19 @@ class ViewerLUT(object):
         """
         Main function
         """
-        if stretch.mode == VIEWER_MODE_DEFAULT or stretch.stretchmode == VIEWER_STRETCHMODE_DEFAULT:
+        if stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or \
+                stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT:
             msg = 'must set mode and stretchmode'
             raise viewererrors.InvalidStretch(msg)
 
         # decide what to do based on the ode
-        if stretch.mode == VIEWER_MODE_COLORTABLE:
+        if stretch.mode == viewerstretch.VIEWER_MODE_COLORTABLE:
 
             if len(bands) > 1:
                 msg = 'specify one band when opening a color table image'
                 raise viewererrors.InvalidParameters(msg)
 
-            if stretch.stretchmode != VIEWER_STRETCHMODE_NONE:
+            if stretch.stretchmode != viewerstretch.VIEWER_STRETCHMODE_NONE:
                 msg = 'stretchmode should be set to none for color tables'
                 raise viewererrors.InvalidParameters(msg)
 
@@ -419,7 +335,7 @@ class ViewerLUT(object):
             # load the color table
             self.loadColorTable(gdalband)
 
-        elif stretch.mode == VIEWER_MODE_GREYSCALE:
+        elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(bands) > 1:
                 msg = 'specify one band when opening a greyscale image'
                 raise viewererrors.InvalidParameters(msg)
@@ -440,7 +356,7 @@ class ViewerLUT(object):
                 lutindex = CODE_TO_LUTINDEX[code]
                 self.lut[...,lutindex] = lut
 
-        elif stretch.mode == VIEWER_MODE_RGB:
+        elif stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             if len(bands) != 3:
                 msg = 'must specify 3 bands when opening rgb'
                 raise viewererrors.InvalidParameters(msg)

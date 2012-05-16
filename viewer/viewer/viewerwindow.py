@@ -161,8 +161,8 @@ class ViewerWindow(QMainWindow):
             print 'opening', fname
 
 
-    def openFileInternal(self, fname, bands, stretch):
-        self.viewwidget.open(fname, bands, stretch)
+    def openFileInternal(self, fname, stretch):
+        self.viewwidget.open(fname, stretch)
         self.setWindowTitle(os.path.basename(fname))
 
     def closeEvent(self, event):

@@ -181,7 +181,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.suppressscrollevent = False
 
 
-    def open(self, fname, bands, stretch):
+    def open(self, fname, stretch):
         """
         Displays the specified image using bands (a tuple of 1 based indices)
         and ViewerStretch instance
@@ -198,16 +198,18 @@ class ViewerWidget(QAbstractScrollArea):
             raise viewererrors.InvalidDataset(msg)
         self.transform = transform
 
+        # store the bands
+        self.bands = stretch.bands
+
         # load the valid overviews
-        self.overviews.loadOverviewInfo(self.ds, bands)
+        self.overviews.loadOverviewInfo(self.ds, self.bands)
 
         # reset these values
         size = self.viewport().size()
         self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
-        self.bands = bands
 
         # read in the LUT
-        self.lut.createLUT(self.ds, bands, stretch)
+        self.lut.createLUT(self.ds, self.bands, stretch)
 
         # now go and retrieve the data for the image
         self.getData()
