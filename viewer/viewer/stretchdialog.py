@@ -256,41 +256,42 @@ class StretchDefaultsDialog(QDialog):
         # grab the rules from the setting
         # this supplies some default rules if none
         ruleList = self.fromSettings()
-        self.widgetList = []
         count = 1
         # go through each rule
         for rule in ruleList:
-
-            # create a widget that contains the rule/stretch
-            widget = QWidget()
-    
-            # create the rule layout and put it into a group box
-            widget.ruleLayout = RuleLayout(widget, rule)
-            widget.ruleGroup = QGroupBox('Rule')
-            widget.ruleGroup.setLayout(widget.ruleLayout)
-
-            # create the stretch layout and put it into a group box
-            widget.stretchLayout = StretchLayout(widget, rule.stretch)
-            widget.stretchGroup = QGroupBox("Stretch")
-            widget.stretchGroup.setLayout(widget.stretchLayout)
-
-            # create a layout for the group boxes
-            widget.mainLayout = QVBoxLayout(widget)
-            widget.mainLayout.addWidget(widget.ruleGroup)
-            widget.mainLayout.addWidget(widget.stretchGroup)
-
-            # set the layout
-            widget.setLayout(widget.mainLayout)
+            # create a widget for it
+            widget = self.createWidget(rule, rule.stretch)
 
             # add the widget as a new tab
             name = "Rule %d" % count
             self.tabWidget.addTab(widget, name)
-            self.widgetList.append(widget)
             count += 1
 
         # now sort out the rest of the dialog
         self.mainLayout = QVBoxLayout(self)
         self.mainLayout.addWidget(self.tabWidget)
+
+        # new and delete buttons
+        self.newBeforeButton = QPushButton(self)
+        self.newBeforeButton.setText("New Rule Before")
+        self.connect(self.newBeforeButton, SIGNAL("clicked()"), self.onNewBefore)
+
+        self.newAfterButton = QPushButton(self)
+        self.newAfterButton.setText("New Rule After")
+        self.connect(self.newAfterButton, SIGNAL("clicked()"), self.onNewAfter)
+
+        self.deleteRuleButton = QPushButton(self)
+        self.deleteRuleButton.setText("Delete This Rule")
+        if len(ruleList) <= 1:
+            self.deleteRuleButton.setEnabled(False)
+        self.connect(self.deleteRuleButton, SIGNAL("clicked()"), self.onDelete)
+
+        self.newDeleteLayout = QHBoxLayout()
+        self.newDeleteLayout.addWidget(self.newBeforeButton)
+        self.newDeleteLayout.addWidget(self.newAfterButton)
+        self.newDeleteLayout.addWidget(self.deleteRuleButton)
+
+        self.mainLayout.addLayout(self.newDeleteLayout)
 
         # ok and cancel buttons
         self.okButton = QPushButton(self)
@@ -311,6 +312,30 @@ class StretchDefaultsDialog(QDialog):
         self.setWindowTitle("Default Stretch")
         self.setSizeGripEnabled(True)
         self.resize(600,400)
+
+    def createWidget(self, rule, stretch):
+        # create a widget that contains the rule/stretch
+        widget = QWidget()
+    
+        # create the rule layout and put it into a group box
+        widget.ruleLayout = RuleLayout(widget, rule)
+        widget.ruleGroup = QGroupBox('Rule')
+        widget.ruleGroup.setLayout(widget.ruleLayout)
+
+        # create the stretch layout and put it into a group box
+        widget.stretchLayout = StretchLayout(widget, stretch)
+        widget.stretchGroup = QGroupBox("Stretch")
+        widget.stretchGroup.setLayout(widget.stretchLayout)
+
+        # create a layout for the group boxes
+        widget.mainLayout = QVBoxLayout(widget)
+        widget.mainLayout.addWidget(widget.ruleGroup)
+        widget.mainLayout.addWidget(widget.stretchGroup)
+
+        # set the layout
+        widget.setLayout(widget.mainLayout)
+
+        return widget
 
     @staticmethod
     def fromSettings():
@@ -392,7 +417,9 @@ class StretchDefaultsDialog(QDialog):
         # go through each tab and turn
         # rules into JSON string and append to list
         defaultRulesList = []
-        for widget in self.widgetList:
+        nwidgets = self.tabWidget.count()
+        for index in range(nwidgets):
+            widget = self.tabWidget.widget(index)
             stretch = widget.stretchLayout.getStretch()
             rule = widget.ruleLayout.getRule()
             rule.stretch = stretch
@@ -406,6 +433,15 @@ class StretchDefaultsDialog(QDialog):
 
         settings.endGroup()
         
+    def renumberTabs(self):
+        """
+        A tab has been added or deleted so renumber
+        the tabs
+        """
+        ntabs = self.tabWidget.count()
+        for index in range(ntabs):
+            name = "Rule %d" % (index + 1)
+            self.tabWidget.setTabText(index, name)
 
     def onOK(self):
         """
@@ -414,4 +450,55 @@ class StretchDefaultsDialog(QDialog):
         self.toSettings()
         QDialog.accept(self)
 
+    def onNewBefore(self):
+        """
+        The 'add new page before' button pressed. 
+        Add a new page in with the rule/stretch
+        same as current page
+        """
+        # get the current page and rule/stretch
+        currentWidget = self.tabWidget.currentWidget()
+        currentIndex = self.tabWidget.currentIndex()
+        rule = currentWidget.ruleLayout.getRule()
+        stretch = currentWidget.stretchLayout.getStretch()
 
+        # create a new tab
+        newWidget = self.createWidget(rule, stretch)
+        self.tabWidget.setUpdatesEnabled(False) # reduce flicker
+        self.tabWidget.insertTab(currentIndex, newWidget, "new rule")
+        self.deleteRuleButton.setEnabled(True)
+        self.renumberTabs() # make sure the numbers in order
+        self.tabWidget.setUpdatesEnabled(True) # reduce flicker
+
+    def onNewAfter(self):
+        """
+        The 'add new page after' button pressed. 
+        Add a new page in with the rule/stretch
+        same as current page
+        """
+        # get the current page and rule/stretch
+        currentWidget = self.tabWidget.currentWidget()
+        currentIndex = self.tabWidget.currentIndex()
+        rule = currentWidget.ruleLayout.getRule()
+        stretch = currentWidget.stretchLayout.getStretch()
+
+        # create a new tab
+        newWidget = self.createWidget(rule, stretch)
+        self.tabWidget.setUpdatesEnabled(False) # reduce flicker
+        self.tabWidget.insertTab(currentIndex + 1, newWidget, "new rule")
+        self.deleteRuleButton.setEnabled(True)
+        self.renumberTabs() # make sure the numbers in order
+        self.tabWidget.setUpdatesEnabled(True) # reduce flicker
+
+    def onDelete(self):
+        """
+        Delete the current page.
+        """
+        currentIndex = self.tabWidget.currentIndex()
+        self.tabWidget.setUpdatesEnabled(False) # reduce flicker
+        self.tabWidget.removeTab(currentIndex)
+        
+        if self.tabWidget.count() <= 1:
+            self.deleteRuleButton.setEnabled(False)
+        self.renumberTabs()
+        self.tabWidget.setUpdatesEnabled(True) # reduce flicker

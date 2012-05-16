@@ -146,12 +146,18 @@ class ViewerWindow(QMainWindow):
         statusbar.setSizeGripEnabled(True)
 
     def defaultStretch(self):
+        """
+        Show the default stretch dialog
+        """
         from . import stretchdialog
         dlg = stretchdialog.StretchDefaultsDialog(self)
         dlg.exec_()
 
     def openFile(self):
-
+        """
+        User has asked to open a file. Show file
+        dialog and open file
+        """
         from osgeo import gdal
         populateFilters()
         dlg = QFileDialog(self)
@@ -167,9 +173,10 @@ class ViewerWindow(QMainWindow):
         if stretch is None:
             # first see if it has a stretch saved in the file
             from osgeo import gdal
-            gdaldataset = gdal.Open(fname)
-            if gdaldataset is None:
-                QMessageBox.critical(MESSAGE_TITLE, "Unable to open %s" % fname)
+            try:
+                gdaldataset = gdal.Open(fname)
+            except RuntimeError:
+                QMessageBox.critical(self, MESSAGE_TITLE, "Unable to open %s" % fname)
                 return
             
             from . import viewerstretch
@@ -183,18 +190,23 @@ class ViewerWindow(QMainWindow):
                         stretch = rule.stretch
                         break
 
+            # couldn't find anything. Tell user and
+            # open default stretch dialog
             if stretch is None:
                 del gdaldataset
-                from . import stretchdialog
                 msg = "File has no stretch saved and none of the default stretches match\n\
 The default stretch dialog will now open."
-                QMessageBox.warning(MESSAGE_TITLE, msg)
+                QMessageBox.warning(self, MESSAGE_TITLE, msg)
                 self.defaultStretch()
                 return
 
+            # close dataset before we open it again 
+            # (may well be a better way)
             del gdaldataset
 
+        # now open it for real
         self.viewwidget.open(fname, stretch)
+        # set the window title
         self.setWindowTitle(os.path.basename(fname))
 
     def closeEvent(self, event):
