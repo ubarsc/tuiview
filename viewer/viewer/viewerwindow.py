@@ -5,7 +5,7 @@ the ViewerWidget, menus, toolbars and status bars.
 """
 
 import os
-from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
+from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog, QMessageBox
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList
 
 from . import viewerresources
@@ -18,6 +18,7 @@ DEFAULT_YPOS = 200
 
 MESSAGE_TIMEOUT = 2000
 DEFAULT_DRIVER = 'HFA'
+MESSAGE_TITLE = 'Viewer'
 
 # Populate this QStringList the first time the 
 # file open dialog shown. 
@@ -158,14 +159,48 @@ class ViewerWindow(QMainWindow):
         dlg.setFileMode(QFileDialog.ExistingFile)
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
-            print 'opening', fname
+            self.openFileInternal(fname)
 
 
-    def openFileInternal(self, fname, stretch):
+    def openFileInternal(self, fname, stretch=None):
+        fname = str(fname) # was QString
+        if stretch is None:
+            # first see if it has a stretch saved in the file
+            from osgeo import gdal
+            gdaldataset = gdal.Open(fname)
+            if gdaldataset is None:
+                QMessageBox.critical(MESSAGE_TITLE, "Unable to open %s" % fname)
+                return
+            
+            from . import viewerstretch
+            stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
+            if stretch is None:
+                # ok was none, read in the default stretches
+                from . import stretchdialog
+                defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
+                for rule in defaultList:
+                    if rule.isMatch(gdaldataset):
+                        stretch = rule.stretch
+                        break
+
+            if stretch is None:
+                del gdaldataset
+                from . import stretchdialog
+                msg = "File has no stretch saved and none of the default stretches match\n\
+The default stretch dialog will now open."
+                QMessageBox.warning(MESSAGE_TITLE, msg)
+                self.defaultStretch()
+                return
+
+            del gdaldataset
+
         self.viewwidget.open(fname, stretch)
         self.setWindowTitle(os.path.basename(fname))
 
     def closeEvent(self, event):
+        """
+        Window is being closed. Save the position and size.
+        """
         settings = QSettings()
         settings.beginGroup('ViewerWindow')
         settings.setValue("size", self.size())

@@ -5,7 +5,7 @@ and StretchDefaultsDialog classes
 """
 
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QHBoxLayout, QComboBox
-from PyQt4.QtGui import QLabel, QPushButton, QGroupBox, QTabWidget, QWidget, QSpinBox
+from PyQt4.QtGui import QLabel, QPushButton, QGroupBox, QTabWidget, QWidget, QSpinBox, QDoubleSpinBox
 from PyQt4.QtCore import QVariant, QSettings, SIGNAL
 import json
 
@@ -72,6 +72,7 @@ class StretchLayout(QFormLayout):
         self.addRow("Bands", self.bandLayout)
 
         # create the combo for the type of stretch
+        self.stretchLayout = QHBoxLayout()
         self.stretchCombo = QComboBox(parent)
         index = 0
         for text, code in STRETCH_DATA:
@@ -79,8 +80,34 @@ class StretchLayout(QFormLayout):
             if code == stretch.stretchmode:
                 self.stretchCombo.setCurrentIndex(index)
             index += 1
+        # callback so we can set the state of other items when changed
+        self.connect(self.stretchCombo, SIGNAL("currentIndexChanged(int)"), self.stretchChanged)
 
-        self.addRow("Stretch", self.stretchCombo)
+        self.stretchLayout.addWidget(self.stretchCombo)
+
+        # create the spin boxes for the std devs or hist min and max
+        self.stretchParam1 = QDoubleSpinBox(parent)
+        self.stretchParam2 = QDoubleSpinBox(parent)
+        self.stretchLayout.addWidget(self.stretchParam1)
+        self.stretchLayout.addWidget(self.stretchParam2)
+
+        if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
+            self.stretchParam2.setEnabled(False)
+            self.stretchParam1.setRange(0, 10)
+            self.stretchParam1.setSingleStep(0.1)
+            self.stretchParam1.setValue(stretch.stretchparam[0])
+        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
+            self.stretchParam1.setRange(0, 1)
+            self.stretchParam1.setSingleStep(0.005)
+            self.stretchParam1.setValue(stretch.stretchparam[0])
+            self.stretchParam2.setRange(0, 1)
+            self.stretchParam2.setSingleStep(0.005)
+            self.stretchParam2.setValue(stretch.stretchparam[1])
+        else:
+            self.stretchParam1.setEnabled(False)
+            self.stretchParam2.setEnabled(False)
+
+        self.addRow("Stretch", self.stretchLayout)
         self.stretchCombo.setEnabled(stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE)
 
 
@@ -105,6 +132,14 @@ class StretchLayout(QFormLayout):
 
         index = self.stretchCombo.currentIndex()
         obj.stretchmode = self.stretchCombo.itemData(index).toInt()[0]
+        if obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
+            value = self.stretchParam1.value()
+            obj.setStdDevStretch(value)
+        elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
+            histmin = self.stretchParam1.value()
+            histmax = self.stretchParam2.value()
+            obj.setHistStretch(histmin, histmax)
+
         return obj
 
     def modeChanged(self, index):
@@ -121,6 +156,29 @@ class StretchLayout(QFormLayout):
             # need to set stretch to none
             self.stretchCombo.setCurrentIndex(0)
         self.stretchCombo.setEnabled(mode != viewerstretch.VIEWER_MODE_COLORTABLE)
+
+    def stretchChanged(self, index):
+        """
+        Called when user changed the stretch. 
+        Updates other GUI elements as needed
+        """
+        stretchmode = self.stretchCombo.itemData(index).toInt()[0]
+        if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
+            self.stretchParam1.setEnabled(True)
+            self.stretchParam2.setEnabled(False)
+            self.stretchParam1.setRange(0, 10)
+            self.stretchParam1.setSingleStep(0.1)
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
+            self.stretchParam1.setEnabled(True)
+            self.stretchParam2.setEnabled(True)
+            self.stretchParam1.setRange(0, 1)
+            self.stretchParam1.setSingleStep(0.005)
+            self.stretchParam2.setRange(0, 1)
+            self.stretchParam2.setSingleStep(0.005)
+        else:
+            self.stretchParam1.setEnabled(False)
+            self.stretchParam2.setEnabled(False)
+
 
 RULE_DATA = (("Number of Bands Less than", viewerstretch.VIEWER_COMP_LT),
                 ("Number of Bands Greater than", viewerstretch.VIEWER_COMP_GT),

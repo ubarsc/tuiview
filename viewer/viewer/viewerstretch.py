@@ -111,19 +111,15 @@ class ViewerStretch(object):
             pass
 
     @staticmethod
-    def readFromGDAL(filename):
+    def readFromGDAL(gdaldataset):
         """
         See if there is an entry in the GDAL metadata,
         and return a ViewerStretch instance, otherwise None
         """
         obj = None
-        try:
-            gdaldataset = gdal.Open(filename)
-            string = gdaldataset.GetMetadataItem(VIEWER_STRETCH_METADATA_KEY)
-            if string is not None:
-                obj = ViewerStretch.fromString(string)
-        except RuntimeError:
-            obj = None
+        string = gdaldataset.GetMetadataItem(VIEWER_STRETCH_METADATA_KEY)
+        if string is not None:
+            obj = ViewerStretch.fromString(string)
         return obj
 
 
@@ -153,17 +149,17 @@ class StretchRule(object):
         """
         match = False
         # check band numbers
-        if comp == VIEWER_COMP_LT:
+        if self.comp == VIEWER_COMP_LT:
             match = gdaldataset.RasterCount < self.value
-        elif comp == VIEWER_COMP_GT:
+        elif self.comp == VIEWER_COMP_GT:
             match = gdaldataset.RasterCount > self.value
-        elif comp == VIEWER_COMP_EQ:
+        elif self.comp == VIEWER_COMP_EQ:
             match = gdaldataset.RasterCount == self.value
         else:
             msg = 'invalid value for comparison'
             raise viewererrors.InvalidParameters(msg)
 
-        if match and self.ctband is not None:
+        if match and self.ctband is not None and self.ctband <= gdaldataset.RasterCount:
             # we match the number of bands
             # but we need to check there is a color 
             # table in the specified band

@@ -1,4 +1,8 @@
 
+"""
+Module contains the ViewerApplication class
+"""
+
 import sys
 import optparse
 from PyQt4.QtGui import QApplication
@@ -7,6 +11,10 @@ from . import viewerwindow
 from . import viewerstretch
 
 def optionCallback(option, opt_str, value, parser):
+    """
+    Called as a callback from optparse so we can process
+    the command line arguments and manipulate parser.stretch
+    """
     if opt_str == '-c' or opt_str == '--colortable':
         parser.stretch.setColorTable()
     elif opt_str == '-g' or opt_str == '--greyscale':
@@ -28,6 +36,9 @@ def optionCallback(option, opt_str, value, parser):
         raise ValueError("Unknown option %s" % opt_str)
 
 class CmdArgs(object):
+    """
+    Class for processing command line arguments
+    """
     def __init__(self):
         self.parser = optparse.OptionParser()
         self.parser.stretch = viewerstretch.ViewerStretch()
@@ -54,16 +65,10 @@ class CmdArgs(object):
         (options, args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
 
-        if self.filename is None:
-            print 'must specify filename'
-            self.parser.print_help()
-            sys.exit()
-        elif self.parser.stretch.bands is None:
-            print 'must specify bands to display'
-            self.parser.print_help()
-            sys.exit()
-
 class ViewerApplication(QApplication):
+    """
+    Main class for application
+    """
     def __init__(self):
         QApplication.__init__(self, sys.argv)
 
@@ -78,5 +83,13 @@ class ViewerApplication(QApplication):
 
         # need to do this after show() otherwise
         # window size is wrong for some reason
-        self.mainw.openFileInternal(cmdargs.filename, cmdargs.parser.stretch)
+        if cmdargs.filename is not None:
+            stretch = None
+            if cmdargs.parser.stretch.mode != viewerstretch.VIEWER_MODE_DEFAULT and \
+                cmdargs.parser.stretch.stretchmode != viewerstretch.VIEWER_STRETCHMODE_DEFAULT and \
+                cmdargs.parser.stretch.bands is not None:
+                stretch = cmdargs.parser.stretch
+            else:
+                print 'Missing or incomplete stretch arguments. Using defaults.'
+            self.mainw.openFileInternal(cmdargs.filename, stretch)
 
