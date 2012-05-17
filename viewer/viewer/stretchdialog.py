@@ -63,7 +63,7 @@ class StretchLayout(QFormLayout):
             (r, g, b) = stretch.bands
             self.redSpinBox.setValue(r)
             self.greenSpinBox.setValue(g)
-            self.blueSpinBox.setValue(b - 1)
+            self.blueSpinBox.setValue(b)
         else:
             self.redSpinBox.setValue(stretch.bands[0])
             self.greenSpinBox.setEnabled(False)
@@ -87,7 +87,9 @@ class StretchLayout(QFormLayout):
 
         # create the spin boxes for the std devs or hist min and max
         self.stretchParam1 = QDoubleSpinBox(parent)
+        self.stretchParam1.setDecimals(3)
         self.stretchParam2 = QDoubleSpinBox(parent)
+        self.stretchParam2.setDecimals(3)
         self.stretchLayout.addWidget(self.stretchParam1)
         self.stretchLayout.addWidget(self.stretchParam2)
 
@@ -168,6 +170,7 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setEnabled(False)
             self.stretchParam1.setRange(0, 10)
             self.stretchParam1.setSingleStep(0.1)
+            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) # always set back to this default
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(True)
@@ -175,6 +178,8 @@ class StretchLayout(QFormLayout):
             self.stretchParam1.setSingleStep(0.005)
             self.stretchParam2.setRange(0, 1)
             self.stretchParam2.setSingleStep(0.005)
+            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) # set back to these defaults
+            self.stretchParam2.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
         else:
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)

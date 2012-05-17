@@ -26,6 +26,11 @@ VIEWER_STRETCHMODE_HIST = 4
 # for storing a stretch within a file
 VIEWER_STRETCH_METADATA_KEY = 'VIEWER_STRETCH'
 
+# default stretchparams
+VIEWER_DEFAULT_STDDEV = 2.0
+VIEWER_DEFAULT_HISTMIN = 0.025
+VIEWER_DEFAULT_HISTMAX = 0.01
+
 class ViewerStretch(object):
     """
     Class that represents the stretch. 
@@ -63,12 +68,12 @@ class ViewerStretch(object):
         "Just stretch linearly between min and max values"
         self.stretchmode = VIEWER_STRETCHMODE_LINEAR
 
-    def setStdDevStretch(self, stddev=2.0):
+    def setStdDevStretch(self, stddev=VIEWER_DEFAULT_STDDEV):
         "Do a standard deviation stretch"
         self.stretchmode = VIEWER_STRETCHMODE_STDDEV
         self.stretchparam = (stddev,)
 
-    def setHistStretch(self, min=0.025, max=0.01):
+    def setHistStretch(self, min=VIEWER_DEFAULT_HISTMIN, max=VIEWER_DEFAULT_HISTMAX):
         "Do a histogram stretch"
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (min, max)
