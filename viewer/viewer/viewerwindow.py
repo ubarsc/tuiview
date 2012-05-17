@@ -5,7 +5,7 @@ the ViewerWidget, menus, toolbars and status bars.
 """
 
 import os
-from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog, QMessageBox
+from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog, QMessageBox, QProgressBar
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
@@ -77,6 +77,13 @@ class ViewerWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowTitle('Viewer')
         self.viewwidget = viewerwidget.ViewerWidget(self)
+
+        # connect to the signals emmitted by the LUT
+        # so we can update our progress bar
+        self.connect(self.viewwidget.lut, SIGNAL("newProgress(QString)"), self.newProgress)
+        self.connect(self.viewwidget.lut, SIGNAL("endProgress()"), self.endProgress)
+        self.connect(self.viewwidget.lut, SIGNAL("newPercent(int)"), self.newPercent)
+
         self.setCentralWidget(self.viewwidget)
 
         self.setupActions()
@@ -87,6 +94,21 @@ class ViewerWindow(QMainWindow):
         self.restoreFromSettings()
 
         self.showStatusMessage("Ready")
+
+    def newProgress(self, string):
+        """
+        Called when we are about to start a new progress
+        """
+        self.statusBar().showMessage(string)
+        self.progressWidget.setValue(0)
+        self.progressWidget.setVisible(True)
+
+    def endProgress(self):
+        self.statusBar().clearMessage()
+        self.progressWidget.setVisible(False)
+
+    def newPercent(self, percent):
+        self.progressWidget.setValue(percent)
 
     def showStatusMessage(self, message):
         self.statusBar().showMessage(message, MESSAGE_TIMEOUT)
@@ -161,6 +183,11 @@ class ViewerWindow(QMainWindow):
         """
         statusbar = self.statusBar()
         statusbar.setSizeGripEnabled(True)
+        self.progressWidget = QProgressBar(self)
+        self.progressWidget.setMinimum(0)
+        self.progressWidget.setMaximum(100)
+        self.progressWidget.setVisible(False)
+        self.statusBar().addPermanentWidget(self.progressWidget)
 
     def defaultStretch(self):
         """

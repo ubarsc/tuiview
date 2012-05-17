@@ -8,6 +8,7 @@ import sys
 import numpy
 import json
 from PyQt4.QtGui import QImage
+from PyQt4.QtCore import QObject, SIGNAL
 from osgeo import gdal
 from . import viewererrors
 from . import viewerstretch
@@ -34,6 +35,13 @@ else:
 # to save creating this tuple all the time
 RGB_CODES = ('r', 'g', 'b')
 
+def GDALProgressFunc(value, string, lutobject):
+    """
+    Callback function called by GDAL when calculating
+    stats or histogram.
+    """
+    percent = int(value * 100)
+    lutobject.emit(SIGNAL("newPercent(int)"), percent)
 
 class BandLUTInfo(object):
     """
@@ -47,13 +55,14 @@ class BandLUTInfo(object):
         self.max = max
 
 
-class ViewerLUT(object):
+class ViewerLUT(QObject):
     """
     Class that handles the Lookup Table
     used for transformation between raw
     data and stretched data
     """
     def __init__(self):
+        QObject.__init__(self) # so we can emit signal
         # array shape [lutsize,4] for color table and greyscale
         # shape [4, lutsize] for RGB
         self.lut = None
@@ -206,10 +215,15 @@ class ViewerLUT(object):
                 stretchMax = maxVal
 
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
-            # must do progress
+            self.emit(SIGNAL("newProgress(QString)"), "Calculating Histogram...")
+
             numBins = int(numpy.ceil(maxVal - minVal))
-            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, include_out_of_range=0, approx_ok=0)
+            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, 
+                    include_out_of_range=0, approx_ok=0, callback=GDALProgressFunc, 
+                    callback_data=self)
             sumPxl = sum(histo)
+
+            self.emit(SIGNAL("endProgress()"))
 
             histmin, histmax = stretch.stretchparam
 
@@ -220,6 +234,8 @@ class ViewerLUT(object):
             # calc min and max from histo
             # find bin number that bandLower/Upper fall into 
             # maybe we can do better with numpy?
+            stretchMin = minVal
+            stretchMax = maxVal
             sumVals = 0
             for i in range(numBins):
                 sumVals = sumVals + histo[i]
@@ -262,17 +278,21 @@ class ViewerLUT(object):
         the supplied progress if not.
         """
         gdal.ErrorReset()
-        minVal, maxVal, mean, stdDev = gdalband.GetStatistics(0, 0)
-        if gdal.GetLastErrorNo() != gdal.CE_None:
+        stats = gdalband.GetStatistics(0, 0)
+        if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
             # need to actually calculate them
-            # must do progress callback
-            print 'falling back on calculating stats...'
             gdal.ErrorReset()
-            minVal, maxVal, mean, stdDev = gdalband.ComputeStatistics(0)
+            self.emit(SIGNAL("newProgress(QString)"), "Calculating Statistics...")
+            stats = gdalband.ComputeStatistics(0, GDALProgressFunc, self)
+            self.emit(SIGNAL("endProgress()"))
 
-            if gdal.GetLastErrorNo() != gdal.CE_None:
+            if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
                 msg = 'unable to calculate statistics'
                 raise viewererrors.StatisticsError(msg)
+            else:
+                minVal, maxVal, mean, stdDev = stats
+        else:
+            minVal, maxVal, mean, stdDev = stats
 
         return minVal, maxVal, mean, stdDev
 
