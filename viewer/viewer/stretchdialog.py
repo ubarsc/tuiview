@@ -5,7 +5,7 @@ and StretchDefaultsDialog classes
 """
 
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QHBoxLayout, QComboBox
-from PyQt4.QtGui import QLabel, QPushButton, QGroupBox, QTabWidget, QWidget, QSpinBox, QDoubleSpinBox
+from PyQt4.QtGui import QLabel, QPushButton, QGroupBox, QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QDockWidget
 from PyQt4.QtCore import QVariant, QSettings, SIGNAL
 import json
 
@@ -502,3 +502,64 @@ class StretchDefaultsDialog(QDialog):
             self.deleteRuleButton.setEnabled(False)
         self.renumberTabs()
         self.tabWidget.setUpdatesEnabled(True) # reduce flicker
+
+class StretchDockWidget(QDockWidget):
+    """
+    Class that has a StretchLayout as a dockable window
+    with apply and save buttons
+    """
+    def __init__(self, parent, viewwidget):
+        QDockWidget.__init__(self, "Stretch", parent)
+        # save the view widget
+        self.viewwidget = viewwidget
+        self.parent = parent
+
+        # create a new widget that lives in the dock window
+        self.dockWidget = QWidget()
+
+        # craete apply button
+        self.applyButton = QPushButton(self.dockWidget)
+        self.applyButton.setText("Apply")
+        self.connect(self.applyButton, SIGNAL("clicked()"), self.onApply)
+
+        # save button
+        self.saveButton = QPushButton(self.dockWidget)
+        self.saveButton.setText("Save to File")
+        self.connect(self.saveButton, SIGNAL("clicked()"), self.onSave)
+
+        # button layout
+        self.buttonLayout = QHBoxLayout()
+        self.buttonLayout.addWidget(self.applyButton)
+        self.buttonLayout.addWidget(self.saveButton)
+
+        # our stretch layout
+        self.stretchLayout = StretchLayout(self.dockWidget, viewwidget.stretch)
+
+        # layout for stretch and buttons
+        self.mainLayout = QVBoxLayout()
+        self.mainLayout.addLayout(self.stretchLayout)
+        self.mainLayout.addLayout(self.buttonLayout)
+
+        self.dockWidget.setLayout(self.mainLayout)
+
+        # tell the dock window this is the widget to display
+        self.setWidget(self.dockWidget)
+
+    def onApply(self):
+        """
+        Apply the new stretch to the view widget
+        """
+        stretch = self.stretchLayout.getStretch()
+        self.viewwidget.setNewStretch(stretch)
+
+    def onSave(self):
+        """
+        User wants to save the stretch to the file
+        """
+        stretch = self.stretchLayout.getStretch()
+        filename = self.viewwidget.filename
+        if stretch.writeToGDAL(filename):
+            self.parent.showStatusMessage("Stretch written to file")
+        else:
+            self.parent.showStatusMessage("Failed to write stretch to file")
+

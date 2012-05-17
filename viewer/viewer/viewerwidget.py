@@ -167,11 +167,12 @@ class ViewerWidget(QAbstractScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
+        self.filename = None
         self.ds = None
         self.transform = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
-        self.bands = None
+        self.stretch = None
         self.mode = None
         self.image = None
         self.windowfraction = None
@@ -188,6 +189,7 @@ class ViewerWidget(QAbstractScrollArea):
         This should be called after widget first shown to
         avoid unnecessary redraws
         """
+        self.filename = fname
         self.ds = gdal.Open(fname)
 
         # do some checks to see if we can deal with the data
@@ -198,22 +200,38 @@ class ViewerWidget(QAbstractScrollArea):
             raise viewererrors.InvalidDataset(msg)
         self.transform = transform
 
-        # store the bands
-        self.bands = stretch.bands
+        # store the stretch
+        self.stretch = stretch
 
         # load the valid overviews
-        self.overviews.loadOverviewInfo(self.ds, self.bands)
+        self.overviews.loadOverviewInfo(self.ds, stretch.bands)
 
         # reset these values
         size = self.viewport().size()
         self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
 
         # read in the LUT
-        self.lut.createLUT(self.ds, self.bands, stretch)
+        self.lut.createLUT(self.ds, stretch)
 
         # now go and retrieve the data for the image
         self.getData()
 
+    def setNewStretch(self, newstretch):
+        """
+        Change the stretch being applied to the current data
+        """
+        newbands = self.stretch.bands != newstretch.bands
+        if newbands:
+            # only need to do this if bands have changed
+            self.overviews.loadOverviewInfo(self.ds, newstretch.bands)
+
+        self.lut.createLUT(self.ds, newstretch)
+
+        self.stretch = newstretch
+        # note - we need to do this to reapply the stretch
+        # but it re-reads the data always.
+        # not sure it is a big deal since GDAL caches
+        self.getData()
     
     def getData(self):
         """
@@ -267,10 +285,10 @@ class ViewerWidget(QAbstractScrollArea):
         overview_x = int(overview_centrex - (overview_xsize / 2.0))
         overview_y = int(overview_centrey - (overview_ysize / 2.0))
 
-        if len(self.bands) == 3:
+        if len(self.stretch.bands) == 3:
             # rgb
             datalist = []
-            for bandnum in self.bands:
+            for bandnum in self.stretch.bands:
                 band = self.ds.GetRasterBand(bandnum)
                 if selectedovi.index > 0:
                     band = band.GetOverview(selectedovi.index - 1)
@@ -282,7 +300,7 @@ class ViewerWidget(QAbstractScrollArea):
 
         else:
             # must be single band
-            band = self.ds.GetRasterBand(self.bands[0])
+            band = self.ds.GetRasterBand(self.stretch.bands[0])
             if selectedovi.index > 0:
                 band = band.GetOverview(selectedovi.index - 1)
 

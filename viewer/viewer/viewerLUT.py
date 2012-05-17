@@ -299,7 +299,7 @@ class ViewerLUT(object):
         info = BandLUTInfo(scale, offset, lutsize, min, max)
         return info
 
-    def createLUT(self, dataset, bands, stretch):
+    def createLUT(self, dataset, stretch):
         """
         Main function
         """
@@ -311,7 +311,7 @@ class ViewerLUT(object):
         # decide what to do based on the ode
         if stretch.mode == viewerstretch.VIEWER_MODE_COLORTABLE:
 
-            if len(bands) > 1:
+            if len(stretch.bands) > 1:
                 msg = 'specify one band when opening a color table image'
                 raise viewererrors.InvalidParameters(msg)
 
@@ -319,7 +319,7 @@ class ViewerLUT(object):
                 msg = 'stretchmode should be set to none for color tables'
                 raise viewererrors.InvalidParameters(msg)
 
-            band = bands[0]
+            band = stretch.bands[0]
             gdalband = dataset.GetRasterBand(band)
 
             self.bandinfo = self.getInfoForBand(gdalband)
@@ -336,11 +336,11 @@ class ViewerLUT(object):
             self.loadColorTable(gdalband)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
-            if len(bands) > 1:
+            if len(stretch.bands) > 1:
                 msg = 'specify one band when opening a greyscale image'
                 raise viewererrors.InvalidParameters(msg)
 
-            band = bands[0]
+            band = stretch.bands[0]
             gdalband = dataset.GetRasterBand(band)
 
             self.bandinfo = self.getInfoForBand(gdalband)
@@ -357,7 +357,7 @@ class ViewerLUT(object):
                 self.lut[...,lutindex] = lut
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_RGB:
-            if len(bands) != 3:
+            if len(stretch.bands) != 3:
                 msg = 'must specify 3 bands when opening rgb'
                 raise viewererrors.InvalidParameters(msg)
 
@@ -366,7 +366,7 @@ class ViewerLUT(object):
             self.lut = None
 
             # user supplies RGB
-            for (band, code) in zip(bands, RGB_CODES):
+            for (band, code) in zip(stretch.bands, RGB_CODES):
                 gdalband = dataset.GetRasterBand(band)
 
                 bandinfo = self.getInfoForBand(gdalband)

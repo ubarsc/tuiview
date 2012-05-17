@@ -6,10 +6,11 @@ the ViewerWidget, menus, toolbars and status bars.
 
 import os
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog, QMessageBox
-from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList
+from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
 from . import viewerwidget
+from . import stretchdialog
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -69,6 +70,9 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
 
 
 class ViewerWindow(QMainWindow):
+    """
+    Main window for viewer application
+    """
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle('Viewer')
@@ -82,7 +86,10 @@ class ViewerWindow(QMainWindow):
 
         self.restoreFromSettings()
 
-        self.statusBar().showMessage("Ready", MESSAGE_TIMEOUT)
+        self.showStatusMessage("Ready")
+
+    def showStatusMessage(self, message):
+        self.statusBar().showMessage(message, MESSAGE_TIMEOUT)
 
     def restoreFromSettings(self):
         """
@@ -115,6 +122,13 @@ class ViewerWindow(QMainWindow):
         self.defaultStretchAct.setShortcut("CTRL+D")
         self.connect(self.defaultStretchAct, SIGNAL("activated()"), self.defaultStretch)
 
+        self.stretchAct = QAction(self)
+        self.stretchAct.setText("S&tretch")
+        self.stretchAct.setStatusTip("Edit current stretch")
+        self.stretchAct.setShortcut("CTRL+T")
+        self.stretchAct.setEnabled(False) # until a file is opened
+        self.connect(self.stretchAct, SIGNAL("activated()"), self.editStretch)
+
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
@@ -130,6 +144,9 @@ class ViewerWindow(QMainWindow):
         self.fileMenu.addAction(self.defaultStretchAct)
         self.fileMenu.addAction(self.exitAct)
         self.fileMenu.insertSeparator(self.exitAct)
+
+        self.editMenu = self.menuBar().addMenu("&Edit")
+        self.editMenu.addAction(self.stretchAct)
 
     def setupToolbars(self):
         """
@@ -149,7 +166,6 @@ class ViewerWindow(QMainWindow):
         """
         Show the default stretch dialog
         """
-        from . import stretchdialog
         dlg = stretchdialog.StretchDefaultsDialog(self)
         dlg.exec_()
 
@@ -183,7 +199,6 @@ class ViewerWindow(QMainWindow):
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches
-                from . import stretchdialog
                 defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
                 for rule in defaultList:
                     if rule.isMatch(gdaldataset):
@@ -208,6 +223,15 @@ The default stretch dialog will now open."
         self.viewwidget.open(fname, stretch)
         # set the window title
         self.setWindowTitle(os.path.basename(fname))
+        # allow the stretch to be edited
+        self.stretchAct.setEnabled(True)
+
+    def editStretch(self):
+        """
+        Show the edit stretch dock window
+        """
+        stretchDock = stretchdialog.StretchDockWidget(self, self.viewwidget)
+        self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
 
     def closeEvent(self, event):
         """

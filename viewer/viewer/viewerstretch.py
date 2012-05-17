@@ -103,12 +103,15 @@ class ViewerStretch(object):
         Good idea to reopen any other handles to dataset
         """
         string = self.toString()
+        success = False
         try:
             gdaldataset = gdal.Open(filename, gdal.GA_Update)
             gdaldataset.SetMetadataItem(VIEWER_STRETCH_METADATA_KEY, string)
             del gdaldataset
+            success = True
         except RuntimeError:
             pass
+        return success
 
     @staticmethod
     def readFromGDAL(gdaldataset):
