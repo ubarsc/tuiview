@@ -54,6 +54,19 @@ class BandLUTInfo(object):
         self.min = min
         self.max = max
 
+    def toString(self):
+        rep = {'scale' : self.scale, 'offset' : self.offset, 
+                    'lutsize' : self.lutsize, 'min' : self.min, 
+                    'max' : self.max}
+        return json.dumps(rep)
+
+    @staticmethod
+    def fromString(string):
+        rep = json.loads(string)
+        bi = BandLUTInfo(rep['scale'], rep['offset'], 
+                rep['lutsize'], rep['min'], rep['max'])
+        return bi
+
 
 class ViewerLUT(QObject):
     """
@@ -83,9 +96,7 @@ class ViewerLUT(QObject):
 
             # color table - just one bandinfo - write it out
             bi = self.bandinfo
-            rep = {'scale' : bi.scale, 'offset' : bi.offset, 
-                        'lutsize' : bi.lutsize, 'min' : bi.min, 'max' : bi.max}
-            fileobj.write('%s\n' % json.dumps(rep))
+            fileobj.write('%s\n' % bi.toString())
             for code in RGB_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
                 lut = self.lut[...,lutindex]
@@ -99,9 +110,7 @@ class ViewerLUT(QObject):
                 lutindex = CODE_TO_LUTINDEX[code]
                 bi = self.bandinfo[code]
 
-                rep = {'code' : code, 'scale' : bi.scale, 'offset' : bi.offset, 
-                        'lutsize' : bi.lutsize, 'min' : bi.min, 'max' : bi.max}
-                fileobj.write('%s\n' % json.dumps(rep))
+                fileobj.write('%s\n' % bo.toString())
 
                 lut = self.lut[lutindex]
                 rep = {'data' : lut.tolist()}
@@ -120,9 +129,7 @@ class ViewerLUT(QObject):
         if nbands == 1:
             # color table
             s = fileobj.readline()
-            rep = json.loads(s)
-            bi = BandLUTInfo(rep['scale'], rep['offset'], 
-                    rep['lutsize'], rep['min'], rep['max'])
+            bi = BandLUTInfo.fromString(s)
             lutobj.bandinfo = bi
             lutobj.lut = numpy.empty((bi.lutsize, 4), numpy.uint8, 'C')
             for n in range(len(RGB_CODES)):
@@ -137,9 +144,7 @@ class ViewerLUT(QObject):
             lutobj.bandinfo = {}
             for n in range(len(RGB_CODES)):
                 s = fileobj.readline()
-                rep = json.loads(s)
-                bi = BandLUTInfo(rep['scale'], rep['offset'],
-                        rep['lutsize'], rep['min'], rep['max'])
+                bi = BandLUTInfo.fromString(s)
                 code = rep['code']
                 lutobj.bandinfo[code] = bi
                 lutindex = CODE_TO_LUTINDEX[code]
