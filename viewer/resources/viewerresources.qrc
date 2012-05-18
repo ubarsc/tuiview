@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/viewer/images" >
         <file>open.png</file>
+        <file>zoomin.png</file>
     </qresource>
 </RCC>
 

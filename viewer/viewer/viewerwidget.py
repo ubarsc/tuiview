@@ -5,8 +5,8 @@ zooming and panning etc.
 """
 
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter
-from PyQt4.QtCore import Qt
+from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap
+from PyQt4.QtCore import Qt, QRect, QSize
 from osgeo import gdal
 
 from . import viewererrors
@@ -39,8 +39,19 @@ class WindowFraction(object):
         xperpix = float(firstoverview.xsize) / float(winsize.width())
         yperpix = float(firstoverview.ysize) / float(winsize.height())
         self.imgpixperwinpix = max(xperpix, yperpix)
+        self.firstoverview = firstoverview
 
-        
+    def getCoordFor(self, x_fromcenter, y_fromcentre, transform):
+        """
+        For getting between window and world coords
+        """
+        x_center = firstoverview.xsize * self.centrefraction[0]
+        y_center = firstoverview.ysize * self.centrefraction[1]
+        easting_center = transform[0] + x_center * transform[1] + y_centre * transform[2]
+        northing_centre = transform[3] + x_center * transform[4] + y_centre * transform[5]
+        easting = easting_center + x_fromcenter * self.imgpixperwinpix
+        northing = northing_center + y_fromcenter * self.imgpixperwinpix
+        return easting, northing
 
     def moveView(self, xfraction, yfraction):
         """
@@ -62,6 +73,32 @@ class WindowFraction(object):
             centrefractiony = 1.0
 
         self.centrefraction = [centrefractionx, centrefractiony]
+
+    def zoomViewCenter(self, x_fromcentre, y_fromcentre, fraction):
+        """
+        For zooming with zoom tool. x_fromcentre and y_fromcentre
+        is the centre of the new box in respect to the current window.
+        Note fraction is just applied directly to imgpixperwinpix, 
+        unlike zoomView, not sure if I need to fix this up
+        """
+        offsetx = (x_fromcentre * self.imgpixperwinpix) / self.firstoverview.xsize
+        offsety = (y_fromcentre * self.imgpixperwinpix) / self.firstoverview.ysize
+        centrefractionx = self.centrefraction[0] + offsetx
+        centrefractiony = self.centrefraction[1] + offsety
+
+        # range check
+        if centrefractionx < 0:
+            centrefractionx = 0.0
+        elif centrefractionx > 1.0:
+            centrefractionx = 1.0
+
+        if centrefractiony < 0:
+            centrefractiony = 0.0
+        elif centrefractiony > 1.0:
+            centrefractiony = 1.0
+
+        self.centrefraction = [centrefractionx, centrefractiony]
+        self.imgpixperwinpix *= fraction
 
     def zoomView(self, fraction):
         """
@@ -181,6 +218,10 @@ class ViewerWidget(QAbstractScrollArea):
         # events get fired that we wish to ignore
         self.suppressscrollevent = False
 
+        self.rubberBand = None
+        self.zoomInCursor = None
+        self.zoomToolActive = False
+
 
     def open(self, fname, stretch):
         """
@@ -215,6 +256,40 @@ class ViewerWidget(QAbstractScrollArea):
 
         # now go and retrieve the data for the image
         self.getData()
+
+    def setZoomToolState(self, active):
+        """
+        The containing window can call this to go into zoom mode
+        the cursor is changed and a rubber band can be drawn.
+        """
+        self.zoomToolActive = active
+        if active:
+            if self.zoomInCursor is None:
+                # create if needed.
+                self.zoomInCursor = QCursor(QPixmap(["16 16 3 1",
+                                  ". c None",
+                                  "a c #000000",
+                                  "# c #ffffff",
+                                  ".....#####......",
+                                  "...##aaaaa##....",
+                                  "..#.a.....a.#...",
+                                  ".#.a...a...a.#..",
+                                  ".#a....a....a#..",
+                                  "#a.....a.....a#.",
+                                  "#a.....a.....a#.",
+                                  "#a.aaaa#aaaa.a#.",
+                                  "#a.....a.....a#.",
+                                  "#a.....a.....a#.",
+                                  ".#a....a....a#..",
+                                  ".#.a...a...aaa#.",
+                                  "..#.a.....a#aaa#",
+                                  "...##aaaaa###aa#",
+                                  ".....#####...###",
+                                  "..............#."]))
+            self.viewport().setCursor(self.zoomInCursor)
+        else:
+            # change back
+            self.viewport().setCursor(Qt.ArrowCursor)
 
     def setNewStretch(self, newstretch):
         """
@@ -285,6 +360,19 @@ class ViewerWidget(QAbstractScrollArea):
         overview_x = int(overview_centrex - (overview_xsize / 2.0))
         overview_y = int(overview_centrey - (overview_ysize / 2.0))
 
+        # do some range checking
+        if overview_x < 0:
+            overview_x = 0
+        if overview_y < 0:
+            overview_y = 0
+        
+        overflow_x = (overview_x + overview_xsize) - selectedovi.xsize
+        if overflow_x > 0:
+            overview_x -= overflow_x
+        overflow_y = (overview_y + overview_ysize) - selectedovi.ysize
+        if overflow_y > 0:
+            overview_y -= overflow_y
+
         if len(self.stretch.bands) == 3:
             # rgb
             datalist = []
@@ -353,7 +441,6 @@ class ViewerWidget(QAbstractScrollArea):
         # otherwise moving centre, but all too hard
         self.getData()
                     
-
     def paintEvent(self, event):
         """
         Viewport needs to be redrawn. Assume that 
@@ -364,3 +451,54 @@ class ViewerWidget(QAbstractScrollArea):
             paint = QPainter(self.viewport())
             paint.drawImage(0,0,self.image)
             paint.end()
+
+    def mousePressEvent(self, event):
+        """
+        Mouse has been clicked down if we are in zoom/pan
+        mode we need to start doign stuff here
+        """
+        if self.zoomToolActive:
+            origin = event.pos()
+            if self.rubberBand is None:
+                self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
+            self.rubberBand.setGeometry(QRect(origin, QSize()))
+            self.rubberBand.show()
+            self.rubberBand.origin = origin
+
+    def mouseReleaseEvent(self, event):
+        """
+        Mouse has been released, if we are in zoom/pan 
+        mode we do stuff here.
+        """
+        if self.zoomToolActive and self.rubberBand.isVisible():
+            # get the information about the rect they have drawn
+            # note this is on self, rather than viewport() not sure 
+            # if it matters
+            selection = self.rubberBand.geometry()
+            geom = self.viewport().geometry()
+
+            selectioncenter = selection.center()
+            selectionsize = float(selection.width() * selection.height())
+
+            geomcenter = geom.center()
+            geomsize = float(geom.width() * geom.height())
+
+            self.rubberBand.hide()
+            # zoom the appropriate distance from centre
+            # and to the appropriate fraction (we used area so conversion needed)
+            self.windowfraction.zoomViewCenter(selectioncenter.x() - geomcenter.x(),
+                                    selectioncenter.y() - geomcenter.y(),
+                                    numpy.sqrt(selectionsize / geomsize))
+            # redraw
+            self.getData()
+
+
+    def mouseMoveEvent(self, event):
+        """
+        Mouse has been moved while dragging. If in zoom/pan
+        mode we need to do something here.
+        """
+        if self.zoomToolActive and self.rubberBand.isVisible():
+            # extend rect
+            rect = QRect(self.rubberBand.origin, event.pos()).normalized()
+            self.rubberBand.setGeometry(rect)

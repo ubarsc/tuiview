@@ -5,7 +5,8 @@ the ViewerWidget, menus, toolbars and status bars.
 """
 
 import os
-from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog, QMessageBox, QProgressBar
+from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
+from PyQt4.QtGui import QMessageBox, QProgressBar
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
@@ -104,13 +105,22 @@ class ViewerWindow(QMainWindow):
         self.progressWidget.setVisible(True)
 
     def endProgress(self):
+        """
+        Called when a progress run has finished
+        """
         self.statusBar().clearMessage()
         self.progressWidget.setVisible(False)
 
     def newPercent(self, percent):
+        """
+        New progress value
+        """
         self.progressWidget.setValue(percent)
 
     def showStatusMessage(self, message):
+        """
+        Helper method to show a message for a short period of time
+        """
         self.statusBar().showMessage(message, MESSAGE_TIMEOUT)
 
     def restoreFromSettings(self):
@@ -151,6 +161,14 @@ class ViewerWindow(QMainWindow):
         self.stretchAct.setEnabled(False) # until a file is opened
         self.connect(self.stretchAct, SIGNAL("activated()"), self.editStretch)
 
+        self.zoomInAct = QAction(self)
+        self.zoomInAct.setText("Zoom &In")
+        self.zoomInAct.setStatusTip("Zoom In")
+        self.zoomInAct.setShortcut("CTRL+I")
+        self.zoomInAct.setCheckable(True)
+        self.zoomInAct.setIcon(QIcon(":/viewer/images/zoomin.png"))
+        self.connect(self.zoomInAct, SIGNAL("toggled(bool)"), self.zoomIn)
+
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
@@ -170,12 +188,18 @@ class ViewerWindow(QMainWindow):
         self.editMenu = self.menuBar().addMenu("&Edit")
         self.editMenu.addAction(self.stretchAct)
 
+        self.viewMenu = self.menuBar().addMenu("&View")
+        self.viewMenu.addAction(self.zoomInAct)
+
     def setupToolbars(self):
         """
         Creates the toolbars and adds the actions to them
         """
         self.fileToolbar = self.addToolBar("File")
         self.fileToolbar.addAction(self.openAct)
+
+        self.viewToolbar = self.addToolBar("View")
+        self.viewToolbar.addAction(self.zoomInAct)
 
     def setupStatusBar(self):
         """
@@ -212,6 +236,10 @@ class ViewerWindow(QMainWindow):
 
 
     def openFileInternal(self, fname, stretch=None):
+        """
+        Actually to the file opening. If stretch is None
+        is is determined using our automatic scheme.
+        """
         fname = str(fname) # was QString
         if stretch is None:
             # first see if it has a stretch saved in the file
@@ -259,6 +287,13 @@ The default stretch dialog will now open."
         """
         stretchDock = stretchdialog.StretchDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
+
+    def zoomIn(self, checked):
+        """
+        Zoom in tool selected. 
+        Tell view widget to operate in zoom mode.        
+        """
+        self.viewwidget.setZoomToolState(checked)
 
     def closeEvent(self, event):
         """
