@@ -146,20 +146,20 @@ class ViewerWindow(QMainWindow):
         self.openAct.setStatusTip("Open a GDAL supported image")
         self.openAct.setShortcut("CTRL+O")
         self.openAct.setIcon(QIcon(":/viewer/images/open.png"))
-        self.connect(self.openAct, SIGNAL("activated()"), self.openFile)
+        self.connect(self.openAct, SIGNAL("triggered()"), self.openFile)
 
         self.defaultStretchAct = QAction(self)
         self.defaultStretchAct.setText("&Default Stretch...")
         self.defaultStretchAct.setStatusTip("Set default stretches")
         self.defaultStretchAct.setShortcut("CTRL+D")
-        self.connect(self.defaultStretchAct, SIGNAL("activated()"), self.defaultStretch)
+        self.connect(self.defaultStretchAct, SIGNAL("triggered()"), self.defaultStretch)
 
         self.stretchAct = QAction(self)
         self.stretchAct.setText("S&tretch")
         self.stretchAct.setStatusTip("Edit current stretch")
         self.stretchAct.setShortcut("CTRL+T")
         self.stretchAct.setEnabled(False) # until a file is opened
-        self.connect(self.stretchAct, SIGNAL("activated()"), self.editStretch)
+        self.connect(self.stretchAct, SIGNAL("triggered()"), self.editStretch)
 
         self.panAct = QAction(self)
         self.panAct.setText("&Pan")
@@ -188,7 +188,7 @@ class ViewerWindow(QMainWindow):
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
         self.exitAct.setShortcut("CTRL+Q")
-        self.connect(self.exitAct, SIGNAL("activated()"), self.close)
+        self.connect(self.exitAct, SIGNAL("triggered()"), self.close)
 
     def setupMenus(self):
         """
