@@ -13,10 +13,8 @@ from . import viewererrors
 from . import viewerLUT
 
 
-VIEWER_SCROLL_MULTIPLIER = 0.00013 # number of pixels scrolled
-                                # is multiplied by this to get fraction
-VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction 
-                            # on zoom out/ zoom in
+VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction 
+                            # on zoom out/ zoom in with mouse wheel
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
@@ -112,34 +110,27 @@ class WindowFraction(object):
         """
         For zooming with zoom tool. x_fromcentre and y_fromcentre
         is the centre of the new box in respect to the current window.
-        Note fraction is just applied directly to imgpixperwinpix, 
-        unlike zoomView, not sure if I need to fix this up
         """
-        offsetx = (x_fromcentre * self.imgpixperwinpix) / self.firstoverview.xsize
-        offsety = (y_fromcentre * self.imgpixperwinpix) / self.firstoverview.ysize
-        centrefractionx = self.centrefraction[0] + offsetx
-        centrefractiony = self.centrefraction[1] + offsety
+        if x_fromcentre != 0 or y_fromcentre != 0:
+            offsetx = (x_fromcentre * self.imgpixperwinpix) / self.firstoverview.xsize
+            offsety = (y_fromcentre * self.imgpixperwinpix) / self.firstoverview.ysize
+            centrefractionx = self.centrefraction[0] + offsetx
+            centrefractiony = self.centrefraction[1] + offsety
 
-        # range check
-        if centrefractionx < 0:
-            centrefractionx = 0.0
-        elif centrefractionx > 1.0:
-            centrefractionx = 1.0
+            # range check
+            if centrefractionx < 0:
+                centrefractionx = 0.0
+            elif centrefractionx > 1.0:
+                centrefractionx = 1.0
 
-        if centrefractiony < 0:
-            centrefractiony = 0.0
-        elif centrefractiony > 1.0:
-            centrefractiony = 1.0
+            if centrefractiony < 0:
+                centrefractiony = 0.0
+            elif centrefractiony > 1.0:
+                centrefractiony = 1.0
 
-        self.centrefraction = [centrefractionx, centrefractiony]
+            self.centrefraction = [centrefractionx, centrefractiony]
         self.imgpixperwinpix *= fraction
 
-    def zoomView(self, fraction):
-        """
-        zoom the view by fraction (positive 
-        to zoom in)
-        """
-        self.imgpixperwinpix *= (1.0 + fraction)
 
 
 class OverviewInfo(object):
@@ -502,10 +493,10 @@ class ViewerWidget(QAbstractScrollArea):
         # need to suppress processing of new scroll bar
         # events otherwise we end up in endless loop
         self.suppressscrollevent = True
-        self.horizontalScrollBar().setPageStep(ov_xsize)
-        self.verticalScrollBar().setPageStep(ov_ysize)
-        self.horizontalScrollBar().setRange(0, selectedovi.xsize - ov_xsize)
-        self.verticalScrollBar().setRange(0, selectedovi.ysize - ov_ysize)
+        self.horizontalScrollBar().setPageStep(ov_xsize / ov_to_full)
+        self.verticalScrollBar().setPageStep(ov_ysize / ov_to_full)
+        self.horizontalScrollBar().setRange(0, (selectedovi.xsize - ov_xsize) / ov_to_full)
+        self.verticalScrollBar().setRange(0, (selectedovi.ysize - ov_ysize) / ov_to_full)
         self.horizontalScrollBar().setSliderPosition(ov_x)
         self.verticalScrollBar().setSliderPosition(ov_y)
         self.suppressscrollevent = False
@@ -518,8 +509,8 @@ class ViewerWidget(QAbstractScrollArea):
         Handle the user moving the scroll bars
         """
         if not self.suppressscrollevent:
-            xamount = dx * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
-            yamount = dy * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
+            xamount = dx * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
+            yamount = dy * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
             self.windowfraction.moveView(xamount, yamount)
 
             self.getData()
@@ -529,9 +520,9 @@ class ViewerWidget(QAbstractScrollArea):
         User has used mouse wheel to zoom in/out
         """
         if event.delta() > 0:
-            self.windowfraction.zoomView(-VIEWER_ZOOM_FRACTION)
+            self.windowfraction.zoomViewCenter(0, 0, 1.0 - VIEWER_ZOOM_WHEEL_FRACTION)
         elif event.delta() < 0:
-            self.windowfraction.zoomView(VIEWER_ZOOM_FRACTION)
+            self.windowfraction.zoomViewCenter(0, 0, 1.0 + VIEWER_ZOOM_WHEEL_FRACTION)
         self.getData()
 
     def resizeEvent(self, event):
@@ -578,7 +569,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been released, if we are in zoom/pan 
         mode we do stuff here.
         """
-        if self.rubberBand.isVisible():
+        if self.rubberBand is not None and self.rubberBand.isVisible():
             # get the information about the rect they have drawn
             # note this is on self, rather than viewport()
             selection = self.rubberBand.geometry()
@@ -613,8 +604,8 @@ class ViewerWidget(QAbstractScrollArea):
 
         elif self.activeTool == VIEWER_TOOL_PAN:
             # stop panning and move viewport
-            xamount = self.paintPoint.x() * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
-            yamount = self.paintPoint.y() * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
+            xamount = self.paintPoint.x() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
+            yamount = self.paintPoint.y() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
             self.windowfraction.moveView(xamount, yamount)
             # reset
             self.paintPoint.setX(0)
