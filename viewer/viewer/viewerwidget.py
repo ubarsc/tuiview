@@ -6,14 +6,14 @@ zooming and panning etc.
 
 import numpy
 from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage
-from PyQt4.QtCore import Qt, QRect, QSize
+from PyQt4.QtCore import Qt, QRect, QSize, QPoint
 from osgeo import gdal
 
 from . import viewererrors
 from . import viewerLUT
 
 
-VIEWER_SCROLL_MULTIPLIER = 0.00002 # number of pixels scrolled
+VIEWER_SCROLL_MULTIPLIER = 0.00013 # number of pixels scrolled
                                 # is multiplied by this to get fraction
 VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction 
                             # on zoom out/ zoom in
@@ -241,14 +241,20 @@ class ViewerWidget(QAbstractScrollArea):
         self.stretch = None
         self.image = None
         self.windowfraction = None
+        self.paintPoint = QPoint() # normally 0,0 unless we are panning
 
         # when moving the scroll bars
         # events get fired that we wish to ignore
         self.suppressscrollevent = False
 
+        # to do with tools
         self.rubberBand = None
+        self.panCursor = None
+        self.panGrabCursor = None
         self.zoomInCursor = None
+        self.zoomOutCursor = None
         self.activeTool = VIEWER_TOOL_NONE
+        self.panOrigin = None
 
 
     def open(self, fname, stretch):
@@ -315,6 +321,40 @@ class ViewerWidget(QAbstractScrollArea):
                                   ".....#####...###",
                                   "..............#."]))
             self.viewport().setCursor(self.zoomInCursor)
+
+        elif tool == VIEWER_TOOL_ZOOMOUT:
+            if self.zoomOutCursor is None:
+                # create if needed
+                self.zoomOutCursor = QCursor(QPixmap(["16 16 4 1",
+                                  "b c None",
+                                  ". c None",
+                                  "a c #000000",
+                                  "# c #ffffff",
+                                  ".....#####......",
+                                  "...##aaaaa##....",
+                                  "..#.a.....a.#...",
+                                  ".#.a.......a.#..",
+                                  ".#a.........a#..",
+                                  "#a...........a#.",
+                                  "#a...........a#.",
+                                  "#a.aaaa#aaaa.a#.",
+                                  "#a...........a#.",
+                                  "#a...........a#.",
+                                  ".#a.........a#..",
+                                  ".#.a.......aaa#.",
+                                  "..#.a.....a#aaa#",
+                                  "...##aaaaa###aa#",
+                                  ".....#####...###",
+                                  "..............#."]))
+            self.viewport().setCursor(self.zoomOutCursor)
+
+        elif tool == VIEWER_TOOL_PAN:
+            if self.panCursor is None:
+                # both these used for pan operations
+                self.panCursor = QCursor(Qt.OpenHandCursor)
+                self.panGrabCursor = QCursor(Qt.ClosedHandCursor)
+            self.viewport().setCursor(self.panCursor)
+
         elif tool == VIEWER_TOOL_NONE:
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
@@ -511,7 +551,7 @@ class ViewerWidget(QAbstractScrollArea):
         """
         if self.image is not None:
             paint = QPainter(self.viewport())
-            paint.drawImage(0,0,self.image)
+            paint.drawImage(self.paintPoint, self.image)
             paint.end()
 
     def mousePressEvent(self, event):
@@ -519,7 +559,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been clicked down if we are in zoom/pan
         mode we need to start doign stuff here
         """
-        if self.activeTool == VIEWER_TOOL_ZOOMIN:
+        if self.activeTool == VIEWER_TOOL_ZOOMIN or self.activeTool == VIEWER_TOOL_ZOOMOUT:
             origin = event.pos()
             if self.rubberBand is None:
                 self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
@@ -527,15 +567,20 @@ class ViewerWidget(QAbstractScrollArea):
             self.rubberBand.show()
             self.rubberBand.origin = origin
 
+        elif self.activeTool == VIEWER_TOOL_PAN:
+            # remember pos
+            self.panOrigin = event.pos()
+            # change cursor
+            self.viewport().setCursor(self.panGrabCursor)
+
     def mouseReleaseEvent(self, event):
         """
         Mouse has been released, if we are in zoom/pan 
         mode we do stuff here.
         """
-        if self.activeTool == VIEWER_TOOL_ZOOMIN and self.rubberBand.isVisible():
+        if self.rubberBand.isVisible():
             # get the information about the rect they have drawn
-            # note this is on self, rather than viewport() not sure 
-            # if it matters
+            # note this is on self, rather than viewport()
             selection = self.rubberBand.geometry()
             geom = self.viewport().geometry()
 
@@ -550,9 +595,32 @@ class ViewerWidget(QAbstractScrollArea):
             # and to the appropriate fraction (we used area so conversion needed)
             # adjust also for the fact that the selection is made on this widget
             # rather than the viewport - 1 pixel offset
-            self.windowfraction.zoomViewCenter(selectioncenter.x() - geomcenter.x() - geom.x(),
-                                    selectioncenter.y() - geomcenter.y() - geom.y(),
-                                    numpy.sqrt(selectionsize / geomsize))
+            newcentrex = selectioncenter.x() - geomcenter.x() - geom.x()
+            newcentrey = selectioncenter.y() - geomcenter.y() - geom.y()
+            if selectionsize == 0:
+                fraction = 0.5 # they just clicked
+            else:
+                fraction = numpy.sqrt(selectionsize / geomsize)
+
+            if self.activeTool == VIEWER_TOOL_ZOOMIN:
+                self.windowfraction.zoomViewCenter(newcentrex, newcentrey, fraction )
+            elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
+                # the smaller the area the larger the zoom
+                self.windowfraction.zoomViewCenter(newcentrex, newcentrey, 1.0 / fraction )
+
+            # redraw
+            self.getData()
+
+        elif self.activeTool == VIEWER_TOOL_PAN:
+            # stop panning and move viewport
+            xamount = self.paintPoint.x() * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
+            yamount = self.paintPoint.y() * -VIEWER_SCROLL_MULTIPLIER * self.windowfraction.imgpixperwinpix
+            self.windowfraction.moveView(xamount, yamount)
+            # reset
+            self.paintPoint.setX(0)
+            self.paintPoint.setY(0)
+            # change cursor back
+            self.viewport().setCursor(self.panCursor)
             # redraw
             self.getData()
 
@@ -562,7 +630,19 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been moved while dragging. If in zoom/pan
         mode we need to do something here.
         """
-        if self.activeTool == VIEWER_TOOL_ZOOMIN and self.rubberBand.isVisible():
-            # extend rect
+        if self.rubberBand is not None and self.rubberBand.isVisible():
+            # must be doing zoom in/out. extend rect
             rect = QRect(self.rubberBand.origin, event.pos()).normalized()
             self.rubberBand.setGeometry(rect)
+
+        elif self.activeTool == VIEWER_TOOL_PAN:
+            # panning. Work out the offset from where we
+            # starting panning and draw the current image
+            # at an offset
+            pos = event.pos()
+            xamount = pos.x() - self.panOrigin.x()
+            yamount = pos.y() - self.panOrigin.y()
+            self.paintPoint.setX(xamount)
+            self.paintPoint.setY(yamount)
+            # force repaint - self.paintPoint used by paintEvent()
+            self.viewport().update()

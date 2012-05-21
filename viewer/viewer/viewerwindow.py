@@ -161,13 +161,28 @@ class ViewerWindow(QMainWindow):
         self.stretchAct.setEnabled(False) # until a file is opened
         self.connect(self.stretchAct, SIGNAL("activated()"), self.editStretch)
 
+        self.panAct = QAction(self)
+        self.panAct.setText("&Pan")
+        self.panAct.setStatusTip("Pan")
+        self.panAct.setCheckable(True)
+        self.panAct.setIcon(QIcon(":/viewer/images/pan.png"))
+        self.connect(self.panAct, SIGNAL("toggled(bool)"), self.pan)
+
         self.zoomInAct = QAction(self)
         self.zoomInAct.setText("Zoom &In")
         self.zoomInAct.setStatusTip("Zoom In")
-        self.zoomInAct.setShortcut("CTRL+I")
+        self.zoomInAct.setShortcut("CTRL++")
         self.zoomInAct.setCheckable(True)
         self.zoomInAct.setIcon(QIcon(":/viewer/images/zoomin.png"))
         self.connect(self.zoomInAct, SIGNAL("toggled(bool)"), self.zoomIn)
+
+        self.zoomOutAct = QAction(self)
+        self.zoomOutAct.setText("Zoom &Out")
+        self.zoomOutAct.setStatusTip("Zoom Out")
+        self.zoomOutAct.setShortcut("CTRL+-")
+        self.zoomOutAct.setCheckable(True)
+        self.zoomOutAct.setIcon(QIcon(":/viewer/images/zoomout.png"))
+        self.connect(self.zoomOutAct, SIGNAL("toggled(bool)"), self.zoomOut)
 
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
@@ -189,7 +204,9 @@ class ViewerWindow(QMainWindow):
         self.editMenu.addAction(self.stretchAct)
 
         self.viewMenu = self.menuBar().addMenu("&View")
+        self.viewMenu.addAction(self.panAct)
         self.viewMenu.addAction(self.zoomInAct)
+        self.viewMenu.addAction(self.zoomOutAct)
 
     def setupToolbars(self):
         """
@@ -199,7 +216,9 @@ class ViewerWindow(QMainWindow):
         self.fileToolbar.addAction(self.openAct)
 
         self.viewToolbar = self.addToolBar("View")
+        self.viewToolbar.addAction(self.panAct)
         self.viewToolbar.addAction(self.zoomInAct)
+        self.viewToolbar.addAction(self.zoomOutAct)
 
     def setupStatusBar(self):
         """
@@ -294,7 +313,36 @@ The default stretch dialog will now open."
         Tell view widget to operate in zoom mode.        
         """
         if checked:
+            # disable any other tools
+            self.panAct.setChecked(False)
+            self.zoomOutAct.setChecked(False) 
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN)
+        else:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+
+    def zoomOut(self, checked):
+        """
+        Zoom in tool selected. 
+        Tell view widget to operate in zoom mode.        
+        """
+        if checked:
+            # disable any other tools
+            self.panAct.setChecked(False)
+            self.zoomInAct.setChecked(False) 
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT)
+        else:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+
+    def pan(self, checked):
+        """
+        Pan in tool selected. 
+        Tell view widget to operate in pan mode.
+        """
+        if checked:
+            # disable any other tools
+            self.zoomInAct.setChecked(False) 
+            self.zoomOutAct.setChecked(False) 
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
 
