@@ -5,7 +5,7 @@ zooming and panning etc.
 """
 
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap
+from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage
 from PyQt4.QtCore import Qt, QRect, QSize
 from osgeo import gdal
 
@@ -20,6 +20,40 @@ VIEWER_ZOOM_FRACTION = 0.1 # viewport increased/decreased by the fraction
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
+
+# Mappings between numpy datatypes and GDAL datatypes.
+# Note that ambiguities are resolved by the order - the first one found 
+# is the one chosen. 
+dataTypeMapping = [
+    (numpy.uint8,gdal.GDT_Byte),
+    (numpy.bool,gdal.GDT_Byte),
+    (numpy.int16,gdal.GDT_Int16),
+    (numpy.uint16,gdal.GDT_UInt16),
+    (numpy.int32,gdal.GDT_Int32),
+    (numpy.uint32,gdal.GDT_UInt32),
+    (numpy.single,gdal.GDT_Float32),
+    (numpy.float,gdal.GDT_Float64)
+]
+
+def GDALTypeToNumpyType(gdaltype):
+    """
+    Given a gdal data type returns the matching
+    numpy data type
+    """
+    for (numpy_type,test_gdal_type) in dataTypeMapping:
+        if test_gdal_type == gdaltype:
+            return numpy_type
+    raise viewererrors.TypeConversionError("Unknown GDAL datatype: %s"%gdaltype)
+
+def NumpyTypeToGDALType(numpytype):
+    """
+    For a given numpy data type returns the matching
+    GDAL data type
+    """
+    for (test_numpy_type,gdaltype) in dataTypeMapping:
+        if test_numpy_type == numpytype:
+            return gdaltype
+    raise viewererrors.TypeConversionError("Unknown numpy datatype: %s"%numpytype)
 
 class WindowFraction(object):
     """
@@ -112,9 +146,10 @@ class OverviewInfo(object):
     """
     Stores size and index of an overview
     """
-    def __init__(self, xsize, ysize, index):
+    def __init__(self, xsize, ysize, fullrespixperpix, index):
         self.xsize = xsize
         self.ysize = ysize
+        self.fullrespixperpix = fullrespixperpix
         self.index = index
 
 class OverviewManager(object):
@@ -137,7 +172,7 @@ class OverviewManager(object):
         """
         # i think we can assume that all the bands are the same size
         # add an info for the full res - this should always be location 0
-        ovi = OverviewInfo(ds.RasterXSize, ds.RasterYSize, 0)
+        ovi = OverviewInfo(ds.RasterXSize, ds.RasterYSize, 1.0, 0)
         self.overviews = [ovi]
 
         # for the overviews
@@ -159,39 +194,33 @@ class OverviewManager(object):
                     break
 
             if overviewok:
+                # calc the conversion to full res pixels
+                fullrespixperpix = float(ds.RasterXSize) / float(ov.XSize) # should do both ways?
                 # remember index 0 is full res so all real overviews are +1
-                ovi = OverviewInfo(ov.XSize, ov.YSize, index + 1)
+                ovi = OverviewInfo(ov.XSize, ov.YSize, fullrespixperpix, index + 1)
                 self.overviews.append(ovi)
 
         # make sure they are sorted by area - biggest first
         self.overviews.sort(key=lambda ov: ov.xsize * ov.ysize, reverse=True)
 
-    def findBestOverview(self, winxsize, winysize, viewfraction):
+    def findBestOverview(self, imgpixperwinpix):
         """
-        Finds the best overview for given window size and viewfraction
+        Finds the best overview for given imgpixperwinpix
         """
-        # convert to float so we don't need to do this each
-        # time around the loop
-        winxsize = float(winxsize)
-        winysize = float(winysize)
-
-        # start with the first, then try the others
-        # if available
-        # work out factor image res/window res
-        # this needs to be greater or = 1.0 so there
-        # is more image data than window data
         selectedovi = self.overviews[0]
         for ovi in self.overviews[1:]:
-                xfactor = (ovi.xsize * viewfraction[0]) / winxsize
-                if xfactor < 1.0:
-                    break
-                yfactor = (ovi.ysize * viewfraction[1]) / winysize
-                if yfactor < 1.0:
-                    break
-                # got here overview must be ok
+            if ovi.fullrespixperpix > imgpixperwinpix:
+                break # gone too far, selectedovi is selected
+            else:
+                # got here overview must be ok, but keep going
                 selectedovi = ovi
 
         return selectedovi
+
+VIEWER_TOOL_NONE = 0
+VIEWER_TOOL_ZOOMIN = 1
+VIEWER_TOOL_ZOOMOUT = 2
+VIEWER_TOOL_PAN = 3
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -210,7 +239,6 @@ class ViewerWidget(QAbstractScrollArea):
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
         self.stretch = None
-        self.mode = None
         self.image = None
         self.windowfraction = None
 
@@ -220,7 +248,7 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.rubberBand = None
         self.zoomInCursor = None
-        self.zoomToolActive = False
+        self.activeTool = VIEWER_TOOL_NONE
 
 
     def open(self, fname, stretch):
@@ -257,13 +285,13 @@ class ViewerWidget(QAbstractScrollArea):
         # now go and retrieve the data for the image
         self.getData()
 
-    def setZoomToolState(self, active):
+    def setActiveTool(self, tool):
         """
-        The containing window can call this to go into zoom mode
-        the cursor is changed and a rubber band can be drawn.
+        Set active tool (one of VIEWER_TOOL_*).
+        pass VIEWER_TOOL_NONE to disable
         """
-        self.zoomToolActive = active
-        if active:
+        self.activeTool = tool
+        if tool == VIEWER_TOOL_ZOOMIN:
             if self.zoomInCursor is None:
                 # create if needed.
                 self.zoomInCursor = QCursor(QPixmap(["16 16 3 1",
@@ -287,7 +315,7 @@ class ViewerWidget(QAbstractScrollArea):
                                   ".....#####...###",
                                   "..............#."]))
             self.viewport().setCursor(self.zoomInCursor)
-        else:
+        elif tool == VIEWER_TOOL_NONE:
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
 
@@ -315,97 +343,131 @@ class ViewerWidget(QAbstractScrollArea):
         appropriate overview and applies the lut 
         to it.
         """
-        # if nothing open, don't bother
+        size = self.viewport().size()
+
+        # if nothing open, create empty QImage
         if self.ds is None:
+            self.image = QImage(size, QImage.Format_RGB32)
+            self.image.fill(0)
             return
 
         # the fraction we are displaying
         centrefraction = self.windowfraction.centrefraction
         imgpixperwinpix = self.windowfraction.imgpixperwinpix
 
-        fullres = self.overviews.getFullRes()
-
-        size = self.viewport().size()
-        winxsize = size.width()
-        winysize = size.height()
-
-
-        fullres_winxsize = winxsize * imgpixperwinpix
-        fullres_winysize = winysize * imgpixperwinpix
-        # adjust if the window is bigger than we need
-        if fullres_winxsize > fullres.xsize:
-            fullres_winxsize = fullres.xsize
-            winxsize = fullres_winxsize / imgpixperwinpix
-        if fullres_winysize > fullres.ysize:
-            fullres_winysize = fullres.ysize
-            winysize = fullres_winysize / imgpixperwinpix
-
-        # what proportion of the full res is that?
-        xprop = fullres_winxsize / float(fullres.xsize)
-        yprop = fullres_winysize / float(fullres.ysize)
-
-        # grab the best overview for the number of
-        # pixels in the window
-        selectedovi = self.overviews.findBestOverview(winxsize, winysize, [xprop, yprop])
+        # find the best overview based on imgpixperwinpix
+        selectedovi = self.overviews.findBestOverview(imgpixperwinpix)
         print selectedovi.index
 
-        overview_xsize = int(xprop * selectedovi.xsize)
-        overview_ysize = int(yprop * selectedovi.ysize)
+        winxsize = size.width()
+        winysize = size.height()
+        half_winxsize = winxsize / 2
+        half_winysize = winysize / 2
 
-        # how many overview res pixels from the top left is the centre of the image?
-        overview_centrex = centrefraction[0] * selectedovi.xsize
-        overview_centrey = centrefraction[1] * selectedovi.ysize
+        # the centre of the image in overview coords
+        ov_centrex = selectedovi.xsize * centrefraction[0]
+        ov_centrey = selectedovi.ysize * centrefraction[1]
+        # conversion between full res and overview coords
+        ov_to_full = imgpixperwinpix / selectedovi.fullrespixperpix
+        # size of image in overview units
+        ov_xsize = int(winxsize * ov_to_full)
+        ov_ysize = int(winysize * ov_to_full)
 
-        # then subtract half the height/width
-        overview_x = int(overview_centrex - (overview_xsize / 2.0))
-        overview_y = int(overview_centrey - (overview_ysize / 2.0))
+        # to get from window to overview
+        # win * ov_to_full
+        # to get from overview to window:
+        # ov / ov_to_full
+        # subtract half the size to get top left in overview coords
+        ov_x = int(ov_centrex - (ov_xsize / 2.0))
+        ov_y = int(ov_centrey - (ov_ysize / 2.0))
 
-        # do some range checking
-        if overview_x < 0:
-            overview_x = 0
-        if overview_y < 0:
-            overview_y = 0
-        
-        overflow_x = (overview_x + overview_xsize) - selectedovi.xsize
-        if overflow_x > 0:
-            overview_x -= overflow_x
-        overflow_y = (overview_y + overview_ysize) - selectedovi.ysize
-        if overflow_y > 0:
-            overview_y -= overflow_y
+        # window coords for image we will read in
+        win_tlx = 0
+        win_tly = 0
+        win_brx = winxsize
+        win_bry = winysize
+
+        # 1) the requested area won't fit into viewport
+        if ov_x < 0:
+            # make a black area on the side
+            overflow = abs(ov_x)
+            win_tlx = int(overflow / ov_to_full)
+            ov_xsize -= overflow # adjust size so we are still centred
+            ov_x = 0
+        if ov_y < 0:
+            overflow = abs(ov_y)
+            # make a black area on the side
+            win_tly = int(overflow / ov_to_full)
+            ov_ysize -= overflow # adjust size so we are still centred
+            ov_y = 0
+
+        # now do the same to the sizes if we are still too big
+        ov_brx = ov_x + ov_xsize
+        if ov_brx > selectedovi.xsize:
+            overflow = ov_brx - selectedovi.xsize
+            win_brx -= int(overflow / ov_to_full)
+            ov_xsize -= overflow
+        ov_bry = ov_y + ov_ysize
+        if ov_bry > selectedovi.ysize:
+            overflow = ov_bry - selectedovi.ysize
+            win_bry -= int(overflow / ov_to_full)
+            ov_ysize -= overflow
+
+        # size of image we will ask GDAL for
+        blockxsize = win_brx - win_tlx
+        blockysize = win_bry - win_tly
 
         if len(self.stretch.bands) == 3:
             # rgb
             datalist = []
             for bandnum in self.stretch.bands:
                 band = self.ds.GetRasterBand(bandnum)
+
+                # create blank array of right size to read in to
+                numpytype = GDALTypeToNumpyType(band.DataType) 
+                data = numpy.zeros((winysize, winxsize), dtype=numpytype) # should be a default value?
+
+                # get correct overview
                 if selectedovi.index > 0:
                     band = band.GetOverview(selectedovi.index - 1)
 
-                data = band.ReadAsArray(overview_x, overview_y, overview_xsize, overview_ysize, winxsize, winysize )
+                # read into correct part of our window array
+                data[win_tly:win_bry, win_tlx:win_brx] = (
+                    band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
                 datalist.append(data)
-            
+
+            # apply LUT            
             self.image = self.lut.applyLUTRGB(datalist)
 
         else:
             # must be single band
             band = self.ds.GetRasterBand(self.stretch.bands[0])
+
+                # create blank array of right size to read in to
+            numpytype = GDALTypeToNumpyType(band.DataType) 
+            data = numpy.zeros((winysize, winxsize), dtype=numpytype) # should be a default value?
+
+            # get correct overview
             if selectedovi.index > 0:
                 band = band.GetOverview(selectedovi.index - 1)
 
-            data = band.ReadAsArray(overview_x, overview_y, overview_xsize, overview_ysize, winxsize, winysize )
+            # read into correct part of our window array
+            data[win_tly:win_bry, win_tlx:win_brx] = (
+                band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
 
+            # apply LUT            
             self.image = self.lut.applyLUTSingle(data)
 
         # reset the scroll bars for new extent of window
         # need to suppress processing of new scroll bar
         # events otherwise we end up in endless loop
         self.suppressscrollevent = True
-        self.horizontalScrollBar().setPageStep(overview_xsize)
-        self.verticalScrollBar().setPageStep(overview_ysize)
-        self.horizontalScrollBar().setRange(0, selectedovi.xsize - overview_xsize)
-        self.verticalScrollBar().setRange(0, selectedovi.ysize - overview_ysize)
-        self.horizontalScrollBar().setSliderPosition(overview_x)
-        self.verticalScrollBar().setSliderPosition(overview_y)
+        self.horizontalScrollBar().setPageStep(ov_xsize)
+        self.verticalScrollBar().setPageStep(ov_ysize)
+        self.horizontalScrollBar().setRange(0, selectedovi.xsize - ov_xsize)
+        self.verticalScrollBar().setRange(0, selectedovi.ysize - ov_ysize)
+        self.horizontalScrollBar().setSliderPosition(ov_x)
+        self.verticalScrollBar().setSliderPosition(ov_y)
         self.suppressscrollevent = False
 
         # force repaint
@@ -457,7 +519,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been clicked down if we are in zoom/pan
         mode we need to start doign stuff here
         """
-        if self.zoomToolActive:
+        if self.activeTool == VIEWER_TOOL_ZOOMIN:
             origin = event.pos()
             if self.rubberBand is None:
                 self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
@@ -470,7 +532,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been released, if we are in zoom/pan 
         mode we do stuff here.
         """
-        if self.zoomToolActive and self.rubberBand.isVisible():
+        if self.activeTool == VIEWER_TOOL_ZOOMIN and self.rubberBand.isVisible():
             # get the information about the rect they have drawn
             # note this is on self, rather than viewport() not sure 
             # if it matters
@@ -486,8 +548,10 @@ class ViewerWidget(QAbstractScrollArea):
             self.rubberBand.hide()
             # zoom the appropriate distance from centre
             # and to the appropriate fraction (we used area so conversion needed)
-            self.windowfraction.zoomViewCenter(selectioncenter.x() - geomcenter.x(),
-                                    selectioncenter.y() - geomcenter.y(),
+            # adjust also for the fact that the selection is made on this widget
+            # rather than the viewport - 1 pixel offset
+            self.windowfraction.zoomViewCenter(selectioncenter.x() - geomcenter.x() - geom.x(),
+                                    selectioncenter.y() - geomcenter.y() - geom.y(),
                                     numpy.sqrt(selectionsize / geomsize))
             # redraw
             self.getData()
@@ -498,7 +562,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been moved while dragging. If in zoom/pan
         mode we need to do something here.
         """
-        if self.zoomToolActive and self.rubberBand.isVisible():
+        if self.activeTool == VIEWER_TOOL_ZOOMIN and self.rubberBand.isVisible():
             # extend rect
             rect = QRect(self.rubberBand.origin, event.pos()).normalized()
             self.rubberBand.setGeometry(rect)

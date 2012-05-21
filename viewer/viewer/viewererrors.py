@@ -16,3 +16,6 @@ class InvalidStretch(ViewerException):
 
 class StatisticsError(ViewerException):
     "Unable to retrieve statistics"
+
+class TypeConversionError(ViewerException):
+    "Problem with the type of the dataset"

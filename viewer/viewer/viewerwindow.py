@@ -293,7 +293,10 @@ The default stretch dialog will now open."
         Zoom in tool selected. 
         Tell view widget to operate in zoom mode.        
         """
-        self.viewwidget.setZoomToolState(checked)
+        if checked:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN)
+        else:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
 
     def closeEvent(self, event):
         """
