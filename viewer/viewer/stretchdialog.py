@@ -62,10 +62,14 @@ class StretchLayout(QFormLayout):
         if stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             (r, g, b) = stretch.bands
             self.redSpinBox.setValue(r)
+            self.redSpinBox.setToolTip("Red")
             self.greenSpinBox.setValue(g)
+            self.greenSpinBox.setToolTip("Green")
             self.blueSpinBox.setValue(b)
+            self.blueSpinBox.setToolTip("Blue")
         else:
             self.redSpinBox.setValue(stretch.bands[0])
+            self.redSpinBox.setToolTip("Displayed Band")
             self.greenSpinBox.setEnabled(False)
             self.blueSpinBox.setEnabled(False)
 
@@ -98,13 +102,16 @@ class StretchLayout(QFormLayout):
             self.stretchParam1.setRange(0, 10)
             self.stretchParam1.setSingleStep(0.1)
             self.stretchParam1.setValue(stretch.stretchparam[0])
+            self.stretchParam1.setToolTip("Number of Standard Deviations")
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             self.stretchParam1.setRange(0, 1)
             self.stretchParam1.setSingleStep(0.005)
             self.stretchParam1.setValue(stretch.stretchparam[0])
+            self.stretchParam1.setToolTip("Minimum Proportion of Histogram")
             self.stretchParam2.setRange(0, 1)
             self.stretchParam2.setSingleStep(0.005)
             self.stretchParam2.setValue(stretch.stretchparam[1])
+            self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
         else:
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)
@@ -153,6 +160,14 @@ class StretchLayout(QFormLayout):
         greenredEnabled = (mode == viewerstretch.VIEWER_MODE_RGB)
         self.greenSpinBox.setEnabled(greenredEnabled)
         self.blueSpinBox.setEnabled(greenredEnabled)
+        if greenredEnabled:
+            self.redSpinBox.setToolTip("Red")
+            self.greenSpinBox.setToolTip("Green")
+            self.blueSpinBox.setToolTip("Blue")
+        else:
+            self.redSpinBox.setToolTip("Displayed Band")
+            self.greenSpinBox.setToolTip("")
+            self.blueSpinBox.setToolTip("")
 
         if mode == viewerstretch.VIEWER_MODE_COLORTABLE:
             # need to set stretch to none
@@ -171,18 +186,24 @@ class StretchLayout(QFormLayout):
             self.stretchParam1.setRange(0, 10)
             self.stretchParam1.setSingleStep(0.1)
             self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) # always set back to this default
+            self.stretchParam1.setToolTip("Number of Standard Deviations")
+            self.stretchParam2.setToolTip("")
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(True)
             self.stretchParam1.setRange(0, 1)
             self.stretchParam1.setSingleStep(0.005)
+            self.stretchParam1.setToolTip("Minimum Proportion of Histogram")
             self.stretchParam2.setRange(0, 1)
             self.stretchParam2.setSingleStep(0.005)
+            self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
             self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) # set back to these defaults
             self.stretchParam2.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
         else:
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)
+            self.stretchParam1.setToolTip("")
+            self.stretchParam2.setToolTip("")
 
 
 RULE_DATA = (("Number of Bands Less than", viewerstretch.VIEWER_COMP_LT),
