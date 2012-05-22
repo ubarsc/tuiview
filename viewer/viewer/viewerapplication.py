@@ -40,11 +40,10 @@ class CmdArgs(object):
     Class for processing command line arguments
     """
     def __init__(self):
-        self.parser = optparse.OptionParser()
+        usage = "usage: %prog [options] [filename]"
+        self.parser = optparse.OptionParser(usage)
         self.parser.stretch = viewerstretch.ViewerStretch()
 
-
-        self.parser.add_option('-f', '--filename', dest="filename", help="Image to display")
         self.parser.add_option('-b', '--bands', action="callback", callback=optionCallback,
                             type="string", nargs=1,  help="comma seperated list of bands to display")
         self.parser.add_option('-c', '--colortable', action="callback", callback=optionCallback,
@@ -62,7 +61,7 @@ class CmdArgs(object):
         self.parser.add_option('--hist', action="callback", callback=optionCallback, 
                                             help="do a histogram stretch")
 
-        (options, args) = self.parser.parse_args()
+        (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
 
 class ViewerApplication(QApplication):
@@ -83,13 +82,12 @@ class ViewerApplication(QApplication):
 
         # need to do this after show() otherwise
         # window size is wrong for some reason
-        if cmdargs.filename is not None:
+        if len(cmdargs.args) != 0:
+            filename = cmdargs.args[0] # maybe we should support multiple?
             stretch = None
             if cmdargs.parser.stretch.mode != viewerstretch.VIEWER_MODE_DEFAULT and \
                 cmdargs.parser.stretch.stretchmode != viewerstretch.VIEWER_STRETCHMODE_DEFAULT and \
                 cmdargs.parser.stretch.bands is not None:
                 stretch = cmdargs.parser.stretch
-            else:
-                print 'Missing or incomplete stretch arguments. Using defaults.'
-            self.mainw.openFileInternal(cmdargs.filename, stretch)
+            self.mainw.openFileInternal(filename, stretch)
 
