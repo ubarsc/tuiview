@@ -164,6 +164,7 @@ class ViewerWindow(QMainWindow):
         self.panAct = QAction(self)
         self.panAct.setText("&Pan")
         self.panAct.setStatusTip("Pan")
+        self.panAct.setShortcut("CTRL+P")
         self.panAct.setCheckable(True)
         self.panAct.setIcon(QIcon(":/viewer/images/pan.png"))
         self.connect(self.panAct, SIGNAL("toggled(bool)"), self.pan)
@@ -183,6 +184,20 @@ class ViewerWindow(QMainWindow):
         self.zoomOutAct.setCheckable(True)
         self.zoomOutAct.setIcon(QIcon(":/viewer/images/zoomout.png"))
         self.connect(self.zoomOutAct, SIGNAL("toggled(bool)"), self.zoomOut)
+
+        self.zoomNativeAct = QAction(self)
+        self.zoomNativeAct.setText("Zoom to &Native")
+        self.zoomNativeAct.setStatusTip("Zoom to Native Resolution")
+        self.zoomNativeAct.setShortcut("CTRL+1")
+        self.zoomNativeAct.setIcon(QIcon(":/viewer/images/zoomnative.png"))
+        self.connect(self.zoomNativeAct, SIGNAL("triggered()"), self.zoomNative)
+
+        self.zoomFullExtAct = QAction(self)
+        self.zoomFullExtAct.setText("Zoom to &Full Extent")
+        self.zoomFullExtAct.setStatusTip("Zoom to Full Extent")
+        self.zoomFullExtAct.setShortcut("CTRL+F")
+        self.zoomFullExtAct.setIcon(QIcon(":/viewer/images/zoomfullextent.png"))
+        self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), self.zoomFullExtent)
 
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
@@ -207,6 +222,8 @@ class ViewerWindow(QMainWindow):
         self.viewMenu.addAction(self.panAct)
         self.viewMenu.addAction(self.zoomInAct)
         self.viewMenu.addAction(self.zoomOutAct)
+        self.viewMenu.addAction(self.zoomNativeAct)
+        self.viewMenu.addAction(self.zoomFullExtAct)
 
     def setupToolbars(self):
         """
@@ -219,6 +236,8 @@ class ViewerWindow(QMainWindow):
         self.viewToolbar.addAction(self.panAct)
         self.viewToolbar.addAction(self.zoomInAct)
         self.viewToolbar.addAction(self.zoomOutAct)
+        self.viewToolbar.addAction(self.zoomNativeAct)
+        self.viewToolbar.addAction(self.zoomFullExtAct)
 
     def setupStatusBar(self):
         """
@@ -345,6 +364,19 @@ The default stretch dialog will now open."
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+
+    def zoomNative(self):
+        """
+        Tell the widget to zoom to native resolution
+        """
+        self.viewwidget.zoomNativeResolution()
+
+    def zoomFullExtent(self):
+        """
+        Tell the widget to zoom back to the full extent
+        """
+        self.viewwidget.zoomFullExtent()
+        
 
     def closeEvent(self, event):
         """

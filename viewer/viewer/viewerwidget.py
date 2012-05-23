@@ -64,14 +64,19 @@ class WindowFraction(object):
         to the whole thing
     """
     def __init__(self, winsize, firstoverview):
-        # initially we are looking at the whole image
-        # centred on the middle
+        self.firstoverview = firstoverview
+        self.resetToFull(winsize)
+
+    def resetToFull(self, winsize):
+        """
+        initially we are looking at the whole image
+        centred on the middle
+        """
         self.centrefraction = [0.5, 0.5]
 
-        xperpix = float(firstoverview.xsize) / float(winsize.width())
-        yperpix = float(firstoverview.ysize) / float(winsize.height())
+        xperpix = float(self.firstoverview.xsize) / float(winsize.width())
+        yperpix = float(self.firstoverview.ysize) / float(winsize.height())
         self.imgpixperwinpix = max(xperpix, yperpix)
-        self.firstoverview = firstoverview
 
     def getCoordFor(self, x_fromcenter, y_fromcentre, transform):
         """
@@ -289,6 +294,25 @@ class ViewerWidget(QAbstractScrollArea):
 
         # now go and retrieve the data for the image
         self.getData()
+
+    def zoomNativeResolution(self):
+        """
+        Sets the zoom to native resolution wherever
+        the current viewport is centered
+        """
+        if self.windowfraction is not None:
+            self.windowfraction.imgpixperwinpix = 1.0
+            self.getData()
+
+    def zoomFullExtent(self):
+        """
+        Resets the zoom to full extent - should be 
+        the same as when file was opened.
+        """
+        if self.windowfraction is not None:
+            size = self.viewport().size()
+            self.windowfraction.resetToFull(size)
+            self.getData()
 
     def setActiveTool(self, tool):
         """
@@ -587,38 +611,41 @@ class ViewerWidget(QAbstractScrollArea):
             geomsize = float(geom.width() * geom.height())
 
             self.rubberBand.hide()
-            # zoom the appropriate distance from centre
-            # and to the appropriate fraction (we used area so conversion needed)
-            # adjust also for the fact that the selection is made on this widget
-            # rather than the viewport - 1 pixel offset
-            newcentrex = selectioncenter.x() - geomcenter.x() - geom.x()
-            newcentrey = selectioncenter.y() - geomcenter.y() - geom.y()
-            if selectionsize == 0:
-                fraction = 0.5 # they just clicked
-            else:
-                fraction = numpy.sqrt(selectionsize / geomsize)
 
-            if self.activeTool == VIEWER_TOOL_ZOOMIN:
-                self.windowfraction.zoomViewCenter(newcentrex, newcentrey, fraction )
-            elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
-                # the smaller the area the larger the zoom
-                self.windowfraction.zoomViewCenter(newcentrex, newcentrey, 1.0 / fraction )
+            if self.windowfraction is not None:
+                # zoom the appropriate distance from centre
+                # and to the appropriate fraction (we used area so conversion needed)
+                # adjust also for the fact that the selection is made on this widget
+                # rather than the viewport - 1 pixel offset
+                newcentrex = selectioncenter.x() - geomcenter.x() - geom.x()
+                newcentrey = selectioncenter.y() - geomcenter.y() - geom.y()
+                if selectionsize == 0:
+                    fraction = 0.5 # they just clicked
+                else:
+                    fraction = numpy.sqrt(selectionsize / geomsize)
 
-            # redraw
-            self.getData()
+                if self.activeTool == VIEWER_TOOL_ZOOMIN:
+                    self.windowfraction.zoomViewCenter(newcentrex, newcentrey, fraction )
+                elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
+                    # the smaller the area the larger the zoom
+                    self.windowfraction.zoomViewCenter(newcentrex, newcentrey, 1.0 / fraction )
+
+                # redraw
+                self.getData()
 
         elif self.activeTool == VIEWER_TOOL_PAN:
-            # stop panning and move viewport
-            xamount = self.paintPoint.x() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
-            yamount = self.paintPoint.y() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
-            self.windowfraction.moveView(xamount, yamount)
-            # reset
-            self.paintPoint.setX(0)
-            self.paintPoint.setY(0)
             # change cursor back
             self.viewport().setCursor(self.panCursor)
-            # redraw
-            self.getData()
+            if self.windowfraction is not None:
+                # stop panning and move viewport
+                xamount = self.paintPoint.x() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
+                yamount = self.paintPoint.y() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
+                self.windowfraction.moveView(xamount, yamount)
+                # reset
+                self.paintPoint.setX(0)
+                self.paintPoint.setY(0)
+                # redraw
+                self.getData()
 
 
     def mouseMoveEvent(self, event):
@@ -631,7 +658,7 @@ class ViewerWidget(QAbstractScrollArea):
             rect = QRect(self.rubberBand.origin, event.pos()).normalized()
             self.rubberBand.setGeometry(rect)
 
-        elif self.activeTool == VIEWER_TOOL_PAN:
+        elif self.activeTool == VIEWER_TOOL_PAN and self.windowfraction is not None:
             # panning. Work out the offset from where we
             # starting panning and draw the current image
             # at an offset
