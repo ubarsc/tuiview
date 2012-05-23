@@ -5,6 +5,7 @@ Setup script for viewer. Use like this for Unix:
 $ python setup.py install
 
 For creation of py2exe bundle on Windows:
+> /c/Python27/python.exe setup.py install
 > /c/Python27/python.exe setup.py py2exe
 
 """
@@ -40,9 +41,10 @@ if sys.platform == 'win32' and sys.argv[1] == 'py2exe':
     kwargs['data_files'] = data_files
     kwargs['windows'] = ['bin/viewer']
     # see http://www.py2exe.org/index.cgi/TkInter, http://www.py2exe.org/index.cgi/Py2exeAndPyQt
+    # gone all out on the optimisations - don't need docstrings etc
     options = {'py2exe':{'bundle_files' : 3, 'includes':["sip"], 
                 'excludes':["pywin", "pywin.debugger", "pywin.debugger.dbgcon", "pywin.dialogs", "pywin.dialogs.list",
-                "Tkconstants","Tkinter","tcl"], 'dist_dir' : distdir}}
+                "Tkconstants","Tkinter","tcl"], 'optimize':2, 'dist_dir' : distdir}}
     kwargs['options'] = options
     
 # now run setup with the options we have collected
