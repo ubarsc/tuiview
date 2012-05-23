@@ -238,6 +238,14 @@ class ViewerWidget(QAbstractScrollArea):
         # events get fired that we wish to ignore
         self.suppressscrollevent = False
 
+        # set the background color to black so window
+        # is black when nothing loaded and when panning
+        # new areas are initially black.
+        widget = self.viewport()
+        palette = widget.palette()
+        palette.setColor(widget.backgroundRole(), Qt.black);
+        widget.setPalette(palette)
+
         # to do with tools
         self.rubberBand = None
         self.panCursor = None
@@ -374,12 +382,8 @@ class ViewerWidget(QAbstractScrollArea):
         appropriate overview and applies the lut 
         to it.
         """
-        size = self.viewport().size()
-
-        # if nothing open, create empty QImage
+        # if nothing open, just return
         if self.ds is None:
-            self.image = QImage(size, QImage.Format_RGB32)
-            self.image.fill(0)
             return
 
         # the fraction we are displaying
@@ -390,6 +394,7 @@ class ViewerWidget(QAbstractScrollArea):
         selectedovi = self.overviews.findBestOverview(imgpixperwinpix)
         print selectedovi.index
 
+        size = self.viewport().size()
         winxsize = size.width()
         winysize = size.height()
         half_winxsize = winxsize / 2
