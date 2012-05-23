@@ -4,6 +4,8 @@
         <file>zoomin.png</file>
         <file>zoomout.png</file>
         <file>pan.png</file>
+	<file>zoomnative.png</file>
+	<file>zoomfullextent.png</file>
     </qresource>
 </RCC>
 
