@@ -579,6 +579,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been clicked down if we are in zoom/pan
         mode we need to start doign stuff here
         """
+        QAbstractScrollArea.mousePressEvent(self, event)
         if self.activeTool == VIEWER_TOOL_ZOOMIN or self.activeTool == VIEWER_TOOL_ZOOMOUT:
             origin = event.pos()
             if self.rubberBand is None:
@@ -598,6 +599,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been released, if we are in zoom/pan 
         mode we do stuff here.
         """
+        QAbstractScrollArea.mouseReleaseEvent(self, event)
         if self.rubberBand is not None and self.rubberBand.isVisible():
             # get the information about the rect they have drawn
             # note this is on self, rather than viewport()
@@ -653,6 +655,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been moved while dragging. If in zoom/pan
         mode we need to do something here.
         """
+        QAbstractScrollArea.mouseMoveEvent(self, event)
         if self.rubberBand is not None and self.rubberBand.isVisible():
             # must be doing zoom in/out. extend rect
             rect = QRect(self.rubberBand.origin, event.pos()).normalized()
