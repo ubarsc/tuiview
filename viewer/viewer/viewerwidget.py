@@ -6,7 +6,7 @@ zooming and panning etc.
 
 import numpy
 from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage
-from PyQt4.QtCore import Qt, QRect, QSize, QPoint
+from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
 from osgeo import gdal
 
 from . import viewererrors
@@ -78,17 +78,17 @@ class WindowFraction(object):
         yperpix = float(self.firstoverview.ysize) / float(winsize.height())
         self.imgpixperwinpix = max(xperpix, yperpix)
 
-    def getCoordFor(self, x_fromcenter, y_fromcentre, transform):
+    def getCoordFor(self, x_fromcenter, y_fromcenter, transform):
         """
         For getting between window and world coords
         """
-        x_center = firstoverview.xsize * self.centrefraction[0]
-        y_center = firstoverview.ysize * self.centrefraction[1]
-        easting_center = transform[0] + x_center * transform[1] + y_centre * transform[2]
-        northing_centre = transform[3] + x_center * transform[4] + y_centre * transform[5]
-        easting = easting_center + x_fromcenter * self.imgpixperwinpix
-        northing = northing_center + y_fromcenter * self.imgpixperwinpix
-        return easting, northing
+        x_center = self.firstoverview.xsize * self.centrefraction[0]
+        y_center = self.firstoverview.ysize * self.centrefraction[1]
+        column = x_center + x_fromcenter * self.imgpixperwinpix
+        row = y_center + y_fromcenter * self.imgpixperwinpix
+        easting = transform[0] + column * transform[1] + row * transform[2]
+        northing = transform[3] + column * transform[4] + row * transform[5]
+        return easting, northing, column, row
 
     def moveView(self, xfraction, yfraction):
         """
@@ -213,10 +213,24 @@ class OverviewManager(object):
 
         return selectedovi
 
+class QueryInfo(object):
+    """
+    Container class for the information passed in the locationSelected
+    signal.
+    """
+    def __init__(self, easting, northing, column, row, data, stretch):
+        self.easting = easting
+        self.northing = northing
+        self.column = column
+        self.row = row
+        self.data = data
+        self.stretch = stretch
+
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
 VIEWER_TOOL_ZOOMOUT = 2
 VIEWER_TOOL_PAN = 3
+VIEWER_TOOL_QUERY = 4
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -257,6 +271,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.panGrabCursor = None
         self.zoomInCursor = None
         self.zoomOutCursor = None
+        self.queryCursor = None
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
 
@@ -377,6 +392,11 @@ class ViewerWidget(QAbstractScrollArea):
                 self.panCursor = QCursor(Qt.OpenHandCursor)
                 self.panGrabCursor = QCursor(Qt.ClosedHandCursor)
             self.viewport().setCursor(self.panCursor)
+
+        elif tool == VIEWER_TOOL_QUERY:
+            if self.queryCursor is None:
+                self.queryCursor = QCursor(Qt.CrossCursor)
+            self.viewport().setCursor(self.queryCursor)
 
         elif tool == VIEWER_TOOL_NONE:
             # change back
@@ -593,6 +613,30 @@ class ViewerWidget(QAbstractScrollArea):
             self.panOrigin = event.pos()
             # change cursor
             self.viewport().setCursor(self.panGrabCursor)
+
+        elif self.activeTool == VIEWER_TOOL_QUERY:
+            if self.windowfraction is not None:
+                pos = event.pos()
+                geom = self.viewport().geometry()
+                geomcenter = geom.center()
+                # work out where we are remembering 
+                # the one pixel offset 
+                x_fromcenter = pos.x() - geomcenter.x() - geom.x()
+                y_fromcenter = pos.y() - geomcenter.y() - geom.y()
+                # work out where that is in relation to the whole image
+                easting, northing, column, row = (
+                     self.windowfraction.getCoordFor(x_fromcenter, y_fromcenter, self.transform))
+                # read the data out of the dataset
+                column = int(column)
+                row = int(row)
+                data = self.ds.ReadAsArray(column, row, 1, 1)
+                if data is not None:
+                    # we just want the single 'drill down' of data as a 1d array
+                    data = data[...,0,0]
+                    qi = QueryInfo(easting, northing, column, row, data, self.stretch)
+                    # emit the signal
+                    self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
+                
 
     def mouseReleaseEvent(self, event):
         """

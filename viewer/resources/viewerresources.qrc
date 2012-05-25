@@ -6,6 +6,7 @@
         <file>pan.png</file>
 	<file>zoomnative.png</file>
 	<file>zoomfullextent.png</file>
+	<file>query.png</file>
     </qresource>
 </RCC>
 
