@@ -4,7 +4,16 @@ Module that contains the QueryDockWidget
 
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QToolButton, QIcon
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
+from PyQt4.QtGui import QTabWidget, QLabel, QPen
 from PyQt4.QtCore import SIGNAL, Qt
+
+# See if we have access to Qwt
+HAVE_QWT = True
+try:
+    from PyQt4.Qwt5 import QwtPlot, QwtPlotCurve, QwtPlotMarker, QwtText, QwtScaleDiv
+except ImportError:
+    HAVE_QWT = False
+
 from .viewerstretch import VIEWER_MODE_RGB
 
 QUERYWIDGET_DEFAULT_COLOR = Qt.white
@@ -85,11 +94,28 @@ class QueryDockWidget(QDockWidget):
         self.coordLayout.addWidget(self.followButton)
         self.coordLayout.addWidget(self.colorButton)
 
-        self.tableWidget = QTableWidget(self.dockWidget)
+        self.tabWidget = QTabWidget(self.dockWidget)
+
+        self.tableWidget = QTableWidget()
+        if HAVE_QWT:
+            self.plotWidget = QwtPlot()
+            self.plotCurve = QwtPlotCurve()
+            self.plotCurve.attach(self.plotWidget)
+            self.oldPlotLabels = [] # so we can detach() them when we want to redisplay
+        else:
+            self.noQWTLabel = QLabel()
+            self.noQWTLabel.setText("PyQwt needs to be installed for plot display")
+            self.noQWTLabel.setAlignment(Qt.AlignCenter)
+
+        self.tabWidget.addTab(self.tableWidget, "Table")
+        if HAVE_QWT:
+            self.tabWidget.addTab(self.plotWidget, "Plot")
+        else:
+            self.tabWidget.addTab(self.noQWTLabel, "Plot")
 
         self.mainLayout = QVBoxLayout()
         self.mainLayout.addLayout(self.coordLayout)
-        self.mainLayout.addWidget(self.tableWidget)
+        self.mainLayout.addWidget(self.tabWidget)
 
         self.dockWidget.setLayout(self.mainLayout)
         
@@ -112,6 +138,9 @@ class QueryDockWidget(QDockWidget):
             # if there is a previous point, redisplay in new color
             if self.lastqi is not None:
                 self.viewwidget.setQueryPoint(id(self), self.lastqi.column, self.lastqi.row, newcolor)
+                if HAVE_QWT:
+                    # to get new color
+                    self.updatePlot(self.lastqi, newcolor)
 
 
     def locationSelected(self, qi):
@@ -120,10 +149,12 @@ class QueryDockWidget(QDockWidget):
         the query tool.
         """
         if self.followButton.isChecked():
+            # set the coords
             self.eastingEdit.setText("%.5f" % qi.easting)
             self.northingEdit.setText("%.5f" % qi.northing)
             nbands = qi.data.shape[0]
 
+            # set up the table
             self.tableWidget.setRowCount(nbands)
             self.tableWidget.setColumnCount(3)
 
@@ -131,6 +162,7 @@ class QueryDockWidget(QDockWidget):
             vertLabels = ["%s" % (x+1) for x in range(nbands)]
             self.tableWidget.setVerticalHeaderLabels(vertLabels)
 
+            # fill in the table
             count = 0
             for x in qi.data:
                 # value
@@ -160,10 +192,58 @@ class QueryDockWidget(QDockWidget):
 
                 count += 1
 
+            color = self.colorButton.getColor()
+
+            # set up the plot
+            if HAVE_QWT:
+                self.updatePlot(qi, color)
+
             # add/modify this is a query point to the widget
-            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, self.colorButton.getColor())
+            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, color)
             # remember this qi in case we need to change color
             self.lastqi = qi
+
+    def updatePlot(self, qi, color):
+        """
+        Updates the plot widget with new data/color
+        """
+        pen = QPen(color)
+        pen.setWidth(2)
+        self.plotCurve.setPen(pen)
+        nbands = qi.data.shape[0]
+        xdata = range(1, nbands+1, 1)
+        self.plotCurve.setData(xdata, qi.data)
+
+        # detach any old ones
+        for marker in self.oldPlotLabels:
+            marker.detach()
+        self.oldPlotLabels = []
+
+        count = 1
+        for x, y, text in zip(xdata, qi.data, qi.bandNames):
+            marker = QwtPlotMarker()
+            text = QwtText(text)
+            marker.setLabel(text)
+            marker.setValue(x, y)
+            
+            # align appropriately for first and last
+            if count == 1:
+                marker.setLabelAlignment(Qt.AlignRight)
+            elif count == nbands:
+                marker.setLabelAlignment(Qt.AlignLeft)
+            
+            marker.attach(self.plotWidget)
+            self.oldPlotLabels.append(marker)
+            count += 1
+
+        # make xaxis labels integer
+        div = self.plotWidget.axisScaleDiv(QwtPlot.xBottom)
+        div.setInterval(1, nbands)
+        div.setTicks(QwtScaleDiv.MajorTick, xdata)
+        self.plotWidget.setAxisScaleDiv(QwtPlot.xBottom, div)
+
+        self.plotWidget.replot()
+        
 
     def closeEvent(self, event):
         """
