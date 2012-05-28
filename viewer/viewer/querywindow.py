@@ -5,8 +5,21 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QToolButton, QIcon
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtCore import SIGNAL, Qt
+from .viewerstretch import VIEWER_MODE_RGB
 
 QUERYWIDGET_DEFAULT_COLOR = Qt.white
+
+# icons for displaying in the 'band' column for RGB
+ICON_PIXMAP = QPixmap(24, 24)
+
+ICON_PIXMAP.fill(Qt.red)
+RED_ICON = QIcon(ICON_PIXMAP)
+
+ICON_PIXMAP.fill(Qt.green)
+GREEN_ICON = QIcon(ICON_PIXMAP)
+
+ICON_PIXMAP.fill(Qt.blue)
+BLUE_ICON = QIcon(ICON_PIXMAP)
 
 class ColorButton(QToolButton):
     """
@@ -129,6 +142,21 @@ class QueryDockWidget(QDockWidget):
                 nameitem = QTableWidgetItem(qi.bandNames[count])
                 nameitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
                 self.tableWidget.setItem(count, 1, nameitem)
+
+                # color
+                band = count + 1
+                if qi.stretch.mode == VIEWER_MODE_RGB and band in qi.stretch.bands:
+                    coloritem = QTableWidgetItem()
+                    if band == qi.stretch.bands[0]:
+                        # red
+                        coloritem.setIcon(RED_ICON)
+                    elif band == qi.stretch.bands[1]:
+                        # green
+                        coloritem.setIcon(GREEN_ICON)
+                    elif band == qi.stretch.bands[2]:
+                        # blue
+                        coloritem.setIcon(BLUE_ICON)
+                    self.tableWidget.setItem(count, 0, coloritem)
 
                 count += 1
 
