@@ -8,15 +8,15 @@
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{259A20EE-612B-4EEB-B69D-3F94C4CA9D7F}
-AppName=Viewer
+AppName=Viewer_{#TodayString}
 AppVersion=0.1
 ;AppVerName=Viewer 0.1
 AppPublisher=chchrsc
 AppPublisherURL=https://bitbucket.org/chchrsc/viewer/
 AppSupportURL=https://bitbucket.org/chchrsc/viewer/
 AppUpdatesURL=https://bitbucket.org/chchrsc/viewer/
-DefaultDirName={pf}\Viewer
-DefaultGroupName=Viewer
+DefaultDirName={pf}\Viewer_{#TodayString}
+DefaultGroupName=Viewer_{#TodayString}
 LicenseFile=C:\MinGW\msys\1.0\home\sam\viewer\viewer\LICENSE.txt
 OutputDir=C:\install
 OutputBaseFilename=viewersetup_{#TodayString}
