@@ -5,8 +5,8 @@ zooming and panning etc.
 """
 
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage
-from PyQt4.QtCore import Qt, QRect, QSize, QPoint
+from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage, QPen
+from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
 from osgeo import gdal
 
 from . import viewererrors
@@ -15,6 +15,9 @@ from . import viewerLUT
 
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction 
                             # on zoom out/ zoom in with mouse wheel
+
+QUERY_CURSOR_HALFSIZE = 8 # number of pixels
+QUERY_CURSOR_WIDTH = 2 # in pixels
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
@@ -78,17 +81,29 @@ class WindowFraction(object):
         yperpix = float(self.firstoverview.ysize) / float(winsize.height())
         self.imgpixperwinpix = max(xperpix, yperpix)
 
-    def getCoordFor(self, x_fromcenter, y_fromcentre, transform):
+    def getCoordFor(self, x_fromcenter, y_fromcenter, transform):
         """
         For getting between window and world coords
         """
-        x_center = firstoverview.xsize * self.centrefraction[0]
-        y_center = firstoverview.ysize * self.centrefraction[1]
-        easting_center = transform[0] + x_center * transform[1] + y_centre * transform[2]
-        northing_centre = transform[3] + x_center * transform[4] + y_centre * transform[5]
-        easting = easting_center + x_fromcenter * self.imgpixperwinpix
-        northing = northing_center + y_fromcenter * self.imgpixperwinpix
-        return easting, northing
+        x_center = self.firstoverview.xsize * self.centrefraction[0]
+        y_center = self.firstoverview.ysize * self.centrefraction[1]
+        column = x_center + x_fromcenter * self.imgpixperwinpix
+        row = y_center + y_fromcenter * self.imgpixperwinpix
+        easting = transform[0] + column * transform[1] + row * transform[2]
+        northing = transform[3] + column * transform[4] + row * transform[5]
+        return easting, northing, column, row
+
+    def getWindowCoordFor(self, col, row, winsize):
+        """
+        For going from rol/col at full res and current window coord
+        """
+        imgx_fromcentre = col - (self.firstoverview.xsize * self.centrefraction[0])
+        imgy_fromcentre = row - (self.firstoverview.ysize * self.centrefraction[1])
+        winx_fromcentre = imgx_fromcentre / self.imgpixperwinpix
+        winy_fromcentre = imgy_fromcentre / self.imgpixperwinpix
+        winx = winx_fromcentre + (winsize.width() / 2)
+        winy = winy_fromcentre + (winsize.height() / 2)
+        return int(numpy.round(winx)), int(numpy.round(winy))
 
     def moveView(self, xfraction, yfraction):
         """
@@ -213,10 +228,25 @@ class OverviewManager(object):
 
         return selectedovi
 
+class QueryInfo(object):
+    """
+    Container class for the information passed in the locationSelected
+    signal.
+    """
+    def __init__(self, easting, northing, column, row, data, stretch, bandNames):
+        self.easting = easting
+        self.northing = northing
+        self.column = column
+        self.row = row
+        self.data = data
+        self.stretch = stretch
+        self.bandNames = bandNames
+
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
 VIEWER_TOOL_ZOOMOUT = 2
 VIEWER_TOOL_PAN = 3
+VIEWER_TOOL_QUERY = 4
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -232,6 +262,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.filename = None
         self.ds = None
         self.transform = None
+        self.bandNames = None
+        self.queryPoints = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
         self.stretch = None
@@ -257,6 +289,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.panGrabCursor = None
         self.zoomInCursor = None
         self.zoomOutCursor = None
+        self.queryCursor = None
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
 
@@ -292,8 +325,39 @@ class ViewerWidget(QAbstractScrollArea):
         # read in the LUT
         self.lut.createLUT(self.ds, stretch)
 
+        # grab the band names
+        self.bandNames = []
+        for n in range(self.ds.RasterCount):
+            band = self.ds.GetRasterBand(n+1)
+            name = band.GetDescription()
+            self.bandNames.append(name)
+
+        # start with no query points and go from there
+        self.queryPoints = {}
+
         # now go and retrieve the data for the image
         self.getData()
+
+    def setQueryPoint(self, id, col, row, color):
+        """
+        Query points are overlayed ontop of the map at the given
+        row and col (at full res) and with the given color. This
+        function adds one based on an 'id' which uniquely identifies
+        the QueryDockWindow
+        """
+        self.queryPoints[id] = (col, row, color)
+
+        # force repaint
+        self.viewport().update()
+
+    def removeQueryPoint(self, id):
+        """
+        Remove given query point given the id.
+        """
+        del self.queryPoints[id]
+
+        # force repaint
+        self.viewport().update()
 
     def zoomNativeResolution(self):
         """
@@ -377,6 +441,11 @@ class ViewerWidget(QAbstractScrollArea):
                 self.panCursor = QCursor(Qt.OpenHandCursor)
                 self.panGrabCursor = QCursor(Qt.ClosedHandCursor)
             self.viewport().setCursor(self.panCursor)
+
+        elif tool == VIEWER_TOOL_QUERY:
+            if self.queryCursor is None:
+                self.queryCursor = QCursor(Qt.CrossCursor)
+            self.viewport().setCursor(self.queryCursor)
 
         elif tool == VIEWER_TOOL_NONE:
             # change back
@@ -572,13 +641,32 @@ class ViewerWidget(QAbstractScrollArea):
         if self.image is not None:
             paint = QPainter(self.viewport())
             paint.drawImage(self.paintPoint, self.image)
+            self.drawQueryPoints(paint)    # draw any query points on top of image
             paint.end()
+
+    def drawQueryPoints(self, paint):
+        """
+        Draw query points as part of paint. 
+        """
+        if self.windowfraction is not None:
+            size = self.viewport().size()
+            pen = QPen()
+            pen.setWidth(QUERY_CURSOR_WIDTH)
+            for id in self.queryPoints:
+                (col, row, color) = self.queryPoints[id]
+                cx, cy = self.windowfraction.getWindowCoordFor(col, row, size)
+                pen.setColor(color)
+                paint.setPen(pen)
+                # draw cross hair
+                paint.drawLine(cx - QUERY_CURSOR_HALFSIZE, cy, cx + QUERY_CURSOR_HALFSIZE, cy)
+                paint.drawLine(cx, cy - QUERY_CURSOR_HALFSIZE, cx, cy + QUERY_CURSOR_HALFSIZE)
 
     def mousePressEvent(self, event):
         """
         Mouse has been clicked down if we are in zoom/pan
-        mode we need to start doign stuff here
+        mode we need to start doing stuff here
         """
+        QAbstractScrollArea.mousePressEvent(self, event)
         if self.activeTool == VIEWER_TOOL_ZOOMIN or self.activeTool == VIEWER_TOOL_ZOOMOUT:
             origin = event.pos()
             if self.rubberBand is None:
@@ -593,11 +681,41 @@ class ViewerWidget(QAbstractScrollArea):
             # change cursor
             self.viewport().setCursor(self.panGrabCursor)
 
+        elif self.activeTool == VIEWER_TOOL_QUERY:
+            if self.windowfraction is not None:
+                pos = event.pos()
+                geom = self.viewport().geometry()
+                geomcenter = geom.center()
+                # work out where we are remembering 
+                # the one pixel offset 
+                x_fromcenter = pos.x() - geomcenter.x() - geom.x()
+                y_fromcenter = pos.y() - geomcenter.y() - geom.y()
+                # work out where that is in relation to the whole image
+                easting, northing, column, row = (
+                     self.windowfraction.getCoordFor(x_fromcenter, y_fromcenter, self.transform))
+                # read the data out of the dataset
+                column = int(column)
+                row = int(row)
+                data = self.ds.ReadAsArray(column, row, 1, 1)
+                if data is not None:
+                    # we just want the single 'drill down' of data as a 1d array
+                    data = data[...,0,0]
+                    # if single band GDAL gives us a single value - convert back to array
+                    # to make life easier
+                    if data.size == 1:
+                        data = numpy.array([data])
+
+                    qi = QueryInfo(easting, northing, column, row, data, self.stretch, self.bandNames)
+                    # emit the signal - handled by the QueryDockWidget
+                    self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
+                
+
     def mouseReleaseEvent(self, event):
         """
         Mouse has been released, if we are in zoom/pan 
         mode we do stuff here.
         """
+        QAbstractScrollArea.mouseReleaseEvent(self, event)
         if self.rubberBand is not None and self.rubberBand.isVisible():
             # get the information about the rect they have drawn
             # note this is on self, rather than viewport()
@@ -653,6 +771,7 @@ class ViewerWidget(QAbstractScrollArea):
         Mouse has been moved while dragging. If in zoom/pan
         mode we need to do something here.
         """
+        QAbstractScrollArea.mouseMoveEvent(self, event)
         if self.rubberBand is not None and self.rubberBand.isVisible():
             # must be doing zoom in/out. extend rect
             rect = QRect(self.rubberBand.origin, event.pos()).normalized()

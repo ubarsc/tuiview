@@ -11,7 +11,6 @@ from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
 from . import viewerwidget
-from . import stretchdialog
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -95,6 +94,11 @@ class ViewerWindow(QMainWindow):
         self.restoreFromSettings()
 
         self.showStatusMessage("Ready")
+
+        # number of query windows we have open. 
+        # if zero we need to start a new one when query 
+        # tool selected
+        self.queryWindowCount = 0 
 
     def newProgress(self, string):
         """
@@ -199,6 +203,20 @@ class ViewerWindow(QMainWindow):
         self.zoomFullExtAct.setIcon(QIcon(":/viewer/images/zoomfullextent.png"))
         self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), self.zoomFullExtent)
 
+        self.queryAct = QAction(self)
+        self.queryAct.setText("&Query Tool")
+        self.queryAct.setStatusTip("Start Query Tool")
+        self.queryAct.setShortcut("CTRL+U")
+        self.queryAct.setCheckable(True)
+        self.queryAct.setIcon(QIcon(":/viewer/images/query.png"))
+        self.connect(self.queryAct, SIGNAL("toggled(bool)"), self.query)
+
+        self.newQueryAct = QAction(self)
+        self.newQueryAct.setText("New Query &Window")
+        self.newQueryAct.setStatusTip("Open New Query Window")
+        self.newQueryAct.setShortcut("CTRL+W")
+        self.connect(self.newQueryAct, SIGNAL("triggered()"), self.newQueryWindow)
+
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
@@ -224,6 +242,8 @@ class ViewerWindow(QMainWindow):
         self.viewMenu.addAction(self.zoomOutAct)
         self.viewMenu.addAction(self.zoomNativeAct)
         self.viewMenu.addAction(self.zoomFullExtAct)
+        self.viewMenu.addAction(self.queryAct)
+        self.viewMenu.addAction(self.newQueryAct)
 
     def setupToolbars(self):
         """
@@ -238,6 +258,7 @@ class ViewerWindow(QMainWindow):
         self.viewToolbar.addAction(self.zoomOutAct)
         self.viewToolbar.addAction(self.zoomNativeAct)
         self.viewToolbar.addAction(self.zoomFullExtAct)
+        self.viewToolbar.addAction(self.queryAct)
 
     def setupStatusBar(self):
         """
@@ -255,6 +276,7 @@ class ViewerWindow(QMainWindow):
         """
         Show the default stretch dialog
         """
+        from . import stretchdialog
         dlg = stretchdialog.StretchDefaultsDialog(self)
         dlg.exec_()
 
@@ -292,6 +314,7 @@ class ViewerWindow(QMainWindow):
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches
+                from . import stretchdialog
                 defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
                 for rule in defaultList:
                     if rule.isMatch(gdaldataset):
@@ -323,6 +346,7 @@ The default stretch dialog will now open."
         """
         Show the edit stretch dock window
         """
+        from . import stretchdialog
         stretchDock = stretchdialog.StretchDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
 
@@ -335,6 +359,7 @@ The default stretch dialog will now open."
             # disable any other tools
             self.panAct.setChecked(False)
             self.zoomOutAct.setChecked(False) 
+            self.queryAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
@@ -348,19 +373,21 @@ The default stretch dialog will now open."
             # disable any other tools
             self.panAct.setChecked(False)
             self.zoomInAct.setChecked(False) 
+            self.queryAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
 
     def pan(self, checked):
         """
-        Pan in tool selected. 
+        Pan tool selected. 
         Tell view widget to operate in pan mode.
         """
         if checked:
             # disable any other tools
             self.zoomInAct.setChecked(False) 
             self.zoomOutAct.setChecked(False) 
+            self.queryAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
@@ -377,6 +404,49 @@ The default stretch dialog will now open."
         """
         self.viewwidget.zoomFullExtent()
         
+    def query(self, checked):
+        """
+        Query tool selected. 
+        Tell view widget to operate in query mode.
+        """
+        if checked:
+            # disable any other tools
+            self.zoomInAct.setChecked(False) 
+            self.zoomOutAct.setChecked(False) 
+            self.panAct.setChecked(False)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_QUERY)
+
+            # if there is no query window currently open start one
+            if self.queryWindowCount <= 0:
+                self.newQueryWindow()
+        else:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+
+    def queryClosed(self, queryDock):
+        """
+        Query dock window has been closed. Disconnect from 
+        locationSelected signal and decrement our count
+        """
+        self.disconnect(self.viewwidget, SIGNAL("locationSelected(PyQt_PyObject)"), queryDock.locationSelected)
+        self.queryWindowCount -= 1
+
+    def newQueryWindow(self):
+        """
+        Create a new QueryDockWidget and connect signals 
+        and increment our count of these windows
+        """
+        from . import querywindow
+        queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
+        self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
+
+        # connect it to signals emitted by the viewerwidget
+        self.connect(self.viewwidget, SIGNAL("locationSelected(PyQt_PyObject)"), queryDock.locationSelected)
+
+        # grab the signal with queryDock sends when it is closed
+        self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), self.queryClosed)
+
+        # increment our count
+        self.queryWindowCount += 1
 
     def closeEvent(self, event):
         """
