@@ -11,8 +11,6 @@ from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
 from . import viewerwidget
-from . import stretchdialog
-from . import querywindow
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -278,6 +276,7 @@ class ViewerWindow(QMainWindow):
         """
         Show the default stretch dialog
         """
+        from . import stretchdialog
         dlg = stretchdialog.StretchDefaultsDialog(self)
         dlg.exec_()
 
@@ -315,6 +314,7 @@ class ViewerWindow(QMainWindow):
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches
+                from . import stretchdialog
                 defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
                 for rule in defaultList:
                     if rule.isMatch(gdaldataset):
@@ -346,6 +346,7 @@ The default stretch dialog will now open."
         """
         Show the edit stretch dock window
         """
+        from . import stretchdialog
         stretchDock = stretchdialog.StretchDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
 
@@ -434,7 +435,8 @@ The default stretch dialog will now open."
         Create a new QueryDockWidget and connect signals 
         and increment our count of these windows
         """
-        queryDock = querywindow.QueryDockWidget(self)
+        from . import querywindow
+        queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
 
         # connect it to signals emitted by the viewerwidget
