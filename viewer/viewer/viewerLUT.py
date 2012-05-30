@@ -18,11 +18,7 @@ gdal.UseExceptions()
 # are we big endian or not?
 BIG_ENDIAN = sys.byteorder == 'big'
 
-# scale, offset, size, min, max
-INTEGER_SCALEOFFSETS = {gdal.GDT_Byte : (1, 0, 256, 0, 255),
-                        gdal.GDT_UInt16 : (1, 0, 65536, 0, 65535),
-                        gdal.GDT_Int16 : (1, -32768, 65536, -32768, 32767) }
-DEFAULT_LUTSIZE = 1024 # if not one of the types above
+DEFAULT_LUTSIZE = 1024 # if not 8bit
 
 # Qt expects the colours in BGRA order packed into
 # a 32bit int. We do this by inserting stuff into
@@ -308,12 +304,11 @@ class ViewerLUT(QObject):
         return the BandLUTInfo instance
         to be used in the LUT for this image
         """
-        dtype = gdalband.DataType
-        if dtype in INTEGER_SCALEOFFSETS:
-            (scale, offset, lutsize, min, max) = INTEGER_SCALEOFFSETS[dtype]
+        if gdalband.DataType == gdal.GDT_Byte:
+            (scale, offset, lutsize, min, max) = (1, 0, 256, 0, 255)
         else:
-            # must be float or 32bit int
-            # scale to the range of the data
+            # non 8bit data
+            # scale to the range of the data with DEFAULT_LUTSIZE divisions
             minVal, maxVal, mean, stdDev = self.getStatisticsWithProgress(gdalband)
             offset = -minVal
             scale = (maxVal - minVal) / DEFAULT_LUTSIZE
@@ -425,6 +420,8 @@ class ViewerLUT(QObject):
         # work out where the NaN's are if float
         if numpy.issubdtype(data.dtype, numpy.floating):
             nanmask = numpy.isnan(data)
+        else:
+            nanmask = None
 
         # apply scaling
         data = (data + self.bandinfo.offset) * self.bandinfo.scale
@@ -432,7 +429,9 @@ class ViewerLUT(QObject):
         # can only do lookups with integer data
         if numpy.issubdtype(data.dtype, numpy.floating):
             data = data.astype(numpy.integer)
-            # set NaN values back to LUT=0
+
+        if nanmask is not None:
+            # set NaN values back to LUT=0 if originally float
             data = numpy.where(nanmask, 0, data)
 
         # do the lookup
@@ -449,7 +448,7 @@ class ViewerLUT(QObject):
     def applyLUTRGB(self, datalist):
         """
         Apply LUT to 3 bands of imagery
-        passed as a lit of arrays.
+        passed as a list of arrays.
         Return a QImage
         """
         winysize, winxsize = datalist[0].shape
@@ -463,6 +462,8 @@ class ViewerLUT(QObject):
             # work out where the NaN's are if float
             if numpy.issubdtype(data.dtype, numpy.floating):
                 nanmask = numpy.isnan(data)
+            else:
+                nanmask = None
             
             # apply scaling
             data = (data + bandinfo.offset) * bandinfo.scale
@@ -470,7 +471,9 @@ class ViewerLUT(QObject):
             # can only do lookups with integer data
             if numpy.issubdtype(data.dtype, numpy.floating):
                 data = data.astype(numpy.integer)
-                # set NaN values back to LUT=0
+
+            # set NaN values back to LUT=0 if data originally float
+            if nanmask is not None:
                 data = numpy.where(nanmask, 0, data)
 
             # do the lookup
@@ -478,6 +481,7 @@ class ViewerLUT(QObject):
         
         # turn into QImage
         image = QImage(bgra.data, winxsize, winysize, QImage.Format_RGB32)
+        image.ndarray = datalist # so we have the data if we want to calculate stats etc
         return image
 
 
