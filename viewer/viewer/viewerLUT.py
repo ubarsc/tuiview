@@ -422,15 +422,18 @@ class ViewerLUT(QObject):
         or greyscale image) and return the result as
         a QImage
         """
-        # git rid of nan's
+        # work out where the NaN's are if float
         if numpy.issubdtype(data.dtype, numpy.floating):
-            data = numpy.nan_to_num(data)
+            nanmask = numpy.isnan(data)
 
         # apply scaling
         data = (data + self.bandinfo.offset) * self.bandinfo.scale
+
         # can only do lookups with integer data
         if numpy.issubdtype(data.dtype, numpy.floating):
             data = data.astype(numpy.integer)
+            # set NaN values back to LUT=0
+            data = numpy.where(nanmask, 0, data)
 
         # do the lookup
         bgra = self.lut[data]
@@ -457,15 +460,18 @@ class ViewerLUT(QObject):
             lutindex = CODE_TO_LUTINDEX[code]
             bandinfo = self.bandinfo[code]
 
-            # git rid of nan's
+            # work out where the NaN's are if float
             if numpy.issubdtype(data.dtype, numpy.floating):
-                data = numpy.nan_to_num(data)
+                nanmask = numpy.isnan(data)
             
             # apply scaling
             data = (data + bandinfo.offset) * bandinfo.scale
+
             # can only do lookups with integer data
             if numpy.issubdtype(data.dtype, numpy.floating):
                 data = data.astype(numpy.integer)
+                # set NaN values back to LUT=0
+                data = numpy.where(nanmask, 0, data)
 
             # do the lookup
             bgra[...,lutindex] = self.lut[lutindex][data]
