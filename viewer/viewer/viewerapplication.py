@@ -17,21 +17,29 @@ def optionCallback(option, opt_str, value, parser):
     """
     if opt_str == '-c' or opt_str == '--colortable':
         parser.stretch.setColorTable()
+        parser.modeSet = True
     elif opt_str == '-g' or opt_str == '--greyscale':
         parser.stretch.setGreyScale()
+        parser.modeSet = True
     elif opt_str == '-r' or opt_str == '--rgb':
         parser.stretch.setRGB()
+        parser.modeSet = True
     elif opt_str == '-n' or opt_str == '--nostretch':
         parser.stretch.setNoStretch()
+        parser.stretchModeSet = True
     elif opt_str == '-l' or opt_str == '--linear':
         parser.stretch.setLinearStretch()
+        parser.stretchModeSet = True
     elif opt_str == '-s' or opt_str == '--stddev':
         parser.stretch.setStdDevStretch()
+        parser.stretchModeSet = True
     elif opt_str == '--hist':
         parser.stretch.setHistStretch()
+        parser.stretchModeSet = True
     elif opt_str == '-b' or opt_str == '--bands':
         bandlist = [int(x) for x in value.split(',')]
         parser.stretch.setBands(bandlist)
+        parser.bandsSet = True
     else:
         raise ValueError("Unknown option %s" % opt_str)
 
@@ -43,6 +51,9 @@ class CmdArgs(object):
         usage = "usage: %prog [options] [filename]"
         self.parser = optparse.OptionParser(usage)
         self.parser.stretch = viewerstretch.ViewerStretch()
+        self.parser.modeSet = False
+        self.parser.stretchModeSet = False
+        self.parser.bandsSet = False
 
         self.parser.add_option('-b', '--bands', action="callback", callback=optionCallback,
                             type="string", nargs=1,  help="comma seperated list of bands to display")
@@ -85,9 +96,12 @@ class ViewerApplication(QApplication):
         if len(cmdargs.args) != 0:
             filename = cmdargs.args[0] # maybe we should support multiple?
             stretch = None
-            if cmdargs.parser.stretch.mode != viewerstretch.VIEWER_MODE_DEFAULT and \
-                cmdargs.parser.stretch.stretchmode != viewerstretch.VIEWER_STRETCHMODE_DEFAULT and \
-                cmdargs.parser.stretch.bands is not None:
+            if cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet and cmdargs.parser.bandsSet:
+                # use the stretch they have constructed
                 stretch = cmdargs.parser.stretch
+            elif cmdargs.parser.modeSet or cmdargs.parser.stretchModeSet or cmdargs.parser.bandsSet:
+                msg = 'Stretch incomplete. Must specify one of [-c|-g|-r] and one of [-n|-l|-s|--hist] and -b, or none to use defaults.'
+                raise SystemExit(msg)
+
             self.mainw.openFileInternal(filename, stretch)
 
