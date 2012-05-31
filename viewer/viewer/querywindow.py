@@ -253,7 +253,13 @@ class QueryDockWidget(QDockWidget):
         pen.setWidth(2)
         self.plotCurve.setPen(pen)
         nbands = qi.data.shape[0]
-        xdata = range(1, nbands+1, 1)
+
+        if qi.wavelengths is None:
+            # no wavelengths stored with data - just use band number
+            xdata = range(1, nbands+1, 1)
+        else:
+            xdata = qi.wavelengths
+
         self.plotCurve.setData(xdata, qi.data)
 
         # detach any old ones
@@ -280,11 +286,12 @@ class QueryDockWidget(QDockWidget):
                 self.oldPlotLabels.append(marker)
                 count += 1
 
-        # make xaxis labels integer
-        div = self.plotWidget.axisScaleDiv(QwtPlot.xBottom)
-        div.setInterval(1, nbands)
-        div.setTicks(QwtScaleDiv.MajorTick, xdata)
-        self.plotWidget.setAxisScaleDiv(QwtPlot.xBottom, div)
+        # make xaxis labels integer if no wavelengths
+        if qi.wavelengths is None:
+            div = self.plotWidget.axisScaleDiv(QwtPlot.xBottom)
+            div.setInterval(1, nbands)
+            div.setTicks(QwtScaleDiv.MajorTick, xdata)
+            self.plotWidget.setAxisScaleDiv(QwtPlot.xBottom, div)
 
         self.plotWidget.replot()
         

@@ -233,7 +233,8 @@ class QueryInfo(object):
     Container class for the information passed in the locationSelected
     signal.
     """
-    def __init__(self, easting, northing, column, row, data, stretch, bandNames):
+    def __init__(self, easting, northing, column, row, 
+                    data, stretch, bandNames, wavelengths):
         self.easting = easting
         self.northing = northing
         self.column = column
@@ -241,6 +242,7 @@ class QueryInfo(object):
         self.data = data
         self.stretch = stretch
         self.bandNames = bandNames
+        self.wavelengths = wavelengths
 
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
@@ -263,6 +265,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.ds = None
         self.transform = None
         self.bandNames = None
+        self.wavelengths = None
         self.queryPoints = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
@@ -329,17 +332,63 @@ class ViewerWidget(QAbstractScrollArea):
         self.lut.createLUT(self.ds, stretch)
 
         # grab the band names
-        self.bandNames = []
-        for n in range(self.ds.RasterCount):
-            band = self.ds.GetRasterBand(n+1)
-            name = band.GetDescription()
-            self.bandNames.append(name)
+        self.bandNames = self.getBandNames()
+
+        # grab the wavelengths
+        self.wavelengths = self.getWavelengths()
 
         # start with no query points and go from there
         self.queryPoints = {}
 
         # now go and retrieve the data for the image
         self.getData()
+
+    def getBandNames(self):
+        """
+        Return the list of band names
+        """
+        bandNames = []
+        for n in range(self.ds.RasterCount):
+            band = self.ds.GetRasterBand(n+1)
+            name = band.GetDescription()
+            bandNames.append(name)
+        return bandNames
+        
+    def getWavelengths(self):
+        """
+        Return the list of wavelength if file
+        conforms to the metadata provided by the 
+        ENVI driver, or None
+        """
+        wavelengths = []
+        ok = True
+        # GetMetadataItem seems buggy for ENVI
+        # get the lot and go through
+        meta = self.ds.GetMetadata()
+        # go through each band
+        for n in range(self.ds.RasterCount):
+            # get the metadata item based on band name
+            metaname = "Band_%d" % (n+1)
+            if metaname in meta:
+                item = meta[metaname]
+                # try to convert to float
+                try:
+                    wl = float(item)
+                except ValueError:
+                    ok = False
+                    break
+                # must be ok
+                wavelengths.append(wl)
+            else:
+                ok = False
+                break
+
+        # failed
+        if not ok:
+            wavelengths = None
+
+        return wavelengths
+        
 
     def setQueryPoint(self, id, col, row, color):
         """
@@ -612,6 +661,10 @@ class ViewerWidget(QAbstractScrollArea):
         """
         Handle the user moving the scroll bars
         """
+        # if nothing open, just return
+        if self.ds is None:
+            return
+
         if not self.suppressscrollevent:
             xamount = dx * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
             yamount = dy * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
@@ -623,6 +676,9 @@ class ViewerWidget(QAbstractScrollArea):
         """
         User has used mouse wheel to zoom in/out or pan depending on defined preference
         """
+        # if nothing open, just return
+        if self.ds is None:
+            return
 
         if self.mouseWheelZoom:
             if event.delta() > 0:
@@ -721,7 +777,8 @@ class ViewerWidget(QAbstractScrollArea):
                     if data.size == 1:
                         data = numpy.array([data])
 
-                    qi = QueryInfo(easting, northing, column, row, data, self.stretch, self.bandNames)
+                    qi = QueryInfo(easting, northing, column, row, 
+                            data, self.stretch, self.bandNames, self.wavelengths)
                     # emit the signal - handled by the QueryDockWidget
                     self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 
