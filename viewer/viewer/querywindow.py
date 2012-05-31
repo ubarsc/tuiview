@@ -2,9 +2,9 @@
 Module that contains the QueryDockWidget
 """
 
-from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QToolButton, QIcon
+from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
-from PyQt4.QtGui import QTabWidget, QLabel, QPen
+from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -30,33 +30,6 @@ GREEN_ICON = QIcon(ICON_PIXMAP)
 ICON_PIXMAP.fill(Qt.blue)
 BLUE_ICON = QIcon(ICON_PIXMAP)
 
-class ColorButton(QToolButton):
-    """
-    QToolButton derived class that contains an icon
-    solid with the specified color
-    """
-    def __init__(self, parent, color):
-        QToolButton.__init__(self, parent)
-        self.setColor(color)
-
-    def setColor(self, color):
-        """
-        Just create a solid pixmap and an icon
-        from that
-        """
-        self.color = color
-        pixmap = QPixmap(24, 24)
-        pixmap.fill(self.color)
-        self.icon = QIcon(pixmap)
-        self.setIcon(self.icon)
-
-    def getColor(self):
-        """
-        return the current color
-        """
-        return self.color
-
-
 class QueryDockWidget(QDockWidget):
     """
     Dock widget that contains the query window. Follows query 
@@ -67,32 +40,26 @@ class QueryDockWidget(QDockWidget):
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Query", parent)
         self.viewwidget = viewwidget
+        self.color = QUERYWIDGET_DEFAULT_COLOR
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
 
+        self.toolBar = QToolBar(self.dockWidget)
+        self.setupActions()
+        self.setupToolbar()
+
         self.eastingEdit = QLineEdit(self.dockWidget)
         self.eastingEdit.setReadOnly(True)
+        self.eastingEdit.setToolTip("Easting")
 
         self.northingEdit = QLineEdit(self.dockWidget)
         self.northingEdit.setReadOnly(True)
-
-        self.followButton = QToolButton(self.dockWidget)
-        icon = QIcon(":/viewer/images/query.png")
-        self.followButton.setIcon(icon)
-        self.followButton.setCheckable(True)
-        self.followButton.setChecked(True)
-        self.followButton.setToolTip("Follow Query Tool")
-
-        self.colorButton = ColorButton(self.dockWidget, QUERYWIDGET_DEFAULT_COLOR)
-        self.colorButton.setToolTip("Set cursor color")
-        self.connect(self.colorButton, SIGNAL("clicked()"), self.changeColor)
+        self.northingEdit.setToolTip("Northing")
 
         self.coordLayout = QHBoxLayout()
         self.coordLayout.addWidget(self.eastingEdit)
         self.coordLayout.addWidget(self.northingEdit)
-        self.coordLayout.addWidget(self.followButton)
-        self.coordLayout.addWidget(self.colorButton)
 
         self.tabWidget = QTabWidget(self.dockWidget)
 
@@ -114,6 +81,7 @@ class QueryDockWidget(QDockWidget):
             self.tabWidget.addTab(self.noQWTLabel, "Plot")
 
         self.mainLayout = QVBoxLayout()
+        self.mainLayout.addWidget(self.toolBar)
         self.mainLayout.addLayout(self.coordLayout)
         self.mainLayout.addWidget(self.tabWidget)
 
@@ -126,29 +94,105 @@ class QueryDockWidget(QDockWidget):
         # when the user changes color
         self.lastqi = None
 
+    def getColorIcon(self):
+        """
+        Returns the icon for the change color tool
+        which is based on the current color
+        """
+        pixmap = QPixmap(24, 24)
+        pixmap.fill(self.color)
+        return QIcon(pixmap)
+
+    def setupActions(self):
+        """
+        Create the actions to be shown on the toolbar
+        """
+        self.followAction = QAction(self)
+        self.followAction.setText("&Follow Query Tool")
+        self.followAction.setStatusTip("Follow Query Tool")
+        self.followAction.setIcon(QIcon(":/viewer/images/query.png"))
+        self.followAction.setCheckable(True)
+        self.followAction.setChecked(True)
+
+        self.colorAction = QAction(self)
+        self.colorAction.setText("&Change Cursor Color")
+        self.colorAction.setStatusTip("Change Cursor Color")
+        icon = self.getColorIcon()
+        self.colorAction.setIcon(icon)        
+        self.connect(self.colorAction, SIGNAL("triggered()"), self.changeColor)
+
+        self.labelAction = QAction(self)
+        self.labelAction.setText("&Display Plot Labels")
+        self.labelAction.setStatusTip("Display Plot Labels")
+        self.labelAction.setIcon(QIcon(":/viewer/images/label.png"))
+        self.labelAction.setCheckable(True)
+        self.labelAction.setChecked(True)
+        self.connect(self.labelAction, SIGNAL("toggled(bool)"), self.changeLabel)
+
+        self.saveAction = QAction(self)
+        self.saveAction.setText("&Save Plot")
+        self.saveAction.setStatusTip("Save Plot")
+        self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
+        self.connect(self.saveAction, SIGNAL("triggered()"), self.savePlot)
+
+    def setupToolbar(self):
+        """
+        Add the actions to the toolbar
+        """
+        self.toolBar.addAction(self.followAction)
+        self.toolBar.addAction(self.colorAction)
+        if HAVE_QWT:
+            self.toolBar.addAction(self.labelAction)
+            self.toolBar.addAction(self.saveAction)
+
+
     def changeColor(self):
         """
         User wishes to change cursor color
         """
-        initial = self.colorButton.getColor()
+        initial = self.color
         newcolor = QColorDialog.getColor(initial, self)
         if newcolor.isValid():
-            self.colorButton.setColor(newcolor)
+            # change the toolbar icon
+            self.color = newcolor
+            icon = self.getColorIcon()
+            self.colorAction.setIcon(icon)        
     
             # if there is a previous point, redisplay in new color
             if self.lastqi is not None:
                 self.viewwidget.setQueryPoint(id(self), self.lastqi.column, self.lastqi.row, newcolor)
-                if HAVE_QWT:
+                if HAVE_QWT and self.lastqi is not None:
                     # to get new color
                     self.updatePlot(self.lastqi, newcolor)
 
+    def changeLabel(self, checked):
+        """
+        State of display labels check has been changed. Redisplay plot.
+        """
+        if HAVE_QWT and self.lastqi is not None:
+            self.updatePlot(self.lastqi, self.color)
+
+    def savePlot(self):
+        """
+        Save the plot as a file. Either .pdf or .ps QPrinter
+        chooses format based on extension.
+        """
+        if HAVE_QWT:
+            fname = QFileDialog.getSaveFileName(self, "Plot File", filter="PDF (*.pdf);;Postscript (*.ps)")
+            if not fname.isEmpty():
+                printer = QPrinter()
+                printer.setOrientation(QPrinter.Landscape)
+                printer.setColorMode(QPrinter.Color)
+                printer.setOutputFileName(fname)
+                printer.setResolution(96)
+                self.plotWidget.print_(printer)
 
     def locationSelected(self, qi):
         """
         The ViewerWidget has told us it has a new coordinate from
         the query tool.
         """
-        if self.followButton.isChecked():
+        if self.followAction.isChecked():
             # set the coords
             self.eastingEdit.setText("%.5f" % qi.easting)
             self.northingEdit.setText("%.5f" % qi.northing)
@@ -192,14 +236,12 @@ class QueryDockWidget(QDockWidget):
 
                 count += 1
 
-            color = self.colorButton.getColor()
-
             # set up the plot
             if HAVE_QWT:
-                self.updatePlot(qi, color)
+                self.updatePlot(qi, self.color)
 
             # add/modify this is a query point to the widget
-            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, color)
+            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, self.color)
             # remember this qi in case we need to change color
             self.lastqi = qi
 
@@ -219,22 +261,24 @@ class QueryDockWidget(QDockWidget):
             marker.detach()
         self.oldPlotLabels = []
 
-        count = 1
-        for x, y, text in zip(xdata, qi.data, qi.bandNames):
-            marker = QwtPlotMarker()
-            text = QwtText(text)
-            marker.setLabel(text)
-            marker.setValue(x, y)
+        # only do new labels if they have asked for them.
+        if self.labelAction.isChecked():
+            count = 1
+            for x, y, text in zip(xdata, qi.data, qi.bandNames):
+                marker = QwtPlotMarker()
+                text = QwtText(text)
+                marker.setLabel(text)
+                marker.setValue(x, y)
             
-            # align appropriately for first and last
-            if count == 1:
-                marker.setLabelAlignment(Qt.AlignRight)
-            elif count == nbands:
-                marker.setLabelAlignment(Qt.AlignLeft)
+                # align appropriately for first and last
+                if count == 1:
+                    marker.setLabelAlignment(Qt.AlignRight)
+                elif count == nbands:
+                    marker.setLabelAlignment(Qt.AlignLeft)
             
-            marker.attach(self.plotWidget)
-            self.oldPlotLabels.append(marker)
-            count += 1
+                marker.attach(self.plotWidget)
+                self.oldPlotLabels.append(marker)
+                count += 1
 
         # make xaxis labels integer
         div = self.plotWidget.axisScaleDiv(QwtPlot.xBottom)
