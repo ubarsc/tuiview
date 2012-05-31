@@ -13,7 +13,7 @@ from . import viewererrors
 from . import viewerLUT
 
 
-VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction 
+VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
 
 QUERY_CURSOR_HALFSIZE = 8 # number of pixels
@@ -23,8 +23,8 @@ QUERY_CURSOR_WIDTH = 2 # in pixels
 gdal.UseExceptions()
 
 # Mappings between numpy datatypes and GDAL datatypes.
-# Note that ambiguities are resolved by the order - the first one found 
-# is the one chosen. 
+# Note that ambiguities are resolved by the order - the first one found
+# is the one chosen.
 dataTypeMapping = [
     (numpy.uint8,gdal.GDT_Byte),
     (numpy.bool,gdal.GDT_Byte),
@@ -58,7 +58,7 @@ def NumpyTypeToGDALType(numpytype):
 
 class WindowFraction(object):
     """
-    Stores information about wereabouts in the current 
+    Stores information about wereabouts in the current
     image the viewport is looking as a fraction
     of the whole image from:
     1) the top left of the whole image to the top left of the
@@ -177,8 +177,8 @@ class OverviewManager(object):
     def loadOverviewInfo(self, ds, bands):
         """
         Load the overviews from the GDAL dataset into a list
-        bands should be a list or tuple of band indices. 
-        Checks are made that all lists bands contain the 
+        bands should be a list or tuple of band indices.
+        Checks are made that all lists bands contain the
         same sized overviews
         """
         # i think we can assume that all the bands are the same size
@@ -252,7 +252,7 @@ class ViewerWidget(QAbstractScrollArea):
     """
     The main ViewerWidget class. Should be embeddable in
     other applications. See the open() function for loading
-    images. 
+    images.
     """
     def __init__(self, parent):
         QAbstractScrollArea.__init__(self, parent)
@@ -292,6 +292,9 @@ class ViewerWidget(QAbstractScrollArea):
         self.queryCursor = None
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
+
+        # Define the scroll wheel behaviour
+        self.mouseWheelZoom = True
 
 
     def open(self, fname, stretch):
@@ -370,7 +373,7 @@ class ViewerWidget(QAbstractScrollArea):
 
     def zoomFullExtent(self):
         """
-        Resets the zoom to full extent - should be 
+        Resets the zoom to full extent - should be
         the same as when file was opened.
         """
         if self.windowfraction is not None:
@@ -467,12 +470,15 @@ class ViewerWidget(QAbstractScrollArea):
         # but it re-reads the data always.
         # not sure it is a big deal since GDAL caches
         self.getData()
-    
+
+    def setMouseScrollWheelAction(self, scrollZoom):
+        self.mouseWheelZoom = scrollZoom
+
     def getData(self):
         """
         Called when new file opened, or resized,
-        pan, zoom etc. Grabs data from the 
-        appropriate overview and applies the lut 
+        pan, zoom etc. Grabs data from the
+        appropriate overview and applies the lut
         to it.
         """
         # if nothing open, just return
@@ -553,7 +559,7 @@ class ViewerWidget(QAbstractScrollArea):
                 band = self.ds.GetRasterBand(bandnum)
 
                 # create blank array of right size to read in to
-                numpytype = GDALTypeToNumpyType(band.DataType) 
+                numpytype = GDALTypeToNumpyType(band.DataType)
                 data = numpy.zeros((winysize, winxsize), dtype=numpytype) # should be a default value?
 
                 # get correct overview
@@ -565,7 +571,7 @@ class ViewerWidget(QAbstractScrollArea):
                     band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
                 datalist.append(data)
 
-            # apply LUT            
+            # apply LUT
             self.image = self.lut.applyLUTRGB(datalist)
 
         else:
@@ -573,7 +579,7 @@ class ViewerWidget(QAbstractScrollArea):
             band = self.ds.GetRasterBand(self.stretch.bands[0])
 
                 # create blank array of right size to read in to
-            numpytype = GDALTypeToNumpyType(band.DataType) 
+            numpytype = GDALTypeToNumpyType(band.DataType)
             data = numpy.zeros((winysize, winxsize), dtype=numpytype) # should be a default value?
 
             # get correct overview
@@ -584,7 +590,7 @@ class ViewerWidget(QAbstractScrollArea):
             data[win_tly:win_bry, win_tlx:win_brx] = (
                 band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
 
-            # apply LUT            
+            # apply LUT
             self.image = self.lut.applyLUTSingle(data)
 
         # reset the scroll bars for new extent of window
@@ -600,8 +606,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.suppressscrollevent = False
 
         # force repaint
-        self.viewport().update()        
-        
+        self.viewport().update()
+
     def scrollContentsBy(self, dx, dy):
         """
         Handle the user moving the scroll bars
@@ -615,13 +621,23 @@ class ViewerWidget(QAbstractScrollArea):
 
     def wheelEvent(self, event):
         """
-        User has used mouse wheel to zoom in/out
+        User has used mouse wheel to zoom in/out or pan depending on defined preference
         """
-        if event.delta() > 0:
-            self.windowfraction.zoomViewCenter(0, 0, 1.0 - VIEWER_ZOOM_WHEEL_FRACTION)
-        elif event.delta() < 0:
-            self.windowfraction.zoomViewCenter(0, 0, 1.0 + VIEWER_ZOOM_WHEEL_FRACTION)
-        self.getData()
+
+        if self.mouseWheelZoom:
+            if event.delta() > 0:
+                self.windowfraction.zoomViewCenter(0, 0, 1.0 - VIEWER_ZOOM_WHEEL_FRACTION)
+            elif event.delta() < 0:
+                self.windowfraction.zoomViewCenter(0, 0, 1.0 + VIEWER_ZOOM_WHEEL_FRACTION)
+            self.getData()
+        else:
+            dx = 0
+            dy = 0
+            if event.orientation() == Qt.Horizontal:
+                dx = event.delta()
+            else:
+                dy = event.delta()
+            self.scrollContentsBy(dx,dy)
 
     def resizeEvent(self, event):
         """
@@ -631,10 +647,10 @@ class ViewerWidget(QAbstractScrollArea):
         # only getting new data if bigger
         # otherwise moving centre, but all too hard
         self.getData()
-                    
+
     def paintEvent(self, event):
         """
-        Viewport needs to be redrawn. Assume that 
+        Viewport needs to be redrawn. Assume that
         self.image is current (as created by getData())
         we can just draw it with QPainter
         """
@@ -646,7 +662,7 @@ class ViewerWidget(QAbstractScrollArea):
 
     def drawQueryPoints(self, paint):
         """
-        Draw query points as part of paint. 
+        Draw query points as part of paint.
         """
         if self.windowfraction is not None:
             size = self.viewport().size()
@@ -686,8 +702,8 @@ class ViewerWidget(QAbstractScrollArea):
                 pos = event.pos()
                 geom = self.viewport().geometry()
                 geomcenter = geom.center()
-                # work out where we are remembering 
-                # the one pixel offset 
+                # work out where we are remembering
+                # the one pixel offset
                 x_fromcenter = pos.x() - geomcenter.x() - geom.x()
                 y_fromcenter = pos.y() - geomcenter.y() - geom.y()
                 # work out where that is in relation to the whole image
@@ -708,11 +724,11 @@ class ViewerWidget(QAbstractScrollArea):
                     qi = QueryInfo(easting, northing, column, row, data, self.stretch, self.bandNames)
                     # emit the signal - handled by the QueryDockWidget
                     self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
-                
+
 
     def mouseReleaseEvent(self, event):
         """
-        Mouse has been released, if we are in zoom/pan 
+        Mouse has been released, if we are in zoom/pan
         mode we do stuff here.
         """
         QAbstractScrollArea.mouseReleaseEvent(self, event)

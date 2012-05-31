@@ -11,6 +11,7 @@ from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
 from . import viewerwidget
+from . import viewerpreferences
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -21,8 +22,8 @@ MESSAGE_TIMEOUT = 2000
 DEFAULT_DRIVER = 'HFA'
 MESSAGE_TITLE = 'Viewer'
 
-# Populate this QStringList the first time the 
-# file open dialog shown. 
+# Populate this QStringList the first time the
+# file open dialog shown.
 GDAL_FILTERS = None
 
 def createFilter(driver):
@@ -34,7 +35,7 @@ def createFilter(driver):
     name = 'Image Files'
     if drivermeta.has_key("DMD_LONGNAME"):
         name = drivermeta["DMD_LONGNAME"]
-        # get rid of any stuff in brackets - seems to 
+        # get rid of any stuff in brackets - seems to
         # confuse Qt 4.x
         firstbracket = name.find('(')
         if firstbracket != -1:
@@ -95,10 +96,12 @@ class ViewerWindow(QMainWindow):
 
         self.showStatusMessage("Ready")
 
-        # number of query windows we have open. 
-        # if zero we need to start a new one when query 
+        # number of query windows we have open.
+        # if zero we need to start a new one when query
         # tool selected
-        self.queryWindowCount = 0 
+        self.queryWindowCount = 0
+
+        self.mouseWheelZoom = True
 
     def newProgress(self, string):
         """
@@ -139,6 +142,11 @@ class ViewerWindow(QMainWindow):
         defaultpos = QPoint(DEFAULT_XPOS, DEFAULT_YPOS)
         self.move(settings.value("pos", defaultpos).toPoint())
 
+        settings.endGroup()
+
+        settings.beginGroup('ViewerMouse')
+        self.mouseWheelZoom = True
+        self.mouseWheelZoom = settings.value("mousescroll", self.mouseWheelZoom).toBool()
         settings.endGroup()
 
     def setupActions(self):
@@ -223,6 +231,12 @@ class ViewerWindow(QMainWindow):
         self.exitAct.setShortcut("CTRL+Q")
         self.connect(self.exitAct, SIGNAL("triggered()"), self.close)
 
+        self.optionsAct = QAction(self)
+        self.optionsAct.setText("&Options")
+        self.optionsAct.setStatusTip("Edit Options")
+        self.optionsAct.setShortcut("CTRL+L")
+        self.connect(self.optionsAct, SIGNAL("triggered()"), self.setOptions)
+
     def setupMenus(self):
         """
         Creates the menus and adds the actions to them
@@ -244,6 +258,9 @@ class ViewerWindow(QMainWindow):
         self.viewMenu.addAction(self.zoomFullExtAct)
         self.viewMenu.addAction(self.queryAct)
         self.viewMenu.addAction(self.newQueryAct)
+
+        self.optionsMenu = self.menuBar().addMenu("&Options")
+        self.optionsMenu.addAction(self.optionsAct);
 
     def setupToolbars(self):
         """
@@ -294,7 +311,6 @@ class ViewerWindow(QMainWindow):
             fname = dlg.selectedFiles()[0]
             self.openFileInternal(fname)
 
-
     def openFileInternal(self, fname, stretch=None):
         """
         Actually to the file opening. If stretch is None
@@ -309,7 +325,7 @@ class ViewerWindow(QMainWindow):
             except RuntimeError:
                 QMessageBox.critical(self, MESSAGE_TITLE, "Unable to open %s" % fname)
                 return
-            
+
             from . import viewerstretch
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
@@ -331,12 +347,14 @@ The default stretch dialog will now open."
                 self.defaultStretch()
                 return
 
-            # close dataset before we open it again 
+            # close dataset before we open it again
             # (may well be a better way)
             del gdaldataset
 
         # now open it for real
         self.viewwidget.open(fname, stretch)
+        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+
         # set the window title
         self.setWindowTitle(os.path.basename(fname))
         # allow the stretch to be edited
@@ -352,13 +370,13 @@ The default stretch dialog will now open."
 
     def zoomIn(self, checked):
         """
-        Zoom in tool selected. 
-        Tell view widget to operate in zoom mode.        
+        Zoom in tool selected.
+        Tell view widget to operate in zoom mode.
         """
         if checked:
             # disable any other tools
             self.panAct.setChecked(False)
-            self.zoomOutAct.setChecked(False) 
+            self.zoomOutAct.setChecked(False)
             self.queryAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN)
         else:
@@ -366,13 +384,13 @@ The default stretch dialog will now open."
 
     def zoomOut(self, checked):
         """
-        Zoom in tool selected. 
-        Tell view widget to operate in zoom mode.        
+        Zoom in tool selected.
+        Tell view widget to operate in zoom mode.
         """
         if checked:
             # disable any other tools
             self.panAct.setChecked(False)
-            self.zoomInAct.setChecked(False) 
+            self.zoomInAct.setChecked(False)
             self.queryAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT)
         else:
@@ -380,13 +398,13 @@ The default stretch dialog will now open."
 
     def pan(self, checked):
         """
-        Pan tool selected. 
+        Pan tool selected.
         Tell view widget to operate in pan mode.
         """
         if checked:
             # disable any other tools
-            self.zoomInAct.setChecked(False) 
-            self.zoomOutAct.setChecked(False) 
+            self.zoomInAct.setChecked(False)
+            self.zoomOutAct.setChecked(False)
             self.queryAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN)
         else:
@@ -403,16 +421,16 @@ The default stretch dialog will now open."
         Tell the widget to zoom back to the full extent
         """
         self.viewwidget.zoomFullExtent()
-        
+
     def query(self, checked):
         """
-        Query tool selected. 
+        Query tool selected.
         Tell view widget to operate in query mode.
         """
         if checked:
             # disable any other tools
-            self.zoomInAct.setChecked(False) 
-            self.zoomOutAct.setChecked(False) 
+            self.zoomInAct.setChecked(False)
+            self.zoomOutAct.setChecked(False)
             self.panAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_QUERY)
 
@@ -424,7 +442,7 @@ The default stretch dialog will now open."
 
     def queryClosed(self, queryDock):
         """
-        Query dock window has been closed. Disconnect from 
+        Query dock window has been closed. Disconnect from
         locationSelected signal and decrement our count
         """
         self.disconnect(self.viewwidget, SIGNAL("locationSelected(PyQt_PyObject)"), queryDock.locationSelected)
@@ -432,7 +450,7 @@ The default stretch dialog will now open."
 
     def newQueryWindow(self):
         """
-        Create a new QueryDockWidget and connect signals 
+        Create a new QueryDockWidget and connect signals
         and increment our count of these windows
         """
         from . import querywindow
@@ -457,5 +475,26 @@ The default stretch dialog will now open."
         settings.setValue("size", self.size())
         settings.setValue("pos", self.pos())
         settings.endGroup()
+
+        settings.beginGroup('ViewerMouse')
+        settings.setValue("mousescroll", self.mouseWheelZoom)
+        settings.endGroup()
+
         event.accept()
+
+    def setOptions(self):
+        print "Setting options."
+        viewPref = viewerpreferences.ViewerPreferencesDialog(self)
+        viewPref.exec_()
+
+        settings = QSettings()
+        settings.beginGroup('ViewerMouse')
+        self.mouseWheelZoom = True
+        self.mouseWheelZoom = settings.value("mousescroll", self.mouseWheelZoom).toBool()
+        settings.endGroup()
+
+        print "mouse scroll: ", self.mouseWheelZoom
+
+        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+
 
