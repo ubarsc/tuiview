@@ -305,7 +305,7 @@ class ViewerLUT(QObject):
         to be used in the LUT for this image
         """
         if gdalband.DataType == gdal.GDT_Byte:
-            (scale, offset, lutsize, min, max) = (1, 0, 256, 0, 255)
+            (scale, offset, lutsize, minVal, maxVal) = (1, 0, 256, 0, 255)
         else:
             # non 8bit data
             # scale to the range of the data with DEFAULT_LUTSIZE divisions
@@ -313,10 +313,8 @@ class ViewerLUT(QObject):
             offset = -minVal
             scale = (maxVal - minVal) / DEFAULT_LUTSIZE
             lutsize = DEFAULT_LUTSIZE
-            min = minVal
-            max = maxVal
 
-        info = BandLUTInfo(scale, offset, lutsize, min, max)
+        info = BandLUTInfo(scale, offset, lutsize, minVal, maxVal)
         return info
 
     def createLUT(self, dataset, stretch):
@@ -423,6 +421,9 @@ class ViewerLUT(QObject):
         else:
             nanmask = None
 
+        # in case data outside range of stats (ignore vals etc)
+        data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
+
         # apply scaling
         data = (data + self.bandinfo.offset) * self.bandinfo.scale
 
@@ -464,6 +465,9 @@ class ViewerLUT(QObject):
                 nanmask = numpy.isnan(data)
             else:
                 nanmask = None
+
+            # in case data outside range of stats (ignore vals etc)
+            data = numpy.clip(data, bandinfo.min, bandinfo.max)
             
             # apply scaling
             data = (data + bandinfo.offset) * bandinfo.scale
