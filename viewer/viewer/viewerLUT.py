@@ -18,7 +18,7 @@ gdal.UseExceptions()
 # are we big endian or not?
 BIG_ENDIAN = sys.byteorder == 'big'
 
-DEFAULT_LUTSIZE = 1024 # if not 8bit
+DEFAULT_LUTSIZE = 256 # if not 8bit
 
 # Qt expects the colours in BGRA order packed into
 # a 32bit int. We do this by inserting stuff into
@@ -171,6 +171,11 @@ class ViewerLUT(QObject):
             codes = ('r', 'g', 'b', 'a')
             # read in the colour table as lut
             ctcount = ct.GetCount()
+
+            # LUT is shape [lutsize,4] so we can index from a single 
+            # band and get the brga (native order)
+            self.lut = numpy.empty((ctcount, 4), numpy.uint8, 'C')
+
             for i in range(ctcount):
                 entry = ct.GetColorEntry(i)
                 # entry is RGBA, need to store as BGRA - always ignore alpha for now
@@ -182,7 +187,7 @@ class ViewerLUT(QObject):
             raise viewererrors.InvalidColorTable(msg)
 
 
-    def createStretchLUT(self, gdalband, stretch, bandinfo):
+    def createStretchLUT(self, gdalband, stretch, lutsize):
         """
         Creates a LUT for a single band using the stretch
         method specified and returns it
@@ -191,8 +196,9 @@ class ViewerLUT(QObject):
         if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_NONE:
             # just a linear stretch between 0 and 255
             # for the range of possible values
-            lut = numpy.linspace(0, 255, num=bandinfo.lutsize).astype(numpy.uint8)
-            return lut
+            lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
+            bandinfo = BandLUTInfo(1.0, 0.0, lutsize, 0, 255)
+            return lut, bandinfo
 
         # other methods below require statistics
         minVal, maxVal, mean, stdDev = self.getStatisticsWithProgress(gdalband)
@@ -254,23 +260,15 @@ class ViewerLUT(QObject):
             msg = 'unsupported stretch mode'
             raise viewererrors.InvalidParameters(msg)
 
-        # the location of the min/max values in the LUT
-        minLoc = int((stretchMin + bandinfo.offset) * bandinfo.scale)
-        maxLoc = int((stretchMax + bandinfo.offset) * bandinfo.scale)
+        lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
 
-        # create the LUT
-        lut = numpy.empty(bandinfo.lutsize, numpy.uint8, 'C')
+        # make it lutsize-1 so we keep the indices less than lutsize
+        scale = float(stretchMax - stretchMin) / (lutsize-1)
+        offset = -stretchMin
 
-        # set values outside to 0/255
-        lut[0:minLoc] = 0
-        lut[maxLoc:bandinfo.lutsize] = 255
+        bandinfo = BandLUTInfo(scale, offset, lutsize, stretchMin, stretchMax)
 
-        # create the stretch between stretchMin/Max ind insert into LUT 
-        # at right place
-        linstretch = numpy.linspace(0, 255, num=(maxLoc - minLoc)).astype(numpy.uint8)
-        lut[minLoc:maxLoc] = linstretch
-
-        return lut
+        return lut, bandinfo
 
     def getStatisticsWithProgress(self, gdalband):
         """
@@ -297,26 +295,6 @@ class ViewerLUT(QObject):
 
         return minVal, maxVal, mean, stdDev
 
-    def getInfoForBand(self, gdalband):
-        """
-        Using either standard numbers, or based
-        upon the range of numbers in the image, 
-        return the BandLUTInfo instance
-        to be used in the LUT for this image
-        """
-        if gdalband.DataType == gdal.GDT_Byte:
-            (scale, offset, lutsize, minVal, maxVal) = (1, 0, 256, 0, 255)
-        else:
-            # non 8bit data
-            # scale to the range of the data with DEFAULT_LUTSIZE divisions
-            minVal, maxVal, mean, stdDev = self.getStatisticsWithProgress(gdalband)
-            offset = -minVal
-            scale = (maxVal - minVal) / DEFAULT_LUTSIZE
-            lutsize = DEFAULT_LUTSIZE
-
-        info = BandLUTInfo(scale, offset, lutsize, minVal, maxVal)
-        return info
-
     def createLUT(self, dataset, stretch):
         """
         Main function
@@ -326,7 +304,7 @@ class ViewerLUT(QObject):
             msg = 'must set mode and stretchmode'
             raise viewererrors.InvalidStretch(msg)
 
-        # decide what to do based on the ode
+        # decide what to do based on the code
         if stretch.mode == viewerstretch.VIEWER_MODE_COLORTABLE:
 
             if len(stretch.bands) > 1:
@@ -340,18 +318,15 @@ class ViewerLUT(QObject):
             band = stretch.bands[0]
             gdalband = dataset.GetRasterBand(band)
 
-            self.bandinfo = self.getInfoForBand(gdalband)
-
-            # LUT is shape [lutsize,4] so we can index from a single 
-            # band and get the brga (native order)
-            self.lut = numpy.empty((self.bandinfo.lutsize, 4), numpy.uint8, 'C')
-
             if self.bandinfo.scale != 1:
                 msg = 'Can only apply colour table to images with 1:1 scale on LUT'
                 raise viewererrors.InvalidColorTable(msg)
 
             # load the color table
             self.loadColorTable(gdalband)
+
+            max = self.lut.shape[0]
+            self.bandinfo = BandLUTInfo(1.0, 0.0, max, 0, max)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(stretch.bands) > 1:
@@ -361,13 +336,16 @@ class ViewerLUT(QObject):
             band = stretch.bands[0]
             gdalband = dataset.GetRasterBand(band)
 
-            self.bandinfo = self.getInfoForBand(gdalband)
+            if gdalband.DataType == gdal.GDT_Byte:
+                lutsize = 256
+            else:
+                lutsize = DEFAULT_LUTSIZE
 
             # LUT is shape [lutsize,4] so we can index from a single 
             # band and get the brga (native order)
-            self.lut = numpy.empty((self.bandinfo.lutsize, 4), numpy.uint8, 'C')
+            self.lut = numpy.empty((lutsize, 4), numpy.uint8, 'C')
 
-            lut = self.createStretchLUT( gdalband, stretch, self.bandinfo )
+            lut, self.bandinfo = self.createStretchLUT( gdalband, stretch, lutsize )
 
             # copy to all bands
             for code in RGB_CODES:
@@ -387,21 +365,24 @@ class ViewerLUT(QObject):
             for (band, code) in zip(stretch.bands, RGB_CODES):
                 gdalband = dataset.GetRasterBand(band)
 
-                bandinfo = self.getInfoForBand(gdalband)
+                if gdalband.DataType == gdal.GDT_Byte:
+                    lutsize = 256
+                else:
+                    lutsize = DEFAULT_LUTSIZE
 
                 if self.lut == None:
                     # LUT is shape [4,lutsize]. We apply the stretch seperately
                     # to each band. Order is RGBA (native order to make things easier)
-                    self.lut = numpy.empty((4, bandinfo.lutsize), numpy.uint8, 'C')
+                    self.lut = numpy.empty((4, lutsize), numpy.uint8, 'C')
                 elif self.lut.shape[1] != bandinfo.lutsize:
                     msg = 'cannot handle bands with different LUT sizes'
                     raise viewererrors.InvalidStretch(msg)
 
-                self.bandinfo[code] = bandinfo
-
                 lutindex = CODE_TO_LUTINDEX[code]
                 # create stretch for each band
-                lut = self.createStretchLUT( gdalband, stretch, bandinfo )
+                lut, bandinfo = self.createStretchLUT( gdalband, stretch, lutsize )
+
+                self.bandinfo[code] = bandinfo
 
                 self.lut[lutindex] = lut
             
@@ -421,11 +402,11 @@ class ViewerLUT(QObject):
         else:
             nanmask = None
 
-        # in case data outside range of stats (ignore vals etc)
+        # in case data outside range of stretch
         data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
 
         # apply scaling
-        data = (data + self.bandinfo.offset) * self.bandinfo.scale
+        data = (data + self.bandinfo.offset) / self.bandinfo.scale
 
         # can only do lookups with integer data
         if numpy.issubdtype(data.dtype, numpy.floating):
@@ -466,11 +447,11 @@ class ViewerLUT(QObject):
             else:
                 nanmask = None
 
-            # in case data outside range of stats (ignore vals etc)
+            # in case data outside range of stretch
             data = numpy.clip(data, bandinfo.min, bandinfo.max)
             
             # apply scaling
-            data = (data + bandinfo.offset) * bandinfo.scale
+            data = (data + bandinfo.offset) / bandinfo.scale
 
             # can only do lookups with integer data
             if numpy.issubdtype(data.dtype, numpy.floating):
