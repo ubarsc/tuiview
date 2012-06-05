@@ -318,15 +318,11 @@ class ViewerLUT(QObject):
             band = stretch.bands[0]
             gdalband = dataset.GetRasterBand(band)
 
-            if self.bandinfo.scale != 1:
-                msg = 'Can only apply colour table to images with 1:1 scale on LUT'
-                raise viewererrors.InvalidColorTable(msg)
-
             # load the color table
             self.loadColorTable(gdalband)
 
-            max = self.lut.shape[0]
-            self.bandinfo = BandLUTInfo(1.0, 0.0, max, 0, max)
+            lutsize = self.lut.shape[0]
+            self.bandinfo = BandLUTInfo(1.0, 0.0, lutsize, 0, lutsize-1)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(stretch.bands) > 1:
@@ -403,7 +399,7 @@ class ViewerLUT(QObject):
             nanmask = None
 
         # in case data outside range of stretch
-        data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
+        numpy.clip(data, self.bandinfo.min, self.bandinfo.max, data)
 
         # apply scaling
         data = (data + self.bandinfo.offset) / self.bandinfo.scale
@@ -448,7 +444,7 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # in case data outside range of stretch
-            data = numpy.clip(data, bandinfo.min, bandinfo.max)
+            numpy.clip(data, bandinfo.min, bandinfo.max, data)
             
             # apply scaling
             data = (data + bandinfo.offset) / bandinfo.scale
