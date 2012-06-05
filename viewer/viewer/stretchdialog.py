@@ -4,8 +4,9 @@ Module that contains the StretchLayout, RuleLayout
 and StretchDefaultsDialog classes
 """
 
-from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QHBoxLayout, QComboBox
-from PyQt4.QtGui import QLabel, QPushButton, QGroupBox, QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QDockWidget
+from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
+from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel, QPushButton, QGroupBox
+from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QDockWidget
 from PyQt4.QtCore import QVariant, QSettings, SIGNAL
 import json
 
@@ -23,11 +24,13 @@ STRETCH_DATA = (("None", viewerstretch.VIEWER_STRETCHMODE_NONE),
 
 DEFAULT_STRETCH_KEY = 'DefaultStretch'
 
+MAX_BAND_NUMBER = 100 # for spin boxes
+
 class StretchLayout(QFormLayout):
     """
     Layout that contains the actual stretch information
     """
-    def __init__(self, parent, stretch):
+    def __init__(self, parent, stretch, gdaldataset=None):
         QFormLayout.__init__(self)
 
         # the mode
@@ -44,34 +47,25 @@ class StretchLayout(QFormLayout):
 
         self.addRow("Mode", self.modeCombo)
 
-        # create the 3 band spin boxes
-        self.bandLayout = QHBoxLayout()
-        self.redSpinBox = QSpinBox(parent)
-        self.redSpinBox.setRange(1, 100)
-        self.bandLayout.addWidget(self.redSpinBox)
+        if gdaldataset is None:
+            # we don't have a dateset - is a rule
+            # create spin boxes for the bands
+            self.createSpinBands(stretch.bands, parent)
+        else:
+            # we have a dataset. create combo
+            # boxes with the band names
+            self.createComboBands(stretch.bands, gdaldataset, parent)
 
-        self.greenSpinBox = QSpinBox(parent)
-        self.greenSpinBox.setRange(1, 100)
-        self.bandLayout.addWidget(self.greenSpinBox)
-
-        self.blueSpinBox = QSpinBox(parent)
-        self.blueSpinBox.setRange(1, 100)
-        self.bandLayout.addWidget(self.blueSpinBox)
-
-        # set them depending on if we are RGB or not
+        # set the bands depending on if we are RGB or not
         if stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             (r, g, b) = stretch.bands
-            self.redSpinBox.setValue(r)
-            self.redSpinBox.setToolTip("Red")
-            self.greenSpinBox.setValue(g)
-            self.greenSpinBox.setToolTip("Green")
-            self.blueSpinBox.setValue(b)
-            self.blueSpinBox.setToolTip("Blue")
+            self.redWidget.setToolTip("Red")
+            self.greenWidget.setToolTip("Green")
+            self.blueWidget.setToolTip("Blue")
         else:
-            self.redSpinBox.setValue(stretch.bands[0])
-            self.redSpinBox.setToolTip("Displayed Band")
-            self.greenSpinBox.setEnabled(False)
-            self.blueSpinBox.setEnabled(False)
+            self.redWidget.setToolTip("Displayed Band")
+            self.greenWidget.setEnabled(False)
+            self.blueWidget.setEnabled(False)
 
         self.addRow("Bands", self.bandLayout)
 
@@ -119,6 +113,84 @@ class StretchLayout(QFormLayout):
         self.addRow("Stretch", self.stretchLayout)
         self.stretchCombo.setEnabled(stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE)
 
+    def createSpinBands(self, bands, parent):
+        """
+        For the case where we are creating a rule
+        we have no band names so create spin boxes
+        """
+        # create the 3 band spin boxes
+        self.bandLayout = QHBoxLayout()
+        self.redWidget = QSpinBox(parent)
+        self.redWidget.setRange(1, MAX_BAND_NUMBER)
+        self.bandLayout.addWidget(self.redWidget)
+
+        self.greenWidget = QSpinBox(parent)
+        self.greenWidget.setRange(1, MAX_BAND_NUMBER)
+        self.bandLayout.addWidget(self.greenWidget)
+
+        self.blueWidget = QSpinBox(parent)
+        self.blueWidget.setRange(1, MAX_BAND_NUMBER)
+        self.bandLayout.addWidget(self.blueWidget)
+
+        # set them depending on if we are RGB or not
+        if len(bands) == 3:
+            (r, g, b) = bands
+            self.redWidget.setValue(r)
+            self.greenWidget.setValue(g)
+            self.blueWidget.setValue(b)
+        else:
+            self.redWidget.setValue(bands[0])
+
+    def createComboBands(self, bands, gdaldataset, parent):
+        """
+        We have a dataset - create combo boxes with the band names
+        """
+        self.bandLayout = QHBoxLayout()
+        self.redWidget = QComboBox(parent)
+        self.bandLayout.addWidget(self.redWidget)
+
+        self.greenWidget = QComboBox(parent)
+        self.bandLayout.addWidget(self.greenWidget)
+
+        self.blueWidget = QComboBox(parent)
+        self.bandLayout.addWidget(self.blueWidget)
+
+        # set them depending on if we are RGB or not
+        if len(bands) == 3:
+            (r, g, b) = bands
+        else:
+            (r, g, b) = (bands[0], 1, 1)
+
+        self.populateComboFromDataset(self.redWidget, gdaldataset, r)
+        self.populateComboFromDataset(self.greenWidget, gdaldataset, g)
+        self.populateComboFromDataset(self.blueWidget, gdaldataset, b)
+
+    def populateComboFromDataset(self, combo, gdaldataset, currentBand=1):
+        """
+        Go through all the bands in the dataset and add a combo
+        item for each one. Set the current index to the currentBand
+        """
+        for count in range(gdaldataset.RasterCount):
+            bandnum = count + 1
+            gdalband = gdaldataset.GetRasterBand(bandnum)
+            name = gdalband.GetDescription()
+            combo.addItem(name, QVariant(bandnum))
+
+        combo.setCurrentIndex(currentBand - 1)
+
+    @staticmethod
+    def getBandValue(widget):
+        """
+        Depending on whether widget it a spinbox
+        or a combo box extract the current value for it.
+        """
+        if isinstance(widget, QSpinBox):
+            value = widget.value()
+        else:
+            index = widget.currentIndex()
+            var = widget.itemData(index)
+            value = var.toInt()[0]
+        return value
 
     def getStretch(self):
         """
@@ -130,12 +202,12 @@ class StretchLayout(QFormLayout):
         obj.mode = self.modeCombo.itemData(index).toInt()[0]
 
         bands = []
-        value = self.redSpinBox.value()
+        value = self.getBandValue(self.redWidget)
         bands.append(value)
         if obj.mode == viewerstretch.VIEWER_MODE_RGB:
-            value = self.greenSpinBox.value()
+            value = self.getBandValue(self.greenWidget)
             bands.append(value)
-            value = self.blueSpinBox.value()
+            value = self.getBandValue(self.blueWidget)
             bands.append(value)
         obj.setBands(tuple(bands))
 
@@ -158,16 +230,16 @@ class StretchLayout(QFormLayout):
         """
         mode = self.modeCombo.itemData(index).toInt()[0]
         greenredEnabled = (mode == viewerstretch.VIEWER_MODE_RGB)
-        self.greenSpinBox.setEnabled(greenredEnabled)
-        self.blueSpinBox.setEnabled(greenredEnabled)
+        self.greenWidget.setEnabled(greenredEnabled)
+        self.blueWidget.setEnabled(greenredEnabled)
         if greenredEnabled:
-            self.redSpinBox.setToolTip("Red")
-            self.greenSpinBox.setToolTip("Green")
-            self.blueSpinBox.setToolTip("Blue")
+            self.redWidget.setToolTip("Red")
+            self.greenWidget.setToolTip("Green")
+            self.blueWidget.setToolTip("Blue")
         else:
-            self.redSpinBox.setToolTip("Displayed Band")
-            self.greenSpinBox.setToolTip("")
-            self.blueSpinBox.setToolTip("")
+            self.redWidget.setToolTip("Displayed Band")
+            self.greenWidget.setToolTip("")
+            self.blueWidget.setToolTip("")
 
         if mode == viewerstretch.VIEWER_MODE_COLORTABLE:
             # need to set stretch to none
@@ -543,33 +615,47 @@ class StretchDockWidget(QDockWidget):
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
 
-        # craete apply button
-        self.applyButton = QPushButton(self.dockWidget)
-        self.applyButton.setText("Apply")
-        self.connect(self.applyButton, SIGNAL("clicked()"), self.onApply)
-
-        # save button
-        self.saveButton = QPushButton(self.dockWidget)
-        self.saveButton.setText("Save to File")
-        self.connect(self.saveButton, SIGNAL("clicked()"), self.onSave)
-
-        # button layout
-        self.buttonLayout = QHBoxLayout()
-        self.buttonLayout.addWidget(self.applyButton)
-        self.buttonLayout.addWidget(self.saveButton)
+        # create the toolbar
+        self.toolBar = QToolBar(self.dockWidget)
+        self.setupActions()
+        self.setupToolbar()
 
         # our stretch layout
-        self.stretchLayout = StretchLayout(self.dockWidget, viewwidget.stretch)
+        self.stretchLayout = StretchLayout(self.dockWidget, 
+                    viewwidget.stretch, viewwidget.ds)
 
         # layout for stretch and buttons
         self.mainLayout = QVBoxLayout()
+        self.mainLayout.addWidget(self.toolBar)
         self.mainLayout.addLayout(self.stretchLayout)
-        self.mainLayout.addLayout(self.buttonLayout)
 
         self.dockWidget.setLayout(self.mainLayout)
 
         # tell the dock window this is the widget to display
         self.setWidget(self.dockWidget)
+
+    def setupActions(self):
+        """
+        Create the actions to be shown on the toolbar
+        """
+        self.applyAction = QAction(self)
+        self.applyAction.setText("&Apply Stretch")
+        self.applyAction.setStatusTip("Apply Stretch")
+        self.applyAction.setIcon(QIcon(":/viewer/images/apply.png"))
+        self.connect(self.applyAction, SIGNAL("triggered()"), self.onApply)
+
+        self.saveAction = QAction(self)
+        self.saveAction.setText("&Save Stretch to File")
+        self.saveAction.setStatusTip("Save Stretch to File")
+        self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
+        self.connect(self.saveAction, SIGNAL("triggered()"), self.onSave)
+
+    def setupToolbar(self):
+        """
+        Add the actions to the toolbar
+        """
+        self.toolBar.addAction(self.applyAction)
+        self.toolBar.addAction(self.saveAction)
 
     def onApply(self):
         """

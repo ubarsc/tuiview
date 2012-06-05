@@ -9,6 +9,7 @@
 	<file>query.png</file>
 	<file>label.png</file>
 	<file>save.png</file>
+	<file>apply.png</file>
     </qresource>
 </RCC>
 
