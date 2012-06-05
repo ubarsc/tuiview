@@ -399,7 +399,7 @@ class ViewerLUT(QObject):
             nanmask = None
 
         # in case data outside range of stretch
-        numpy.clip(data, self.bandinfo.min, self.bandinfo.max, data)
+        data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
 
         # apply scaling
         data = (data + self.bandinfo.offset) / self.bandinfo.scale
@@ -444,7 +444,7 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # in case data outside range of stretch
-            numpy.clip(data, bandinfo.min, bandinfo.max, data)
+            data = numpy.clip(data, bandinfo.min, bandinfo.max)
             
             # apply scaling
             data = (data + bandinfo.offset) / bandinfo.scale
