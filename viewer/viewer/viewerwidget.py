@@ -768,19 +768,20 @@ class ViewerWidget(QAbstractScrollArea):
                 # read the data out of the dataset
                 column = int(column)
                 row = int(row)
-                data = self.ds.ReadAsArray(column, row, 1, 1)
-                if data is not None:
-                    # we just want the single 'drill down' of data as a 1d array
-                    data = data[...,0,0]
-                    # if single band GDAL gives us a single value - convert back to array
-                    # to make life easier
-                    if data.size == 1:
-                        data = numpy.array([data])
+                if column >= 0 and column < self.ds.RasterXSize and row >= 0 and row < self.ds.RasterYSize:
+                    data = self.ds.ReadAsArray(column, row, 1, 1)
+                    if data is not None:
+                        # we just want the single 'drill down' of data as a 1d array
+                        data = data[...,0,0]
+                        # if single band GDAL gives us a single value - convert back to array
+                        # to make life easier
+                        if data.size == 1:
+                            data = numpy.array([data])
 
-                    qi = QueryInfo(easting, northing, column, row, 
-                            data, self.stretch, self.bandNames, self.wavelengths)
-                    # emit the signal - handled by the QueryDockWidget
-                    self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
+                        qi = QueryInfo(easting, northing, column, row, 
+                                data, self.stretch, self.bandNames, self.wavelengths)
+                        # emit the signal - handled by the QueryDockWidget
+                        self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 
 
     def mouseReleaseEvent(self, event):
