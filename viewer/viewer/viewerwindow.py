@@ -11,7 +11,6 @@ from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
 from . import viewerwidget
-from . import viewerpreferences
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -483,17 +482,19 @@ The default stretch dialog will now open."
         event.accept()
 
     def setOptions(self):
-        print "Setting options."
+        """
+        Display the preferences dialog
+        """
+        from . import viewerpreferences
         viewPref = viewerpreferences.ViewerPreferencesDialog(self)
         viewPref.exec_()
 
+        # extract the mouse wheel setting
         settings = QSettings()
         settings.beginGroup('ViewerMouse')
         self.mouseWheelZoom = True
         self.mouseWheelZoom = settings.value("mousescroll", self.mouseWheelZoom).toBool()
         settings.endGroup()
-
-        print "mouse scroll: ", self.mouseWheelZoom
 
         self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
 
