@@ -28,7 +28,18 @@ def optionCallback(option, opt_str, value, parser):
         parser.stretch.setNoStretch()
         parser.stretchModeSet = True
     elif opt_str == '-l' or opt_str == '--linear':
-        parser.stretch.setLinearStretch()
+        (min, max) = value
+        if min == 'stats':
+            min = None
+        else:
+            min = float(min)
+
+        if max == 'stats':
+            max = None
+        else:
+            max = float(max)
+
+        parser.stretch.setLinearStretch(min, max)
         parser.stretchModeSet = True
     elif opt_str == '-s' or opt_str == '--stddev':
         parser.stretch.setStdDevStretch()
@@ -66,7 +77,7 @@ class CmdArgs(object):
         self.parser.add_option('-n', '--nostretch', action="callback", callback=optionCallback,
                                             help="do no stretch on data")
         self.parser.add_option('-l', '--linear', action="callback", callback=optionCallback,
-                                            help="do a linear stretch between min and max values")
+                                            type="string", nargs=2, help="do a linear stretch between two values. Pass 'stats' for statistics")
         self.parser.add_option('-s', '--stddev', action="callback", callback=optionCallback,
                                             help="do a 2 standard deviation stretch")
         self.parser.add_option('--hist', action="callback", callback=optionCallback, 

@@ -206,10 +206,20 @@ class ViewerLUT(QObject):
         # code below sets stretchMin and stretchMax
 
         if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
-            # stretch between reported min and max
-            stretchMin = minVal
-            stretchMax = maxVal
+            # stretch between reported min and max if they
+            # have given us None as the range, otherwise use
+            # the specified range
+            (reqMin, reqMax) = stretch.stretchparam
+            if reqMin is None:
+                stretchMin = minVal
+            else:
+                stretchMin = reqMin
 
+            if reqMax is None:
+                stretchMax = maxVal
+            else:
+                stretchMax = reqMax
+                
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             # linear stretch n std deviations from the mean
             nstddev = stretch.stretchparam[0]
@@ -399,6 +409,8 @@ class ViewerLUT(QObject):
             nanmask = None
 
         # in case data outside range of stretch
+        # don't use the in place version because if either min or max are
+        # float we need the type to change
         data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
 
         # apply scaling
@@ -444,6 +456,8 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # in case data outside range of stretch
+            # don't use the in place version because if either min or max are
+            # float we need the type to change
             data = numpy.clip(data, bandinfo.min, bandinfo.max)
             
             # apply scaling

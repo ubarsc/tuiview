@@ -106,6 +106,25 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setSingleStep(0.005)
             self.stretchParam2.setValue(stretch.stretchparam[1])
             self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
+        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
+            self.stretchParam1.setRange(-1, 65535)
+            self.stretchParam1.setSingleStep(1)
+            self.stretchParam1.setSpecialValueText("Statistics Min")
+            # need to do something cleverer here with the special value
+            if stretch.stretchparam[0] is None:
+                self.stretchParam1.setValue(-1)
+            else:
+                self.stretchParam1.setValue(stretch.stretchparam[0])
+            self.stretchParam1.setToolTip("Minimum Value")
+
+            self.stretchParam2.setRange(-1, 65535)
+            self.stretchParam2.setSingleStep(1)
+            self.stretchParam2.setSpecialValueText("Statistics Max")
+            if stretch.stretchparam[1] is None:
+                self.stretchParam2.setValue(-1)
+            else:
+                self.stretchParam2.setValue(stretch.stretchparam[1])
+            self.stretchParam2.setToolTip("Maximum Value")
         else:
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)
@@ -220,6 +239,15 @@ class StretchLayout(QFormLayout):
             histmin = self.stretchParam1.value()
             histmax = self.stretchParam2.value()
             obj.setHistStretch(histmin, histmax)
+        elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
+            # need to do something cleverer here with the special value
+            min = self.stretchParam1.value()
+            if min == -1:
+                min = None
+            max = self.stretchParam2.value()
+            if max == -1:
+                max = None
+            obj.setLinearStretch(min, max)
 
         return obj
 
@@ -260,6 +288,8 @@ class StretchLayout(QFormLayout):
             self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) # always set back to this default
             self.stretchParam1.setToolTip("Number of Standard Deviations")
             self.stretchParam2.setToolTip("")
+            self.stretchParam1.setSpecialValueText("")
+            self.stretchParam2.setSpecialValueText("")
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(True)
@@ -271,6 +301,22 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
             self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) # set back to these defaults
             self.stretchParam2.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
+            self.stretchParam1.setSpecialValueText("")
+            self.stretchParam2.setSpecialValueText("")
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
+            self.stretchParam1.setEnabled(True)
+            self.stretchParam2.setEnabled(True)
+            self.stretchParam1.setRange(-1, 65535)
+            self.stretchParam1.setSingleStep(1)
+            self.stretchParam1.setToolTip("Minimum Value")
+            self.stretchParam2.setRange(-1, 65535)
+            self.stretchParam2.setSingleStep(1)
+            self.stretchParam2.setToolTip("Maximum Value")
+            self.stretchParam1.setValue(-1) # set back to these defaults
+            self.stretchParam2.setValue(-1)
+            # need to do something cleverer here with the special value
+            self.stretchParam1.setSpecialValueText("Statistics Min")
+            self.stretchParam2.setSpecialValueText("Statistics Max")
         else:
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)

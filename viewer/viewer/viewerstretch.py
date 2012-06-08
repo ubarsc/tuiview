@@ -64,9 +64,13 @@ class ViewerStretch(object):
         "Don't do a stretch - data is already stretched"
         self.stretchmode = VIEWER_STRETCHMODE_NONE
 
-    def setLinearStretch(self):
-        "Just stretch linearly between min and max values"
+    def setLinearStretch(self, min=None, max=None):
+        """
+        Just stretch linearly between min and max values
+        if None, range of the data used
+        """
         self.stretchmode = VIEWER_STRETCHMODE_LINEAR
+        self.stretchparam = (min, max)
 
     def setStdDevStretch(self, stddev=VIEWER_DEFAULT_STDDEV):
         "Do a standard deviation stretch"
