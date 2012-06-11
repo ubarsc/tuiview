@@ -230,11 +230,11 @@ class ViewerWindow(QMainWindow):
         self.exitAct.setShortcut("CTRL+Q")
         self.connect(self.exitAct, SIGNAL("triggered()"), self.close)
 
-        self.optionsAct = QAction(self)
-        self.optionsAct.setText("&Options")
-        self.optionsAct.setStatusTip("Edit Options")
-        self.optionsAct.setShortcut("CTRL+L")
-        self.connect(self.optionsAct, SIGNAL("triggered()"), self.setOptions)
+        self.preferencesAct = QAction(self)
+        self.preferencesAct.setText("&Preferences")
+        self.preferencesAct.setStatusTip("Edit Preferences")
+        self.preferencesAct.setShortcut("CTRL+L")
+        self.connect(self.preferencesAct, SIGNAL("triggered()"), self.setPreferences)
 
     def setupMenus(self):
         """
@@ -248,6 +248,7 @@ class ViewerWindow(QMainWindow):
 
         self.editMenu = self.menuBar().addMenu("&Edit")
         self.editMenu.addAction(self.stretchAct)
+        self.editMenu.addAction(self.preferencesAct);
 
         self.viewMenu = self.menuBar().addMenu("&View")
         self.viewMenu.addAction(self.panAct)
@@ -257,9 +258,6 @@ class ViewerWindow(QMainWindow):
         self.viewMenu.addAction(self.zoomFullExtAct)
         self.viewMenu.addAction(self.queryAct)
         self.viewMenu.addAction(self.newQueryAct)
-
-        self.optionsMenu = self.menuBar().addMenu("&Options")
-        self.optionsMenu.addAction(self.optionsAct);
 
     def setupToolbars(self):
         """
@@ -481,7 +479,7 @@ The default stretch dialog will now open."
 
         event.accept()
 
-    def setOptions(self):
+    def setPreferences(self):
         """
         Display the preferences dialog
         """
