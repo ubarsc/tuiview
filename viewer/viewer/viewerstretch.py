@@ -117,7 +117,7 @@ class ViewerStretch(object):
         if 'nodata_rgb' in rep:
             obj.nodata_rgb = rep['nodata_rgb']
         if 'background_rgb' in rep:
-            self.background_rgb = rep['background_rgb']
+            obj.background_rgb = rep['background_rgb']
         return obj
 
     def writeToGDAL(self, filename):
@@ -145,7 +145,7 @@ class ViewerStretch(object):
         """
         obj = None
         string = gdaldataset.GetMetadataItem(VIEWER_STRETCH_METADATA_KEY)
-        if string is not None:
+        if string is not None and string != '':
             obj = ViewerStretch.fromString(string)
         return obj
 

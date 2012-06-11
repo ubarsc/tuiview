@@ -7,7 +7,8 @@ and StretchDefaultsDialog classes
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
 from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel, QPushButton, QGroupBox
 from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QDockWidget
-from PyQt4.QtCore import QVariant, QSettings, SIGNAL
+from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor
+from PyQt4.QtCore import QVariant, QSettings, SIGNAL, Qt
 import json
 
 from . import viewerstretch
@@ -25,6 +26,42 @@ STRETCH_DATA = (("None", viewerstretch.VIEWER_STRETCHMODE_NONE),
 DEFAULT_STRETCH_KEY = 'DefaultStretch'
 
 MAX_BAND_NUMBER = 100 # for spin boxes
+
+class ColorButton(QToolButton):
+    """
+    Class that is a button with a icon that displays
+    the current color. Clicking the button allows user to change color
+    """
+    def __init__(self, parent, rgbtuple):
+        QToolButton.__init__(self, parent)
+        color = QColor(rgbtuple[0], rgbtuple[1], rgbtuple[2])
+        self.setColor(color)
+        self.setToolTip("Change Color")
+
+    def setColor(self, color):
+        """
+        Create icon and set color
+        """
+        pixmap = QPixmap(24, 24)
+        pixmap.fill(color)
+        icon = QIcon(pixmap)
+        self.setIcon(icon)
+        self.color = color
+
+    def getColorAsRGBTuple(self):
+        "return the current color"
+        rgbtuple = (self.color.red(), self.color.green(), self.color.blue())
+        return rgbtuple
+
+    def mouseReleaseEvent(self, event):
+        """
+        Handle event - show dialog to allow color to be changed
+        """
+        QToolButton.mouseReleaseEvent(self, event)
+        newcolor = QColorDialog.getColor(self.color, self)
+        if newcolor.isValid():
+            self.setColor(newcolor)
+        
 
 class StretchLayout(QFormLayout):
     """
@@ -131,6 +168,24 @@ class StretchLayout(QFormLayout):
 
         self.addRow("Stretch", self.stretchLayout)
         self.stretchCombo.setEnabled(stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE)
+
+        # now for no data and background
+        self.fixedColorLayout = QHBoxLayout()
+        self.nodataLabel = QLabel(parent)
+        self.nodataLabel.setText("No Data")
+        self.fixedColorLayout.addWidget(self.nodataLabel)
+        self.fixedColorLayout.setAlignment(self.nodataLabel, Qt.AlignRight)
+        self.nodataButton = ColorButton(parent, stretch.nodata_rgb)
+        self.fixedColorLayout.addWidget(self.nodataButton)
+
+        self.backgroundLabel = QLabel(parent)
+        self.backgroundLabel.setText("Background")
+        self.fixedColorLayout.addWidget(self.backgroundLabel)
+        self.fixedColorLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
+        self.backgroundButton = ColorButton(parent, stretch.background_rgb)
+        self.fixedColorLayout.addWidget(self.backgroundButton)
+
+        self.addRow("Fixed Colors", self.fixedColorLayout)
 
     def createSpinBands(self, bands, parent):
         """
@@ -248,6 +303,9 @@ class StretchLayout(QFormLayout):
             if max == -1:
                 max = None
             obj.setLinearStretch(min, max)
+
+        obj.setNoDataRGB(self.nodataButton.getColorAsRGBTuple())
+        obj.setBackgroundRGB(self.backgroundButton.getColorAsRGBTuple())
 
         return obj
 
