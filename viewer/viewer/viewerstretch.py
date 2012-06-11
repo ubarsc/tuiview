@@ -42,6 +42,8 @@ class ViewerStretch(object):
         self.stretchmode = VIEWER_STRETCHMODE_DEFAULT
         self.stretchparam = None
         self.bands = None
+        self.nodata_rgb = (0, 0, 0)
+        self.background_rgb = (0, 0, 0)
 
     def setBands(self, bands):
         "Set the bands to use. bands should be a tuple of 1-based ints"
@@ -82,12 +84,21 @@ class ViewerStretch(object):
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (min, max)
 
+    def setNoDataRGB(self, rgb):
+        "Set the RGB to display No Data values as"
+        self.nodata_rgb = rgb
+
+    def setBackgroundRGB(self, rgb):
+        "Set the RGB to display Background areas as"
+        self.background_rgb = rgb
+
     def toString(self):
         """
         Convert to a JSON encoded string
         """
         rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
-                'stretchparam' : self.stretchparam, 'bands' : self.bands }
+                'stretchparam' : self.stretchparam, 'bands' : self.bands,
+                'nodata_rgb' : self.nodata_rgb, 'background_rgb' : self.background_rgb }
         return json.dumps(rep)
 
     @staticmethod
@@ -103,6 +114,10 @@ class ViewerStretch(object):
         obj.stretchmode = rep['stretchmode']
         obj.stretchparam = rep['stretchparam']
         obj.bands = rep['bands']
+        if 'nodata_rgb' in rep:
+            obj.nodata_rgb = rep['nodata_rgb']
+        if 'background_rgb' in rep:
+            self.background_rgb = rep['background_rgb']
         return obj
 
     def writeToGDAL(self, filename):

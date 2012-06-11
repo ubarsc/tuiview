@@ -28,8 +28,16 @@ if BIG_ENDIAN:
 else:
     CODE_TO_LUTINDEX = {'b' : 0, 'g' : 1, 'r' : 2, 'a' : 3}
 
+# for indexing into RGB triplets
+CODE_TO_RGBINDEX = {'r' : 0, 'g' : 1, 'b' : 2, 'a' : 3}
+
 # to save creating this tuple all the time
 RGB_CODES = ('r', 'g', 'b')
+
+# for the apply functions
+MASK_IMAGE_VALUE = 0
+MASK_NODATA_VALUE = 1
+MASK_BACKGROUND_VALUE = 2
 
 def GDALProgressFunc(value, string, lutobject):
     """
@@ -43,24 +51,30 @@ class BandLUTInfo(object):
     """
     Class that holds information about a band's LUT
     """
-    def __init__(self, scale, offset, lutsize, min, max):
+    def __init__(self, scale, offset, lutsize, min, max,
+                    nodata_index=0, background_index=0):
         self.scale = scale
         self.offset = offset
         self.lutsize = lutsize
         self.min = min
         self.max = max
+        # indices into the LUT
+        self.nodata_index = nodata_index
+        self.background_index = background_index
 
     def toString(self):
         rep = {'scale' : self.scale, 'offset' : self.offset, 
                     'lutsize' : self.lutsize, 'min' : self.min, 
-                    'max' : self.max}
+                    'max' : self.max, 'nodata_index' : self.nodata_index,
+                    'background_index' : self.background_index}
         return json.dumps(rep)
 
     @staticmethod
     def fromString(string):
         rep = json.loads(string)
         bi = BandLUTInfo(rep['scale'], rep['offset'], 
-                rep['lutsize'], rep['min'], rep['max'])
+                rep['lutsize'], rep['min'], rep['max'],
+                rep['nodata_index'], rep['background_index'] )
         return bi
 
 
@@ -156,7 +170,7 @@ class ViewerLUT(QObject):
         fileobj.close()
         return lutobj
 
-    def loadColorTable(self, gdalband):
+    def loadColorTable(self, gdalband, nodata_rgb, background_rgb):
         """
         Creates a LUT for a single band using 
         the color table
@@ -174,17 +188,32 @@ class ViewerLUT(QObject):
 
             # LUT is shape [lutsize,4] so we can index from a single 
             # band and get the brga (native order)
-            self.lut = numpy.empty((ctcount, 4), numpy.uint8, 'C')
+            # add 2 for no data and background
+            lut = numpy.empty((ctcount + 2, 4), numpy.uint8, 'C')
 
             for i in range(ctcount):
                 entry = ct.GetColorEntry(i)
                 # entry is RGBA, need to store as BGRA - always ignore alpha for now
                 for (value, code) in zip(entry, codes):
                     lutindex = CODE_TO_LUTINDEX[code]
-                    self.lut[i,lutindex] = value
+                    lut[i,lutindex] = value
+
+            # fill in the background and no data
+            nodata_index = ctcount
+            background_index = ctcount + 1
+            for (nodatavalue, backgroundvalue, code) in zip(nodata_rgb, background_rgb, RGB_CODES):
+                lutindex = CODE_TO_LUTINDEX[code]
+                lut[nodata_index,lutindex] = nodatavalue
+                lut[background_index,lutindex] = backgroundvalue
+
         else:
             msg = 'No color table present'
             raise viewererrors.InvalidColorTable(msg)
+
+        bandinfo = BandLUTInfo(1.0, 0.0, ctcount, 0, ctcount-1, 
+                                nodata_index, background_index)
+
+        return lut, bandinfo
 
 
     def createStretchLUT(self, gdalband, stretch, lutsize):
@@ -329,10 +358,8 @@ class ViewerLUT(QObject):
             gdalband = dataset.GetRasterBand(band)
 
             # load the color table
-            self.loadColorTable(gdalband)
-
-            lutsize = self.lut.shape[0]
-            self.bandinfo = BandLUTInfo(1.0, 0.0, lutsize, 0, lutsize-1)
+            self.lut, self.bandinfo = self.loadColorTable(gdalband, stretch.nodata_rgb, 
+                                                                stretch.background_rgb)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(stretch.bands) > 1:
@@ -349,14 +376,23 @@ class ViewerLUT(QObject):
 
             # LUT is shape [lutsize,4] so we can index from a single 
             # band and get the brga (native order)
-            self.lut = numpy.empty((lutsize, 4), numpy.uint8, 'C')
+            # plus 2 for no data and background
+            self.lut = numpy.empty((lutsize + 2, 4), numpy.uint8, 'C')
 
             lut, self.bandinfo = self.createStretchLUT( gdalband, stretch, lutsize )
 
             # copy to all bands
             for code in RGB_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
+                # append the nodata and background while we are at it
+                rgbindex = CODE_TO_RGBINDEX[code]
+                nodata_value = stretch.nodata_rgb[rgbindex]
+                background_value = stretch.background_rgb[rbgindex]
+                lut = numpy.append(lut, [nodata_value, background_value])
                 self.lut[...,lutindex] = lut
+
+            self.bandinfo.nodata_index = lutsize
+            self.bandinfo.background_index = lutsize + 1
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             if len(stretch.bands) != 3:
@@ -379,14 +415,21 @@ class ViewerLUT(QObject):
                 if self.lut == None:
                     # LUT is shape [4,lutsize]. We apply the stretch seperately
                     # to each band. Order is RGBA (native order to make things easier)
-                    self.lut = numpy.empty((4, lutsize), numpy.uint8, 'C')
-                elif self.lut.shape[1] != bandinfo.lutsize:
-                    msg = 'cannot handle bands with different LUT sizes'
-                    raise viewererrors.InvalidStretch(msg)
+                    # plus 2 for no data and background
+                    self.lut = numpy.empty((4, lutsize + 2), numpy.uint8, 'C')
 
                 lutindex = CODE_TO_LUTINDEX[code]
                 # create stretch for each band
                 lut, bandinfo = self.createStretchLUT( gdalband, stretch, lutsize )
+
+                # append the nodata and background while we are at it
+                rgbindex = CODE_TO_RGBINDEX[code]
+                nodata_value = stretch.nodata_rgb[rgbindex]
+                background_value = stretch.background_rgb[rgbindex]
+                lut = numpy.append(lut, [nodata_value, background_value])
+
+                bandinfo.nodata_index = lutsize
+                bandinfo.background_index = lutsize + 1
 
                 self.bandinfo[code] = bandinfo
 
@@ -396,7 +439,7 @@ class ViewerLUT(QObject):
             msg = 'unsupported display mode'
             raise viewererrors.InvalidParameters(msg)
 
-    def applyLUTSingle(self, data):
+    def applyLUTSingle(self, data, mask):
         """
         Apply the LUT to a single band (color table
         or greyscale image) and return the result as
@@ -424,6 +467,10 @@ class ViewerLUT(QObject):
             # set NaN values back to LUT=0 if originally float
             data = numpy.where(nanmask, 0, data)
 
+        # mask no data and background
+        data = numpy.where(mask == MASK_NODATA_VALUE, self.bandinfo.nodata_index, data)
+        data = numpy.where(mask == MASK_BACKGROUND_VALUE, self.bandinfo.background_index, data)
+
         # do the lookup
         bgra = self.lut[data]
         winysize, winxsize = data.shape
@@ -431,11 +478,13 @@ class ViewerLUT(QObject):
         # create QImage from numpy array
         # see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17961.html
         image = QImage(bgra.data, winxsize, winysize, QImage.Format_RGB32)
-        image.ndarray = data # hold on to the data in case we
+        image.viewerdata = data # hold on to the data in case we
                             # want to change the lut and quickly re-apply it
+                            # or calculate local stats
+        image.viewermask = mask 
         return image
 
-    def applyLUTRGB(self, datalist):
+    def applyLUTRGB(self, datalist, mask):
         """
         Apply LUT to 3 bands of imagery
         passed as a list of arrays.
@@ -471,12 +520,17 @@ class ViewerLUT(QObject):
             if nanmask is not None:
                 data = numpy.where(nanmask, 0, data)
 
+            # mask no data and background
+            data = numpy.where(mask == MASK_NODATA_VALUE, bandinfo.nodata_index, data)
+            data = numpy.where(mask == MASK_BACKGROUND_VALUE, bandinfo.background_index, data)
+
             # do the lookup
             bgra[...,lutindex] = self.lut[lutindex][data]
         
         # turn into QImage
         image = QImage(bgra.data, winxsize, winysize, QImage.Format_RGB32)
-        image.ndarray = datalist # so we have the data if we want to calculate stats etc
+        image.viewerdata = datalist # so we have the data if we want to calculate stats etc
+        image.viewermask = mask
         return image
 
 

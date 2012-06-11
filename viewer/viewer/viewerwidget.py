@@ -266,6 +266,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.transform = None
         self.bandNames = None
         self.wavelengths = None
+        self.noDataValues = None
         self.queryPoints = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
@@ -337,6 +338,9 @@ class ViewerWidget(QAbstractScrollArea):
         # grab the wavelengths
         self.wavelengths = self.getWavelengths()
 
+        # the no data values for each band
+        self.noDataValues = self.getNoDataValues()
+
         # start with no query points and go from there
         self.queryPoints = {}
 
@@ -389,6 +393,16 @@ class ViewerWidget(QAbstractScrollArea):
 
         return wavelengths
         
+    def getNoDataValues(self):
+        """
+        Return a list of no data values - one for each band
+        """
+        noData = []
+        for n in range(self.ds.RasterCount):
+            band = self.ds.GetRasterBand(n+1)
+            value = band.GetNoDataValue() # returns None if not set
+            noData.append(value)
+        return noData
 
     def setQueryPoint(self, id, col, row, color):
         """
@@ -601,6 +615,12 @@ class ViewerWidget(QAbstractScrollArea):
         blockxsize = win_brx - win_tlx
         blockysize = win_bry - win_tly
 
+        # only need to do the mask once
+        mask = numpy.empty((winysize, winxsize), dtype=numpy.uint8)
+        mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
+        mask[win_tly:win_bry, win_tlx:win_brx] = viewerLUT.MASK_IMAGE_VALUE # 0 where there is data
+        nodata_mask = None
+
         if len(self.stretch.bands) == 3:
             # rgb
             datalist = []
@@ -609,7 +629,7 @@ class ViewerWidget(QAbstractScrollArea):
 
                 # create blank array of right size to read in to
                 numpytype = GDALTypeToNumpyType(band.DataType)
-                data = numpy.zeros((winysize, winxsize), dtype=numpytype) # should be a default value?
+                data = numpy.zeros((winysize, winxsize), dtype=numpytype) 
 
                 # get correct overview
                 if selectedovi.index > 0:
@@ -618,10 +638,25 @@ class ViewerWidget(QAbstractScrollArea):
                 # read into correct part of our window array
                 data[win_tly:win_bry, win_tlx:win_brx] = (
                     band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
+
+                # do the no data test
+                nodata_value = self.noDataValues[bandnum-1]
+                if nodata_value is not None:
+                    inimage_and_nodata = numpy.logical_and(mask == viewerLUT.MASK_IMAGE_VALUE, data == nodata_value)
+                    if nodata_mask is None:
+                        nodata_mask = inimage_and_nodata
+                    else:
+                        # should it be 'or' or 'and' ?
+                        nodata_mask = numpy.logical_and(nodata_mask, inimage_and_nodata)
+
                 datalist.append(data)
 
+            # apply the no data
+            if nodata_mask is not None:
+                mask = numpy.where(nodata_mask, viewerLUT.MASK_NODATA_VALUE, mask)
+
             # apply LUT
-            self.image = self.lut.applyLUTRGB(datalist)
+            self.image = self.lut.applyLUTRGB(datalist, mask)
 
         else:
             # must be single band
@@ -629,7 +664,7 @@ class ViewerWidget(QAbstractScrollArea):
 
                 # create blank array of right size to read in to
             numpytype = GDALTypeToNumpyType(band.DataType)
-            data = numpy.zeros((winysize, winxsize), dtype=numpytype) # should be a default value?
+            data = numpy.zeros((winysize, winxsize), dtype=numpytype) 
 
             # get correct overview
             if selectedovi.index > 0:
@@ -639,8 +674,19 @@ class ViewerWidget(QAbstractScrollArea):
             data[win_tly:win_bry, win_tlx:win_brx] = (
                 band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
 
+            # set up the mask - all background to begin with
+            mask = numpy.empty((winysize, winxsize), dtype=numpy.uint8) 
+            mask.fill(viewerLUT.MASK_BACKGROUND_VALUE)
+            mask[win_tly:win_bry, win_tlx:win_brx] = viewerLUT.MASK_IMAGE_VALUE # set where data
+
+            # do we have no data for this band?
+            nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
+            if nodata_value is not None:
+                inimage_and_nodata = numpy.logical_and(mask == viewerLUT.MASK_IMAGE_VALUE, data == nodata_value)
+                mask = numpy.where(inimage_and_nodata, viewerLUT.MASK_NODATA_VALUE, mask)
+
             # apply LUT
-            self.image = self.lut.applyLUTSingle(data)
+            self.image = self.lut.applyLUTSingle(data, mask)
 
         # reset the scroll bars for new extent of window
         # need to suppress processing of new scroll bar
