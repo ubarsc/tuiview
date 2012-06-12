@@ -120,22 +120,24 @@ class ViewerStretch(object):
             obj.background_rgb = rep['background_rgb']
         return obj
 
-    def writeToGDAL(self, filename):
+    def writeToGDAL(self, gdaldataset):
         """
         Write this stretch into the GDAL file
-        if cannot be opened, error is ignored
+        assumed the dataset opened with GA_Update
         Good idea to reopen any other handles to dataset
         """
         string = self.toString()
-        success = False
-        try:
-            gdaldataset = gdal.Open(filename, gdal.GA_Update)
-            gdaldataset.SetMetadataItem(VIEWER_STRETCH_METADATA_KEY, string)
-            del gdaldataset
-            success = True
-        except RuntimeError:
-            pass
-        return success
+        gdaldataset.SetMetadataItem(VIEWER_STRETCH_METADATA_KEY, string)
+
+    @staticmethod
+    def deleteFromGDAL(gdaldataset):
+        """
+        Remove the stretch entry from this dataset
+        assumed the dataset opened with GA_Update
+        """
+        # can't seem to delete an item so set to empty string
+        # we test for this explicity below
+        gdaldataset.SetMetadataItem(VIEWER_STRETCH_METADATA_KEY, '')
 
     @staticmethod
     def readFromGDAL(gdaldataset):

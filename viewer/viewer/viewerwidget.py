@@ -301,7 +301,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.mouseWheelZoom = True
 
 
-    def open(self, fname, stretch):
+    def open(self, fname, stretch, lut=None):
         """
         Displays the specified image using bands (a tuple of 1 based indices)
         and ViewerStretch instance
@@ -329,8 +329,11 @@ class ViewerWidget(QAbstractScrollArea):
         size = self.viewport().size()
         self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
 
-        # read in the LUT
-        self.lut.createLUT(self.ds, stretch)
+        # read in the LUT if not specified
+        if lut is None:
+            self.lut.createLUT(self.ds, stretch)
+        else:
+            self.lut = lut
 
         # grab the band names
         self.bandNames = self.getBandNames()

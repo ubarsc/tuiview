@@ -39,6 +39,10 @@ MASK_IMAGE_VALUE = 0
 MASK_NODATA_VALUE = 1
 MASK_BACKGROUND_VALUE = 2
 
+# metadata
+VIEWER_BANDINFO_METADATA_KEY = 'VIEWER_BAND_INFO'
+VIEWER_LUT_METADATA_KEY = 'VIEWER_LUT'
+
 def GDALProgressFunc(value, string, lutobject):
     """
     Callback function called by GDAL when calculating
@@ -123,11 +127,63 @@ class ViewerLUT(QObject):
                 fileobj.write('%s\n' % bo.toString())
 
                 lut = self.lut[lutindex]
-                rep = {'data' : lut.tolist()}
-                fileobj.write('%s\n' % json.dumps(rep))
+                fileobj.write('%s\n' % json.dumps(lut.tolist()))
 
         fileobj.close()
 
+    def writeToGDAL(self, gdaldataset):
+        """
+        Writes the LUT and BandInfo into the given dataset
+        assumed the dataset opened with GA_Update
+        Good idea to reopen any other handles to dataset
+        to the file as part of this call
+        """
+        if self.lut.shape[1] == 4:
+            # single band - NB writing into band metadata results in corruption 
+            # use dataset instead
+            string = self.bandinfo.toString()
+            gdaldataset.SetMetadataItem(VIEWER_BANDINFO_METADATA_KEY, string)
+
+            # have to deal with the lut being in memory in an endian specific format
+            for code in RGB_CODES:
+                lutindex = CODE_TO_LUTINDEX[code]
+                string = json.dumps(self.lut[...,lutindex].tolist())
+                key = VIEWER_LUT_METADATA_KEY + '_' + code
+                gdaldataset.SetMetadataItem(key, string)
+        else:
+            # rgb - NB writing into band metadata results in corruption 
+            # use dataset instead
+            for code in RGB_CODES:
+                string = self.bandinfo[code].toString()
+                key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
+                gdaldataset.SetMetadataItem(key, string)
+
+                lutindex = CODE_TO_LUTINDEX[code]
+                string = json.dumps(self.lut[lutindex].tolist())
+                key = VIEWER_LUT_METADATA_KEY + '_' + code
+                gdaldataset.SetMetadataItem(key, string)
+
+    @staticmethod
+    def deleteFromGDAL(gdaldataset):
+        """
+        Remove all LUT entries from this dataset
+        assumed the dataset opened with GA_Update
+        """
+        # we go through all bands just to be thorough
+        # can't seem to delete an item so set to empty string
+        # we test for this explicity below
+        meta = gdaldataset.GetMetadata()
+        if VIEWER_BANDINFO_METADATA_KEY in meta:
+            gdaldataset.SetMetadataItem(VIEWER_BANDINFO_METADATA_KEY, '')
+
+        if code in RGB_CODES:
+            key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
+            if key in meta:
+                gdaldataset.SetMetadataItem(key, '')
+            key = VIEWER_LUT_METADATA_KEY + '_' + code
+            if key in meta:
+                gdaldataset.SetMetadataItem(key, '')
+    
     @staticmethod
     def createFromFile(fname):
 
@@ -141,7 +197,7 @@ class ViewerLUT(QObject):
             s = fileobj.readline()
             bi = BandLUTInfo.fromString(s)
             lutobj.bandinfo = bi
-            lutobj.lut = numpy.empty((bi.lutsize, 4), numpy.uint8, 'C')
+            lutobj.lut = numpy.empty((bi.lutsize+2, 4), numpy.uint8, 'C')
             for n in range(len(RGB_CODES)):
                 s = fileobj.readline()
                 rep = json.loads(s)
@@ -160,15 +216,73 @@ class ViewerLUT(QObject):
                 lutindex = CODE_TO_LUTINDEX[code]
 
                 if lutobj.lut is None:
-                    lutobj.lut = numpy.empty((4, bi.lutsize), numpy.uint8, 'C')
+                    lutobj.lut = numpy.empty((4, bi.lutsize+2), numpy.uint8, 'C')
         
                 s = fileobj.readline()
                 rep = json.loads(s)
-                lut = numpy.fromiter(rep['data'], numpy.uint8)
+                lut = numpy.fromiter(rep, numpy.uint8)
                 lutobj.lut[lutindex] = lut
 
         fileobj.close()
         return lutobj
+
+    @staticmethod
+    def createFromGDAL(gdaldataset, stretch):
+        """
+        Creates a ViewerLUT object from the metadata saved
+        to a GDAL dataset. stretch needed to find what type
+        of stretch.
+        """
+        obj = None
+
+        if len(stretch.bands) == 1:
+            # single band
+            bistring = gdaldataset.GetMetadataItem(VIEWER_BANDINFO_METADATA_KEY)
+            if bistring is not None and bistring != '':
+                lutstrings = []
+                for code in RGB_CODES:
+                    lutindex = CODE_TO_LUTINDEX[code]
+                    key = VIEWER_LUT_METADATA_KEY + '_' + code
+                    lutstring = gdaldataset.GetMetadataItem(key)
+                    if lutstring is not None and lutstring != '':
+                        lutstrings.append(lutstring)
+
+                if len(lutstrings) == 3:
+                    # ok we got all the data
+                    obj = ViewerLUT()
+                    obj.bandinfo = BandLUTInfo.fromString(bistring)
+                    obj.lut = numpy.empty((obj.bandinfo.lutsize+2, 4), numpy.uint8, 'C')
+                    for (lutstring, code) in zip(lutstrings, RGB_CODES):
+                        lutindex = CODE_TO_LUTINDEX[code]
+                        lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
+                        obj.lut[...,lutindex] = lut
+
+        else:
+            # rgb
+            infos = []
+            for code in RGB_CODES:
+                key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
+                bistring = gdaldataset.GetMetadataItem(key)
+                if bistring is not None and bistring != '':
+                    key = VIEWER_LUT_METADATA_KEY + '_' + code
+                    lutstring = gdaldataset.GetMetadataItem(key)
+                    if lutstring is not None and lutstring != '':
+                        infos.append((bistring, lutstring))
+
+            if len(infos) == 3:
+                # ok we got all the data
+                obj = ViewerLUT()
+                obj.bandinfo = {}
+                for (info, code) in zip(infos, RGB_CODES):
+                    lutindex = CODE_TO_LUTINDEX[code]
+                    (bistring, lutstring) = info
+                    obj.bandinfo[code] = BandLUTInfo.fromString(bistring)
+
+                    if obj.lut is None:
+                        obj.lut = numpy.empty((4, obj.bandinfo[code].lutsize+2), numpy.uint8, 'C')
+                    lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
+                    obj.lut[lutindex] = lut
+        return obj
 
     def loadColorTable(self, gdalband, nodata_rgb, background_rgb):
         """
@@ -330,11 +444,11 @@ class ViewerLUT(QObject):
                     raise viewererrors.StatisticsError(msg)
 
         else:
-            # local - using numpy
-            min = localdata.min()
-            max = localdata.max()
-            mean = localdata.mean()
-            stddev = localdata.std()
+            # local - using numpy - make sure float not 1-d array for json
+            min = float(localdata.min())
+            max = float(localdata.max())
+            mean = float(localdata.mean())
+            stddev = float(localdata.std())
             stats = (min, max, mean, stddev)
 
         return stats
@@ -435,18 +549,23 @@ class ViewerLUT(QObject):
 
             lut, self.bandinfo = self.createStretchLUT(gdalband, stretch, lutsize, localdata)
 
+            # make space for nodata and background
+            lut = numpy.append(lut, [0, 0])
+            self.bandinfo.nodata_index = lutsize
+            self.bandinfo.background_index = lutsize + 1
+
             # copy to all bands
             for code in RGB_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
                 # append the nodata and background while we are at it
                 rgbindex = CODE_TO_RGBINDEX[code]
                 nodata_value = stretch.nodata_rgb[rgbindex]
-                background_value = stretch.background_rgb[rbgindex]
-                lut = numpy.append(lut, [nodata_value, background_value])
+                background_value = stretch.background_rgb[rgbindex]
+                lut[self.bandinfo.nodata_index] = nodata_value
+                lut[self.bandinfo.background_index] = background_value
+
                 self.lut[...,lutindex] = lut
 
-            self.bandinfo.nodata_index = lutsize
-            self.bandinfo.background_index = lutsize + 1
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             if len(stretch.bands) != 3:

@@ -324,6 +324,7 @@ class ViewerWindow(QMainWindow):
                 return
 
             from . import viewerstretch
+            lut = None
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches
@@ -333,6 +334,11 @@ class ViewerWindow(QMainWindow):
                     if rule.isMatch(gdaldataset):
                         stretch = rule.stretch
                         break
+            else:
+                # if there was a stretch, see if we can read a LUT also
+                from . import viewerLUT
+                lut = viewerLUT.ViewerLUT.createFromGDAL(gdaldataset, stretch)
+
 
             # couldn't find anything. Tell user and
             # open default stretch dialog
@@ -349,7 +355,7 @@ The default stretch dialog will now open."
             del gdaldataset
 
         # now open it for real
-        self.viewwidget.open(fname, stretch)
+        self.viewwidget.open(fname, stretch, lut)
         self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
 
         # set the window title

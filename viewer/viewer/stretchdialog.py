@@ -7,8 +7,9 @@ and StretchDefaultsDialog classes
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
 from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel, QPushButton, QGroupBox
 from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QDockWidget
-from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor
+from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor, QMessageBox
 from PyQt4.QtCore import QVariant, QSettings, SIGNAL, Qt
+from osgeo import gdal
 import json
 
 from . import viewerstretch
@@ -782,9 +783,16 @@ class StretchDockWidget(QDockWidget):
         User wants to save the stretch to the file
         """
         stretch = self.stretchLayout.getStretch()
+        lut = self.viewwidget.lut
         filename = self.viewwidget.filename
-        if stretch.writeToGDAL(filename):
+        try:
+            gdaldataset = gdal.Open(filename, gdal.GA_Update)
+
+            stretch.writeToGDAL(gdaldataset)
+            lut.writeToGDAL(gdaldataset)
+
+            del gdaldataset
             self.parent.showStatusMessage("Stretch written to file")
-        else:
-            self.parent.showStatusMessage("Failed to write stretch to file")
+        except RuntimeError:
+            QMessageBox.critical(self, "Viewer", "Unable to save stretch to file")
 
