@@ -481,14 +481,37 @@ class ViewerLUT(QObject):
             numBins = 255
 
         if localdata is None:
-            # global stats - call GDAL and do progress
-            self.emit(SIGNAL("newProgress(QString)"), "Calculating Histogram...")
+            # global stats - first check if there is a histo saved
+            # needs to share the same min and max that we have calculated
+            histo = None
+            # careful with comparisons since they are saved as strings in the file
+            histomin = gdalband.GetMetadataItem('STATISTICS_HISTOMIN')
+            histomax = gdalband.GetMetadataItem('STATISTICS_HISTOMAX')
+            histostr = gdalband.GetMetadataItem('STATISTICS_HISTOBINVALUES')
+            if histomin is not None and histomax is not None and histostr is not None:
+                # try and convert to float
+                try:
+                    histomin = float(histomin)
+                    histomax = float(histomax)
+                    if histomin == minVal and histomax == maxVal:
+                        histolist = histostr.split('|')
+                        # sometimes there seems to be a trailing '|'
+                        if histolist[-1] == '':
+                            histolist.pop()
+                        histo = [int(x) for x in histolist]
 
-            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, 
-                    include_out_of_range=0, approx_ok=0, callback=GDALProgressFunc, 
-                    callback_data=self)
+                except ValueError:
+                    pass
 
-            self.emit(SIGNAL("endProgress()"))
+            if histo is None:
+                # no suitable histo - call GDAL and do progress
+                self.emit(SIGNAL("newProgress(QString)"), "Calculating Histogram...")
+
+                histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, 
+                        include_out_of_range=0, approx_ok=0, callback=GDALProgressFunc, 
+                        callback_data=self)
+
+                self.emit(SIGNAL("endProgress()"))
         else:
             # local stats - use numpy on localdata
             histo, bins = numpy.histogram(localdata, numBins)
