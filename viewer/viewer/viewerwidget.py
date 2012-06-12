@@ -517,7 +517,7 @@ class ViewerWidget(QAbstractScrollArea):
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
 
-    def setNewStretch(self, newstretch):
+    def setNewStretch(self, newstretch, local=False):
         """
         Change the stretch being applied to the current data
         """
@@ -526,13 +526,25 @@ class ViewerWidget(QAbstractScrollArea):
             # only need to do this if bands have changed
             self.overviews.loadOverviewInfo(self.ds, newstretch.bands)
 
-        self.lut.createLUT(self.ds, newstretch)
+        image = None
+        if local and not newbands:
+            # we can just grab the stats from the last read
+            image = self.image
+
+        self.lut.createLUT(self.ds, newstretch, image)
 
         self.stretch = newstretch
         # note - we need to do this to reapply the stretch
         # but it re-reads the data always.
         # not sure it is a big deal since GDAL caches
         self.getData()
+
+        if local and newbands:
+            # this is a bit of a hack. We needed to do a 
+            # getData to get the new bands loaded. Now
+            # we can get the stats and apply the stretch locally
+            self.lut.createLUT(self.ds, newstretch, self.image)
+            self.getData()
 
     def setMouseScrollWheelAction(self, scrollZoom):
         self.mouseWheelZoom = scrollZoom

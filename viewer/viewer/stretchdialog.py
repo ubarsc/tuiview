@@ -754,19 +754,28 @@ class StretchDockWidget(QDockWidget):
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
         self.connect(self.saveAction, SIGNAL("triggered()"), self.onSave)
 
+        self.localAction = QAction(self)
+        self.localAction.setText("&Local Stretch")
+        self.localAction.setStatusTip("Use approximate local stretch on Apply")
+        self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
+        self.localAction.setCheckable(True)
+        
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
         """
         self.toolBar.addAction(self.applyAction)
         self.toolBar.addAction(self.saveAction)
+        self.toolBar.addAction(self.localAction)
 
     def onApply(self):
         """
         Apply the new stretch to the view widget
         """
         stretch = self.stretchLayout.getStretch()
-        self.viewwidget.setNewStretch(stretch)
+        local = self.localAction.isChecked()
+        self.viewwidget.setNewStretch(stretch, local)
 
     def onSave(self):
         """

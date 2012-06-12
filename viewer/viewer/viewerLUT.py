@@ -216,10 +216,13 @@ class ViewerLUT(QObject):
         return lut, bandinfo
 
 
-    def createStretchLUT(self, gdalband, stretch, lutsize):
+    def createStretchLUT(self, gdalband, stretch, lutsize, localdata=None):
         """
         Creates a LUT for a single band using the stretch
-        method specified and returns it
+        method specified and returns it.
+        If localdata is not None then it should be an array to calculate
+        the stats from (ignore values should be already removed)
+        Otherwise these will be calculated from the whole image using GDAL if needed.
         """
 
         if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_NONE:
@@ -230,7 +233,7 @@ class ViewerLUT(QObject):
             return lut, bandinfo
 
         # other methods below require statistics
-        minVal, maxVal, mean, stdDev = self.getStatisticsWithProgress(gdalband)
+        minVal, maxVal, mean, stdDev = self.getStatisticsWithProgress(gdalband, localdata)
 
         # code below sets stretchMin and stretchMax
 
@@ -261,19 +264,13 @@ class ViewerLUT(QObject):
                 stretchMax = maxVal
 
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
-            self.emit(SIGNAL("newProgress(QString)"), "Calculating Histogram...")
 
-            numBins = int(numpy.ceil(maxVal - minVal))
-            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, 
-                    include_out_of_range=0, approx_ok=0, callback=GDALProgressFunc, 
-                    callback_data=self)
+            histo = self.getHistogramWithProgress(gdalband, minVal, maxVal, localdata)
+
             sumPxl = sum(histo)
-
-            self.emit(SIGNAL("endProgress()"))
-
             histmin, histmax = stretch.stretchparam
+            numBins = len(histo)
 
-            # Pete: what is this based on?
             bandLower = sumPxl * histmin
             bandUpper = sumPxl * histmax
 
@@ -309,39 +306,96 @@ class ViewerLUT(QObject):
 
         return lut, bandinfo
 
-    def getStatisticsWithProgress(self, gdalband):
+    def getStatisticsWithProgress(self, gdalband, localdata=None):
         """
         Helper method. Just quickly returns the stats if
-        they are easily available. Calculates them using
+        they are easily available from GDAL. Calculates them using
         the supplied progress if not.
+        If localdata is not None, statistics are calulated using 
+        the data in this numpy array.
         """
-        gdal.ErrorReset()
-        stats = gdalband.GetStatistics(0, 0)
-        if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
-            # need to actually calculate them
+        if localdata is None:
+            # calculate stats for whole image
             gdal.ErrorReset()
-            self.emit(SIGNAL("newProgress(QString)"), "Calculating Statistics...")
-            stats = gdalband.ComputeStatistics(0, GDALProgressFunc, self)
-            self.emit(SIGNAL("endProgress()"))
-
+            stats = gdalband.GetStatistics(0, 0)
             if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
-                msg = 'unable to calculate statistics'
-                raise viewererrors.StatisticsError(msg)
-            else:
-                minVal, maxVal, mean, stdDev = stats
+                # need to actually calculate them
+                gdal.ErrorReset()
+                self.emit(SIGNAL("newProgress(QString)"), "Calculating Statistics...")
+                stats = gdalband.ComputeStatistics(0, GDALProgressFunc, self)
+                self.emit(SIGNAL("endProgress()"))
+
+                if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
+                    msg = 'unable to calculate statistics'
+                    raise viewererrors.StatisticsError(msg)
+
         else:
-            minVal, maxVal, mean, stdDev = stats
+            # local - using numpy
+            min = localdata.min()
+            max = localdata.max()
+            mean = localdata.mean()
+            stddev = localdata.std()
+            stats = (min, max, mean, stddev)
 
-        return minVal, maxVal, mean, stdDev
+        return stats
 
-    def createLUT(self, dataset, stretch):
+    def getHistogramWithProgress(self, gdalband, minVal, maxVal, localdata=None):
         """
-        Main function
+        Helper method. Calculates histogram using GDAL.
+        If localdata is not None, histogram calulated using 
+        the data in this numpy array.
+        """
+        numBins = int(numpy.ceil(maxVal - minVal))
+        if numBins < 1:
+            # float data?
+            numBins = 255
+
+        if localdata is None:
+            # global stats - call GDAL and do progress
+            self.emit(SIGNAL("newProgress(QString)"), "Calculating Histogram...")
+
+            histo = gdalband.GetHistogram(min=minVal, max=maxVal, buckets=numBins, 
+                    include_out_of_range=0, approx_ok=0, callback=GDALProgressFunc, 
+                    callback_data=self)
+
+            self.emit(SIGNAL("endProgress()"))
+        else:
+            # local stats - use numpy on localdata
+            histo, bins = numpy.histogram(localdata, numBins)
+
+        return histo
+
+    def createLUT(self, dataset, stretch, image=None):
+        """
+        Main function.
+        dataset is a GDAL dataset to use.
+        stetch is a ViewerStretch instance that describes the stretch.
+        if image is not None it should be a QImage returned by the apply
+            functions and a local stretch will be calculated using this.
         """
         if stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or \
                 stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT:
             msg = 'must set mode and stretchmode'
             raise viewererrors.InvalidStretch(msg)
+
+        if image is not None:
+            # if we are doing a local stretch do some masking first
+            flatmask = image.viewermask.flatten() == MASK_IMAGE_VALUE
+            if isinstance(image.viewerdata, list):
+                # rgb - create data for 3 bands
+                localdatalist = []
+                for localdata in image.viewerdata:
+                    flatdata = localdata.flatten()
+                    data = flatdata.compress(flatmask)
+                    localdatalist.append(data)
+            else:
+                # single band
+                flatdata = image.viewerdata.flatten()
+                localdata = flatdata.compress(flatmask)
+        else:
+            # global stretch
+            localdata = None
+            localdatalist = (None, None, None)
 
         # decide what to do based on the code
         if stretch.mode == viewerstretch.VIEWER_MODE_COLORTABLE:
@@ -379,7 +433,7 @@ class ViewerLUT(QObject):
             # plus 2 for no data and background
             self.lut = numpy.empty((lutsize + 2, 4), numpy.uint8, 'C')
 
-            lut, self.bandinfo = self.createStretchLUT( gdalband, stretch, lutsize )
+            lut, self.bandinfo = self.createStretchLUT(gdalband, stretch, lutsize, localdata)
 
             # copy to all bands
             for code in RGB_CODES:
@@ -404,7 +458,7 @@ class ViewerLUT(QObject):
             self.lut = None
 
             # user supplies RGB
-            for (band, code) in zip(stretch.bands, RGB_CODES):
+            for (band, code, localdata) in zip(stretch.bands, RGB_CODES, localdatalist):
                 gdalband = dataset.GetRasterBand(band)
 
                 if gdalband.DataType == gdal.GDT_Byte:
@@ -420,7 +474,7 @@ class ViewerLUT(QObject):
 
                 lutindex = CODE_TO_LUTINDEX[code]
                 # create stretch for each band
-                lut, bandinfo = self.createStretchLUT( gdalband, stretch, lutsize )
+                lut, bandinfo = self.createStretchLUT(gdalband, stretch, lutsize, localdata)
 
                 # append the nodata and background while we are at it
                 rgbindex = CODE_TO_RGBINDEX[code]

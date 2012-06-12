@@ -10,6 +10,7 @@
 	<file>label.png</file>
 	<file>save.png</file>
 	<file>apply.png</file>
+	<file>local.png</file>
     </qresource>
 </RCC>
 
