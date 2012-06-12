@@ -49,9 +49,10 @@ class ColorButton(QToolButton):
         self.setIcon(icon)
         self.color = color
 
-    def getColorAsRGBTuple(self):
+    def getColorAsRGBATuple(self):
         "return the current color"
-        rgbtuple = (self.color.red(), self.color.green(), self.color.blue())
+        # alpha always 0 - should we be able to set this?
+        rgbtuple = (self.color.red(), self.color.green(), self.color.blue(), 0)
         return rgbtuple
 
     def mouseReleaseEvent(self, event):
@@ -176,14 +177,14 @@ class StretchLayout(QFormLayout):
         self.nodataLabel.setText("No Data")
         self.fixedColorLayout.addWidget(self.nodataLabel)
         self.fixedColorLayout.setAlignment(self.nodataLabel, Qt.AlignRight)
-        self.nodataButton = ColorButton(parent, stretch.nodata_rgb)
+        self.nodataButton = ColorButton(parent, stretch.nodata_rgba)
         self.fixedColorLayout.addWidget(self.nodataButton)
 
         self.backgroundLabel = QLabel(parent)
         self.backgroundLabel.setText("Background")
         self.fixedColorLayout.addWidget(self.backgroundLabel)
         self.fixedColorLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
-        self.backgroundButton = ColorButton(parent, stretch.background_rgb)
+        self.backgroundButton = ColorButton(parent, stretch.background_rgba)
         self.fixedColorLayout.addWidget(self.backgroundButton)
 
         self.addRow("Fixed Colors", self.fixedColorLayout)
@@ -305,8 +306,8 @@ class StretchLayout(QFormLayout):
                 max = None
             obj.setLinearStretch(min, max)
 
-        obj.setNoDataRGB(self.nodataButton.getColorAsRGBTuple())
-        obj.setBackgroundRGB(self.backgroundButton.getColorAsRGBTuple())
+        obj.setNoDataRGBA(self.nodataButton.getColorAsRGBATuple())
+        obj.setBackgroundRGBA(self.backgroundButton.getColorAsRGBATuple())
 
         return obj
 

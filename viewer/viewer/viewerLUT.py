@@ -33,6 +33,7 @@ CODE_TO_RGBINDEX = {'r' : 0, 'g' : 1, 'b' : 2, 'a' : 3}
 
 # to save creating this tuple all the time
 RGB_CODES = ('r', 'g', 'b')
+RGBA_CODES = ('r', 'g', 'b', 'a')
 
 # for the apply functions
 MASK_IMAGE_VALUE = 0
@@ -145,7 +146,7 @@ class ViewerLUT(QObject):
             gdaldataset.SetMetadataItem(VIEWER_BANDINFO_METADATA_KEY, string)
 
             # have to deal with the lut being in memory in an endian specific format
-            for code in RGB_CODES:
+            for code in RGBA_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
                 string = json.dumps(self.lut[...,lutindex].tolist())
                 key = VIEWER_LUT_METADATA_KEY + '_' + code
@@ -162,6 +163,13 @@ class ViewerLUT(QObject):
                 string = json.dumps(self.lut[lutindex].tolist())
                 key = VIEWER_LUT_METADATA_KEY + '_' + code
                 gdaldataset.SetMetadataItem(key, string)
+
+            # do alpha seperately as there is no bandinfo
+            code = 'a'
+            lutindex = CODE_TO_LUTINDEX[code]
+            string = json.dumps(self.lut[lutindex].tolist())
+            key = VIEWER_LUT_METADATA_KEY + '_' + code
+            gdaldataset.SetMetadataItem(key, string)
 
     @staticmethod
     def deleteFromGDAL(gdaldataset):
@@ -240,19 +248,19 @@ class ViewerLUT(QObject):
             bistring = gdaldataset.GetMetadataItem(VIEWER_BANDINFO_METADATA_KEY)
             if bistring is not None and bistring != '':
                 lutstrings = []
-                for code in RGB_CODES:
+                for code in RGBA_CODES:
                     lutindex = CODE_TO_LUTINDEX[code]
                     key = VIEWER_LUT_METADATA_KEY + '_' + code
                     lutstring = gdaldataset.GetMetadataItem(key)
                     if lutstring is not None and lutstring != '':
                         lutstrings.append(lutstring)
 
-                if len(lutstrings) == 3:
+                if len(lutstrings) == 4:
                     # ok we got all the data
                     obj = ViewerLUT()
                     obj.bandinfo = BandLUTInfo.fromString(bistring)
                     obj.lut = numpy.empty((obj.bandinfo.lutsize+2, 4), numpy.uint8, 'C')
-                    for (lutstring, code) in zip(lutstrings, RGB_CODES):
+                    for (lutstring, code) in zip(lutstrings, RGBA_CODES):
                         lutindex = CODE_TO_LUTINDEX[code]
                         lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
                         obj.lut[...,lutindex] = lut
@@ -268,8 +276,12 @@ class ViewerLUT(QObject):
                     lutstring = gdaldataset.GetMetadataItem(key)
                     if lutstring is not None and lutstring != '':
                         infos.append((bistring, lutstring))
+            # do alpha separately as there is no band info
+            code = 'a'
+            key = VIEWER_LUT_METADATA_KEY + '_' + code
+            alphalutstring = gdaldataset.GetMetadataItem(key)
 
-            if len(infos) == 3:
+            if len(infos) == 3 and alphalutstring is not None and alphalutstring != '':
                 # ok we got all the data
                 obj = ViewerLUT()
                 obj.bandinfo = {}
@@ -282,9 +294,15 @@ class ViewerLUT(QObject):
                         obj.lut = numpy.empty((4, obj.bandinfo[code].lutsize+2), numpy.uint8, 'C')
                     lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
                     obj.lut[lutindex] = lut
+                # now alpha
+                code = 'a'
+                lutindex = CODE_TO_LUTINDEX[code]
+                lut = numpy.fromiter(json.loads(alphalutstring), numpy.uint8)
+                obj.lut[lutindex] = lut
+
         return obj
 
-    def loadColorTable(self, gdalband, nodata_rgb, background_rgb):
+    def loadColorTable(self, gdalband, nodata_rgba, background_rgba):
         """
         Creates a LUT for a single band using 
         the color table
@@ -296,7 +314,6 @@ class ViewerLUT(QObject):
                 msg = 'only handle RGB color tables'
                 raise viewererrors.InvalidColorTable(msg)
 
-            codes = ('r', 'g', 'b', 'a')
             # read in the colour table as lut
             ctcount = ct.GetCount()
 
@@ -308,14 +325,14 @@ class ViewerLUT(QObject):
             for i in range(ctcount):
                 entry = ct.GetColorEntry(i)
                 # entry is RGBA, need to store as BGRA - always ignore alpha for now
-                for (value, code) in zip(entry, codes):
+                for (value, code) in zip(entry, RGBA_CODES):
                     lutindex = CODE_TO_LUTINDEX[code]
                     lut[i,lutindex] = value
 
             # fill in the background and no data
             nodata_index = ctcount
             background_index = ctcount + 1
-            for (nodatavalue, backgroundvalue, code) in zip(nodata_rgb, background_rgb, RGB_CODES):
+            for (nodatavalue, backgroundvalue, code) in zip(nodata_rgba, background_rgba, RGBA_CODES):
                 lutindex = CODE_TO_LUTINDEX[code]
                 lut[nodata_index,lutindex] = nodatavalue
                 lut[background_index,lutindex] = backgroundvalue
@@ -526,8 +543,8 @@ class ViewerLUT(QObject):
             gdalband = dataset.GetRasterBand(band)
 
             # load the color table
-            self.lut, self.bandinfo = self.loadColorTable(gdalband, stretch.nodata_rgb, 
-                                                                stretch.background_rgb)
+            self.lut, self.bandinfo = self.loadColorTable(gdalband, stretch.nodata_rgba, 
+                                                                stretch.background_rgba)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(stretch.bands) > 1:
@@ -559,12 +576,21 @@ class ViewerLUT(QObject):
                 lutindex = CODE_TO_LUTINDEX[code]
                 # append the nodata and background while we are at it
                 rgbindex = CODE_TO_RGBINDEX[code]
-                nodata_value = stretch.nodata_rgb[rgbindex]
-                background_value = stretch.background_rgb[rgbindex]
+                nodata_value = stretch.nodata_rgba[rgbindex]
+                background_value = stretch.background_rgba[rgbindex]
                 lut[self.bandinfo.nodata_index] = nodata_value
                 lut[self.bandinfo.background_index] = background_value
 
                 self.lut[...,lutindex] = lut
+
+            # now do alpha seperately - 255 for all except no data and background
+            lutindex = CODE_TO_LUTINDEX['a']
+            self.lut[...,lutindex].fill(255)
+            rgbindex = CODE_TO_RGBINDEX['a']
+            nodata_value = stretch.nodata_rgba[rgbindex]
+            background_value = stretch.background_rgba[rgbindex]
+            self.lut[self.bandinfo.nodata_index,lutindex] = nodata_value
+            self.lut[self.bandinfo.background_index,lutindex] = background_value
 
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_RGB:
@@ -597,8 +623,8 @@ class ViewerLUT(QObject):
 
                 # append the nodata and background while we are at it
                 rgbindex = CODE_TO_RGBINDEX[code]
-                nodata_value = stretch.nodata_rgb[rgbindex]
-                background_value = stretch.background_rgb[rgbindex]
+                nodata_value = stretch.nodata_rgba[rgbindex]
+                background_value = stretch.background_rgba[rgbindex]
                 lut = numpy.append(lut, [nodata_value, background_value])
 
                 bandinfo.nodata_index = lutsize
@@ -607,6 +633,20 @@ class ViewerLUT(QObject):
                 self.bandinfo[code] = bandinfo
 
                 self.lut[lutindex] = lut
+
+            # now do alpha seperately - 255 for all except no data and background
+            lutindex = CODE_TO_LUTINDEX['a']
+            self.lut[lutindex].fill(255)
+            rgbindex = CODE_TO_RGBINDEX['a']
+            nodata_value = stretch.nodata_rgba[rgbindex]
+            background_value = stretch.background_rgba[rgbindex]
+            # just use blue since alpha has no bandinfo and 
+            # they should all be the same anyway
+            nodata_index = self.bandinfo['b'].nodata_index
+            background_index = self.bandinfo['b'].background_index
+
+            self.lut[lutindex, nodata_index] = nodata_value
+            self.lut[lutindex, background_index] = background_value
             
         else:
             msg = 'unsupported display mode'
@@ -667,6 +707,7 @@ class ViewerLUT(QObject):
 
         # create blank array to stretch into
         bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8, 'C')
+        # don't do alpha for now
         for (data, code) in zip(datalist, RGB_CODES):
             lutindex = CODE_TO_LUTINDEX[code]
             bandinfo = self.bandinfo[code]

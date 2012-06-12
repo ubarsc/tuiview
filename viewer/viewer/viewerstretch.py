@@ -42,8 +42,8 @@ class ViewerStretch(object):
         self.stretchmode = VIEWER_STRETCHMODE_DEFAULT
         self.stretchparam = None
         self.bands = None
-        self.nodata_rgb = (0, 0, 0)
-        self.background_rgb = (0, 0, 0)
+        self.nodata_rgba = (0, 0, 0, 0)
+        self.background_rgba = (0, 0, 0, 0)
 
     def setBands(self, bands):
         "Set the bands to use. bands should be a tuple of 1-based ints"
@@ -84,13 +84,13 @@ class ViewerStretch(object):
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (min, max)
 
-    def setNoDataRGB(self, rgb):
-        "Set the RGB to display No Data values as"
-        self.nodata_rgb = rgb
+    def setNoDataRGBA(self, rgba):
+        "Set the RGBA to display No Data values as"
+        self.nodata_rgba = rgba
 
-    def setBackgroundRGB(self, rgb):
+    def setBackgroundRGBA(self, rgba):
         "Set the RGB to display Background areas as"
-        self.background_rgb = rgb
+        self.background_rgba = rgba
 
     def toString(self):
         """
@@ -98,7 +98,7 @@ class ViewerStretch(object):
         """
         rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
                 'stretchparam' : self.stretchparam, 'bands' : self.bands,
-                'nodata_rgb' : self.nodata_rgb, 'background_rgb' : self.background_rgb }
+                'nodata_rgba' : self.nodata_rgba, 'background_rgba' : self.background_rgba }
         return json.dumps(rep)
 
     @staticmethod
@@ -114,10 +114,10 @@ class ViewerStretch(object):
         obj.stretchmode = rep['stretchmode']
         obj.stretchparam = rep['stretchparam']
         obj.bands = rep['bands']
-        if 'nodata_rgb' in rep:
-            obj.nodata_rgb = rep['nodata_rgb']
-        if 'background_rgb' in rep:
-            obj.background_rgb = rep['background_rgb']
+        if 'nodata_rgba' in rep:
+            obj.nodata_rgba = rep['nodata_rgba']
+        if 'background_rgba' in rep:
+            obj.background_rgba = rep['background_rgba']
         return obj
 
     def writeToGDAL(self, gdaldataset):
