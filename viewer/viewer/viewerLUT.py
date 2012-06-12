@@ -177,14 +177,13 @@ class ViewerLUT(QObject):
         Remove all LUT entries from this dataset
         assumed the dataset opened with GA_Update
         """
-        # we go through all bands just to be thorough
         # can't seem to delete an item so set to empty string
         # we test for this explicity below
         meta = gdaldataset.GetMetadata()
         if VIEWER_BANDINFO_METADATA_KEY in meta:
             gdaldataset.SetMetadataItem(VIEWER_BANDINFO_METADATA_KEY, '')
 
-        if code in RGB_CODES:
+        for code in RGBA_CODES:
             key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
             if key in meta:
                 gdaldataset.SetMetadataItem(key, '')

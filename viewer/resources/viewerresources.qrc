@@ -11,6 +11,7 @@
 	<file>save.png</file>
 	<file>apply.png</file>
 	<file>local.png</file>
+        <file>deletesaved.png</file>
     </qresource>
 </RCC>
 

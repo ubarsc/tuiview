@@ -751,14 +751,20 @@ class StretchDockWidget(QDockWidget):
         self.connect(self.applyAction, SIGNAL("triggered()"), self.onApply)
 
         self.saveAction = QAction(self)
-        self.saveAction.setText("&Save Stretch to File")
+        self.saveAction.setText("&Save Stretch")
         self.saveAction.setStatusTip("Save Stretch to File")
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
         self.connect(self.saveAction, SIGNAL("triggered()"), self.onSave)
 
+        self.deleteAction = QAction(self)
+        self.deleteAction.setText("&Delete Stretch")
+        self.deleteAction.setStatusTip("Delete Stretch from File")
+        self.deleteAction.setIcon(QIcon(":/viewer/images/deletesaved.png"))
+        self.connect(self.deleteAction, SIGNAL("triggered()"), self.onDelete)
+
         self.localAction = QAction(self)
         self.localAction.setText("&Local Stretch")
-        self.localAction.setStatusTip("Use approximate local stretch on Apply")
+        self.localAction.setStatusTip("Calculate approximate local stretch on Apply")
         self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
         self.localAction.setCheckable(True)
         
@@ -769,6 +775,7 @@ class StretchDockWidget(QDockWidget):
         """
         self.toolBar.addAction(self.applyAction)
         self.toolBar.addAction(self.saveAction)
+        self.toolBar.addAction(self.deleteAction)
         self.toolBar.addAction(self.localAction)
 
     def onApply(self):
@@ -796,4 +803,21 @@ class StretchDockWidget(QDockWidget):
             self.parent.showStatusMessage("Stretch written to file")
         except RuntimeError:
             QMessageBox.critical(self, "Viewer", "Unable to save stretch to file")
+
+    def onDelete(self):
+        """
+        Delete any stretch/LUT from the file
+        """
+        from . import viewerLUT
+        filename = self.viewwidget.filename
+        try:
+            gdaldataset = gdal.Open(filename, gdal.GA_Update)
+
+            viewerstretch.ViewerStretch.deleteFromGDAL(gdaldataset)
+            viewerLUT.ViewerLUT.deleteFromGDAL(gdaldataset)
+
+            del gdaldataset
+            self.parent.showStatusMessage("Stretch deleted from file")
+        except RuntimeError:
+            QMessageBox.critical(self, "Viewer", "Unable to delete stretch from file")
 
