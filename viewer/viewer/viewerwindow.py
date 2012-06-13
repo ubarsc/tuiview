@@ -314,6 +314,7 @@ class ViewerWindow(QMainWindow):
         is is determined using our automatic scheme.
         """
         fname = str(fname) # was QString
+        lut = None
         if stretch is None:
             # first see if it has a stretch saved in the file
             from osgeo import gdal
@@ -324,7 +325,6 @@ class ViewerWindow(QMainWindow):
                 return
 
             from . import viewerstretch
-            lut = None
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches

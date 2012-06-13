@@ -4,7 +4,7 @@ Module that contains the QueryDockWidget
 
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
-from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter
+from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -14,7 +14,7 @@ try:
 except ImportError:
     HAVE_QWT = False
 
-from .viewerstretch import VIEWER_MODE_RGB
+from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 
 QUERYWIDGET_DEFAULT_COLOR = Qt.white
 
@@ -29,6 +29,10 @@ GREEN_ICON = QIcon(ICON_PIXMAP)
 
 ICON_PIXMAP.fill(Qt.blue)
 BLUE_ICON = QIcon(ICON_PIXMAP)
+
+# for greyscale
+ICON_PIXMAP.fill(Qt.gray)
+GREY_ICON = QIcon(ICON_PIXMAP)
 
 class QueryDockWidget(QDockWidget):
     """
@@ -187,6 +191,91 @@ class QueryDockWidget(QDockWidget):
                 printer.setResolution(96)
                 self.plotWidget.print_(printer)
 
+    def setupTableMultiBand(self, qi):
+        """
+        setup the table for displaying multi band (rgb)
+        data. This is a row per band with the pixel values for each band shown
+        The current red, green and blue bands have an icon 
+        """
+        nbands = qi.data.shape[0]
+        # set up the table
+        self.tableWidget.setRowCount(nbands)
+        self.tableWidget.setColumnCount(3)
+
+        self.tableWidget.setHorizontalHeaderLabels(["Band", "Name", "Value"])
+        vertLabels = ["%s" % (x+1) for x in range(nbands)]
+        self.tableWidget.setVerticalHeaderLabels(vertLabels)
+
+        # fill in the table
+        count = 0
+        for x in qi.data:
+            # value
+            valitem = QTableWidgetItem("%s" % x)
+            valitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
+            self.tableWidget.setItem(count, 2, valitem)
+
+            # band name
+            nameitem = QTableWidgetItem(qi.bandNames[count])
+            nameitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
+            self.tableWidget.setItem(count, 1, nameitem)
+
+            # color
+            band = count + 1
+            if qi.stretch.mode == VIEWER_MODE_RGB and band in qi.stretch.bands:
+                coloritem = QTableWidgetItem()
+                if band == qi.stretch.bands[0]:
+                    # red
+                    coloritem.setIcon(RED_ICON)
+                elif band == qi.stretch.bands[1]:
+                    # green
+                    coloritem.setIcon(GREEN_ICON)
+                elif band == qi.stretch.bands[2]:
+                    # blue
+                    coloritem.setIcon(BLUE_ICON)
+                self.tableWidget.setItem(count, 0, coloritem)
+            elif qi.stretch.mode == VIEWER_MODE_GREYSCALE and band == qi.stretch.bands[0]:
+                greyitem = QTableWidgetItem()
+                greyitem.setIcon(GREY_ICON)
+                self.tableWidget.setItem(count, 0, greyitem)
+            else:
+                # blank item - might be stuff still there from attributes
+                item = QTableWidgetItem()
+                self.tableWidget.setItem(count, 0, item)
+
+            count += 1
+
+    def setupTableSingleBand(self, qi):
+        """
+        For a single band dataset with attributes. Displays
+        the attributes as a table and highlights the current
+        value in the table. 
+        """
+        val = qi.data[0]
+        ncols = len(qi.columnNames)
+        # should all be the same length
+        nrows = len(qi.attributeData[qi.columnNames[0]])
+
+        self.tableWidget.setRowCount(nrows)
+        self.tableWidget.setColumnCount(ncols)
+
+        self.tableWidget.setHorizontalHeaderLabels(qi.columnNames)
+        vertLabels = ["%s" % x for x in range(nrows)]
+        self.tableWidget.setVerticalHeaderLabels(vertLabels)
+
+        highlightBrush = QBrush(Qt.yellow)
+        for col in range(ncols):
+            colattr = qi.attributeData[qi.columnNames[col]]
+            for row in range(nrows):
+                highlight = row == val
+                item = QTableWidgetItem(colattr[row])
+                item.setFlags(Qt.ItemIsEnabled) # disable editing etc
+                self.tableWidget.setItem(row, col, item)
+                if highlight:
+                    item.setBackground(highlightBrush)
+                    if col == 0:
+                        # scroll to this item also
+                        self.tableWidget.scrollToItem(item)
+
     def locationSelected(self, qi):
         """
         The ViewerWidget has told us it has a new coordinate from
@@ -198,43 +287,13 @@ class QueryDockWidget(QDockWidget):
             self.northingEdit.setText("%.5f" % qi.northing)
             nbands = qi.data.shape[0]
 
-            # set up the table
-            self.tableWidget.setRowCount(nbands)
-            self.tableWidget.setColumnCount(3)
-
-            self.tableWidget.setHorizontalHeaderLabels(["Band", "Name", "Value"])
-            vertLabels = ["%s" % (x+1) for x in range(nbands)]
-            self.tableWidget.setVerticalHeaderLabels(vertLabels)
-
-            # fill in the table
-            count = 0
-            for x in qi.data:
-                # value
-                valitem = QTableWidgetItem("%s" % x)
-                valitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
-                self.tableWidget.setItem(count, 2, valitem)
-
-                # band name
-                nameitem = QTableWidgetItem(qi.bandNames[count])
-                nameitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
-                self.tableWidget.setItem(count, 1, nameitem)
-
-                # color
-                band = count + 1
-                if qi.stretch.mode == VIEWER_MODE_RGB and band in qi.stretch.bands:
-                    coloritem = QTableWidgetItem()
-                    if band == qi.stretch.bands[0]:
-                        # red
-                        coloritem.setIcon(RED_ICON)
-                    elif band == qi.stretch.bands[1]:
-                        # green
-                        coloritem.setIcon(GREEN_ICON)
-                    elif band == qi.stretch.bands[2]:
-                        # blue
-                        coloritem.setIcon(BLUE_ICON)
-                    self.tableWidget.setItem(count, 0, coloritem)
-
-                count += 1
+            # do the attribute thing if there is only one band
+            # and we have attributes
+            if nbands == 1 and qi.columnNames is not None and qi.attributeData is not None:
+                self.setupTableSingleBand(qi)
+            else:
+                # otherwise the multi band table
+                self.setupTableMultiBand(qi)
 
             # set up the plot
             if HAVE_QWT:

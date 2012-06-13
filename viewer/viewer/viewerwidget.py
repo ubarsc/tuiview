@@ -233,16 +233,18 @@ class QueryInfo(object):
     Container class for the information passed in the locationSelected
     signal.
     """
-    def __init__(self, easting, northing, column, row, 
-                    data, stretch, bandNames, wavelengths):
+    def __init__(self, easting, northing, column, row, data, stretch):
         self.easting = easting
         self.northing = northing
         self.column = column
         self.row = row
         self.data = data
         self.stretch = stretch
-        self.bandNames = bandNames
-        self.wavelengths = wavelengths
+        # set the following fields manually
+        self.bandNames = None
+        self.wavelengths = None
+        self.columnNames = None
+        self.attributeData = None
 
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
@@ -267,6 +269,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.bandNames = None
         self.wavelengths = None
         self.noDataValues = None
+        self.columnNames = None   # for single band imagery
+        self.attributeData = None # for single band imagery
         self.queryPoints = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
@@ -344,6 +348,13 @@ class ViewerWidget(QAbstractScrollArea):
         # the no data values for each band
         self.noDataValues = self.getNoDataValues()
 
+        # if we are single band read attributes if any
+        if len(stretch.bands) == 1:
+            self.columnNames, self.attributeData = self.getAttributes(stretch.bands[0])
+        else:
+            self.columnNames = None
+            self.attributeData = None
+
         # start with no query points and go from there
         self.queryPoints = {}
 
@@ -406,6 +417,36 @@ class ViewerWidget(QAbstractScrollArea):
             value = band.GetNoDataValue() # returns None if not set
             noData.append(value)
         return noData
+
+    def getAttributes(self, bandnum):
+        """
+        Read the attributes
+        """
+        columnNames = []
+        attributeData = {}
+
+        gdalband = self.ds.GetRasterBand(bandnum)
+        rat = gdalband.GetDefaultRAT()
+        if rat is not None:
+            # first get the column names
+            # we do this so we can preserve the order
+            # of the columns in the attribute table
+            ncols = rat.GetColumnCount()
+            nrows = rat.GetRowCount()
+            for col in range(ncols):
+                colname = rat.GetNameOfCol(col)
+                columnNames.append(colname)
+
+                # get the attributes as a dictionary
+                # keyed on column name and the values
+                # being a list of attribute values
+                colattr = []
+                for row in range(nrows):
+                    valstr = rat.GetValueAsString(row, col)
+                    colattr.append(valstr)
+                attributeData[colname] = colattr
+
+        return columnNames, attributeData
 
     def setQueryPoint(self, id, col, row, color):
         """
@@ -839,8 +880,11 @@ class ViewerWidget(QAbstractScrollArea):
                         if data.size == 1:
                             data = numpy.array([data])
 
-                        qi = QueryInfo(easting, northing, column, row, 
-                                data, self.stretch, self.bandNames, self.wavelengths)
+                        qi = QueryInfo(easting, northing, column, row, data, self.stretch)
+                        qi.bandNames = self.bandNames
+                        qi.wavelengths = self.wavelengths
+                        qi.columnNames = self.columnNames
+                        qi.attributeData = self.attributeData
                         # emit the signal - handled by the QueryDockWidget
                         self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 
