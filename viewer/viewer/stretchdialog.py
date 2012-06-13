@@ -33,9 +33,10 @@ class ColorButton(QToolButton):
     Class that is a button with a icon that displays
     the current color. Clicking the button allows user to change color
     """
-    def __init__(self, parent, rgbtuple):
+    def __init__(self, parent, rgbatuple):
         QToolButton.__init__(self, parent)
-        color = QColor(rgbtuple[0], rgbtuple[1], rgbtuple[2])
+        color = QColor(rgbatuple[0], rgbatuple[1], 
+                        rgbatuple[2], rgbatuple[3])
         self.setColor(color)
         self.setToolTip("Change Color")
 
@@ -43,24 +44,33 @@ class ColorButton(QToolButton):
         """
         Create icon and set color
         """
+        # set the alpha channel to be 255 for display
+        # by default it is 0 and no color is shown
+        iconcolor = QColor(color)
+        iconcolor.setAlpha(255)
+
         pixmap = QPixmap(24, 24)
-        pixmap.fill(color)
+        pixmap.fill(iconcolor)
+
         icon = QIcon(pixmap)
         self.setIcon(icon)
         self.color = color
 
     def getColorAsRGBATuple(self):
         "return the current color"
-        # alpha always 0 - should we be able to set this?
-        rgbtuple = (self.color.red(), self.color.green(), self.color.blue(), 0)
-        return rgbtuple
+        r = self.color.red()
+        g = self.color.green()
+        b = self.color.blue()
+        a = self.color.alpha()
+        return (r, g, b, a)
 
     def mouseReleaseEvent(self, event):
         """
         Handle event - show dialog to allow color to be changed
         """
         QToolButton.mouseReleaseEvent(self, event)
-        newcolor = QColorDialog.getColor(self.color, self)
+        newcolor = QColorDialog.getColor(self.color, self, "Choose Color", 
+                            QColorDialog.ShowAlphaChannel)
         if newcolor.isValid():
             self.setColor(newcolor)
         
