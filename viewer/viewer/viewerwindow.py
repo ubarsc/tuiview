@@ -6,7 +6,7 @@ the ViewerWidget, menus, toolbars and status bars.
 
 import os
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
-from PyQt4.QtGui import QMessageBox, QProgressBar
+from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 
 from . import viewerresources
@@ -355,8 +355,11 @@ The default stretch dialog will now open."
             del gdaldataset
 
         # now open it for real
-        self.viewwidget.open(fname, stretch, lut)
-        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+        try:
+            self.viewwidget.open(fname, stretch, lut)
+            self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
         # set the window title
         self.setWindowTitle(os.path.basename(fname))
@@ -417,13 +420,19 @@ The default stretch dialog will now open."
         """
         Tell the widget to zoom to native resolution
         """
-        self.viewwidget.zoomNativeResolution()
+        try:
+            self.viewwidget.zoomNativeResolution()
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
     def zoomFullExtent(self):
         """
         Tell the widget to zoom back to the full extent
         """
-        self.viewwidget.zoomFullExtent()
+        try:
+            self.viewwidget.zoomFullExtent()
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
     def query(self, checked):
         """

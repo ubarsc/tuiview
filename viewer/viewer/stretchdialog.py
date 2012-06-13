@@ -794,7 +794,10 @@ class StretchDockWidget(QDockWidget):
         """
         stretch = self.stretchLayout.getStretch()
         local = self.localAction.isChecked()
-        self.viewwidget.setNewStretch(stretch, local)
+        try:
+            self.viewwidget.setNewStretch(stretch, local)
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
     def onSave(self):
         """
