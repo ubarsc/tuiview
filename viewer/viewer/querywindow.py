@@ -5,6 +5,7 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
+from PyQt4.QtGui import QFontMetrics
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -294,6 +295,18 @@ class QueryDockWidget(QDockWidget):
             else:
                 # otherwise the multi band table
                 self.setupTableMultiBand(qi)
+
+            # hack to ensure that the rows in the table are only 
+            # as high as they need to be - by default they are very 
+            # high wasting a lot of screen space
+            item = self.tableWidget.item(0, 0)  # get the top left item 
+            fm = QFontMetrics(item.font())      # get info about its font
+            height = fm.height()                # get the height
+            nrows = self.tableWidget.rowCount()
+            for row in range(nrows):
+                # set all rows to the necessary height
+                self.tableWidget.setRowHeight(row, height)
+            # not sure how to resize the header...
 
             # set up the plot
             if HAVE_QWT:
