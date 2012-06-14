@@ -868,10 +868,8 @@ class ViewerWidget(QAbstractScrollArea):
                 easting, northing, column, row = (
                      self.windowfraction.getCoordFor(x_fromcenter, y_fromcenter, self.transform))
                 # read the data out of the dataset
-                column = int(column)
-                row = int(row)
                 if column >= 0 and column < self.ds.RasterXSize and row >= 0 and row < self.ds.RasterYSize:
-                    data = self.ds.ReadAsArray(column, row, 1, 1)
+                    data = self.ds.ReadAsArray(int(numpy.round(column)), int(numpy.round(row)), 1, 1)
                     if data is not None:
                         # we just want the single 'drill down' of data as a 1d array
                         data = data[...,0,0]
