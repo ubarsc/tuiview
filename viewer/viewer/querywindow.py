@@ -290,7 +290,7 @@ class QueryDockWidget(QDockWidget):
 
             # do the attribute thing if there is only one band
             # and we have attributes
-            if nbands == 1 and qi.columnNames is not None and qi.attributeData is not None:
+            if nbands == 1 and qi.columnNames is not None and len(qi.columnNames) != 0:
                 self.setupTableSingleBand(qi)
             else:
                 # otherwise the multi band table
