@@ -7,7 +7,7 @@ import sys
 import optparse
 from PyQt4.QtGui import QApplication
 
-from . import viewerwindow
+from . import geolinkedviewers
 from . import viewerstretch
 
 def optionCallback(option, opt_str, value, parser):
@@ -97,22 +97,17 @@ class ViewerApplication(QApplication):
         self.setApplicationName('viewer')
         self.setOrganizationName('Viewer')
 
-        self.mainw = viewerwindow.ViewerWindow()
-        self.mainw.show()
+        self.viewers = geolinkedviewers.GeolinkedViewers()
 
         cmdargs = CmdArgs()
+        stretch = None
+        if cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet and cmdargs.parser.bandsSet:
+            # use the stretch they have constructed
+            stretch = cmdargs.parser.stretch
+        elif cmdargs.parser.modeSet or cmdargs.parser.stretchModeSet or cmdargs.parser.bandsSet:
+            msg = 'Stretch incomplete. Must specify one of [-c|-g|-r] and one of [-n|-l|-s|--hist] and -b, or none to use defaults.'
+            raise SystemExit(msg)
 
-        # need to do this after show() otherwise
-        # window size is wrong for some reason
-        if len(cmdargs.args) != 0:
-            filename = cmdargs.args[0] # maybe we should support multiple?
-            stretch = None
-            if cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet and cmdargs.parser.bandsSet:
-                # use the stretch they have constructed
-                stretch = cmdargs.parser.stretch
-            elif cmdargs.parser.modeSet or cmdargs.parser.stretchModeSet or cmdargs.parser.bandsSet:
-                msg = 'Stretch incomplete. Must specify one of [-c|-g|-r] and one of [-n|-l|-s|--hist] and -b, or none to use defaults.'
-                raise SystemExit(msg)
-
-            self.mainw.openFileInternal(filename, stretch)
+        for filename in cmdargs.args:
+            self.viewers.newViewer(filename, stretch)
 

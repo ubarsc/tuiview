@@ -81,6 +81,26 @@ class WindowFraction(object):
         yperpix = float(self.firstoverview.ysize) / float(winsize.height())
         self.imgpixperwinpix = max(xperpix, yperpix)
 
+    def moveToCoord(self, easting, northing, transform):
+        """
+        This is used for the geolinking. easting and northing become
+        the new centre.
+        """
+        centrefractionx = (easting - transform[0]) / (transform[1] * self.firstoverview.xsize)
+        centrefractiony = (northing - transform[3]) / (transform[5] * self.firstoverview.ysize)
+
+        if centrefractionx < 0:
+            centrefractionx = 0.0
+        elif centrefractionx > 1.0:
+            centrefractionx = 1.0
+
+        if centrefractiony < 0:
+            centrefractiony = 0.0
+        elif centrefractiony > 1.0:
+            centrefractiony = 1.0
+
+        self.centrefraction = [centrefractionx, centrefractiony]
+
     def getCoordFor(self, x_fromcenter, y_fromcenter, transform):
         """
         For getting between window and world coords
@@ -477,6 +497,8 @@ class ViewerWidget(QAbstractScrollArea):
         if self.windowfraction is not None:
             self.windowfraction.imgpixperwinpix = 1.0
             self.getData()
+            # geolink
+            self.emitGeolinkMoved()
 
     def zoomFullExtent(self):
         """
@@ -487,6 +509,8 @@ class ViewerWidget(QAbstractScrollArea):
             size = self.viewport().size()
             self.windowfraction.resetToFull(size)
             self.getData()
+            # geolink
+            self.emitGeolinkMoved()
 
     def setActiveTool(self, tool):
         """
@@ -773,6 +797,8 @@ class ViewerWidget(QAbstractScrollArea):
             self.windowfraction.moveView(xamount, yamount)
 
             self.getData()
+            # geolink
+            self.emitGeolinkMoved()
 
     def wheelEvent(self, event):
         """
@@ -796,6 +822,9 @@ class ViewerWidget(QAbstractScrollArea):
             else:
                 dy = event.delta()
             self.scrollContentsBy(dx,dy)
+        
+        # geolink
+        self.emitGeolinkMoved()
 
     def resizeEvent(self, event):
         """
@@ -927,6 +956,8 @@ class ViewerWidget(QAbstractScrollArea):
 
                 # redraw
                 self.getData()
+                # geolink
+                self.emitGeolinkMoved()
 
         elif self.activeTool == VIEWER_TOOL_PAN:
             # change cursor back
@@ -941,6 +972,8 @@ class ViewerWidget(QAbstractScrollArea):
                 self.paintPoint.setY(0)
                 # redraw
                 self.getData()
+                # geolink
+                self.emitGeolinkMoved()
 
 
     def mouseMoveEvent(self, event):
@@ -965,3 +998,24 @@ class ViewerWidget(QAbstractScrollArea):
             self.paintPoint.setY(yamount)
             # force repaint - self.paintPoint used by paintEvent()
             self.viewport().update()
+
+    # geolinking routines
+    def doGeolinkMove(self, easting, northing):
+        """
+        Call this when widget needs to be moved because
+        of geolinking event.
+        """
+        self.windowfraction.moveToCoord(easting, northing, self.transform)
+        self.getData()
+
+    def emitGeolinkMoved(self):
+        """
+        Call this on each zoom/pan to emit the appropriate signal.
+        """
+        # get the coords of the current centre
+        easting, northing, col, row = self.windowfraction.getCoordFor(0, 0, self.transform)
+
+        # emit the signal
+        self.emit(SIGNAL("geolinkMove(double, double, long)"), easting, northing, id(self) )
+
+
