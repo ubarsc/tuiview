@@ -159,6 +159,13 @@ class ViewerWindow(QMainWindow):
         self.openAct.setIcon(QIcon(":/viewer/images/open.png"))
         self.connect(self.openAct, SIGNAL("triggered()"), self.openFile)
 
+        self.newWindowAct = QAction(self)
+        self.newWindowAct.setText("&New Window")
+        self.newWindowAct.setStatusTip("Create a new geo linked window")
+        self.newWindowAct.setShortcut("CTRL+N")
+        self.newWindowAct.setIcon(QIcon(":/viewer/images/newwindow.png"))
+        self.connect(self.newWindowAct, SIGNAL("triggered()"), self.newWindow)
+
         self.defaultStretchAct = QAction(self)
         self.defaultStretchAct.setText("&Default Stretch...")
         self.defaultStretchAct.setStatusTip("Set default stretches")
@@ -242,6 +249,7 @@ class ViewerWindow(QMainWindow):
         """
         self.fileMenu = self.menuBar().addMenu("&File")
         self.fileMenu.addAction(self.openAct)
+        self.fileMenu.addAction(self.newWindowAct)
         self.fileMenu.addAction(self.defaultStretchAct)
         self.fileMenu.addAction(self.exitAct)
         self.fileMenu.insertSeparator(self.exitAct)
@@ -265,6 +273,7 @@ class ViewerWindow(QMainWindow):
         """
         self.fileToolbar = self.addToolBar("File")
         self.fileToolbar.addAction(self.openAct)
+        self.fileToolbar.addAction(self.newWindowAct)
 
         self.viewToolbar = self.addToolBar("View")
         self.viewToolbar.addAction(self.panAct)
@@ -285,6 +294,13 @@ class ViewerWindow(QMainWindow):
         self.progressWidget.setMaximum(100)
         self.progressWidget.setVisible(False)
         self.statusBar().addPermanentWidget(self.progressWidget)
+
+    def newWindow(self):
+        """
+        Triggered when user wants a new window. Send signal
+        to GeolinkedViewers class (if there is one!)
+        """
+        self.emit(SIGNAL("newWindow()"))
 
     def defaultStretch(self):
         """
@@ -481,6 +497,7 @@ The default stretch dialog will now open."
     def closeEvent(self, event):
         """
         Window is being closed. Save the position and size.
+        Emit signal for GeolinkedViewers.
         """
         settings = QSettings()
         settings.beginGroup('ViewerWindow')
@@ -491,6 +508,10 @@ The default stretch dialog will now open."
         settings.beginGroup('ViewerMouse')
         settings.setValue("mousescroll", self.mouseWheelZoom)
         settings.endGroup()
+
+        # GeolinkedViewers listens to this so it can remove
+        # this viewer from its list
+        self.emit(SIGNAL("viewerClosed(long)"), id(self))
 
         event.accept()
 

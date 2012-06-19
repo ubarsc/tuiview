@@ -12,6 +12,7 @@
 	<file>apply.png</file>
 	<file>local.png</file>
         <file>deletesaved.png</file>
+        <file>newwindow.png</file>
     </qresource>
 </RCC>
 
