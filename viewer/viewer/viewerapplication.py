@@ -108,6 +108,9 @@ class ViewerApplication(QApplication):
             msg = 'Stretch incomplete. Must specify one of [-c|-g|-r] and one of [-n|-l|-s|--hist] and -b, or none to use defaults.'
             raise SystemExit(msg)
 
-        for filename in cmdargs.args:
-            self.viewers.newViewer(filename, stretch)
+        if len(cmdargs.args) == 0:
+            self.viewers.newViewer()
+        else:
+            for filename in cmdargs.args:
+                self.viewers.newViewer(filename, stretch)
 
