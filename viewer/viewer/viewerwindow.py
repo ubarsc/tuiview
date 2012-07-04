@@ -217,6 +217,15 @@ class ViewerWindow(QMainWindow):
         self.zoomFullExtAct.setIcon(QIcon(":/viewer/images/zoomfullextent.png"))
         self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), self.zoomFullExtent)
 
+        self.followExtentAct = QAction(self)
+        self.followExtentAct.setText("Follow &Extent")
+        self.followExtentAct.setStatusTip("Follow geolinked extent")
+        self.followExtentAct.setShortcut("CTRL+E")
+        self.followExtentAct.setCheckable(True)
+        self.followExtentAct.setChecked(True) # by default to match viewerwidget
+        self.followExtentAct.setIcon(QIcon(":/viewer/images/followextents.png"))
+        self.connect(self.followExtentAct, SIGNAL("toggled(bool)"), self.followExtent)
+
         self.queryAct = QAction(self)
         self.queryAct.setText("&Query Tool")
         self.queryAct.setStatusTip("Start Query Tool")
@@ -264,6 +273,7 @@ class ViewerWindow(QMainWindow):
         self.viewMenu.addAction(self.zoomOutAct)
         self.viewMenu.addAction(self.zoomNativeAct)
         self.viewMenu.addAction(self.zoomFullExtAct)
+        self.viewMenu.addAction(self.followExtentAct)
         self.viewMenu.addAction(self.queryAct)
         self.viewMenu.addAction(self.newQueryAct)
 
@@ -281,6 +291,7 @@ class ViewerWindow(QMainWindow):
         self.viewToolbar.addAction(self.zoomOutAct)
         self.viewToolbar.addAction(self.zoomNativeAct)
         self.viewToolbar.addAction(self.zoomFullExtAct)
+        self.viewToolbar.addAction(self.followExtentAct)
         self.viewToolbar.addAction(self.queryAct)
 
     def setupStatusBar(self):
@@ -449,6 +460,13 @@ The default stretch dialog will now open."
             self.viewwidget.zoomFullExtent()
         except Exception as e:
             QMessageBox.critical(self, "Viewer", str(e) )
+
+    def followExtent(self, state):
+        """
+        Called when user toggles the follow extent button.
+        Tell the widget
+        """
+        self.viewwidget.setGeolinkFollowExtentAction(state)
 
     def query(self, checked):
         """

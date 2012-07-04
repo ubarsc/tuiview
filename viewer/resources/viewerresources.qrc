@@ -13,6 +13,7 @@
 	<file>local.png</file>
         <file>deletesaved.png</file>
         <file>newwindow.png</file>
+        <file>followextents.png</file>
     </qresource>
 </RCC>
 

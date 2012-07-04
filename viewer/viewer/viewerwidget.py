@@ -81,10 +81,13 @@ class WindowFraction(object):
         yperpix = float(self.firstoverview.ysize) / float(winsize.height())
         self.imgpixperwinpix = max(xperpix, yperpix)
 
-    def moveToCoord(self, easting, northing, transform):
+    def moveToCoord(self, easting, northing, metresperwinpix, transform):
         """
         This is used for the geolinking. easting and northing become
         the new centre.
+        metresperwinpix is the number of metres per window pixel. This gets divided
+        by the pixel size to create imgpixperwinpix. Set to 0 if this widget not 
+        following extent.
         """
         centrefractionx = (easting - transform[0]) / (transform[1] * self.firstoverview.xsize)
         centrefractiony = (northing - transform[3]) / (transform[5] * self.firstoverview.ysize)
@@ -100,6 +103,9 @@ class WindowFraction(object):
             centrefractiony = 1.0
 
         self.centrefraction = [centrefractionx, centrefractiony]
+
+        if metresperwinpix != 0:
+            self.imgpixperwinpix = metresperwinpix / transform[1]
 
     def getCoordFor(self, x_fromcenter, y_fromcenter, transform):
         """
@@ -323,7 +329,8 @@ class ViewerWidget(QAbstractScrollArea):
 
         # Define the scroll wheel behaviour
         self.mouseWheelZoom = True
-
+        # do we follow extent when geolinking?
+        self.geolinkFollowExtent = True
 
     def open(self, fname, stretch, lut=None):
         """
@@ -616,6 +623,9 @@ class ViewerWidget(QAbstractScrollArea):
 
     def setMouseScrollWheelAction(self, scrollZoom):
         self.mouseWheelZoom = scrollZoom
+
+    def setGeolinkFollowExtentAction(self, followExtent):
+        self.geolinkFollowExtent = followExtent
 
     def getData(self):
         """
@@ -1000,12 +1010,16 @@ class ViewerWidget(QAbstractScrollArea):
             self.viewport().update()
 
     # geolinking routines
-    def doGeolinkMove(self, easting, northing):
+    def doGeolinkMove(self, easting, northing, metresperwinpix):
         """
         Call this when widget needs to be moved because
         of geolinking event.
         """
-        self.windowfraction.moveToCoord(easting, northing, self.transform)
+        # if we not moving extent set to 0 will be ignored
+        if not self.geolinkFollowExtent:
+            metresperwinpix = 0
+
+        self.windowfraction.moveToCoord(easting, northing, metresperwinpix, self.transform)
         self.getData()
 
     def emitGeolinkMoved(self):
@@ -1014,8 +1028,9 @@ class ViewerWidget(QAbstractScrollArea):
         """
         # get the coords of the current centre
         easting, northing, col, row = self.windowfraction.getCoordFor(0, 0, self.transform)
+        metresperwinpix = self.windowfraction.imgpixperwinpix * self.transform[1]
 
         # emit the signal
-        self.emit(SIGNAL("geolinkMove(double, double, long)"), easting, northing, id(self) )
+        self.emit(SIGNAL("geolinkMove(double, double, double, long)"), easting, northing, metresperwinpix, id(self) )
 
 

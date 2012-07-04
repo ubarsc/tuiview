@@ -23,14 +23,8 @@ class GeolinkedViewers(QObject):
         newviewer = viewerwindow.ViewerWindow()
         newviewer.show()
 
-        # connect to the signal the widget sends when moved
-        # sends new easting, northing and id() of the widget. 
-        self.connect(newviewer.viewwidget, SIGNAL("geolinkMove(double, double, long)"), self.onMove)
-        # the signal when a viewer instance is closed
-        # sends the id() of the window
-        self.connect(newviewer, SIGNAL("viewerClosed(long)"), self.onClose)
-        # signal for request for new window
-        self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
+        # connect signals
+        self.connectSignals(newviewer)
 
         # open the file if we have one
         if filename is not None:
@@ -38,12 +32,29 @@ class GeolinkedViewers(QObject):
 
         self.viewers.append(newviewer)
 
+    def connectSignals(self, newviewer):
+        """
+        Connects the appropriate signals for the new viewer
+        """
+        # connect to the signal the widget sends when moved
+        # sends new easting, northing and id() of the widget. 
+        self.connect(newviewer.viewwidget, SIGNAL("geolinkMove(double, double, double, long)"), self.onMove)
+        # the signal when a viewer instance is closed
+        # sends the id() of the window
+        self.connect(newviewer, SIGNAL("viewerClosed(long)"), self.onClose)
+        # signal for request for new window
+        self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
+
     def onNewWindow(self):
         """
         Called when the user requests a new window
         """
         newviewer = viewerwindow.ViewerWindow()
         newviewer.show()
+
+        # connect signals
+        self.connectSignals(newviewer)
+
         self.viewers.append(newviewer)
 
     def onClose(self, senderid):
@@ -62,7 +73,7 @@ class GeolinkedViewers(QObject):
         if index != -1:
             del self.viewers[index]
 
-    def onMove(self, easting, northing, senderid):
+    def onMove(self, easting, northing, metresperwinpix, senderid):
         """
         Called when a widget signals it has moved. Move all the
         other widgets. Sends the id() of the widget.
@@ -71,5 +82,5 @@ class GeolinkedViewers(QObject):
             # we use the id() of the widget to 
             # identify them.
             if id(viewer.viewwidget) != senderid:
-                viewer.viewwidget.doGeolinkMove(easting, northing)
+                viewer.viewwidget.doGeolinkMove(easting, northing, metresperwinpix)
 
