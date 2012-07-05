@@ -39,6 +39,9 @@ class GeolinkedViewers(QObject):
         # connect to the signal the widget sends when moved
         # sends new easting, northing and id() of the widget. 
         self.connect(newviewer.viewwidget, SIGNAL("geolinkMove(double, double, double, long)"), self.onMove)
+        # the signal when a new query point is chosen
+        # on a widget. Sends easting, northing and id() of the widget
+        self.connect(newviewer.viewwidget, SIGNAL("geolinkQueryPoint(double, double, long)"), self.onQuery)
         # the signal when a viewer instance is closed
         # sends the id() of the window
         self.connect(newviewer, SIGNAL("viewerClosed(long)"), self.onClose)
@@ -84,3 +87,13 @@ class GeolinkedViewers(QObject):
             if id(viewer.viewwidget) != senderid:
                 viewer.viewwidget.doGeolinkMove(easting, northing, metresperwinpix)
 
+    def onQuery(self, easting, northing, senderid):
+        """
+        Called when a widget signals the query point has moved.
+        Notify the other widgets. Sends the id() of the widget.
+        """
+        for viewer in self.viewers:
+            # we use the id() of the widget to 
+            # identify them.
+            if id(viewer.viewwidget) != senderid:
+                viewer.viewwidget.doGeolinkQueryPoint(easting, northing)

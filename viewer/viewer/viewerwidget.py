@@ -906,24 +906,12 @@ class ViewerWidget(QAbstractScrollArea):
                 # work out where that is in relation to the whole image
                 easting, northing, column, row = (
                      self.windowfraction.getCoordFor(x_fromcenter, y_fromcenter, self.transform))
-                # read the data out of the dataset
-                if column >= 0 and column < self.ds.RasterXSize and row >= 0 and row < self.ds.RasterYSize:
-                    data = self.ds.ReadAsArray(int(numpy.round(column)), int(numpy.round(row)), 1, 1)
-                    if data is not None:
-                        # we just want the single 'drill down' of data as a 1d array
-                        data = data[...,0,0]
-                        # if single band GDAL gives us a single value - convert back to array
-                        # to make life easier
-                        if data.size == 1:
-                            data = numpy.array([data])
 
-                        qi = QueryInfo(easting, northing, column, row, data, self.stretch)
-                        qi.bandNames = self.bandNames
-                        qi.wavelengths = self.wavelengths
-                        qi.columnNames = self.columnNames
-                        qi.attributeData = self.attributeData
-                        # emit the signal - handled by the QueryDockWidget
-                        self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
+                # update the point
+                self.updateQueryPoint(easting, northing, column, row)
+
+                # emit the geolinked query point signal
+                self.emit(SIGNAL("geolinkQueryPoint(double, double, long)"), easting, northing, id(self) )
 
 
     def mouseReleaseEvent(self, event):
@@ -1008,6 +996,42 @@ class ViewerWidget(QAbstractScrollArea):
             self.paintPoint.setY(yamount)
             # force repaint - self.paintPoint used by paintEvent()
             self.viewport().update()
+
+    # query point routines
+    def updateQueryPoint(self, easting, northing, column, row):
+        # read the data out of the dataset
+        if column >= 0 and column < self.ds.RasterXSize and row >= 0 and row < self.ds.RasterYSize:
+            data = self.ds.ReadAsArray(int(numpy.round(column)), int(numpy.round(row)), 1, 1)
+            if data is not None:
+                # we just want the single 'drill down' of data as a 1d array
+                data = data[...,0,0]
+                # if single band GDAL gives us a single value - convert back to array
+                # to make life easier
+                if data.size == 1:
+                    data = numpy.array([data])
+
+                qi = QueryInfo(easting, northing, column, row, data, self.stretch)
+                qi.bandNames = self.bandNames
+                qi.wavelengths = self.wavelengths
+                qi.columnNames = self.columnNames
+                qi.attributeData = self.attributeData
+                # emit the signal - handled by the QueryDockWidget
+                self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
+
+    def doGeolinkQueryPoint(self, easting, northing):
+        """
+        Call this when the widget query point has been moved
+        in another viewer and should be updated in this
+        one if the query tool is active.
+        """
+        if self.activeTool == VIEWER_TOOL_QUERY:
+            col = ( self.transform[0] * self.transform[5] - 
+                    self.transform[2] * self.transform[3] + self.transform[2] * northing - 
+                    self.transform[5] * easting ) / ( self.transform[2] * self.transform[4] - self.transform[1] * self.transform[5] )
+            row = ( self.transform[1] * self.transform[3] - self.transform[0] * self.transform[4] -
+                    self.transform[1] * northing + self.transform[4] * easting ) / ( self.transform[2] * self.transform[4] - self.transform[1] * self.transform[5] )
+
+            self.updateQueryPoint(easting, northing, col, row)
 
     # geolinking routines
     def doGeolinkMove(self, easting, northing, metresperwinpix):
