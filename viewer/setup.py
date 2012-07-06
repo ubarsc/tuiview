@@ -16,7 +16,7 @@ import sys
 # create the args to setup as a dictionary so we
 # can add extras for Windows if needed
 kwargs = {'name':'viewer',
-      'version':'0.1',
+      'version':'0.9',
       'description':'Simple Raster Viewer',
       'author':'Sam Gillingham',
       'author_email':'gillingham.sam@gmail.com',
@@ -25,7 +25,10 @@ kwargs = {'name':'viewer',
       'license':'LICENSE.txt', 
       'url':'https://bitbucket.org/chchrsc/viewer'}
 
-if sys.platform == 'win32' and sys.argv[1] == 'py2exe':
+# are we building in executeable under Windows?
+py2exe = sys.platform == 'win32' and sys.argv[1] == 'py2exe'
+
+if py2exe:
     # to allow creation of an installer for Windows
     import py2exe
     from glob import glob
@@ -50,7 +53,7 @@ if sys.platform == 'win32' and sys.argv[1] == 'py2exe':
 # now run setup with the options we have collected
 setup(**kwargs)
 
-if sys.platform == 'win32' and sys.argv[1] == 'py2exe':
+if py2exe:
     # don't need this file
     os.remove(os.path.join(distdir, 'w9xpopen.exe'))
     
