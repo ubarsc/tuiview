@@ -15,7 +15,22 @@ class GeolinkedViewers(QObject):
     """
     def __init__(self):
         QObject.__init__(self)
-        self.viewers = []
+        # need to keep a reference to keep the python objects alive
+        # must be a better way. Need to remove once finished
+        # but if I clobber here from a signal from window I get a segfault
+        # because window hasn't completely gone way...
+        self.viewers = [] 
+
+    @staticmethod
+    def getViewerList():
+        """
+        Gets the list of current viewer windows from Qt
+        """
+        viewers = []
+        for viewer in QApplication.topLevelWidgets():
+            if isinstance(viewer, viewerwindow.ViewerWindow):
+                viewers.append(viewer)
+        return viewers
 
     def newViewer(self, filename=None, stretch=None):
         """
@@ -43,9 +58,6 @@ class GeolinkedViewers(QObject):
         # the signal when a new query point is chosen
         # on a widget. Sends easting, northing and id() of the widget
         self.connect(newviewer.viewwidget, SIGNAL("geolinkQueryPoint(double, double, long)"), self.onQuery)
-        # the signal when a viewer instance is closed
-        # sends the id() of the window
-        self.connect(newviewer, SIGNAL("viewerClosed(long)"), self.onClose)
         # signal for request for new window
         self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
         # signal for request for windows to be tiled
@@ -92,7 +104,7 @@ class GeolinkedViewers(QObject):
         # now resize and move the viewers
         xcount = 0
         ycount = 0
-        for viewer in self.viewers:
+        for viewer in self.getViewerList():
             # resize takes the area without the frame so we correct for that
             viewer.resize(viewerwidth - framewidth, viewerheight - frameheight)
             # remember that taskbar etc mean that we might not want to start at 0,0
@@ -103,28 +115,12 @@ class GeolinkedViewers(QObject):
                 xcount = 0
                 ycount += 1
 
-    def onClose(self, senderid):
-        """
-        Called when a viewerwindow closed. Sends the
-        id() of the window. Remove from our list.
-        """
-        index = -1
-        count = 0
-        for viewer in self.viewers:
-            if id(viewer) == senderid:
-                index = count
-                break
-            count += 1
-
-        if index != -1:
-            del self.viewers[index]
-
     def onMove(self, easting, northing, metresperwinpix, senderid):
         """
         Called when a widget signals it has moved. Move all the
         other widgets. Sends the id() of the widget.
         """
-        for viewer in self.viewers:
+        for viewer in self.getViewerList():
             # we use the id() of the widget to 
             # identify them.
             if id(viewer.viewwidget) != senderid:
@@ -135,7 +131,7 @@ class GeolinkedViewers(QObject):
         Called when a widget signals the query point has moved.
         Notify the other widgets. Sends the id() of the widget.
         """
-        for viewer in self.viewers:
+        for viewer in self.getViewerList():
             # we use the id() of the widget to 
             # identify them.
             if id(viewer.viewwidget) != senderid:

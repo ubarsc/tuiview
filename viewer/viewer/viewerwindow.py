@@ -541,10 +541,6 @@ The default stretch dialog will now open."
         settings.setValue("mousescroll", self.mouseWheelZoom)
         settings.endGroup()
 
-        # GeolinkedViewers listens to this so it can remove
-        # this viewer from its list
-        self.emit(SIGNAL("viewerClosed(long)"), id(self))
-
         event.accept()
 
     def setPreferences(self):
