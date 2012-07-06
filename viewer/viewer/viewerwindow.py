@@ -166,6 +166,12 @@ class ViewerWindow(QMainWindow):
         self.newWindowAct.setIcon(QIcon(":/viewer/images/newwindow.png"))
         self.connect(self.newWindowAct, SIGNAL("triggered()"), self.newWindow)
 
+        self.tileWindowsAct = QAction(self)
+        self.tileWindowsAct.setText("&Tile Windows")
+        self.tileWindowsAct.setStatusTip("Tile all open windows fill the screen")
+        self.tileWindowsAct.setShortcut("CTRL+I")
+        self.connect(self.tileWindowsAct, SIGNAL("triggered()"), self.tileWindows)
+
         self.defaultStretchAct = QAction(self)
         self.defaultStretchAct.setText("&Default Stretch...")
         self.defaultStretchAct.setStatusTip("Set default stretches")
@@ -259,6 +265,7 @@ class ViewerWindow(QMainWindow):
         self.fileMenu = self.menuBar().addMenu("&File")
         self.fileMenu.addAction(self.openAct)
         self.fileMenu.addAction(self.newWindowAct)
+        self.fileMenu.addAction(self.tileWindowsAct)
         self.fileMenu.addAction(self.defaultStretchAct)
         self.fileMenu.addAction(self.exitAct)
         self.fileMenu.insertSeparator(self.exitAct)
@@ -312,6 +319,13 @@ class ViewerWindow(QMainWindow):
         to GeolinkedViewers class (if there is one!)
         """
         self.emit(SIGNAL("newWindow()"))
+
+    def tileWindows(self):
+        """
+        Triggered when user wants to tile windows. Send signal
+        to GeolinkedViewers class (if there is one!)
+        """
+        self.emit(SIGNAL("tileWindows()"))
 
     def defaultStretch(self):
         """

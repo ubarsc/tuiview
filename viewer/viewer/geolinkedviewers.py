@@ -2,8 +2,9 @@
 """
 Contains the GeolinkedViewers class.
 """
-
+import math
 from PyQt4.QtCore import QObject, SIGNAL
+from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
 
@@ -47,6 +48,8 @@ class GeolinkedViewers(QObject):
         self.connect(newviewer, SIGNAL("viewerClosed(long)"), self.onClose)
         # signal for request for new window
         self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
+        # signal for request for windows to be tiled
+        self.connect(newviewer, SIGNAL("tileWindows()"), self.onTileWindows)
 
     def onNewWindow(self):
         """
@@ -59,6 +62,46 @@ class GeolinkedViewers(QObject):
         self.connectSignals(newviewer)
 
         self.viewers.append(newviewer)
+
+    def onTileWindows(self):
+        """
+        Called when the user wants the windows to be tiled
+        """
+        # get the dimensions of the desktop
+        desktop = QApplication.desktop().availableGeometry()
+
+        # find the number of viewers along each side
+        nxside = math.sqrt(len(self.viewers))
+        # round up - we may end up with gaps
+        nxside = int(math.ceil(nxside))
+        
+        nyside = int(math.ceil(len(self.viewers) / float(nxside)))
+
+        # size of each viewer window
+        viewerwidth = int(desktop.width() / nxside)
+        viewerheight = int(desktop.height() / nyside)
+
+        # there is a problem where resize() doesn't include the frame
+        # area so we have to calculate it ourselves. This is the best
+        # I could come up with
+        geom = self.viewers[0].geometry()
+        framegeom = self.viewers[0].frameGeometry()
+        framewidth = framegeom.width() - geom.width()
+        frameheight = framegeom.height() - geom.height()
+
+        # now resize and move the viewers
+        xcount = 0
+        ycount = 0
+        for viewer in self.viewers:
+            # resize takes the area without the frame so we correct for that
+            viewer.resize(viewerwidth - framewidth, viewerheight - frameheight)
+            # remember that taskbar etc mean that we might not want to start at 0,0
+            viewer.move(desktop.x() + viewerwidth * xcount, desktop.y() + viewerheight * ycount)
+
+            xcount += 1
+            if xcount >= nxside:
+                xcount = 0
+                ycount += 1
 
     def onClose(self, senderid):
         """
