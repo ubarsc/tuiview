@@ -3,7 +3,7 @@
 Contains the GeolinkedViewers class.
 """
 import math
-from PyQt4.QtCore import QObject, SIGNAL
+from PyQt4.QtCore import QObject, QTimer, SIGNAL
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
@@ -16,10 +16,15 @@ class GeolinkedViewers(QObject):
     def __init__(self):
         QObject.__init__(self)
         # need to keep a reference to keep the python objects alive
-        # must be a better way. Need to remove once finished
-        # but if I clobber here from a signal from window I get a segfault
-        # because window hasn't completely gone way...
-        self.viewers = [] 
+        # otherwise they are deleted before they are shown
+        self.viewers = []
+        # set up a timer so we can periodically remove viewer
+        # instances when they are no longer open to save memory
+        # Usually, in PyQt you don't have such a 'dynamic' 
+        # number of sub windows. 
+        self.timer = QTimer(self)
+        self.connect(self.timer, SIGNAL("timeout()"), self.cleanUp)
+        self.timer.start(10000) # 10 secs
 
     @staticmethod
     def getViewerList():
@@ -28,9 +33,18 @@ class GeolinkedViewers(QObject):
         """
         viewers = []
         for viewer in QApplication.topLevelWidgets():
-            if isinstance(viewer, viewerwindow.ViewerWindow):
+            if isinstance(viewer, viewerwindow.ViewerWindow) and viewer.isVisible():
                 viewers.append(viewer)
         return viewers
+
+    def cleanUp(self):
+        activeviewers = self.getViewerList()
+
+        # remove any viewers that are no longer in the activelist
+        # (they must have been closed)
+        # they should now be cleaned up by Python and memory released
+        self.viewers = [viewer for viewer in self.viewers if viewer in activeviewers]
+        
 
     def newViewer(self, filename=None, stretch=None):
         """
