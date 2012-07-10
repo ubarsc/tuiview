@@ -28,18 +28,18 @@ def optionCallback(option, opt_str, value, parser):
         parser.stretch.setNoStretch()
         parser.stretchModeSet = True
     elif opt_str == '-l' or opt_str == '--linear':
-        (min, max) = value
-        if min == 'stats':
-            min = None
+        (minVal, maxVal) = value
+        if minVal == 'stats':
+            minVal = None
         else:
-            min = float(min)
+            minVal = float(minVal)
 
-        if max == 'stats':
-            max = None
+        if maxVal == 'stats':
+            maxVal = None
         else:
-            max = float(max)
+            maxVal = float(maxVal)
 
-        parser.stretch.setLinearStretch(min, max)
+        parser.stretch.setLinearStretch(minVal, maxVal)
         parser.stretchModeSet = True
     elif opt_str == '-s' or opt_str == '--stddev':
         parser.stretch.setStdDevStretch()

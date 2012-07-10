@@ -66,23 +66,23 @@ class ViewerStretch(object):
         "Don't do a stretch - data is already stretched"
         self.stretchmode = VIEWER_STRETCHMODE_NONE
 
-    def setLinearStretch(self, min=None, max=None):
+    def setLinearStretch(self, minVal=None, maxVal=None):
         """
         Just stretch linearly between min and max values
         if None, range of the data used
         """
         self.stretchmode = VIEWER_STRETCHMODE_LINEAR
-        self.stretchparam = (min, max)
+        self.stretchparam = (minVal, maxVal)
 
     def setStdDevStretch(self, stddev=VIEWER_DEFAULT_STDDEV):
         "Do a standard deviation stretch"
         self.stretchmode = VIEWER_STRETCHMODE_STDDEV
         self.stretchparam = (stddev,)
 
-    def setHistStretch(self, min=VIEWER_DEFAULT_HISTMIN, max=VIEWER_DEFAULT_HISTMAX):
+    def setHistStretch(self, minVal=VIEWER_DEFAULT_HISTMIN, maxVal=VIEWER_DEFAULT_HISTMAX):
         "Do a histogram stretch"
         self.stretchmode = VIEWER_STRETCHMODE_HIST
-        self.stretchparam = (min, max)
+        self.stretchparam = (minVal, maxVal)
 
     def setNoDataRGBA(self, rgba):
         "Set the RGBA to display No Data values as"

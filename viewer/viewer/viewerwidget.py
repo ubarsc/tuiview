@@ -4,6 +4,7 @@ Viewer Widget. Allows display of images,
 zooming and panning etc.
 """
 
+from __future__ import division # ensure we are using Python 3 semantics
 import numpy
 from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage, QPen
 from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
@@ -403,30 +404,35 @@ class ViewerWidget(QAbstractScrollArea):
         """
         Return the list of wavelength if file
         conforms to the metadata provided by the 
-        ENVI driver, or None
+        ENVI driver, or None.
+        Other formats will be added in future.
         """
         wavelengths = []
-        ok = True
-        # GetMetadataItem seems buggy for ENVI
-        # get the lot and go through
-        meta = self.ds.GetMetadata()
-        # go through each band
-        for n in range(self.ds.RasterCount):
-            # get the metadata item based on band name
-            metaname = "Band_%d" % (n+1)
-            if metaname in meta:
-                item = meta[metaname]
-                # try to convert to float
-                try:
-                    wl = float(item)
-                except ValueError:
+        ok = False
+
+        drivername = self.ds.GetDriver().ShortName
+        if drivername == 'ENVI':
+            ok = True
+            # GetMetadataItem seems buggy for ENVI
+            # get the lot and go through
+            meta = self.ds.GetMetadata()
+            # go through each band
+            for n in range(self.ds.RasterCount):
+                # get the metadata item based on band name
+                metaname = "Band_%d" % (n+1)
+                if metaname in meta:
+                    item = meta[metaname]
+                    # try to convert to float
+                    try:
+                        wl = float(item)
+                    except ValueError:
+                        ok = False
+                        break
+                    # must be ok
+                    wavelengths.append(wl)
+                else:
                     ok = False
                     break
-                # must be ok
-                wavelengths.append(wl)
-            else:
-                ok = False
-                break
 
         # failed
         if not ok:

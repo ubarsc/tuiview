@@ -308,13 +308,13 @@ class StretchLayout(QFormLayout):
             obj.setHistStretch(histmin, histmax)
         elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
             # need to do something cleverer here with the special value
-            min = self.stretchParam1.value()
-            if min == -1:
-                min = None
-            max = self.stretchParam2.value()
-            if max == -1:
-                max = None
-            obj.setLinearStretch(min, max)
+            minVal = self.stretchParam1.value()
+            if minVal == -1:
+                minVal = None
+            maxVal = self.stretchParam2.value()
+            if maxVal == -1:
+                maxVal = None
+            obj.setLinearStretch(minVal, maxVal)
 
         obj.setNoDataRGBA(self.nodataButton.getColorAsRGBATuple())
         obj.setBackgroundRGBA(self.backgroundButton.getColorAsRGBATuple())
