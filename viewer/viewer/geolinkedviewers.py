@@ -44,7 +44,14 @@ class GeolinkedViewers(QObject):
         # (they must have been closed)
         # they should now be cleaned up by Python and memory released
         self.viewers = [viewer for viewer in self.viewers if viewer in activeviewers]
-        
+
+    def closeAll(self):
+        """
+        Call this to close all geonlinked viewers
+        """
+        for viewer in self.viewers:
+            viewer.close()
+        self.viewers = []
 
     def newViewer(self, filename=None, stretch=None):
         """
