@@ -493,6 +493,19 @@ class ViewerWidget(QAbstractScrollArea):
         # force repaint
         self.viewport().update()
 
+    def setQueryPointNE(self, id, easting, northing, color):
+        """
+        Same as setQueryPoint, but takes a easting and northing.
+        """
+        if self.transform is not None:
+            col = ( self.transform[0] * self.transform[5] - 
+                    self.transform[2] * self.transform[3] + self.transform[2] * northing - 
+                    self.transform[5] * easting ) / ( self.transform[2] * self.transform[4] - self.transform[1] * self.transform[5] )
+            row = ( self.transform[1] * self.transform[3] - self.transform[0] * self.transform[4] -
+                    self.transform[1] * northing + self.transform[4] * easting ) / ( self.transform[2] * self.transform[4] - self.transform[1] * self.transform[5] )
+
+            self.setQueryPoint(id, col, row, color)
+
     def removeQueryPoint(self, id):
         """
         Remove given query point given the id.
@@ -1049,8 +1062,9 @@ class ViewerWidget(QAbstractScrollArea):
         if not self.geolinkFollowExtent:
             metresperwinpix = 0
 
-        self.windowfraction.moveToCoord(easting, northing, metresperwinpix, self.transform)
-        self.getData()
+        if self.windowfraction is not None:
+            self.windowfraction.moveToCoord(easting, northing, metresperwinpix, self.transform)
+            self.getData()
 
     def emitGeolinkMoved(self):
         """
