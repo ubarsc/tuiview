@@ -53,6 +53,21 @@ class GeolinkedViewers(QObject):
             viewer.close()
         self.viewers = []
 
+    def setActiveToolAll(self, tool):
+        """
+        sets the specified tool as active on 
+        all the viewers
+        """
+        for viewer in self.viewers:
+            viewer.viewwidget.setActiveTool(tool)
+
+    def setQueryPointNEAll(self, id, easting, northing, color):
+        """
+        Calls setQueryPointNE on all the widgets
+        """
+        for viewer in self.viewers:
+            viewer.viewwidget.setQueryPointNE(id, easting, northing, color)
+
     def newViewer(self, filename=None, stretch=None):
         """
         Call this to create a new geolinked viewer
@@ -68,6 +83,9 @@ class GeolinkedViewers(QObject):
             newviewer.openFileInternal(filename, stretch)
 
         self.viewers.append(newviewer)
+
+        # emit a signal so that application can do any customisation
+        self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
 
     def connectSignals(self, newviewer):
         """
@@ -95,6 +113,9 @@ class GeolinkedViewers(QObject):
         self.connectSignals(newviewer)
 
         self.viewers.append(newviewer)
+
+        # emit a signal so that application can do any customisation
+        self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
 
     def onTileWindows(self):
         """
