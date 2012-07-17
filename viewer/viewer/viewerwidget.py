@@ -460,7 +460,8 @@ class ViewerWidget(QAbstractScrollArea):
 
         gdalband = self.ds.GetRasterBand(bandnum)
         rat = gdalband.GetDefaultRAT()
-        if rat is not None:
+        thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
+        if rat is not None and thematic:
             # first get the column names
             # we do this so we can preserve the order
             # of the columns in the attribute table
