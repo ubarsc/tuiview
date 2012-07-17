@@ -3,7 +3,7 @@
 Contains the GeolinkedViewers class.
 """
 import math
-from PyQt4.QtCore import QObject, QTimer, SIGNAL
+from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
@@ -147,6 +147,11 @@ class GeolinkedViewers(QObject):
         xcount = 0
         ycount = 0
         for viewer in self.getViewerList():
+            # remove any maximised states - window manager will not let
+            # use resize
+            state = viewer.windowState()
+            if (state & Qt.WindowMaximized) == Qt.WindowMaximized:
+                viewer.setWindowState(state ^ Qt.WindowMaximized)
             # resize takes the area without the frame so we correct for that
             viewer.resize(viewerwidth - framewidth, viewerheight - frameheight)
             # remember that taskbar etc mean that we might not want to start at 0,0
