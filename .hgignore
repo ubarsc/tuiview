@@ -1,0 +1,11 @@
+syntax: glob
+*.pyc
+*.o
+*.so
+*~
+*.png
+*.img
+_build
+_templates
+_static
+
