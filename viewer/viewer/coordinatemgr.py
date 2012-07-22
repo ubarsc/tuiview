@@ -64,12 +64,35 @@ class CoordManager(object):
         """
         self.geotransform = transform
     
-    def setZoomFactor(self, imgPixPerWinPix):
+    def calcZoomFactor(self, bottom, right):
         """
-        Set the zoom factor, as ratio of number of raster 
-        pixels per display pixel. This is a float value. 
+        Calculate the zoom factor, given the currently set top/left
+        pixel to display, and the bottom/right pixel desired in display,
+        for the currently set display size. 
+        
+        The zoom factor is calculated to come as close as possible
+        to display the given section of  the raster, with the current
+        display size, but will correct for any difference in aspect ratio
+        between the display window and the desired region of the raster. 
+        This means that the given bottom/right values are not always
+        actually displayed. One of them, either bottom or right, will 
+        be maintained, but the other will be adjusted to match the 
+        aspect ratio of the display. For this reason, the bottom/right 
+        values are not stored on the object, but instead the calculated 
+        zoom factor is stored. The whole of the desired region will be 
+        fitted into the display window. 
+        
         """
-        self.imgPixPerWinPix = imgPixPerWinPix
+        displayAspectRatio = self.width / self.height
+        rastWidth = right - self.leftcol
+        rastHeight = self.toprow - bottom
+        rastAspectRatio = rastWidth / rastHeight
+        
+        if rastAspectRatio < displayAspectRatio:
+            rastWidth = int(math.ceil(displayAspectRatio * rastHeight))
+            right = self.leftcol + rastWidth
+        
+        self.imgPixPerWinPix = (right - self.leftcol + 1) / self.width
     
     def display2pixel(self, x, y):
         """
