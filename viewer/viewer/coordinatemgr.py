@@ -64,7 +64,7 @@ class CoordManager(object):
         """
         self.geotransform = transform
     
-    def calcZoomFactor(self, bottom, right):
+    def calcZoomFactor(self, right, bottom):
         """
         Calculate the zoom factor, given the currently set top/left
         pixel to display, and the bottom/right pixel desired in display,
