@@ -94,9 +94,38 @@ class ViewerLUT(QObject):
         # array shape [lutsize,4] for color table and greyscale
         # shape [4, lutsize] for RGB
         self.lut = None
+        # 'backup' lut. Used for holding the original for highlight etc
+        self.backuplut = None
         # a single BandLUTInfo instance for single band
         # dictionary keyed on code for RGB
         self.bandinfo = None
+
+    def highlightRows(self, color, rows=None):
+        """
+        Highlights the specified rows (or remove if 'rows' is None or empty).
+        Saves the existing LUT in self.backuplut if not already
+        """
+        if self.lut is None:
+            raise viewererrors.InvalidColorTable('stretch not loaded yet')
+
+        if self.lut.shape[1] != 4:
+            raise viewererrors.InvalidColorTable('Can only highlight thematic data')
+
+        if self.backuplut is None:
+            # first time this has been done - save copy
+            self.backuplut = self.lut.copy()
+        else:
+            # this has happened before. 
+            # restore the old one so no rows highlighted
+            # then highlight the ones we want
+            self.lut = self.backuplut.copy()
+
+        if rows is not None:
+            entry = [color.red(), color.green(), color.blue(), color.alpha()]
+            for row in rows:
+                for (value, code) in zip(entry, RGBA_CODES):
+                    lutindex = CODE_TO_LUTINDEX[code]
+                    self.lut[row,lutindex] = value
 
     def saveToFile(self, fname):
         """
@@ -526,6 +555,9 @@ class ViewerLUT(QObject):
         if image is not None it should be a QImage returned by the apply
             functions and a local stretch will be calculated using this.
         """
+        # clobber the backup lut - any hightlights happen afresh
+        self.backuplut = None
+
         if stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or \
                 stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT:
             msg = 'must set mode and stretchmode'

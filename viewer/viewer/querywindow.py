@@ -5,7 +5,7 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
-from PyQt4.QtGui import QFontMetrics
+from PyQt4.QtGui import QFontMetrics, QColor
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -16,8 +16,10 @@ except ImportError:
     HAVE_QWT = False
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
+from . import viewererrors
 
-QUERYWIDGET_DEFAULT_COLOR = Qt.white
+QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
+QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 # icons for displaying in the 'band' column for RGB
 ICON_PIXMAP = QPixmap(24, 24)
@@ -45,7 +47,8 @@ class QueryDockWidget(QDockWidget):
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Query", parent)
         self.viewwidget = viewwidget
-        self.color = QUERYWIDGET_DEFAULT_COLOR
+        self.cursorColor = QUERYWIDGET_DEFAULT_CURSORCOLOR
+        self.highlightColor = QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
@@ -69,6 +72,9 @@ class QueryDockWidget(QDockWidget):
         self.tabWidget = QTabWidget(self.dockWidget)
 
         self.tableWidget = QTableWidget()
+        # can only select rows - not individual items
+        self.tableWidget.setSelectionBehavior(QTableWidget.SelectRows)
+
         if HAVE_QWT:
             self.plotWidget = QwtPlot()
             self.plotCurve = QwtPlotCurve()
@@ -99,13 +105,13 @@ class QueryDockWidget(QDockWidget):
         # when the user changes color
         self.lastqi = None
 
-    def getColorIcon(self):
+    def getColorIcon(self, color):
         """
         Returns the icon for the change color tool
         which is based on the current color
         """
         pixmap = QPixmap(24, 24)
-        pixmap.fill(self.color)
+        pixmap.fill(color)
         return QIcon(pixmap)
 
     def setupActions(self):
@@ -119,12 +125,12 @@ class QueryDockWidget(QDockWidget):
         self.followAction.setCheckable(True)
         self.followAction.setChecked(True)
 
-        self.colorAction = QAction(self)
-        self.colorAction.setText("&Change Cursor Color")
-        self.colorAction.setStatusTip("Change Cursor Color")
-        icon = self.getColorIcon()
-        self.colorAction.setIcon(icon)        
-        self.connect(self.colorAction, SIGNAL("triggered()"), self.changeColor)
+        self.cursorColorAction = QAction(self)
+        self.cursorColorAction.setText("&Change Cursor Color")
+        self.cursorColorAction.setStatusTip("Change Cursor Color")
+        icon = self.getColorIcon(self.cursorColor)
+        self.cursorColorAction.setIcon(icon)        
+        self.connect(self.cursorColorAction, SIGNAL("triggered()"), self.changeCursorColor)
 
         self.labelAction = QAction(self)
         self.labelAction.setText("&Display Plot Labels")
@@ -140,28 +146,43 @@ class QueryDockWidget(QDockWidget):
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
         self.connect(self.saveAction, SIGNAL("triggered()"), self.savePlot)
 
+        self.highlightAction = QAction(self)
+        self.highlightAction.setText("&Highlight Selection")
+        self.highlightAction.setStatusTip("Highlight Selection")
+        self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
+        self.connect(self.highlightAction, SIGNAL("triggered()"), self.highlight)
+
+        self.highlightColorAction = QAction(self)
+        self.highlightColorAction.setText("Ch&ange Highlight Color")
+        self.highlightColorAction.setStatusTip("Change Highlight Color")
+        icon = self.getColorIcon(self.highlightColor)
+        self.highlightColorAction.setIcon(icon)
+        self.connect(self.highlightColorAction, SIGNAL("triggered()"), self.changeHighlightColor)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
         """
         self.toolBar.addAction(self.followAction)
-        self.toolBar.addAction(self.colorAction)
+        self.toolBar.addAction(self.cursorColorAction)
+        self.toolBar.addAction(self.highlightAction)
+        self.toolBar.addAction(self.highlightColorAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.saveAction)
 
 
-    def changeColor(self):
+    def changeCursorColor(self):
         """
         User wishes to change cursor color
         """
-        initial = self.color
+        initial = self.cursorColor
         newcolor = QColorDialog.getColor(initial, self)
         if newcolor.isValid():
             # change the toolbar icon
-            self.color = newcolor
-            icon = self.getColorIcon()
-            self.colorAction.setIcon(icon)        
+            self.cursorColor = newcolor
+            icon = self.getColorIcon(self.cursorColor)
+            self.cursorColorAction.setIcon(icon)        
     
             # if there is a previous point, redisplay in new color
             if self.lastqi is not None:
@@ -170,12 +191,27 @@ class QueryDockWidget(QDockWidget):
                     # to get new color
                     self.updatePlot(self.lastqi, newcolor)
 
+    def changeHighlightColor(self):
+        """
+        User wishes to change highlight color
+        """
+        initial = self.highlightColor
+        newcolor = QColorDialog.getColor(initial, self)
+        if newcolor.isValid():
+            # change the toolbar icon
+            self.highlightColor = newcolor
+            icon = self.getColorIcon(self.highlightColor)
+            self.highlightColorAction.setIcon(icon)
+
+            # re-highlight the selected rows
+            self.highlight()
+
     def changeLabel(self, checked):
         """
         State of display labels check has been changed. Redisplay plot.
         """
         if HAVE_QWT and self.lastqi is not None:
-            self.updatePlot(self.lastqi, self.color)
+            self.updatePlot(self.lastqi, self.cursorColor)
 
     def savePlot(self):
         """
@@ -192,12 +228,33 @@ class QueryDockWidget(QDockWidget):
                 printer.setResolution(96)
                 self.plotWidget.print_(printer)
 
-    def setupTableMultiBand(self, qi):
+    def highlight(self):
         """
-        setup the table for displaying multi band (rgb)
+        Highlight the currently selected rows on the map
+        """
+        # convert the ranges into a list of rows
+        selectedRanges = self.tableWidget.selectedRanges()
+        rows = []
+        for sel in selectedRanges:
+            for row in range(sel.topRow(), sel.bottomRow() + 1):
+                rows.append(row)
+        
+        # tell the widget to update
+        try:
+            self.viewwidget.highlightValues(self.highlightColor, rows)
+        except viewererrors.InvalidDataset:
+            pass
+
+    def setupTableContinuous(self, qi):
+        """
+        setup the table for displaying Continuous
         data. This is a row per band with the pixel values for each band shown
         The current red, green and blue bands have an icon 
         """
+        # can't highlight continuous
+        self.highlightAction.setEnabled(False)
+        self.highlightColorAction.setEnabled(False)
+
         nbands = qi.data.shape[0]
         # set up the table
         self.tableWidget.setRowCount(nbands)
@@ -245,12 +302,16 @@ class QueryDockWidget(QDockWidget):
 
             count += 1
 
-    def setupTableSingleBand(self, qi):
+    def setupTableThematic(self, qi):
         """
         For a single band dataset with attributes. Displays
         the attributes as a table and highlights the current
         value in the table. 
         """
+        # we can highlight thematic
+        self.highlightAction.setEnabled(True)
+        self.highlightColorAction.setEnabled(True)
+
         val = qi.data[0]
         ncols = len(qi.columnNames)
         # should all be the same length
@@ -269,13 +330,13 @@ class QueryDockWidget(QDockWidget):
             for row in range(nrows):
                 highlight = row == val
                 item = QTableWidgetItem(colattr[row])
-                item.setFlags(Qt.ItemIsEnabled) # disable editing etc
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable) # disable editing etc, but allow selection
                 self.tableWidget.setItem(row, col, item)
                 if highlight:
                     item.setBackground(highlightBrush)
-                    if col == 0:
-                        # scroll to this item also
-                        self.tableWidget.scrollToItem(item)
+
+        # return the value to scroll to
+        return val 
 
     def locationSelected(self, qi):
         """
@@ -290,11 +351,12 @@ class QueryDockWidget(QDockWidget):
 
             # do the attribute thing if there is only one band
             # and we have attributes
+            scrollRow = None
             if nbands == 1 and qi.columnNames is not None and len(qi.columnNames) != 0:
-                self.setupTableSingleBand(qi)
+                scrollRow = self.setupTableThematic(qi)
             else:
                 # otherwise the multi band table
-                self.setupTableMultiBand(qi)
+                self.setupTableContinuous(qi)
 
             # hack to ensure that the rows in the table are only 
             # as high as they need to be - by default they are very 
@@ -310,10 +372,18 @@ class QueryDockWidget(QDockWidget):
 
             # set up the plot
             if HAVE_QWT:
-                self.updatePlot(qi, self.color)
+                self.updatePlot(qi, self.cursorColor)
+
+            # after we have finished rejigging the UI
+            # scroll to the selected row (only used for thematic ATM)
+            if scrollRow is not None:
+                item = self.tableWidget.item(scrollRow, 0)
+                if item is not None:
+                    self.tableWidget.scrollToItem(item, QTableWidget.PositionAtCenter)
+
 
             # add/modify this is a query point to the widget
-            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, self.color)
+            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, self.cursorColor)
             # remember this qi in case we need to change color
             self.lastqi = qi
 

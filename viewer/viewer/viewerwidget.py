@@ -516,6 +516,22 @@ class ViewerWidget(QAbstractScrollArea):
         # force repaint
         self.viewport().update()
 
+    def highlightValues(self, color, values=None):
+        """
+        Applies a QColor to the LUT for the given values
+        and redraws
+        pass None or empty list to reset
+        """
+        if len(self.stretch.bands) != 1:
+            raise viewererrors.InvalidDataset('can only highlight values on single band images')
+
+        self.lut.highlightRows(color, values)
+        # re-apply the lut to the data
+        self.image = self.lut.applyLUTSingle(self.image.viewerdata, self.image.viewermask)
+        # force repaint
+        self.viewport().update()
+
+
     def zoomNativeResolution(self):
         """
         Sets the zoom to native resolution wherever
