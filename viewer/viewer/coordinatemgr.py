@@ -5,6 +5,7 @@ in the raster
 
 """
 from __future__ import division
+import math
 
 class CoordManager(object):
     """
@@ -42,6 +43,13 @@ class CoordManager(object):
         # GDAL geotransform array, which defines relationship between
         # pixel and world coords
         self.geotransform = None
+    
+    def __str__(self):
+        """
+        For debugging, so I can see what I am set to
+        """
+        return ("dw:%s dh:%s pt:%s pl:%s z:%s gt:%s" % (self.dspWidth, self.dspHeight, 
+            self.pixTop, self.pixLeft, self.imgPixPerWinPix, self.geotransform))
     
     def setDisplaySize(self, width, height):
         """
@@ -83,16 +91,16 @@ class CoordManager(object):
         fitted into the display window. 
         
         """
-        displayAspectRatio = self.width / self.height
-        rastWidth = right - self.leftcol
-        rastHeight = self.toprow - bottom
+        displayAspectRatio = self.dspWidth / self.dspHeight
+        rastWidth = right - self.pixLeft
+        rastHeight = bottom - self.pixTop
         rastAspectRatio = rastWidth / rastHeight
         
         if rastAspectRatio < displayAspectRatio:
             rastWidth = int(math.ceil(displayAspectRatio * rastHeight))
-            right = self.leftcol + rastWidth
+            right = self.pixLeft + rastWidth
         
-        self.imgPixPerWinPix = (right - self.leftcol + 1) / self.width
+        self.imgPixPerWinPix = (right - self.pixLeft + 1) / self.dspWidth
     
     def display2pixel(self, x, y):
         """
