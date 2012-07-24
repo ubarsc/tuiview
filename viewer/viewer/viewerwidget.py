@@ -12,6 +12,7 @@ from osgeo import gdal
 
 from . import viewererrors
 from . import viewerLUT
+from . import coordinatemgr
 
 
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
@@ -304,6 +305,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.stretch = None
         self.image = None
         self.windowfraction = None
+        self.coordmgr = None
         self.paintPoint = QPoint() # normally 0,0 unless we are panning
 
         # when moving the scroll bars
@@ -359,7 +361,14 @@ class ViewerWidget(QAbstractScrollArea):
 
         # reset these values
         size = self.viewport().size()
+        firstoverview = self.overviews.getFullRes()
         self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
+        # Eventual replacement for windowfraction, I think
+        self.coordmgr = coordinatemgr.CoordManager()
+        self.coordmgr.setDisplaySize(size.width(), size.height())
+        self.coordmgr.setGeoTransform(transform)
+        self.coordmgr.setTopLeftPixel(0, 0)
+        self.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
 
         # read in the LUT if not specified
         if lut is None:
@@ -966,7 +975,14 @@ class ViewerWidget(QAbstractScrollArea):
                     fraction = numpy.sqrt(selectionsize / geomsize)
 
                 if self.activeTool == VIEWER_TOOL_ZOOMIN:
-                    self.windowfraction.zoomViewCenter(newcentrex, newcentrey, fraction )
+                    dspTop = selection.top()
+                    dspLeft = selection.left()
+                    dspBottom = selection.bottom()
+                    dspRight = selection.right()
+                    (rastLeft, rastTop) = self.coordmgr.display2pixel(dspLeft, dspTop)
+                    (rastRight, rastBottom) = self.coordmgr.display2pixel(dspRight, dspBottom)
+                    self.coordmgr.setTopLeftPixel(rastLeft, rastTop)
+                    self.coordmgr.calcZoomFactor(rastRight, rastBottom)
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
                     # the smaller the area the larger the zoom
                     self.windowfraction.zoomViewCenter(newcentrex, newcentrey, 1.0 / fraction )
