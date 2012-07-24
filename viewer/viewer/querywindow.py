@@ -5,7 +5,7 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
-from PyQt4.QtGui import QFontMetrics, QColor
+from PyQt4.QtGui import QFontMetrics, QColor, QTableWidgetSelectionRange
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -159,6 +159,12 @@ class QueryDockWidget(QDockWidget):
         self.highlightColorAction.setIcon(icon)
         self.connect(self.highlightColorAction, SIGNAL("triggered()"), self.changeHighlightColor)
 
+        self.removeSelectionAction = QAction(self)
+        self.removeSelectionAction.setText("&Remove Current Selection")
+        self.removeSelectionAction.setStatusTip("Remove Current Selection")
+        self.removeSelectionAction.setIcon(QIcon(":/viewer/images/removeselection.png"))
+        self.connect(self.removeSelectionAction, SIGNAL("triggered()"), self.removeSelection)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -167,6 +173,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.cursorColorAction)
         self.toolBar.addAction(self.highlightAction)
         self.toolBar.addAction(self.highlightColorAction)
+        self.toolBar.addAction(self.removeSelectionAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.saveAction)
@@ -244,6 +251,14 @@ class QueryDockWidget(QDockWidget):
             self.viewwidget.highlightValues(self.highlightColor, rows)
         except viewererrors.InvalidDataset:
             pass
+
+    def removeSelection(self):
+        """
+        Remove the current selection from the table widget
+        """
+        selectedRanges = self.tableWidget.selectedRanges()
+        for sel in selectedRanges:
+            self.tableWidget.setRangeSelected(sel, False)
 
     def setupTableContinuous(self, qi):
         """
