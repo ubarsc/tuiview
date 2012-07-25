@@ -530,8 +530,8 @@ class ViewerWidget(QAbstractScrollArea):
         Sets the zoom to native resolution wherever
         the current viewport is centered
         """
-        if self.windowfraction is not None:
-            self.windowfraction.imgpixperwinpix = 1.0
+        if self.coordmgr is not None:
+            self.coordmgr.setZoomFactor(1.0)
             self.getData()
             # geolink
             self.emitGeolinkMoved()
