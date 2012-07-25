@@ -5,7 +5,7 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
-from PyQt4.QtGui import QFontMetrics, QColor, QTableWidgetSelectionRange
+from PyQt4.QtGui import QFontMetrics, QColor
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -184,7 +184,8 @@ class QueryDockWidget(QDockWidget):
         User wishes to change cursor color
         """
         initial = self.cursorColor
-        newcolor = QColorDialog.getColor(initial, self)
+        newcolor = QColorDialog.getColor(initial, self, 
+                    "Choose Cursor Color", QColorDialog.ShowAlphaChannel)
         if newcolor.isValid():
             # change the toolbar icon
             self.cursorColor = newcolor
@@ -203,7 +204,8 @@ class QueryDockWidget(QDockWidget):
         User wishes to change highlight color
         """
         initial = self.highlightColor
-        newcolor = QColorDialog.getColor(initial, self)
+        newcolor = QColorDialog.getColor(initial, self, 
+                "Choose Highlight Color", QColorDialog.ShowAlphaChannel)
         if newcolor.isValid():
             # change the toolbar icon
             self.highlightColor = newcolor
