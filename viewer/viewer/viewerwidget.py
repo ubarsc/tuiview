@@ -671,72 +671,43 @@ class ViewerWidget(QAbstractScrollArea):
         imgpixperwinpix = self.windowfraction.imgpixperwinpix
 
         # find the best overview based on imgpixperwinpix
-        selectedovi = self.overviews.findBestOverview(imgpixperwinpix)
-        print selectedovi.index
-
+        nf_selectedovi = self.overviews.findBestOverview(self.coordmgr.imgPixPerWinPix)
+        
         size = self.viewport().size()
         winxsize = size.width()
         winysize = size.height()
-        half_winxsize = winxsize / 2
-        half_winysize = winysize / 2
 
-        # the centre of the image in overview coords
-        ov_centrex = selectedovi.xsize * centrefraction[0]
-        ov_centrey = selectedovi.ysize * centrefraction[1]
-        # conversion between full res and overview coords
-        ov_to_full = imgpixperwinpix / selectedovi.fullrespixperpix
-        # size of image in overview units
-        ov_xsize = int(winxsize * ov_to_full)
-        ov_ysize = int(winysize * ov_to_full)
+        # I suspect that Sam's original should do this line
+        nf_fullrespixperovpix = numpy.ceil(nf_selectedovi.fullrespixperpix)
+        nf_ovtop = int(self.coordmgr.pixTop / nf_fullrespixperovpix)
+        nf_ovleft = int(self.coordmgr.pixLeft / nf_fullrespixperovpix)
+        nf_ovbottom = int(self.coordmgr.pixBottom / nf_fullrespixperovpix)
+        nf_ovright = int(self.coordmgr.pixRight / nf_fullrespixperovpix)
+        nf_ovtop = max(nf_ovtop, 0)
+        nf_ovleft = max(nf_ovleft, 0)
+        nf_ovbottom = min(nf_ovbottom, nf_selectedovi.ysize-1)
+        nf_ovright = min(nf_ovright, nf_selectedovi.xsize-1)
+        nf_ovxsize = nf_ovright - nf_ovleft + 1
+        nf_ovysize = nf_ovbottom - nf_ovtop + 1
 
-        # to get from window to overview
-        # win * ov_to_full
-        # to get from overview to window:
-        # ov / ov_to_full
-        # subtract half the size to get top left in overview coords
-        ov_x = int(ov_centrex - (ov_xsize / 2.0))
-        ov_y = int(ov_centrey - (ov_ysize / 2.0))
-
-        # window coords for image we will read in
-        win_tlx = 0
-        win_tly = 0
-        win_brx = winxsize
-        win_bry = winysize
-
-        # 1) the requested area won't fit into viewport
-        if ov_x < 0:
-            # make a black area on the side
-            overflow = abs(ov_x)
-            win_tlx = int(overflow / ov_to_full)
-            ov_xsize -= overflow # adjust size so we are still centred
-            ov_x = 0
-        if ov_y < 0:
-            overflow = abs(ov_y)
-            # make a black area on the side
-            win_tly = int(overflow / ov_to_full)
-            ov_ysize -= overflow # adjust size so we are still centred
-            ov_y = 0
-
-        # now do the same to the sizes if we are still too big
-        ov_brx = ov_x + ov_xsize
-        if ov_brx > selectedovi.xsize:
-            overflow = ov_brx - selectedovi.xsize
-            win_brx -= int(overflow / ov_to_full)
-            ov_xsize -= overflow
-        ov_bry = ov_y + ov_ysize
-        if ov_bry > selectedovi.ysize:
-            overflow = ov_bry - selectedovi.ysize
-            win_bry -= int(overflow / ov_to_full)
-            ov_ysize -= overflow
-
-        # size of image we will ask GDAL for
-        blockxsize = win_brx - win_tlx
-        blockysize = win_bry - win_tly
+        ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
+        nf_ovbuffxsize = int(numpy.ceil(nf_ovxsize / ovPixPerWinPix))
+        nf_ovbuffysize = int(numpy.ceil(nf_ovysize / ovPixPerWinPix))
+        nf_ovbuffxsize = min(nf_ovbuffxsize, winxsize)
+        nf_ovbuffysize = min(nf_ovbuffysize, winysize)
+            
+        # The display coordinates of the top-left corner of the raster data. Often this
+        # is (0, 0), but need not be if there is blank area left/above the raster data
+        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(self.coordmgr.pixLeft, 
+            self.coordmgr.pixTop)
 
         # only need to do the mask once
         mask = numpy.empty((winysize, winxsize), dtype=numpy.uint8)
         mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
-        mask[win_tly:win_bry, win_tlx:win_brx] = viewerLUT.MASK_IMAGE_VALUE # 0 where there is data
+        
+        dataslice = (slice(nf_dspRastTop, nf_dspRastTop+nf_ovbuffysize),
+            slice(nf_dspRastLeft, nf_dspRastLeft+nf_ovbuffxsize))
+        mask[dataslice] = viewerLUT.MASK_IMAGE_VALUE # 0 where there is data
         nodata_mask = None
 
         if len(self.stretch.bands) == 3:
@@ -745,18 +716,23 @@ class ViewerWidget(QAbstractScrollArea):
             for bandnum in self.stretch.bands:
                 band = self.ds.GetRasterBand(bandnum)
 
-                # create blank array of right size to read in to
+                # create blank array of right size to read in to. This data
+                # array represents the window pixels, one-for-one
                 numpytype = GDALTypeToNumpyType(band.DataType)
                 data = numpy.zeros((winysize, winxsize), dtype=numpytype) 
 
                 # get correct overview
-                if selectedovi.index > 0:
-                    band = band.GetOverview(selectedovi.index - 1)
+                if nf_selectedovi.index > 0:
+                    band = band.GetOverview(nf_selectedovi.index - 1)
 
                 # read into correct part of our window array
-                data[win_tly:win_bry, win_tlx:win_brx] = (
-                    band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
-
+                if self.coordmgr.imgPixPerWinPix >= 1.0:
+                    data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+                        nf_ovbuffxsize, nf_ovbuffysize)
+                else:
+                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+                    replicateArray(dataTmp, data[dataslice])
+                    
                 # do the no data test
                 nodata_value = self.noDataValues[bandnum-1]
                 if nodata_value is not None:
@@ -780,22 +756,21 @@ class ViewerWidget(QAbstractScrollArea):
             # must be single band
             band = self.ds.GetRasterBand(self.stretch.bands[0])
 
-                # create blank array of right size to read in to
+            # create blank array of right size to read in to
             numpytype = GDALTypeToNumpyType(band.DataType)
             data = numpy.zeros((winysize, winxsize), dtype=numpytype) 
 
             # get correct overview
-            if selectedovi.index > 0:
-                band = band.GetOverview(selectedovi.index - 1)
+            if nf_selectedovi.index > 0:
+                band = band.GetOverview(nf_selectedovi.index - 1)
 
             # read into correct part of our window array
-            data[win_tly:win_bry, win_tlx:win_brx] = (
-                band.ReadAsArray(ov_x, ov_y, ov_xsize, ov_ysize, blockxsize, blockysize))
-
-            # set up the mask - all background to begin with
-            mask = numpy.empty((winysize, winxsize), dtype=numpy.uint8) 
-            mask.fill(viewerLUT.MASK_BACKGROUND_VALUE)
-            mask[win_tly:win_bry, win_tlx:win_brx] = viewerLUT.MASK_IMAGE_VALUE # set where data
+            if self.coordmgr.imgPixPerWinPix >= 1.0:
+                data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+                    nf_ovbuffxsize, nf_ovbuffysize)
+            else:
+                dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+                replicateArray(dataTmp, data[dataslice])
 
             # do we have no data for this band?
             nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
@@ -810,12 +785,12 @@ class ViewerWidget(QAbstractScrollArea):
         # need to suppress processing of new scroll bar
         # events otherwise we end up in endless loop
         self.suppressscrollevent = True
-        self.horizontalScrollBar().setPageStep(ov_xsize / ov_to_full)
-        self.verticalScrollBar().setPageStep(ov_ysize / ov_to_full)
-        self.horizontalScrollBar().setRange(0, (selectedovi.xsize - ov_xsize) / ov_to_full)
-        self.verticalScrollBar().setRange(0, (selectedovi.ysize - ov_ysize) / ov_to_full)
-        self.horizontalScrollBar().setSliderPosition(ov_x)
-        self.verticalScrollBar().setSliderPosition(ov_y)
+        #self.horizontalScrollBar().setPageStep(ov_xsize / ov_to_full)
+        #self.verticalScrollBar().setPageStep(ov_ysize / ov_to_full)
+        #self.horizontalScrollBar().setRange(0, (selectedovi.xsize - ov_xsize) / ov_to_full)
+        #self.verticalScrollBar().setRange(0, (selectedovi.ysize - ov_ysize) / ov_to_full)
+        #self.horizontalScrollBar().setSliderPosition(ov_x)
+        #self.verticalScrollBar().setSliderPosition(ov_y)
         self.suppressscrollevent = False
 
         # force repaint
@@ -1094,3 +1069,21 @@ class ViewerWidget(QAbstractScrollArea):
         self.emit(SIGNAL("geolinkMove(double, double, double, long)"), easting, northing, metresperwinpix, id(self) )
 
 
+def replicateArray(arr, outarr):
+    """
+    Replicate the data in the given 2-d array so that it increases
+    in size to be (ysize, xsize). 
+    
+    Replicates each pixel in both directions. 
+    
+    """
+    (ysize, xsize) = outarr.shape
+    (nrows, ncols) = arr.shape
+    nRptsX = int(numpy.ceil(xsize / ncols))
+    nRptsY = int(numpy.ceil(ysize / nrows))
+    
+    for i in range(nRptsY):
+        numYvals = int(numpy.ceil((ysize-i) / nRptsY))
+        for j in range(nRptsX):
+            numXvals = int(numpy.ceil((xsize-j) / nRptsX))
+            outarr[i::nRptsY, j::nRptsX] = arr[:numYvals, :numXvals]
