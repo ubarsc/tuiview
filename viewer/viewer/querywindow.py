@@ -330,23 +330,23 @@ class QueryDockWidget(QDockWidget):
         self.highlightColorAction.setEnabled(True)
 
         val = qi.data[0]
-        ncols = len(qi.columnNames)
-        # should all be the same length
-        nrows = len(qi.attributeData[qi.columnNames[0]])
+        ncols = qi.attributes.getNumColumns()
+        nrows = qi.attributes.getNumRows()
 
         self.tableWidget.setRowCount(nrows)
         self.tableWidget.setColumnCount(ncols)
 
-        self.tableWidget.setHorizontalHeaderLabels(qi.columnNames)
+        colNames = qi.attributes.getColumnNames()
+        self.tableWidget.setHorizontalHeaderLabels(colNames)
         vertLabels = ["%s" % x for x in range(nrows)]
         self.tableWidget.setVerticalHeaderLabels(vertLabels)
 
         highlightBrush = QBrush(Qt.yellow)
         for col in range(ncols):
-            colattr = qi.attributeData[qi.columnNames[col]]
+            colattr = qi.attributes.getAttribute(colNames[col])
             for row in range(nrows):
                 highlight = row == val
-                item = QTableWidgetItem(colattr[row])
+                item = QTableWidgetItem("%s" % colattr[row])
                 item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable) # disable editing etc, but allow selection
                 self.tableWidget.setItem(row, col, item)
                 if highlight:
@@ -369,7 +369,7 @@ class QueryDockWidget(QDockWidget):
             # do the attribute thing if there is only one band
             # and we have attributes
             scrollRow = None
-            if nbands == 1 and qi.columnNames is not None and len(qi.columnNames) != 0:
+            if nbands == 1 and qi.attributes.hasAttributes():
                 scrollRow = self.setupTableThematic(qi)
             else:
                 # otherwise the multi band table
