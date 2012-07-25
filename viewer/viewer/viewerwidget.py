@@ -908,10 +908,12 @@ class ViewerWidget(QAbstractScrollArea):
                 geom = self.viewport().geometry()
                 
                 # Display coordinates
-                (dspX, dspY) = (pos.x(), pos.y())
+                (dspX, dspY) = (pos.x() + geom.x(), pos.y() + geom.x())
                 # Raster row/column
                 (column, row) = self.coordmgr.display2pixel(dspX, dspY)
                 (easting, northing) = self.coordmgr.pixel2world(column, row)
+                print 'mousePressEvent', easting, northing, dspX, dspY
+                print self.coordmgr
                 #geomcenter = geom.center()
                 # work out where we are remembering
                 # the one pixel offset
@@ -939,7 +941,7 @@ class ViewerWidget(QAbstractScrollArea):
             # note this is on self, rather than viewport()
             selection = self.rubberBand.geometry()
             geom = self.viewport().geometry()
-
+            
             selectioncenter = selection.center()
             selectionsize = float(selection.width() * selection.height())
 
@@ -948,7 +950,7 @@ class ViewerWidget(QAbstractScrollArea):
 
             self.rubberBand.hide()
 
-            if self.windowfraction is not None:
+            if self.coordmgr is not None:
                 # zoom the appropriate distance from centre
                 # and to the appropriate fraction (we used area so conversion needed)
                 # adjust also for the fact that the selection is made on this widget
@@ -969,9 +971,12 @@ class ViewerWidget(QAbstractScrollArea):
                     (rastRight, rastBottom) = self.coordmgr.display2pixel(dspRight, dspBottom)
                     self.coordmgr.setTopLeftPixel(rastLeft, rastTop)
                     self.coordmgr.calcZoomFactor(rastRight, rastBottom)
+                    print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
+                    print self.coordmgr
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
                     # the smaller the area the larger the zoom
-                    self.windowfraction.zoomViewCenter(newcentrex, newcentrey, 1.0 / fraction )
+                    #self.windowfraction.zoomViewCenter(newcentrex, newcentrey, 1.0 / fraction )
+                    self.coordmgr.setZoomFactor(self.coordmgr.imgPixPerWinPix / fraction)
 
                 # redraw
                 self.getData()
@@ -981,11 +986,13 @@ class ViewerWidget(QAbstractScrollArea):
         elif self.activeTool == VIEWER_TOOL_PAN:
             # change cursor back
             self.viewport().setCursor(self.panCursor)
-            if self.windowfraction is not None:
+            if self.coordmgr is not None:
                 # stop panning and move viewport
-                xamount = self.paintPoint.x() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
-                yamount = self.paintPoint.y() * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
-                self.windowfraction.moveView(xamount, yamount)
+                dspXmove = -self.paintPoint.x()
+                dspYmove = -self.paintPoint.y()
+                (pixNewX, pixNewY) = self.coordmgr.display2pixel(dspXmove, dspYmove)
+                self.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
+                self.coordmgr.recalcBottomRight()
                 # reset
                 self.paintPoint.setX(0)
                 self.paintPoint.setY(0)
