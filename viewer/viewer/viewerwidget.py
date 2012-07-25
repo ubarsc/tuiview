@@ -235,6 +235,7 @@ class OverviewManager(object):
             if overviewok:
                 # calc the conversion to full res pixels
                 fullrespixperpix = float(ds.RasterXSize) / float(ov.XSize) # should do both ways?
+                fullrespixperpix = numpy.ceil(fullrespixperpix)
                 # remember index 0 is full res so all real overviews are +1
                 ovi = OverviewInfo(ov.XSize, ov.YSize, fullrespixperpix, index + 1)
                 self.overviews.append(ovi)
@@ -846,6 +847,10 @@ class ViewerWidget(QAbstractScrollArea):
         # should probably do something clever with
         # only getting new data if bigger
         # otherwise moving centre, but all too hard
+        size = self.viewport().size()
+        if self.coordmgr is not None:
+            self.coordmgr.setDisplaySize(size.width(), size.height())
+            self.coordmgr.recalcBottomRight()
         self.getData()
 
     def paintEvent(self, event):
@@ -864,13 +869,13 @@ class ViewerWidget(QAbstractScrollArea):
         """
         Draw query points as part of paint.
         """
-        if self.windowfraction is not None:
+        if self.coordmgr is not None:
             size = self.viewport().size()
             pen = QPen()
             pen.setWidth(QUERY_CURSOR_WIDTH)
             for id in self.queryPoints:
                 (col, row, color) = self.queryPoints[id]
-                cx, cy = self.windowfraction.getWindowCoordFor(col, row, size)
+                cx, cy = self.coordmgr.pixel2display(col, row)
                 pen.setColor(color)
                 paint.setPen(pen)
                 # draw cross hair
@@ -898,17 +903,23 @@ class ViewerWidget(QAbstractScrollArea):
             self.viewport().setCursor(self.panGrabCursor)
 
         elif self.activeTool == VIEWER_TOOL_QUERY:
-            if self.windowfraction is not None:
+            if self.coordmgr is not None:
                 pos = event.pos()
                 geom = self.viewport().geometry()
-                geomcenter = geom.center()
+                
+                # Display coordinates
+                (dspX, dspY) = (pos.x(), pos.y())
+                # Raster row/column
+                (column, row) = self.coordmgr.display2pixel(dspX, dspY)
+                (easting, northing) = self.coordmgr.pixel2world(column, row)
+                #geomcenter = geom.center()
                 # work out where we are remembering
                 # the one pixel offset
-                x_fromcenter = pos.x() - geomcenter.x() - geom.x()
-                y_fromcenter = pos.y() - geomcenter.y() - geom.y()
+                #x_fromcenter = pos.x() - geomcenter.x() - geom.x()
+                #y_fromcenter = pos.y() - geomcenter.y() - geom.y()
                 # work out where that is in relation to the whole image
-                easting, northing, column, row = (
-                     self.windowfraction.getCoordFor(x_fromcenter, y_fromcenter, self.transform))
+                #easting, northing, column, row = (
+                #     self.windowfraction.getCoordFor(x_fromcenter, y_fromcenter, self.transform))
 
                 # update the point
                 self.updateQueryPoint(easting, northing, column, row)
@@ -1011,7 +1022,7 @@ class ViewerWidget(QAbstractScrollArea):
     def updateQueryPoint(self, easting, northing, column, row):
         # read the data out of the dataset
         if column >= 0 and column < self.ds.RasterXSize and row >= 0 and row < self.ds.RasterYSize:
-            data = self.ds.ReadAsArray(int(numpy.round(column)), int(numpy.round(row)), 1, 1)
+            data = self.ds.ReadAsArray(int(column), int(row), 1, 1)
             if data is not None:
                 # we just want the single 'drill down' of data as a 1d array
                 data = data[...,0,0]
