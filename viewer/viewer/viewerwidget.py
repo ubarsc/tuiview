@@ -541,9 +541,12 @@ class ViewerWidget(QAbstractScrollArea):
         Resets the zoom to full extent - should be
         the same as when file was opened.
         """
-        if self.windowfraction is not None:
+        if self.coordmgr is not None:
             size = self.viewport().size()
-            self.windowfraction.resetToFull(size)
+            self.coordmgr.setDisplaySize(size.width(), size.height())
+            self.coordmgr.setTopLeftPixel(0, 0)
+            firstoverview = self.overviews.getFullRes()
+            self.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
             self.getData()
             # geolink
             self.emitGeolinkMoved()
@@ -969,9 +972,10 @@ class ViewerWidget(QAbstractScrollArea):
                     dspRight = selection.right()
                     (rastLeft, rastTop) = self.coordmgr.display2pixel(dspLeft, dspTop)
                     (rastRight, rastBottom) = self.coordmgr.display2pixel(dspRight, dspBottom)
+                    print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
+                    print self.coordmgr
                     self.coordmgr.setTopLeftPixel(rastLeft, rastTop)
                     self.coordmgr.calcZoomFactor(rastRight, rastBottom)
-                    print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
                     print self.coordmgr
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
                     # the smaller the area the larger the zoom
@@ -1053,11 +1057,7 @@ class ViewerWidget(QAbstractScrollArea):
         one if the query tool is active.
         """
         if self.activeTool == VIEWER_TOOL_QUERY:
-            col = ( self.transform[0] * self.transform[5] - 
-                    self.transform[2] * self.transform[3] + self.transform[2] * northing - 
-                    self.transform[5] * easting ) / ( self.transform[2] * self.transform[4] - self.transform[1] * self.transform[5] )
-            row = ( self.transform[1] * self.transform[3] - self.transform[0] * self.transform[4] -
-                    self.transform[1] * northing + self.transform[4] * easting ) / ( self.transform[2] * self.transform[4] - self.transform[1] * self.transform[5] )
+            (col, row) = self.coordmgr.world2pixel(easting, northing)
 
             self.updateQueryPoint(easting, northing, col, row)
 
