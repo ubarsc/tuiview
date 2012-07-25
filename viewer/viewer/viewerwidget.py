@@ -12,7 +12,7 @@ from osgeo import gdal
 
 from . import viewererrors
 from . import viewerLUT
-
+from . import viewerRAT
 
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
@@ -270,8 +270,7 @@ class QueryInfo(object):
         # set the following fields manually
         self.bandNames = None
         self.wavelengths = None
-        self.columnNames = None
-        self.attributeData = None
+        self.attributes = None
 
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
@@ -296,8 +295,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.bandNames = None
         self.wavelengths = None
         self.noDataValues = None
-        self.columnNames = None   # for single band imagery
-        self.attributeData = None # for single band imagery
+        self.attributes = viewerRAT.ViewerRAT()
         self.queryPoints = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
@@ -378,10 +376,11 @@ class ViewerWidget(QAbstractScrollArea):
 
         # if we are single band read attributes if any
         if len(stretch.bands) == 1:
-            self.columnNames, self.attributeData = self.getAttributes(stretch.bands[0])
+            gdalband = self.ds.GetRasterBand(stretch.bands[0])
+            self.attributes.readFromGDALBand(gdalband)
         else:
-            self.columnNames = None
-            self.attributeData = None
+            # keep blank
+            self.attributes = viewerRAT.ViewerRAT()
 
         # start with no query points and go from there
         self.queryPoints = {}
@@ -451,36 +450,6 @@ class ViewerWidget(QAbstractScrollArea):
             noData.append(value)
         return noData
 
-    def getAttributes(self, bandnum):
-        """
-        Read the attributes
-        """
-        columnNames = []
-        attributeData = {}
-
-        gdalband = self.ds.GetRasterBand(bandnum)
-        rat = gdalband.GetDefaultRAT()
-        if rat is not None:
-            # first get the column names
-            # we do this so we can preserve the order
-            # of the columns in the attribute table
-            ncols = rat.GetColumnCount()
-            nrows = rat.GetRowCount()
-            for col in range(ncols):
-                colname = rat.GetNameOfCol(col)
-                columnNames.append(colname)
-
-                # get the attributes as a dictionary
-                # keyed on column name and the values
-                # being a list of attribute values
-                colattr = []
-                for row in range(nrows):
-                    valstr = rat.GetValueAsString(row, col)
-                    colattr.append(valstr)
-                attributeData[colname] = colattr
-
-        return columnNames, attributeData
-
     def setQueryPoint(self, id, col, row, color):
         """
         Query points are overlayed ontop of the map at the given
@@ -514,6 +483,22 @@ class ViewerWidget(QAbstractScrollArea):
 
         # force repaint
         self.viewport().update()
+
+    def highlightValues(self, color, values=None):
+        """
+        Applies a QColor to the LUT for the given values
+        and redraws
+        pass None or empty list to reset
+        """
+        if len(self.stretch.bands) != 1:
+            raise viewererrors.InvalidDataset('can only highlight values on single band images')
+
+        self.lut.highlightRows(color, values)
+        # re-apply the lut to the data
+        self.image = self.lut.applyLUTSingle(self.image.viewerdata, self.image.viewermask)
+        # force repaint
+        self.viewport().update()
+
 
     def zoomNativeResolution(self):
         """
@@ -1032,8 +1017,7 @@ class ViewerWidget(QAbstractScrollArea):
                 qi = QueryInfo(easting, northing, column, row, data, self.stretch)
                 qi.bandNames = self.bandNames
                 qi.wavelengths = self.wavelengths
-                qi.columnNames = self.columnNames
-                qi.attributeData = self.attributeData
+                qi.attributes = self.attributes
                 # emit the signal - handled by the QueryDockWidget
                 self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 

@@ -19,3 +19,6 @@ class StatisticsError(ViewerException):
 
 class TypeConversionError(ViewerException):
     "Problem with the type of the dataset"
+
+class AttributeTableTypeError(ViewerException):
+    "Problem with the type of attribute"
