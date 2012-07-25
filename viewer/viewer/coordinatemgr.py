@@ -38,6 +38,9 @@ class CoordManager(object):
         # The raster row/col which is to live in the top-left corner of the display
         self.pixTop = None
         self.pixLeft = None
+        # And the bottom-right
+        self.pixBottom = None
+        self.pixRight = None
         # Ratio of raster pixels to display pixels. This defines the zoom level. 
         self.imgPixPerWinPix = None
         # GDAL geotransform array, which defines relationship between
@@ -48,8 +51,9 @@ class CoordManager(object):
         """
         For debugging, so I can see what I am set to
         """
-        return ("dw:%s dh:%s pt:%s pl:%s z:%s gt:%s" % (self.dspWidth, self.dspHeight, 
-            self.pixTop, self.pixLeft, self.imgPixPerWinPix, self.geotransform))
+        return ("dw:%s dh:%s pt:%s pl:%s pb:%s pr:%s z:%s gt:%s" % (self.dspWidth, self.dspHeight, 
+            self.pixTop, self.pixLeft, self.pixBottom, self.pixRight, 
+            self.imgPixPerWinPix, self.geotransform))
     
     def setDisplaySize(self, width, height):
         """
@@ -99,8 +103,32 @@ class CoordManager(object):
         if rastAspectRatio < displayAspectRatio:
             rastWidth = int(math.ceil(displayAspectRatio * rastHeight))
             right = self.pixLeft + rastWidth
+        elif rastAspectRatio > displayAspectRatio:
+            rastHeight = int(math.ceil(rastWidth / displayAspectRatio))
+            bottom = self.pixTop + rastHeight
         
         self.imgPixPerWinPix = (right - self.pixLeft + 1) / self.dspWidth
+        self.pixBottom = bottom
+        self.pixRight = right
+    
+    def recalcBottomRight(self):
+        """
+        Called when the window shape has changed. The pixBottom and pixRight
+        values are recalculated, based on the new window shape and the existing 
+        zoom factor
+        
+        """
+        self.pixRight = self.pixLeft + self.imgPixPerWinPix * self.dspWidth - 1
+        self.pixBottom = self.pixTop + self.imgPixPerWinPix * self.dspHeight - 1
+    
+    def setZoomFactor(self, imgPixPerWinPix):
+        """
+        Set the zoom to the given value of imgPixPerWinPix. 
+        Will then recalcBottomRight(). 
+        
+        """
+        self.imgPixPerWinPix = imgPixPerWinPix
+        self.recalcBottomRight()
     
     def display2pixel(self, x, y):
         """
