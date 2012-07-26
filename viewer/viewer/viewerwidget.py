@@ -295,7 +295,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.bandNames = None
         self.wavelengths = None
         self.noDataValues = None
-        self.attributes = viewerRAT.ViewerRAT()
+        self.attributes = None
         self.queryPoints = None
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
@@ -377,10 +377,13 @@ class ViewerWidget(QAbstractScrollArea):
         # if we are single band read attributes if any
         if len(stretch.bands) == 1:
             gdalband = self.ds.GetRasterBand(stretch.bands[0])
+            # create a new one so we can keep a track of the id()
+            # and querywindow can check this is new
+            self.attributes = viewerRAT.ViewerRAT()
             self.attributes.readFromGDALBand(gdalband)
         else:
             # keep blank
-            self.attributes = viewerRAT.ViewerRAT()
+            self.attributes = None
 
         # start with no query points and go from there
         self.queryPoints = {}

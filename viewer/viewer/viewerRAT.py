@@ -3,10 +3,49 @@
 Contains the ViewerRAT class
 """
 
+import keyword
 import numpy
 from osgeo import gdal
 
+from . import viewererrors
+
+def formatException(code):
+    """
+    Formats an exception for display and returns string
+    """
+    import sys
+    import traceback
+  
+    # extract the current traceback and turn it into a list
+    (type,value,tb) = sys.exc_info()
+    stack = traceback.extract_tb(tb)
+  
+    # replace all instances of <string> with actual code
+    fixedstack = []
+    codearr = code.split('\n')
+    for (filename,line,function,text) in stack:
+        if filename == '<string>' and text is None:
+            text = codearr[line - 1]
+        fixedstack.append((filename,line,function,text))
+  
+    trace = '\n'.join(traceback.format_list(fixedstack))
+  
+    # if a SyntaxError the error won't be part of the trace
+    if type.__name__ == 'SyntaxError' and value.offset is not None:
+      # simulate the offset pointer
+      offset = ' ' * value.offset + '^'
+      value = str(value) + '\n' + value.text + offset
+    
+    # add on the actual exceptions
+    trace = '%s\n%s: %s' % (trace,type.__name__,value)
+    return trace
+    
+
 class ViewerRAT(object):
+    """
+    Represents an attribute table in memory. Has method
+    to read from GDAL. Also will apply a user expression.
+    """
     def __init__(self):
         self.columnNames = None
         self.attributeData = None
@@ -18,18 +57,37 @@ class ViewerRAT(object):
         return self.columnNames is not None
 
     def getColumnNames(self):
+        "return the column names"
         return self.columnNames
 
+    def getSaneColumnNames(self):
+        """
+        Gets column names made sane. This means adding '_'
+        to Python keywords and replacing spaces with '_' etc
+        """
+        sane = []
+        for colName in self.columnNames:
+            if keyword.iskeyword(colName):
+                # append an underscore. 
+                colName = colName + '_'
+            elif colName.find(' ') != -1:
+                colName = colName.replace(' ', '_')
+            sane.append(colName)
+        return sane
+
     def getAttribute(self, colName):
+        "return the array of attributes for a given column name"
         return self.attributeData[colName]
 
     def getNumColumns(self):
+        "get the number of columns"
         if self.columnNames is not None:
             return len(self.columnNames)
         else:
             return 0
 
     def getNumRows(self):
+        "get the number of rows"
         if self.columnNames is not None and self.attributeData is not None and len(self.columnNames) > 0:
             # assume all same length
             firstCol = self.columnNames[0]
@@ -99,4 +157,72 @@ class ViewerRAT(object):
                     colArray = numpy.array(colArray)
 
                 self.attributeData[colname] = colArray
+
+    def evaluateUserExpression(self, expression):
+        """
+        Evaluate a user expression. It is expected that a fragment
+        of numpy code will be passed. numpy is provided in the global
+        namespace.
+        An exception is raised if code is invalid, or does not return
+        an array of bools.
+        """
+        if not self.hasAttributes():
+            msg = 'no attributes to work on'
+            raise viewererrors.AttributeTableTypeError(msg)
+
+        globals = {}
+        # insert each column into the global namespace
+        # as the array it represents
+        for colName, saneName in zip(self.columnNames, self.getSaneColumnNames()):
+            # use sane names so as not to confuse Python
+            globals[saneName] = self.attributeData[colName]
+
+        # give them access to numpy
+        globals['numpy'] = numpy
+
+        try:
+            result = eval(expression, globals)
+        except Exception, e:
+            msg = formatException(expression)
+            raise viewererrors.UserExpressionSyntaxError(msg)
+
+        # check type of result
+        if not isinstance(result, numpy.ndarray):
+            msg = 'must return a numpy array'
+            raise viewererrors.UserExpressionTypeError(msg)
+
+        if result.dtype.kind != 'b':
+            msg = 'must return a boolean array'
+            raise viewererrors.UserExpressionTypeError(msg)
+
+        return result
+
+    @staticmethod
+    def convertResultToRange(result):
+        """
+        Convert a result array from evaluateUserExpression()
+        to a list of tuples. Each tuple represents a range
+        for conversion to QTableWidgetSelectionRange
+        """
+        ranges = []
+        index = 0
+        start = -1 # outside a selection
+        while index < result.size:
+            if start == -1:
+                # looking for the start
+                if result[index]:
+                    # found
+                    start = index
+            else:
+                # looking for the end
+                if not result[index]:
+                    ranges.append((start, index-1))
+                    start = -1
+            index += 1
+
+        if start != -1:
+            # were looking for the end when we got to end of array
+            ranges.append((start, result.size-1))
+
+        return ranges
 
