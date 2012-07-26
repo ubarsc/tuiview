@@ -16,6 +16,7 @@
         <file>followextents.png</file>
         <file>highlight.png</file>
 	<file>removeselection.png</file>
+	<file>userexpression.png</file>
     </qresource>
 </RCC>
 

@@ -22,3 +22,12 @@ class TypeConversionError(ViewerException):
 
 class AttributeTableTypeError(ViewerException):
     "Problem with the type of attribute"
+
+class UserExpressionError(ViewerException):
+    "A problem was encountered in user supplies code"
+
+class UserExpressionSyntaxError(UserExpressionError):
+    "Syntax error in user supplied code"
+
+class UserExpressionTypeError(UserExpressionError):
+    "The result of user supplied code was the wrong type"

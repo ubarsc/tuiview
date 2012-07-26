@@ -5,7 +5,7 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
-from PyQt4.QtGui import QFontMetrics, QColor
+from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QTableWidgetSelectionRange
 from PyQt4.QtCore import SIGNAL, Qt
 
 # See if we have access to Qwt
@@ -16,6 +16,8 @@ except ImportError:
     HAVE_QWT = False
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
+from .userexpressiondialog import UserExpressionDialog
+from .viewerRAT import ViewerRAT
 from . import viewererrors
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
@@ -105,6 +107,11 @@ class QueryDockWidget(QDockWidget):
         # when the user changes color
         self.lastqi = None
 
+        # these stay disabled until thematic selected
+        self.highlightAction.setEnabled(False)
+        self.highlightColorAction.setEnabled(False)
+        self.expressionAction.setEnabled(False)
+
     def getColorIcon(self, color):
         """
         Returns the icon for the change color tool
@@ -165,6 +172,12 @@ class QueryDockWidget(QDockWidget):
         self.removeSelectionAction.setIcon(QIcon(":/viewer/images/removeselection.png"))
         self.connect(self.removeSelectionAction, SIGNAL("triggered()"), self.removeSelection)
 
+        self.expressionAction = QAction(self)
+        self.expressionAction.setText("Select using an &Expression")
+        self.expressionAction.setStatusTip("Select using an Expression")
+        self.expressionAction.setIcon(QIcon(":/viewer/images/userexpression.png"))
+        self.connect(self.expressionAction, SIGNAL("triggered()"), self.showUserExpression)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -174,6 +187,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.highlightAction)
         self.toolBar.addAction(self.highlightColorAction)
         self.toolBar.addAction(self.removeSelectionAction)
+        self.toolBar.addAction(self.expressionAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.saveAction)
@@ -262,6 +276,35 @@ class QueryDockWidget(QDockWidget):
         for sel in selectedRanges:
             self.tableWidget.setRangeSelected(sel, False)
 
+    def showUserExpression(self):
+        """
+        Allow user to enter expression to select rows
+        """
+        dlg = UserExpressionDialog(self)
+        self.connect(dlg, SIGNAL("newExpression(QString)"), self.newUserExpression)
+        dlg.show()
+
+    def newUserExpression(self, expression):
+        """
+        Called in reponse to signal from UserExpressionDialog
+        """
+        # remove current selection
+        self.removeSelection()
+        ncols = self.tableWidget.columnCount()
+        try:
+            # get the numpy array with bools
+            result = self.lastqi.attributes.evaluateUserExpression(str(expression))
+            # convert to list of tuple of ranges
+            ranges = ViewerRAT.convertResultToRange(result)
+
+            # set these ranges in the tableWidget
+            for (start, stop) in ranges:
+                sel = QTableWidgetSelectionRange(start, 0, stop, ncols - 1)
+                self.tableWidget.setRangeSelected(sel, True)
+
+        except viewererrors.UserExpressionError, e:
+            QMessageBox.critical(self, "Viewer", str(e))
+
     def setupTableContinuous(self, qi):
         """
         setup the table for displaying Continuous
@@ -271,6 +314,7 @@ class QueryDockWidget(QDockWidget):
         # can't highlight continuous
         self.highlightAction.setEnabled(False)
         self.highlightColorAction.setEnabled(False)
+        self.expressionAction.setEnabled(False)
 
         nbands = qi.data.shape[0]
         # set up the table
@@ -328,6 +372,7 @@ class QueryDockWidget(QDockWidget):
         # we can highlight thematic
         self.highlightAction.setEnabled(True)
         self.highlightColorAction.setEnabled(True)
+        self.expressionAction.setEnabled(True)
 
         val = qi.data[0]
         ncols = qi.attributes.getNumColumns()
@@ -336,8 +381,11 @@ class QueryDockWidget(QDockWidget):
         self.tableWidget.setRowCount(nrows)
         self.tableWidget.setColumnCount(ncols)
 
+        # use the 'sane' ones for display so matches
+        # what expected in the user expression dialog
         colNames = qi.attributes.getColumnNames()
-        self.tableWidget.setHorizontalHeaderLabels(colNames)
+        saneColNames = qi.attributes.getSaneColumnNames()
+        self.tableWidget.setHorizontalHeaderLabels(saneColNames)
         vertLabels = ["%s" % x for x in range(nrows)]
         self.tableWidget.setVerticalHeaderLabels(vertLabels)
 
