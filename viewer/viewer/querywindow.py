@@ -378,6 +378,25 @@ class QueryDockWidget(QDockWidget):
         ncols = qi.attributes.getNumColumns()
         nrows = qi.attributes.getNumRows()
 
+        highlightBrush = QBrush(Qt.yellow)
+        # are the attributes same as last time?
+        # the widget creates a new class each time it opens so 
+        # we can check the id()
+        if self.lastqi is not None and self.lastqi.attributes is not None:
+            if id(self.lastqi.attributes) == id(qi.attributes):
+                # highlight the rows
+                plainBrush = QBrush(Qt.white)
+                for row in range(nrows):
+                    highlight = row == val
+                    for col in range(ncols):
+                        item = self.tableWidget.item(row, col)
+                        if highlight:
+                            item.setBackground(highlightBrush)
+                        else:
+                            item.setBackground(plainBrush)
+                # just return value to scroll to
+                return val
+
         self.tableWidget.setRowCount(nrows)
         self.tableWidget.setColumnCount(ncols)
 
@@ -389,7 +408,6 @@ class QueryDockWidget(QDockWidget):
         vertLabels = ["%s" % x for x in range(nrows)]
         self.tableWidget.setVerticalHeaderLabels(vertLabels)
 
-        highlightBrush = QBrush(Qt.yellow)
         for col in range(ncols):
             colattr = qi.attributes.getAttribute(colNames[col])
             for row in range(nrows):
