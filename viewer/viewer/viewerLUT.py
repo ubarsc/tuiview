@@ -120,12 +120,15 @@ class ViewerLUT(QObject):
             # then highlight the ones we want
             self.lut = self.backuplut.copy()
 
+        maxrow = self.lut.shape[0]
+
         if rows is not None:
             entry = [color.red(), color.green(), color.blue(), color.alpha()]
             for row in rows:
-                for (value, code) in zip(entry, RGBA_CODES):
-                    lutindex = CODE_TO_LUTINDEX[code]
-                    self.lut[row,lutindex] = value
+                if row < maxrow:
+                    for (value, code) in zip(entry, RGBA_CODES):
+                        lutindex = CODE_TO_LUTINDEX[code]
+                        self.lut[row,lutindex] = value
 
     def saveToFile(self, fname):
         """
