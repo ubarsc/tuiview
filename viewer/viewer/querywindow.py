@@ -2,11 +2,12 @@
 Module that contains the QueryDockWidget
 """
 
-from PyQt4.QtGui import QDockWidget, QTableWidget, QTableWidgetItem, QIcon, QFileDialog
+from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog, QItemDelegate
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
 from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QTableWidgetSelectionRange
-from PyQt4.QtCore import SIGNAL, Qt
+from PyQt4.QtGui import QItemSelection, QItemSelectionModel
+from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel, QSize
 
 # See if we have access to Qwt
 HAVE_QWT = True
@@ -38,6 +39,143 @@ BLUE_ICON = QIcon(ICON_PIXMAP)
 # for greyscale
 ICON_PIXMAP.fill(Qt.gray)
 GREY_ICON = QIcon(ICON_PIXMAP)
+
+
+class ThematicTableModel(QAbstractTableModel):
+    """
+    This class is the 'model' that drives the thematic table.
+    QTableView asks it for the data etc
+    """
+    def __init__(self, attributes, parent):
+        QAbstractTableModel.__init__(self, parent)
+        self.attributes = attributes
+        self.saneColNames = attributes.getSaneColumnNames()
+        self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
+        self.highlightRow = -1
+
+    def setHighlightRow(self, row):
+        """
+        Called by setupTableThematic to indicate 
+        the row that should be highlighted
+        """
+        self.highlightRow = row
+
+    def rowCount(self, parent):
+        "returns the number of rows"
+        return self.attributes.getNumRows()
+
+    def columnCount(self, parent):
+        "number of columns"
+        return self.attributes.getNumColumns()
+
+    def headerData(self, section, orientation, role):
+        """
+        returns the header labels for either vertical or
+        horizontal
+        """
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            name = self.saneColNames[section]
+            return QVariant(name)
+        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
+            # rows just a number
+            return QVariant("%s" % section)
+        else:
+            return QVariant()
+
+    def data(self, index, role):
+        """
+        Gets the actual data. A variety of Qt.ItemDataRole's
+        are passed, but we only use DisplayRole for the text
+        and Qt.BackgroundRole for the highlight role
+        """
+        if not index.isValid():
+            return QVariant()
+
+        row = index.row()
+        if role == Qt.BackgroundRole and row == self.highlightRow:
+            return self.highlightBrush
+
+        if role == Qt.DisplayRole: 
+            column = index.column()
+            name = self.attributes.getColumnNames()[column]
+            attr = self.attributes.getAttribute(name)
+            return QVariant("%s" % attr[row]) 
+        else:
+            QVariant()
+
+class ContinuousTableModel(QAbstractTableModel):
+    """
+    This class is the 'model' that drives the continuous table.
+    QTableView asks it for the data etc
+    """
+    def __init__(self, data, bandNames, stretch, parent):
+        QAbstractTableModel.__init__(self, parent)
+        self.data = data
+        self.bandNames = bandNames
+        self.stretch = stretch
+        self.colNames = ["Band", "Name", "Value"]
+
+    def rowCount(self, parent):
+        "returns the number of rows"
+        return self.data.shape[0]
+
+    def columnCount(self, parent):
+        "number of columns"
+        return 3
+
+    def headerData(self, section, orientation, role):
+        """
+        returns the header labels for either vertical or
+        horizontal
+        """
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            name = self.colNames[section]
+            return QVariant(name)
+        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
+            # rows just a number
+            return QVariant("%s" % (section + 1))
+        else:
+            return QVariant()
+
+    def data(self, index, role):
+        """
+        Gets the actual data. A variety of Qt.ItemDataRole's
+        are passed, but we only use DisplayRole for the text
+        and Qt.BackgroundRole for the highlight role
+        """
+        if not index.isValid():
+            return QVariant()
+
+        column = index.column()
+        row = index.row()
+        if column == 0 and role == Qt.DecorationRole:
+            # icon column
+            band = row + 1
+            if self.stretch.mode == VIEWER_MODE_RGB and band in self.stretch.bands:
+                if band == self.stretch.bands[0]:
+                    return RED_ICON
+                elif band == self.stretch.bands[1]:
+                    return GREEN_ICON
+                elif band == self.stretch.bands[2]:
+                    return BLUE_ICON
+                else:
+                    return QVariant()
+            elif self.stretch.mode == VIEWER_MODE_GREYSCALE and band == self.stretch.bands[0]:
+                return GREY_ICON
+
+            else:
+                return QVariant()
+
+        elif column == 1 and role == Qt.DisplayRole: 
+            # band names column
+            return QVariant(self.bandNames[row])
+
+        elif column == 2 and role == Qt.DisplayRole:
+            # band values column
+            return QVariant("%s" % self.data[row])
+
+        else:
+            QVariant()
 
 class QueryDockWidget(QDockWidget):
     """
@@ -73,9 +211,18 @@ class QueryDockWidget(QDockWidget):
 
         self.tabWidget = QTabWidget(self.dockWidget)
 
-        self.tableWidget = QTableWidget()
+        self.tableView = QTableView()
         # can only select rows - not individual items
-        self.tableWidget.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tableView.setSelectionBehavior(QTableView.SelectRows)
+        self.tableModel = None
+
+        # now make sure the size of the rows matches the font we are using
+        font = self.tableView.viewOptions().font
+        fm = QFontMetrics(font)
+        height = fm.height()
+        # default height actually controlled by headers
+        # don't worry about QItemDelegate etc
+        self.tableView.verticalHeader().setDefaultSectionSize(height)
 
         if HAVE_QWT:
             self.plotWidget = QwtPlot()
@@ -87,7 +234,7 @@ class QueryDockWidget(QDockWidget):
             self.noQWTLabel.setText("PyQwt needs to be installed for plot display")
             self.noQWTLabel.setAlignment(Qt.AlignCenter)
 
-        self.tabWidget.addTab(self.tableWidget, "Table")
+        self.tabWidget.addTab(self.tableView, "Table")
         if HAVE_QWT:
             self.tabWidget.addTab(self.plotWidget, "Plot")
         else:
@@ -256,12 +403,12 @@ class QueryDockWidget(QDockWidget):
         Highlight the currently selected rows on the map
         """
         # convert the ranges into a list of rows
-        selectedRanges = self.tableWidget.selectedRanges()
+        selectedRanges = self.tableView.selectionModel().selection()
         rows = []
         for sel in selectedRanges:
-            for row in range(sel.topRow(), sel.bottomRow() + 1):
+            for row in range(sel.top(), sel.bottom() + 1):
                 rows.append(row)
-        
+            
         # tell the widget to update
         try:
             self.viewwidget.highlightValues(self.highlightColor, rows)
@@ -272,9 +419,7 @@ class QueryDockWidget(QDockWidget):
         """
         Remove the current selection from the table widget
         """
-        selectedRanges = self.tableWidget.selectedRanges()
-        for sel in selectedRanges:
-            self.tableWidget.setRangeSelected(sel, False)
+        self.tableView.selectionModel().clearSelection()
 
     def showUserExpression(self):
         """
@@ -290,17 +435,23 @@ class QueryDockWidget(QDockWidget):
         """
         # remove current selection
         self.removeSelection()
-        ncols = self.tableWidget.columnCount()
+        ncols = self.tableModel.columnCount(self)
         try:
             # get the numpy array with bools
             result = self.lastqi.attributes.evaluateUserExpression(str(expression))
             # convert to list of tuple of ranges
             ranges = ViewerRAT.convertResultToRange(result)
 
-            # set these ranges in the tableWidget
+            selectModel = self.tableView.selectionModel()
+
+            # set these ranges in the tableView via the selection model
+            selection = QItemSelection()
             for (start, stop) in ranges:
-                sel = QTableWidgetSelectionRange(start, 0, stop, ncols - 1)
-                self.tableWidget.setRangeSelected(sel, True)
+                startidx = self.tableModel.index(start, 0)
+                endidx = self.tableModel.index(stop, ncols - 1)
+                selection.select(startidx, endidx)
+
+            selectModel.select(selection, QItemSelectionModel.Select)
 
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
@@ -316,52 +467,8 @@ class QueryDockWidget(QDockWidget):
         self.highlightColorAction.setEnabled(False)
         self.expressionAction.setEnabled(False)
 
-        nbands = qi.data.shape[0]
-        # set up the table
-        self.tableWidget.setRowCount(nbands)
-        self.tableWidget.setColumnCount(3)
-
-        self.tableWidget.setHorizontalHeaderLabels(["Band", "Name", "Value"])
-        vertLabels = ["%s" % (x+1) for x in range(nbands)]
-        self.tableWidget.setVerticalHeaderLabels(vertLabels)
-
-        # fill in the table
-        count = 0
-        for x in qi.data:
-            # value
-            valitem = QTableWidgetItem("%s" % x)
-            valitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
-            self.tableWidget.setItem(count, 2, valitem)
-
-            # band name
-            nameitem = QTableWidgetItem(qi.bandNames[count])
-            nameitem.setFlags(Qt.ItemIsEnabled) # disable editing etc
-            self.tableWidget.setItem(count, 1, nameitem)
-
-            # color
-            band = count + 1
-            if qi.stretch.mode == VIEWER_MODE_RGB and band in qi.stretch.bands:
-                coloritem = QTableWidgetItem()
-                if band == qi.stretch.bands[0]:
-                    # red
-                    coloritem.setIcon(RED_ICON)
-                elif band == qi.stretch.bands[1]:
-                    # green
-                    coloritem.setIcon(GREEN_ICON)
-                elif band == qi.stretch.bands[2]:
-                    # blue
-                    coloritem.setIcon(BLUE_ICON)
-                self.tableWidget.setItem(count, 0, coloritem)
-            elif qi.stretch.mode == VIEWER_MODE_GREYSCALE and band == qi.stretch.bands[0]:
-                greyitem = QTableWidgetItem()
-                greyitem.setIcon(GREY_ICON)
-                self.tableWidget.setItem(count, 0, greyitem)
-            else:
-                # blank item - might be stuff still there from attributes
-                item = QTableWidgetItem()
-                self.tableWidget.setItem(count, 0, item)
-
-            count += 1
+        self.tableModel = ContinuousTableModel(qi.data, qi.bandNames, qi.stretch, self)
+        self.tableView.setModel(self.tableModel)
 
     def setupTableThematic(self, qi):
         """
@@ -375,51 +482,23 @@ class QueryDockWidget(QDockWidget):
         self.expressionAction.setEnabled(True)
 
         val = qi.data[0]
-        ncols = qi.attributes.getNumColumns()
-        nrows = qi.attributes.getNumRows()
 
-        highlightBrush = QBrush(Qt.yellow)
-        # are the attributes same as last time?
-        # the widget creates a new class each time it opens so 
-        # we can check the id()
-        if self.lastqi is not None and self.lastqi.attributes is not None:
-            if id(self.lastqi.attributes) == id(qi.attributes):
-                # highlight the rows
-                plainBrush = QBrush(Qt.white)
-                for row in range(nrows):
-                    highlight = row == val
-                    for col in range(ncols):
-                        item = self.tableWidget.item(row, col)
-                        if highlight:
-                            item.setBackground(highlightBrush)
-                        else:
-                            item.setBackground(plainBrush)
-                # just return value to scroll to
-                return val
+        # do we need a new table model?
+        if self.lastqi is None or self.lastqi.attributes is None or id(self.lastqi.attributes) != id(qi.attributes):
+            self.tableModel = ThematicTableModel(qi.attributes, self)
+            self.tableView.setModel(self.tableModel)
 
-        self.tableWidget.setRowCount(nrows)
-        self.tableWidget.setColumnCount(ncols)
+        # set the highlight row
+        self.tableModel.setHighlightRow(val)
 
-        # use the 'sane' ones for display so matches
-        # what expected in the user expression dialog
-        colNames = qi.attributes.getColumnNames()
-        saneColNames = qi.attributes.getSaneColumnNames()
-        self.tableWidget.setHorizontalHeaderLabels(saneColNames)
-        vertLabels = ["%s" % x for x in range(nrows)]
-        self.tableWidget.setVerticalHeaderLabels(vertLabels)
+        # scroll to the new index
+        index = self.tableView.model().index(val, 0)
+        self.tableView.scrollTo(index, QTableView.PositionAtCenter)
 
-        for col in range(ncols):
-            colattr = qi.attributes.getAttribute(colNames[col])
-            for row in range(nrows):
-                highlight = row == val
-                item = QTableWidgetItem("%s" % colattr[row])
-                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable) # disable editing etc, but allow selection
-                self.tableWidget.setItem(row, col, item)
-                if highlight:
-                    item.setBackground(highlightBrush)
+        # so the items get redrawn and old highlight areas get removed
+        self.tableView.viewport().update()
 
-        # return the value to scroll to
-        return val 
+        
 
     def locationSelected(self, qi):
         """
@@ -434,36 +513,15 @@ class QueryDockWidget(QDockWidget):
 
             # do the attribute thing if there is only one band
             # and we have attributes
-            scrollRow = None
-            if nbands == 1 and qi.attributes.hasAttributes():
-                scrollRow = self.setupTableThematic(qi)
+            if nbands == 1 and qi.attributes is not None and qi.attributes.hasAttributes():
+                self.setupTableThematic(qi)
             else:
                 # otherwise the multi band table
                 self.setupTableContinuous(qi)
 
-            # hack to ensure that the rows in the table are only 
-            # as high as they need to be - by default they are very 
-            # high wasting a lot of screen space
-            item = self.tableWidget.item(0, 0)  # get the top left item 
-            fm = QFontMetrics(item.font())      # get info about its font
-            height = fm.height()                # get the height
-            nrows = self.tableWidget.rowCount()
-            for row in range(nrows):
-                # set all rows to the necessary height
-                self.tableWidget.setRowHeight(row, height)
-            # not sure how to resize the header...
-
             # set up the plot
             if HAVE_QWT:
                 self.updatePlot(qi, self.cursorColor)
-
-            # after we have finished rejigging the UI
-            # scroll to the selected row (only used for thematic ATM)
-            if scrollRow is not None:
-                item = self.tableWidget.item(scrollRow, 0)
-                if item is not None:
-                    self.tableWidget.scrollToItem(item, QTableWidget.PositionAtCenter)
-
 
             # add/modify this is a query point to the widget
             self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, self.cursorColor)
