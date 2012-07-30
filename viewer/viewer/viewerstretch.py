@@ -44,6 +44,8 @@ class ViewerStretch(object):
         self.bands = None
         self.nodata_rgba = (0, 0, 0, 0)
         self.background_rgba = (0, 0, 0, 0)
+        self.attributeTableSize = None # override with size of attribute table if one exists
+                                    # LUT will then be created with this size
 
     def setBands(self, bands):
         "Set the bands to use. bands should be a tuple of 1-based ints"
@@ -91,6 +93,14 @@ class ViewerStretch(object):
     def setBackgroundRGBA(self, rgba):
         "Set the RGB to display Background areas as"
         self.background_rgba = rgba
+
+    def setAttributeTableSize(self, size):
+        """
+        set with size of attribute table if one exists
+        LUT will then be created with this size
+        set to None for default behaviour
+        """
+        self.attributeTableSize = size
 
     def toString(self):
         """

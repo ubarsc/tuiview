@@ -359,9 +359,22 @@ class ViewerWidget(QAbstractScrollArea):
         size = self.viewport().size()
         self.windowfraction = WindowFraction(size, self.overviews.getFullRes())
 
+        # if we are single band read attributes if any
+        if len(stretch.bands) == 1:
+            gdalband = self.ds.GetRasterBand(stretch.bands[0])
+            # create a new one so we can keep a track of the id()
+            # and querywindow can check this is new
+            self.attributes = viewerRAT.ViewerRAT()
+            self.attributes.readFromGDALBand(gdalband)
+            # tell stretch to create same size as attribute table
+            self.stretch.setAttributeTableSize(self.attributes.getNumRows())
+        else:
+            # keep blank
+            self.attributes = None
+
         # read in the LUT if not specified
         if lut is None:
-            self.lut.createLUT(self.ds, stretch)
+            self.lut.createLUT(self.ds, self.stretch)
         else:
             self.lut = lut
 
@@ -373,17 +386,6 @@ class ViewerWidget(QAbstractScrollArea):
 
         # the no data values for each band
         self.noDataValues = self.getNoDataValues()
-
-        # if we are single band read attributes if any
-        if len(stretch.bands) == 1:
-            gdalband = self.ds.GetRasterBand(stretch.bands[0])
-            # create a new one so we can keep a track of the id()
-            # and querywindow can check this is new
-            self.attributes = viewerRAT.ViewerRAT()
-            self.attributes.readFromGDALBand(gdalband)
-        else:
-            # keep blank
-            self.attributes = None
 
         # start with no query points and go from there
         self.queryPoints = {}
@@ -487,17 +489,16 @@ class ViewerWidget(QAbstractScrollArea):
         # force repaint
         self.viewport().update()
 
-    def highlightValues(self, color, values=None):
+    def highlightValues(self, color, selectionArray=None):
         """
-        Applies a QColor to the LUT for the given values
-        and redraws
-        pass None or empty list to reset
+        Applies a QColor to the LUT where selectionArray == True
+        and redraws. Pass None to reset
         """
         if len(self.stretch.bands) != 1:
             raise viewererrors.InvalidDataset('can only highlight values on single band images')
 
-        self.lut.highlightRows(color, values)
-        # re-apply the lut to the data
+        self.lut.highlightRows(color, selectionArray)
+        # re-apply the lut to the data from last time
         self.image = self.lut.applyLUTSingle(self.image.viewerdata, self.image.viewermask)
         # force repaint
         self.viewport().update()
@@ -612,6 +613,10 @@ class ViewerWidget(QAbstractScrollArea):
         if local and not newbands:
             # we can just grab the stats from the last read
             image = self.image
+
+        # if we have an attribute table create stretch same size
+        if self.attributes is not None:
+            newstretch.setAttributeTableSize(self.attributes.getNumRows())
 
         self.lut.createLUT(self.ds, newstretch, image)
 

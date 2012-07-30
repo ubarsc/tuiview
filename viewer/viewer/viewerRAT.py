@@ -197,32 +197,4 @@ class ViewerRAT(object):
 
         return result
 
-    @staticmethod
-    def convertResultToRange(result):
-        """
-        Convert a result array from evaluateUserExpression()
-        to a list of tuples. Each tuple represents a range
-        for conversion to QTableWidgetSelectionRange
-        """
-        ranges = []
-        index = 0
-        start = -1 # outside a selection
-        while index < result.size:
-            if start == -1:
-                # looking for the start
-                if result[index]:
-                    # found
-                    start = index
-            else:
-                # looking for the end
-                if not result[index]:
-                    ranges.append((start, index-1))
-                    start = -1
-            index += 1
-
-        if start != -1:
-            # were looking for the end when we got to end of array
-            ranges.append((start, result.size-1))
-
-        return ranges
 

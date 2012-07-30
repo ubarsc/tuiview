@@ -100,10 +100,12 @@ class ViewerLUT(QObject):
         # dictionary keyed on code for RGB
         self.bandinfo = None
 
-    def highlightRows(self, color, rows=None):
+    def highlightRows(self, color, selectionArray=None):
         """
-        Highlights the specified rows (or remove if 'rows' is None or empty).
+        Highlights the specified where selectionArray == True
+        (or remove if 'rows' is None).
         Saves the existing LUT in self.backuplut if not already
+        Assumes selectionArray is the same length as the LUT
         """
         if self.lut is None:
             raise viewererrors.InvalidColorTable('stretch not loaded yet')
@@ -120,15 +122,14 @@ class ViewerLUT(QObject):
             # then highlight the ones we want
             self.lut = self.backuplut.copy()
 
-        maxrow = self.lut.shape[0]
+        # make selectionArray the same size by adding space for no data and ignore
+        # (which aren't used here)
+        selectionArray = numpy.append(selectionArray, [False, False])
 
-        if rows is not None:
-            entry = [color.red(), color.green(), color.blue(), color.alpha()]
-            for row in rows:
-                if row < maxrow:
-                    for (value, code) in zip(entry, RGBA_CODES):
-                        lutindex = CODE_TO_LUTINDEX[code]
-                        self.lut[row,lutindex] = value
+        entry = [color.red(), color.green(), color.blue(), color.alpha()]
+        for (value, code) in zip(entry, RGBA_CODES):
+            lutindex = CODE_TO_LUTINDEX[code]
+            self.lut[...,lutindex] = numpy.where(selectionArray, value, self.lut[...,lutindex])
 
     def saveToFile(self, fname):
         """
@@ -458,11 +459,28 @@ class ViewerLUT(QObject):
             msg = 'unsupported stretch mode'
             raise viewererrors.InvalidParameters(msg)
 
-        lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
+        if stretch.attributeTableSize is None:
+            # default behaviour - a LUT for the range of the data
+            lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
 
-        # make it lutsize-1 so we keep the indices less than lutsize
-        scale = float(stretchMax - stretchMin) / (lutsize-1)
-        offset = -stretchMin
+            # make it lutsize-1 so we keep the indices less than lutsize
+            scale = float(stretchMax - stretchMin) / (lutsize-1)
+            offset = -stretchMin
+
+        else:
+            # custom LUT size - have an attribute table we must match
+            lut = numpy.empty(lutsize, numpy.uint8)
+            # assume ints - we just create ramp 0-255 in data range
+            stretchMin = int(stretchMin)
+            stretchMax = int(stretchMax)
+            stretchRange = stretchMax - stretchMin
+            lut[stretchMin:stretchMax] = numpy.linspace(0, 255, num=stretchRange)
+            # 0 and 255 outside this range
+            lut[0:stretchMin] = 0
+            lut[stretchMax:] = 255
+            # this must be true
+            scale = 1
+            offset = 0
 
         bandinfo = BandLUTInfo(scale, offset, lutsize, stretchMin, stretchMax)
 
@@ -613,6 +631,9 @@ class ViewerLUT(QObject):
 
             if gdalband.DataType == gdal.GDT_Byte:
                 lutsize = 256
+            elif stretch.attributeTableSize is not None:
+                # override if there is an attribute table
+                lutsize = stretch.attributeTableSize
             else:
                 lutsize = DEFAULT_LUTSIZE
 

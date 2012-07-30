@@ -5,8 +5,8 @@ Module that contains the QueryDockWidget
 from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog, QItemDelegate
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
-from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QTableWidgetSelectionRange
-from PyQt4.QtGui import QItemSelection, QStyledItemDelegate, QStyle, QItemSelectionModel
+from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox
+from PyQt4.QtGui import QStyledItemDelegate, QStyle, QItemSelectionModel
 from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel, QSize, QModelIndex
 import numpy
 
@@ -209,7 +209,7 @@ class ThematicSelectionModel(QItemSelectionModel):
 
         # if we are to clear first, do so
         if (command & QItemSelectionModel.Clear) == QItemSelectionModel.Clear:
-            self.parent.selectionArray[:] = False
+            self.parent.selectionArray[...] = False
 
         # toggle all the indexes
         for idx in unique_rows:
@@ -483,7 +483,7 @@ class QueryDockWidget(QDockWidget):
         """
         Remove the current selection from the table widget
         """
-        self.selectionArray[:] = False
+        self.selectionArray[...] = False
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
@@ -553,7 +553,7 @@ class QueryDockWidget(QDockWidget):
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(qi.attributes.getNumRows(), numpy.bool)
-            self.selectionArray[:] = False # none selected by default
+            self.selectionArray[...] = False # none selected by default
 
         # set the highlight row
         self.tableModel.setHighlightRow(val)
