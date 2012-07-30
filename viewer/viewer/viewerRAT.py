@@ -39,7 +39,33 @@ def formatException(code):
     # add on the actual exceptions
     trace = '%s\n%s: %s' % (trace,type.__name__,value)
     return trace
-    
+
+def andlist(*args):
+    """
+    Function to assist formulation of queries. Takes a series
+    of masks and ands them together. ie
+        andlist(a < 4, b > 10, c != 0)
+    """
+    if len(args) == 0:
+        raise ValueError("Must specify masks to andlist")
+    elif len(args) == 1:
+        return args[0]
+    else:
+        return numpy.logical_and(args[0], andlist(*args[1:]))
+
+def orlist(*args):
+    """
+    Function to assist formulation of queries. Takes a series
+    of masks and ors them together. ie
+        orlist(a < 4, b > 10, c != 0)
+    """
+    if len(args) == 0:
+        raise ValueError("Must specify masks to orlist")
+    elif len(args) == 1:
+        return args[0]
+    else:
+        return numpy.logical_or(args[0], orlist(*args[1:]))
+
 
 class ViewerRAT(object):
     """
@@ -179,6 +205,9 @@ class ViewerRAT(object):
 
         # give them access to numpy
         globals['numpy'] = numpy
+        # access to andlist and orlist to make life easier
+        globals['andlist'] = andlist
+        globals['orlist'] = orlist
 
         try:
             result = eval(expression, globals)

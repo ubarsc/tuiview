@@ -21,8 +21,9 @@ class UserExpressionDialog(QDialog):
 
         self.hintEdit = QTextEdit(self)
         self.hintEdit.setText("Hint: Enter an expression using column names (ie 'col_a < 10'). " + 
-"Combine more complicated expressions with numpy.logical_and, numpy.logical_or.\n" + 
-"For example numpy.logical_and(a < 10,b > 1)")
+"Combine more complicated expressions with andlist, orlist.\n" + 
+"For example andlist(a < 10,b > 1,c != 0)\n" + 
+"Any other numpy expressions also valid - columns are represented as numpy arrays")
         self.hintEdit.setReadOnly(True)
         # make background gray
         palette = self.hintEdit.palette()
