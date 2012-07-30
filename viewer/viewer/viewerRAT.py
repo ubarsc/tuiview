@@ -6,6 +6,7 @@ Contains the ViewerRAT class
 import keyword
 import numpy
 from osgeo import gdal
+from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewererrors
 
@@ -40,14 +41,16 @@ def formatException(code):
     trace = '%s\n%s: %s' % (trace,type.__name__,value)
     return trace
 
-class ViewerRAT(object):
+class ViewerRAT(QObject):
     """
     Represents an attribute table in memory. Has method
     to read from GDAL. Also will apply a user expression.
     """
     def __init__(self):
-        self.columnNames = None
-        self.attributeData = None
+        QObject.__init__(self)
+        self.clear()
+        self.id = 0 # is incremented each time attributes read into class
+                    # so querywindow can tell if it is new data or not
 
     def hasAttributes(self):
         """
@@ -94,6 +97,13 @@ class ViewerRAT(object):
         else:
             return 0
 
+    def clear(self):
+        """
+        Removes attributes from this class
+        """
+        self.columnNames = None
+        self.attributeData = None
+
     def readFromGDALBand(self, gdalband):
         """
         Reads attributes from a GDAL band
@@ -101,14 +111,15 @@ class ViewerRAT(object):
         or file not marked as thematic.
         """
         # reset vars
-        self.columnNames = None
-        self.attributeData = None
+        self.clear()
         
         # have rat and thematic?
         rat = gdalband.GetDefaultRAT()
         thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
         if rat is not None and thematic:
             # looks like we have attributes
+            self.emit(SIGNAL("newProgress(QString)"), "Reading Attributes...")
+            self.id += 1
             self.columnNames = []
             self.attributeData = {}
 
@@ -117,6 +128,7 @@ class ViewerRAT(object):
             # of the columns in the attribute table
             ncols = rat.GetColumnCount()
             nrows = rat.GetRowCount()
+            percent_per_col = 100.0 / float(ncols)
             for col in range(ncols):
                 colname = rat.GetNameOfCol(col)
                 self.columnNames.append(colname)
@@ -156,6 +168,11 @@ class ViewerRAT(object):
                     colArray = numpy.array(colArray)
 
                 self.attributeData[colname] = colArray
+                self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
+
+
+            self.emit(SIGNAL("endProgress()"))
+
 
     def evaluateUserExpression(self, expression):
         """

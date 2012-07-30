@@ -287,6 +287,10 @@ class QueryDockWidget(QDockWidget):
         # None by default and for Continuous
         self.selectionArray = None
 
+        # the .id of the last ViewerRAT class so we can 
+        # update display only when needed
+        self.lastAttributeid = -1
+
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
         fm = QFontMetrics(font)
@@ -542,7 +546,10 @@ class QueryDockWidget(QDockWidget):
         val = qi.data[0]
 
         # do we need a new table model?
-        if self.lastqi is None or self.lastqi.attributes is None or id(self.lastqi.attributes) != id(qi.attributes):
+        # do we have a new attribute 'id'
+        if qi.attributes.id != self.lastAttributeid:
+            self.lastAttributeid = qi.attributes.id
+
             self.tableModel = ThematicTableModel(qi.attributes, self)
             self.tableView.setModel(self.tableModel)
 
@@ -579,7 +586,7 @@ class QueryDockWidget(QDockWidget):
 
             # do the attribute thing if there is only one band
             # and we have attributes
-            if nbands == 1 and qi.attributes is not None and qi.attributes.hasAttributes():
+            if nbands == 1 and qi.attributes.hasAttributes():
                 self.setupTableThematic(qi)
             else:
                 # otherwise the multi band table
