@@ -6,8 +6,9 @@ from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog, QItemDelega
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
 from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QTableWidgetSelectionRange
-from PyQt4.QtGui import QItemSelection, QItemSelectionModel
-from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel, QSize
+from PyQt4.QtGui import QItemSelection, QStyledItemDelegate, QStyle, QItemSelectionModel
+from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel, QSize, QModelIndex
+import numpy
 
 # See if we have access to Qwt
 HAVE_QWT = True
@@ -177,6 +178,63 @@ class ContinuousTableModel(QAbstractTableModel):
         else:
             QVariant()
 
+class ThematicSelectionModel(QItemSelectionModel):
+    """
+    Selection model for the thematic table. We override the 
+    default because we don't want the selection model
+    to record any selections to make life easier for us.
+    Ideally we would override the isSelected method but
+    this is not declared virtual so we have to do this and
+    paint the selections via the ItemDelegate.
+    """
+    def __init__(self, model, parent):
+        QItemSelectionModel.__init__(self, model)
+        self.parent = parent
+
+    def select(self, index, command):
+        """
+        Override and don't call base class so nothing
+        selected as far as selection model concerned
+        """
+        # seems that the rows can be repeated
+        # so just operate on unique values
+        # because we toggling
+        unique_rows = {}
+        if isinstance(index, QModelIndex):
+            unique_rows[index.row()] = 1
+        else:
+            # QItemSelection
+            for idx in index.indexes():
+                unique_rows[idx.row()] = 1
+
+        # if we are to clear first, do so
+        if (command & QItemSelectionModel.Clear) == QItemSelectionModel.Clear:
+            self.parent.selectionArray[:] = False
+
+        # toggle all the indexes
+        for idx in unique_rows:
+            self.parent.selectionArray[idx] = not self.parent.selectionArray[idx]
+
+        # update the view
+        self.parent.tableView.viewport().update()
+        # note: the behaviour still not right....
+
+class ThematicItemDelegate(QStyledItemDelegate):
+    """
+    Because we can't override the isSelected method of the modelselection
+    we draw the selected state via the item delegate paint method as needed
+    """
+    def __init__(self, parent):
+        QStyledItemDelegate.__init__(self, parent)
+        self.parent = parent
+
+    def paint(self, painter, option, index):
+        if self.parent.selectionArray is not None and self.parent.selectionArray[index.row()]:
+            option.state |= QStyle.State_Selected
+        # shouldn't have to un-select as nothing should be selected
+        # according to the model
+        QStyledItemDelegate.paint(self, painter, option, index)
+
 class QueryDockWidget(QDockWidget):
     """
     Dock widget that contains the query window. Follows query 
@@ -214,7 +272,20 @@ class QueryDockWidget(QDockWidget):
         self.tableView = QTableView()
         # can only select rows - not individual items
         self.tableView.setSelectionBehavior(QTableView.SelectRows)
+
+        # the model - this is None by default - changed if 
+        # it is a thematic view
         self.tableModel = None
+
+        # the delegate - this renders the rows with optional selection
+        # style. Ideally we would overried the selection model but
+        # QItemSelectionModel.isSelected not virtual...
+        self.tableDelegate = ThematicItemDelegate(self)
+        self.tableView.setItemDelegate(self.tableDelegate)
+
+        # our numpy array that contains the selections
+        # None by default and for Continuous
+        self.selectionArray = None
 
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
@@ -402,16 +473,9 @@ class QueryDockWidget(QDockWidget):
         """
         Highlight the currently selected rows on the map
         """
-        # convert the ranges into a list of rows
-        selectedRanges = self.tableView.selectionModel().selection()
-        rows = []
-        for sel in selectedRanges:
-            for row in range(sel.top(), sel.bottom() + 1):
-                rows.append(row)
-            
         # tell the widget to update
         try:
-            self.viewwidget.highlightValues(self.highlightColor, rows)
+            self.viewwidget.highlightValues(self.highlightColor, self.selectionArray)
         except viewererrors.InvalidDataset:
             pass
 
@@ -419,7 +483,9 @@ class QueryDockWidget(QDockWidget):
         """
         Remove the current selection from the table widget
         """
-        self.tableView.selectionModel().clearSelection()
+        self.selectionArray[:] = False
+        # so we repaint and our itemdelegate gets called
+        self.tableView.viewport().update()
 
     def showUserExpression(self):
         """
@@ -433,25 +499,15 @@ class QueryDockWidget(QDockWidget):
         """
         Called in reponse to signal from UserExpressionDialog
         """
-        # remove current selection
-        self.removeSelection()
-        ncols = self.tableModel.columnCount(self)
         try:
             # get the numpy array with bools
             result = self.lastqi.attributes.evaluateUserExpression(str(expression))
-            # convert to list of tuple of ranges
-            ranges = ViewerRAT.convertResultToRange(result)
 
-            selectModel = self.tableView.selectionModel()
+            # use it as our selection array
+            self.selectionArray = result
 
-            # set these ranges in the tableView via the selection model
-            selection = QItemSelection()
-            for (start, stop) in ranges:
-                startidx = self.tableModel.index(start, 0)
-                endidx = self.tableModel.index(stop, ncols - 1)
-                selection.select(startidx, endidx)
-
-            selectModel.select(selection, QItemSelectionModel.Select)
+            # so we repaint and our itemdelegate gets called
+            self.tableView.viewport().update()
 
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
@@ -469,6 +525,8 @@ class QueryDockWidget(QDockWidget):
 
         self.tableModel = ContinuousTableModel(qi.data, qi.bandNames, qi.stretch, self)
         self.tableView.setModel(self.tableModel)
+
+        self.selectionArray = None # no selections
 
     def setupTableThematic(self, qi):
         """
@@ -488,6 +546,15 @@ class QueryDockWidget(QDockWidget):
             self.tableModel = ThematicTableModel(qi.attributes, self)
             self.tableView.setModel(self.tableModel)
 
+            # create our own selection model so nothing gets selected
+            # as far as the model is concerned
+            selectionModel = ThematicSelectionModel(self.tableModel, self)
+            self.tableView.setSelectionModel(selectionModel)
+
+            # create our selection array to record which items selected
+            self.selectionArray = numpy.empty(qi.attributes.getNumRows(), numpy.bool)
+            self.selectionArray[:] = False # none selected by default
+
         # set the highlight row
         self.tableModel.setHighlightRow(val)
 
@@ -497,7 +564,6 @@ class QueryDockWidget(QDockWidget):
 
         # so the items get redrawn and old highlight areas get removed
         self.tableView.viewport().update()
-
         
 
     def locationSelected(self, qi):
