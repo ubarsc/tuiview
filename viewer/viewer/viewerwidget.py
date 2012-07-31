@@ -612,7 +612,7 @@ class ViewerWidget(QAbstractScrollArea):
             image = self.image
 
         # if we have an attribute table create stretch same size
-        if self.attributes is not None:
+        if self.attributes.hasAttributes():
             newstretch.setAttributeTableSize(self.attributes.getNumRows())
 
         self.lut.createLUT(self.ds, newstretch, image)
