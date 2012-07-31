@@ -312,11 +312,11 @@ class ViewerWindow(QMainWindow):
         """
         statusbar = self.statusBar()
         statusbar.setSizeGripEnabled(True)
-        self.progressWidget = QProgressBar(self)
+        self.progressWidget = QProgressBar(statusbar)
         self.progressWidget.setMinimum(0)
         self.progressWidget.setMaximum(100)
         self.progressWidget.setVisible(False)
-        self.statusBar().addPermanentWidget(self.progressWidget)
+        statusbar.addPermanentWidget(self.progressWidget)
 
     def newWindow(self):
         """
