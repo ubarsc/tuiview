@@ -151,15 +151,17 @@ class ViewerRAT(QObject):
                     msg = "Can't interpret data type of attribute"
                     raise viewererrors.AttributeTableTypeError(msg)
 
-                for row in range(nrows):
-                    # do it checking the type
-                    if dtype == gdal.GFT_Integer:
+                # do it checking the type
+                if dtype == gdal.GFT_Integer:
+                    for row in range(nrows):
                         val = rat.GetValueAsInt(row,col)
                         colArray[row] = val
-                    elif dtype == gdal.GFT_Real:
+                elif dtype == gdal.GFT_Real:
+                    for row in range(nrows):
                         val = rat.GetValueAsDouble(row,col)
                         colArray[row] = val
-                    else:
+                else:
+                    for row in range(nrows):
                         val = rat.GetValueAsString(row,col)
                         colArray.append(val)
 
