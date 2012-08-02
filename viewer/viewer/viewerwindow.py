@@ -55,8 +55,10 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
     # only bother if it hasn't been populated already
     if GDAL_FILTERS is None:
         GDAL_FILTERS = QStringList()
+        # add all files first
+        GDAL_FILTERS.append("All files (*)")
 
-        # if we have a default driver do it first
+        # if we have a default driver do it next
         if not defaultDriver is None:
             driver = gdal.GetDriverByName(defaultDriver)
             filter = createFilter(driver)
