@@ -363,8 +363,9 @@ class ViewerWidget(QAbstractScrollArea):
         if len(stretch.bands) == 1:
             gdalband = self.ds.GetRasterBand(stretch.bands[0])
             self.attributes.readFromGDALBand(gdalband)
-            # tell stretch to create same size as attribute table
-            self.stretch.setAttributeTableSize(self.attributes.getNumRows())
+            if self.attributes.hasAttributes():
+                # tell stretch to create same size as attribute table
+                self.stretch.setAttributeTableSize(self.attributes.getNumRows())
         else:
             # keep blank
             self.attributes.clear()
