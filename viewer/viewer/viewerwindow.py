@@ -8,6 +8,7 @@ import os
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
 from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
+from PyQt4.QtCore import QCoreApplication, QEventLoop
 
 from . import viewerresources
 from . import viewerwidget
@@ -116,6 +117,8 @@ class ViewerWindow(QMainWindow):
         self.statusBar().showMessage(string)
         self.progressWidget.setValue(0)
         self.progressWidget.setVisible(True)
+        # process any events show gets shown while busy
+        QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def endProgress(self):
         """
@@ -123,12 +126,16 @@ class ViewerWindow(QMainWindow):
         """
         self.statusBar().clearMessage()
         self.progressWidget.setVisible(False)
+        # process any events show gets shown while busy
+        QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def newPercent(self, percent):
         """
         New progress value
         """
         self.progressWidget.setValue(percent)
+        # process any events show gets shown while busy
+        QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def showStatusMessage(self, message):
         """
