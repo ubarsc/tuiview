@@ -181,8 +181,8 @@ class ViewerWindow(QMainWindow):
         self.connect(self.newWindowAct, SIGNAL("triggered()"), self.newWindow)
 
         self.tileWindowsAct = QAction(self)
-        self.tileWindowsAct.setText("&Tile Windows")
-        self.tileWindowsAct.setStatusTip("Tile all open windows fill the screen")
+        self.tileWindowsAct.setText("&Tile Windows...")
+        self.tileWindowsAct.setStatusTip("Tile all open windows")
         self.tileWindowsAct.setShortcut("CTRL+I")
         self.connect(self.tileWindowsAct, SIGNAL("triggered()"), self.tileWindows)
 
@@ -336,10 +336,15 @@ class ViewerWindow(QMainWindow):
 
     def tileWindows(self):
         """
-        Triggered when user wants to tile windows. Send signal
+        Triggered when user wants to tile windows. Display
+        dialog to allow number to be selected, then send signal
         to GeolinkedViewers class (if there is one!)
         """
-        self.emit(SIGNAL("tileWindows()"))
+        from .tiledialog import TileDialog
+        dlg = TileDialog(self)
+        if dlg.exec_() == QDialog.Accepted:
+            xnum, ynum = dlg.getValues()
+            self.emit(SIGNAL("tileWindows(int, int)"), xnum, ynum)
 
     def defaultStretch(self):
         """

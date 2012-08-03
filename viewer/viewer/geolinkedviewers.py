@@ -100,7 +100,7 @@ class GeolinkedViewers(QObject):
         # signal for request for new window
         self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
         # signal for request for windows to be tiled
-        self.connect(newviewer, SIGNAL("tileWindows()"), self.onTileWindows)
+        self.connect(newviewer, SIGNAL("tileWindows(int, int)"), self.onTileWindows)
 
     def onNewWindow(self):
         """
@@ -117,19 +117,27 @@ class GeolinkedViewers(QObject):
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
 
-    def onTileWindows(self):
+    def onTileWindows(self, nxside, nyside):
         """
         Called when the user wants the windows to be tiled
         """
         # get the dimensions of the desktop
         desktop = QApplication.desktop().availableGeometry()
 
-        # find the number of viewers along each side
-        nxside = math.sqrt(len(self.viewers))
-        # round up - we may end up with gaps
-        nxside = int(math.ceil(nxside))
-        
-        nyside = int(math.ceil(len(self.viewers) / float(nxside)))
+        # do they want full auto?
+        if nxside == 0 and nyside == 0:
+            # find the number of viewers along each side
+            nxside = math.sqrt(len(self.viewers))
+            # round up - we may end up with gaps
+            nxside = int(math.ceil(nxside))
+            
+            nyside = int(math.ceil(len(self.viewers) / float(nxside)))
+        elif nxside == 0 and nyside != 0:
+            # guess nxside
+            nxside = int(math.ceil(len(self.viewers) / float(nyside)))
+        elif nxside != 0 and nyside == 0:
+            # guess yxside
+            nyside = int(math.ceil(len(self.viewers) / float(nxside)))
 
         # size of each viewer window
         viewerwidth = int(desktop.width() / nxside)
