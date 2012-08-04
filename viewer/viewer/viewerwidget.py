@@ -19,7 +19,7 @@ VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
 
 QUERY_CURSOR_HALFSIZE = 8 # number of pixels
-QUERY_CURSOR_WIDTH = 2 # in pixels
+QUERY_CURSOR_WIDTH = 1 #2 # in pixels
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
@@ -580,6 +580,8 @@ class ViewerWidget(QAbstractScrollArea):
                                   "...##aaaaa###aa#",
                                   ".....#####...###",
                                   "..............#."]))
+                hs = self.zoomInCursor.hotSpot()
+                print hs.x(), hs.y()
             self.viewport().setCursor(self.zoomInCursor)
 
         elif tool == VIEWER_TOOL_ZOOMOUT:
@@ -617,9 +619,28 @@ class ViewerWidget(QAbstractScrollArea):
 
         elif tool == VIEWER_TOOL_QUERY:
             if self.queryCursor is None:
-                self.queryCursor = QCursor(Qt.CrossCursor)
+#                self.queryCursor = QCursor(Qt.CrossCursor)
+                self.queryCursor = QCursor(QPixmap(["15 15 4 1",
+                                  "b c None",
+                                  ". c None",
+                                  "a c #000000",
+                                  "# c #ffffff",
+                                  ".......a.......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  ".aaaaaa#aaaaaa.",
+                                  "a#############a",
+                                  ".aaaaaa#aaaaaa.",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  "......a#a......",
+                                  ".......a......."]))
             self.viewport().setCursor(self.queryCursor)
-
         elif tool == VIEWER_TOOL_NONE:
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
@@ -681,12 +702,15 @@ class ViewerWidget(QAbstractScrollArea):
         winxsize = size.width()
         winysize = size.height()
 
-        # I suspect that Sam's original should do this line
-        nf_fullrespixperovpix = numpy.ceil(nf_selectedovi.fullrespixperpix)
-        nf_ovtop = int(self.coordmgr.pixTop / nf_fullrespixperovpix)
-        nf_ovleft = int(self.coordmgr.pixLeft / nf_fullrespixperovpix)
-        nf_ovbottom = int(self.coordmgr.pixBottom / nf_fullrespixperovpix)
-        nf_ovright = int(self.coordmgr.pixRight / nf_fullrespixperovpix)
+        nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
+        pixTop = max(self.coordmgr.pixTop, 0)
+        pixLeft = max(self.coordmgr.pixLeft, 0)
+        pixBottom = min(self.coordmgr.pixBottom, self.ds.RasterYSize-1)
+        pixRight = min(self.coordmgr.pixRight, self.ds.RasterXSize-1)
+        nf_ovtop = int(pixTop / nf_fullrespixperovpix)
+        nf_ovleft = int(pixLeft / nf_fullrespixperovpix)
+        nf_ovbottom = int(pixBottom / nf_fullrespixperovpix)
+        nf_ovright = int(pixRight / nf_fullrespixperovpix)
         nf_ovtop = max(nf_ovtop, 0)
         nf_ovleft = max(nf_ovleft, 0)
         nf_ovbottom = min(nf_ovbottom, nf_selectedovi.ysize-1)
@@ -697,13 +721,14 @@ class ViewerWidget(QAbstractScrollArea):
         ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
         nf_ovbuffxsize = int(numpy.ceil(nf_ovxsize / ovPixPerWinPix))
         nf_ovbuffysize = int(numpy.ceil(nf_ovysize / ovPixPerWinPix))
-        nf_ovbuffxsize = min(nf_ovbuffxsize, winxsize)
-        nf_ovbuffysize = min(nf_ovbuffysize, winysize)
             
         # The display coordinates of the top-left corner of the raster data. Often this
         # is (0, 0), but need not be if there is blank area left/above the raster data
-        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(self.coordmgr.pixLeft, 
-            self.coordmgr.pixTop)
+        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(int(pixLeft), int(pixTop))
+        nf_ovbuffxsize = min(nf_ovbuffxsize, winxsize - nf_dspRastLeft)
+        nf_ovbuffysize = min(nf_ovbuffysize, winysize - nf_dspRastTop)
+        print self.coordmgr
+        print nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
 
         # only need to do the mask once
         mask = numpy.empty((winysize, winxsize), dtype=numpy.uint8)
@@ -731,10 +756,13 @@ class ViewerWidget(QAbstractScrollArea):
 
                 # read into correct part of our window array
                 if self.coordmgr.imgPixPerWinPix >= 1.0:
-                    data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
                         nf_ovbuffxsize, nf_ovbuffysize)
+                    print dataTmp.shape, dataslice
+                    data[dataslice] = dataTmp
                 else:
                     dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+                    print 'repl', dataTmp.shape, dataslice
                     replicateArray(dataTmp, data[dataslice])
                     
                 # do the no data test
@@ -882,8 +910,8 @@ class ViewerWidget(QAbstractScrollArea):
                 pen.setColor(color)
                 paint.setPen(pen)
                 # draw cross hair
-                paint.drawLine(cx - QUERY_CURSOR_HALFSIZE, cy, cx + QUERY_CURSOR_HALFSIZE, cy)
-                paint.drawLine(cx, cy - QUERY_CURSOR_HALFSIZE, cx, cy + QUERY_CURSOR_HALFSIZE)
+                paint.drawLine(cx - QUERY_CURSOR_HALFSIZE - 1, cy, cx + QUERY_CURSOR_HALFSIZE, cy)
+                paint.drawLine(cx, cy - QUERY_CURSOR_HALFSIZE - 1, cx, cy + QUERY_CURSOR_HALFSIZE)
 
     def mousePressEvent(self, event):
         """
@@ -910,8 +938,9 @@ class ViewerWidget(QAbstractScrollArea):
                 pos = event.pos()
                 geom = self.viewport().geometry()
                 
-                # Display coordinates
-                (dspX, dspY) = (pos.x() + geom.x(), pos.y() + geom.x())
+                # Display coordinates. Ihave no idea why I need to add 2, but it may be something
+                # to do with the geom x,y being equal to (2,2). I don't understand. 
+                (dspX, dspY) = (pos.x() + 2, pos.y() + 2)
                 # Raster row/column
                 (column, row) = self.coordmgr.display2pixel(dspX, dspY)
                 (easting, northing) = self.coordmgr.pixel2world(column, row)
@@ -966,10 +995,10 @@ class ViewerWidget(QAbstractScrollArea):
                     fraction = numpy.sqrt(selectionsize / geomsize)
 
                 if self.activeTool == VIEWER_TOOL_ZOOMIN:
-                    dspTop = selection.top()
-                    dspLeft = selection.left()
-                    dspBottom = selection.bottom()
-                    dspRight = selection.right()
+                    dspTop = selection.top() + 2
+                    dspLeft = selection.left() + 2
+                    dspBottom = selection.bottom() + 2
+                    dspRight = selection.right() + 2
                     (rastLeft, rastTop) = self.coordmgr.display2pixel(dspLeft, dspTop)
                     (rastRight, rastBottom) = self.coordmgr.display2pixel(dspRight, dspBottom)
                     print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
@@ -995,8 +1024,11 @@ class ViewerWidget(QAbstractScrollArea):
                 dspXmove = -self.paintPoint.x()
                 dspYmove = -self.paintPoint.y()
                 (pixNewX, pixNewY) = self.coordmgr.display2pixel(dspXmove, dspYmove)
+                print 'panning'
+                print self.coordmgr
                 self.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
                 self.coordmgr.recalcBottomRight()
+                print self.coordmgr
                 # reset
                 self.paintPoint.setX(0)
                 self.paintPoint.setY(0)
