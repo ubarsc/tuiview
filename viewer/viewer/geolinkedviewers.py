@@ -80,7 +80,7 @@ class GeolinkedViewers(QObject):
 
         # open the file if we have one
         if filename is not None:
-            newviewer.openFileInternal(filename, stretch)
+            newviewer.addRasterInternal(filename, stretch)
 
         self.viewers.append(newviewer)
 

@@ -83,14 +83,15 @@ class ViewerWindow(QMainWindow):
 
         # connect to the signals emmitted by the LUT
         # so we can update our progress bar
-        self.connect(self.viewwidget.lut, SIGNAL("newProgress(QString)"), self.newProgress)
-        self.connect(self.viewwidget.lut, SIGNAL("endProgress()"), self.endProgress)
-        self.connect(self.viewwidget.lut, SIGNAL("newPercent(int)"), self.newPercent)
+        # TODO
+        #self.connect(self.viewwidget.lut, SIGNAL("newProgress(QString)"), self.newProgress)
+        #self.connect(self.viewwidget.lut, SIGNAL("endProgress()"), self.endProgress)
+        #self.connect(self.viewwidget.lut, SIGNAL("newPercent(int)"), self.newPercent)
 
         # same with the RAT for reading in attributes
-        self.connect(self.viewwidget.attributes, SIGNAL("newProgress(QString)"), self.newProgress)
-        self.connect(self.viewwidget.attributes, SIGNAL("endProgress()"), self.endProgress)
-        self.connect(self.viewwidget.attributes, SIGNAL("newPercent(int)"), self.newPercent)
+        #self.connect(self.viewwidget.attributes, SIGNAL("newProgress(QString)"), self.newProgress)
+        #self.connect(self.viewwidget.attributes, SIGNAL("endProgress()"), self.endProgress)
+        #self.connect(self.viewwidget.attributes, SIGNAL("newPercent(int)"), self.newPercent)
 
         self.setCentralWidget(self.viewwidget)
 
@@ -166,12 +167,19 @@ class ViewerWindow(QMainWindow):
         """
         Creates all the actions for the Window
         """
-        self.openAct = QAction(self)
-        self.openAct.setText("&Open")
-        self.openAct.setStatusTip("Open a GDAL supported image")
-        self.openAct.setShortcut("CTRL+O")
-        self.openAct.setIcon(QIcon(":/viewer/images/open.png"))
-        self.connect(self.openAct, SIGNAL("triggered()"), self.openFile)
+        self.addRasterAct = QAction(self)
+        self.addRasterAct.setText("&Add Raster")
+        self.addRasterAct.setStatusTip("Open a GDAL supported image")
+        self.addRasterAct.setShortcut("CTRL+O")
+        self.addRasterAct.setIcon(QIcon(":/viewer/images/addraster.png"))
+        self.connect(self.addRasterAct, SIGNAL("triggered()"), self.addRaster)
+
+        self.removeLayerAct = QAction(self)
+        self.removeLayerAct.setText("&Remove Layer")
+        self.removeLayerAct.setStatusTip("Remove top layer")
+        self.removeLayerAct.setShortcut("CTRL+R")
+        self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
+        self.connect(self.removeLayerAct, SIGNAL("triggered()"), self.removeLayer)
 
         self.newWindowAct = QAction(self)
         self.newWindowAct.setText("&New Window")
@@ -277,7 +285,8 @@ class ViewerWindow(QMainWindow):
         Creates the menus and adds the actions to them
         """
         self.fileMenu = self.menuBar().addMenu("&File")
-        self.fileMenu.addAction(self.openAct)
+        self.fileMenu.addAction(self.addRasterAct)
+        self.fileMenu.addAction(self.removeLayerAct)
         self.fileMenu.addAction(self.newWindowAct)
         self.fileMenu.addAction(self.tileWindowsAct)
         self.fileMenu.addAction(self.defaultStretchAct)
@@ -303,7 +312,8 @@ class ViewerWindow(QMainWindow):
         Creates the toolbars and adds the actions to them
         """
         self.fileToolbar = self.addToolBar("File")
-        self.fileToolbar.addAction(self.openAct)
+        self.fileToolbar.addAction(self.addRasterAct)
+        self.fileToolbar.addAction(self.removeLayerAct)
         self.fileToolbar.addAction(self.newWindowAct)
 
         self.viewToolbar = self.addToolBar("View")
@@ -354,7 +364,7 @@ class ViewerWindow(QMainWindow):
         dlg = stretchdialog.StretchDefaultsDialog(self)
         dlg.exec_()
 
-    def openFile(self):
+    def addRaster(self):
         """
         User has asked to open a file. Show file
         dialog and open file
@@ -366,9 +376,9 @@ class ViewerWindow(QMainWindow):
         dlg.setFileMode(QFileDialog.ExistingFile)
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
-            self.openFileInternal(fname)
+            self.addRasterInternal(fname)
 
-    def openFileInternal(self, fname, stretch=None):
+    def addRasterInternal(self, fname, stretch=None):
         """
         Actually to the file opening. If stretch is None
         is is determined using our automatic scheme.
@@ -415,16 +425,23 @@ The default stretch dialog will now open."
             del gdaldataset
 
         # now open it for real
-        try:
-            self.viewwidget.open(fname, stretch, lut)
-            self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
-        except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+        #try:
+        # TODO
+        self.viewwidget.addRasterLayer(fname, stretch, lut)
+        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+        #except Exception as e:
+        #    QMessageBox.critical(self, "Viewer", str(e) )
 
         # set the window title
         self.setWindowTitle(os.path.basename(fname))
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
+
+    def removeLayer(self):
+        """
+        Remove the top most layer
+        """
+        self.viewwidget.removeLayer()
 
     def editStretch(self):
         """
@@ -480,19 +497,21 @@ The default stretch dialog will now open."
         """
         Tell the widget to zoom to native resolution
         """
-        try:
-            self.viewwidget.zoomNativeResolution()
-        except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+        #try:
+        # TODO
+        self.viewwidget.zoomNativeResolution()
+        #except Exception as e:
+        #    QMessageBox.critical(self, "Viewer", str(e) )
 
     def zoomFullExtent(self):
         """
         Tell the widget to zoom back to the full extent
         """
-        try:
-            self.viewwidget.zoomFullExtent()
-        except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+        #try:
+        # TODO
+        self.viewwidget.zoomFullExtent()
+        #except Exception as e:
+        #    QMessageBox.critical(self, "Viewer", str(e) )
 
     def followExtent(self, state):
         """

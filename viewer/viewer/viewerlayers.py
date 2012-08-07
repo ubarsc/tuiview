@@ -1,6 +1,51 @@
 
-from . import viewerRAT
+"""
+this module contains the LayerManager and related classes
+"""
 
+import numpy
+from osgeo import gdal
+
+from . import viewerRAT
+from . import viewerLUT
+from . import coordinatemgr
+
+# raise exceptions rather than returning None
+gdal.UseExceptions()
+
+# Mappings between numpy datatypes and GDAL datatypes.
+# Note that ambiguities are resolved by the order - the first one found
+# is the one chosen.
+dataTypeMapping = [
+    (numpy.uint8,gdal.GDT_Byte),
+    (numpy.bool,gdal.GDT_Byte),
+    (numpy.int16,gdal.GDT_Int16),
+    (numpy.uint16,gdal.GDT_UInt16),
+    (numpy.int32,gdal.GDT_Int32),
+    (numpy.uint32,gdal.GDT_UInt32),
+    (numpy.single,gdal.GDT_Float32),
+    (numpy.float,gdal.GDT_Float64)
+]
+
+def GDALTypeToNumpyType(gdaltype):
+    """
+    Given a gdal data type returns the matching
+    numpy data type
+    """
+    for (numpy_type,test_gdal_type) in dataTypeMapping:
+        if test_gdal_type == gdaltype:
+            return numpy_type
+    raise viewererrors.TypeConversionError("Unknown GDAL datatype: %s"%gdaltype)
+
+def NumpyTypeToGDALType(numpytype):
+    """
+    For a given numpy data type returns the matching
+    GDAL data type
+    """
+    for (test_numpy_type,gdaltype) in dataTypeMapping:
+        if test_numpy_type == numpytype:
+            return gdaltype
+    raise viewererrors.TypeConversionError("Unknown numpy datatype: %s"%numpytype)
 
 class OverviewInfo(object):
     """
@@ -78,15 +123,22 @@ class OverviewManager(object):
         return selectedovi
 
 class ViewerLayer(object):
+    """
+    Base class for a type of layer
+    """
     def __init__(self):
         self.image = None
         self.filename = None
 
 class ViewerRasterLayer(ViewerLayer):
+    """
+    Represents a raster layer
+    """
     def __init__(self):
         ViewerLayer.__init__(self)
-        self.coordmgr = coordinatemgr.RasterCoordinateManager()
+        self.coordmgr = coordinatemgr.RasterCoordManager()
         self.gdalDataset = None
+        self.transform = None
         self.bandNames = None
         self.wavelengths = None
         self.noDataValues = None
@@ -95,14 +147,21 @@ class ViewerRasterLayer(ViewerLayer):
         self.lut = viewerLUT.ViewerLUT()
         self.stretch = None
 
-    def open(self, filename, stretch, lut=None):
-        self.filename = fname
-        self.ds = gdal.Open(fname)
-        # TODO check WKT
+    def open(self, filename, width, height, stretch, lut=None):
+        """
+        Open a filename as a raster layer. width and height is the
+        display size. stretch is the ViewerStretch instance to use.
+        if specified, the lut is used to display the data, otherwise
+        calculated from the stretch
+        """
+        # open the file
+        self.filename = filename
+        self.gdalDataset = gdal.Open(filename)
+        # TODO check WKT matches other layers
 
         # do some checks to see if we can deal with the data
         # currently only support square pixels and non rotated
-        transform = self.ds.GetGeoTransform()
+        transform = self.gdalDataset.GetGeoTransform()
         if transform[2] != 0 or transform[4] != 0 or transform[1] != -transform[5]:
             msg = 'Only currently support square pixels and non-rotated images'
             raise viewererrors.InvalidDataset(msg)
@@ -112,19 +171,18 @@ class ViewerRasterLayer(ViewerLayer):
         self.stretch = stretch
 
         # load the valid overviews
-        self.overviews.loadOverviewInfo(self.ds, stretch.bands)
+        self.overviews.loadOverviewInfo(self.gdalDataset, stretch.bands)
 
         # reset these values
-        size = self.viewport().size()
         firstoverview = self.overviews.getFullRes()
-        self.coordmgr.setDisplaySize(size.width(), size.height())
+        self.coordmgr.setDisplaySize(width, height)
         self.coordmgr.setGeoTransform(transform)
-        self.coordmgr.setTopLeftPixel(0, 0)  # This may be overridden by the LayerManager if there are other layers
+        self.coordmgr.setTopLeftPixel(0, 0)  # This may be changed by the LayerManager if there are other layers
         self.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
 
         # read in the LUT if not specified
         if lut is None:
-            self.lut.createLUT(self.ds, stretch)
+            self.lut.createLUT(self.gdalDataset, stretch)
         else:
             self.lut = lut
 
@@ -139,18 +197,22 @@ class ViewerRasterLayer(ViewerLayer):
 
         # if we are single band read attributes if any
         if len(stretch.bands) == 1:
-            self.columnNames, self.attributeData = self.getAttributes(stretch.bands[0])
+            gdalband = self.gdalDataset.GetRasterBand(stretch.bands[0])
+            self.attributes.readFromGDALBand(gdalband)
+            if self.attributes.hasAttributes():
+                # tell stretch to create same size as attribute table
+                self.stretch.setAttributeTableSize(self.attributes.getNumRows())
         else:
-            self.columnNames = None
-            self.attributeData = None
+            # keep blank
+            self.attributes.clear()
 
     def getBandNames(self):
         """
         Return the list of band names
         """
         bandNames = []
-        for n in range(self.ds.RasterCount):
-            band = self.ds.GetRasterBand(n+1)
+        for n in range(self.gdalDataset.RasterCount):
+            band = self.gdalDataset.GetRasterBand(n+1)
             name = band.GetDescription()
             bandNames.append(name)
         return bandNames
@@ -165,14 +227,14 @@ class ViewerRasterLayer(ViewerLayer):
         wavelengths = []
         ok = False
 
-        drivername = self.ds.GetDriver().ShortName
+        drivername = self.gdalDataset.GetDriver().ShortName
         if drivername == 'ENVI':
             ok = True
             # GetMetadataItem seems buggy for ENVI
             # get the lot and go through
-            meta = self.ds.GetMetadata()
+            meta = self.gdalDataset.GetMetadata()
             # go through each band
-            for n in range(self.ds.RasterCount):
+            for n in range(self.gdalDataset.RasterCount):
                 # get the metadata item based on band name
                 metaname = "Band_%d" % (n+1)
                 if metaname in meta:
@@ -199,56 +261,67 @@ class ViewerRasterLayer(ViewerLayer):
         Return a list of no data values - one for each band
         """
         noData = []
-        for n in range(self.ds.RasterCount):
-            band = self.ds.GetRasterBand(n+1)
+        for n in range(self.gdalDataset.RasterCount):
+            band = self.gdalDataset.GetRasterBand(n+1)
             value = band.GetNoDataValue() # returns None if not set
             noData.append(value)
         return noData
 
-    def getAttributes(self, bandnum):
+    def highlightRows(self, color, selectionArray=None):
         """
-        Read the attributes
+        Highlight selected rows in the LUT
         """
-        columnNames = []
-        attributeData = {}
+        layer.lut.highlightRows(color, selectionArray)
+        # re-apply the lut to the data from last time
+        self.image = self.lut.applyLUTSingle(self.image.viewerdata, self.image.viewermask)
 
-        gdalband = self.ds.GetRasterBand(bandnum)
-        rat = gdalband.GetDefaultRAT()
-        if rat is not None:
-            # first get the column names
-            # we do this so we can preserve the order
-            # of the columns in the attribute table
-            ncols = rat.GetColumnCount()
-            nrows = rat.GetRowCount()
-            for col in range(ncols):
-                colname = rat.GetNameOfCol(col)
-                columnNames.append(colname)
+    def setNewStretch(self, newstretch, local=False):
+        """
+        Set the new stretch
+        """
+        newbands = self.stretch.bands != newstretch.bands
+        if newbands:
+            # only need to do this if bands have changed
+            self.overviews.loadOverviewInfo(self.gdalDataset, newstretch.bands)
 
-                # get the attributes as a dictionary
-                # keyed on column name and the values
-                # being a list of attribute values
-                colattr = []
-                for row in range(nrows):
-                    valstr = rat.GetValueAsString(row, col)
-                    colattr.append(valstr)
-                attributeData[colname] = colattr
+        image = None
+        if local and not newbands:
+            # we can just grab the stats from the last read
+            image = self.image
 
-        return columnNames, attributeData
+        # if we have an attribute table create stretch same size
+        if self.attributes.hasAttributes():
+            newstretch.setAttributeTableSize(self.attributes.getNumRows())
+
+        self.lut.createLUT(self.gdalDataset, newstretch, image)
+
+        self.stretch = newstretch
+        # note - we need to do this to reapply the stretch
+        # but it re-reads the data always.
+        # not sure it is a big deal since GDAL caches
+        self.getImage()
+
+        if local and newbands:
+            # this is a bit of a hack. We needed to do a 
+            # getData to get the new bands loaded. Now
+            # we can get the stats and apply the stretch locally
+            self.lut.createLUT(self.gdalDataset, newstretch, self.image)
+            self.getImage()
 
     def getImage(self):
-
+        """
+        Refresh the 'image' which is a QImage instance used for rendering.
+        Does the selection of overview, choosing of area (based on coordmgr)
+        reading, and applying LUT.
+        """
         # find the best overview based on imgpixperwinpix
         nf_selectedovi = self.overviews.findBestOverview(self.coordmgr.imgPixPerWinPix)
         
-        size = self.viewport().size()
-        winxsize = size.width()
-        winysize = size.height()
-
         nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
         pixLeft = max(self.coordmgr.pixLeft, 0)
-        pixBottom = min(self.coordmgr.pixBottom, self.ds.RasterYSize-1)
-        pixRight = min(self.coordmgr.pixRight, self.ds.RasterXSize-1)
+        pixBottom = min(self.coordmgr.pixBottom, self.gdalDataset.RasterYSize-1)
+        pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize-1)
         nf_ovtop = int(pixTop / nf_fullrespixperovpix)
         nf_ovleft = int(pixLeft / nf_fullrespixperovpix)
         nf_ovbottom = int(pixBottom / nf_fullrespixperovpix)
@@ -261,19 +334,20 @@ class ViewerRasterLayer(ViewerLayer):
         nf_ovysize = nf_ovbottom - nf_ovtop + 1
 
         ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
+        print 'ovPixPerWinPix', ovPixPerWinPix
         nf_ovbuffxsize = int(numpy.ceil(nf_ovxsize / ovPixPerWinPix))
         nf_ovbuffysize = int(numpy.ceil(nf_ovysize / ovPixPerWinPix))
 
         # The display coordinates of the top-left corner of the raster data. Often this
         # is (0, 0), but need not be if there is blank area left/above the raster data
         (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(int(pixLeft), int(pixTop))
-        nf_ovbuffxsize = min(nf_ovbuffxsize, winxsize - nf_dspRastLeft)
-        nf_ovbuffysize = min(nf_ovbuffysize, winysize - nf_dspRastTop)
+        nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
+        nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
         print self.coordmgr
-        print nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
+        print nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
 
         # only need to do the mask once
-        mask = numpy.empty((winysize, winxsize), dtype=numpy.uint8)
+        mask = numpy.empty((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpy.uint8)
         mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
         
         dataslice = (slice(nf_dspRastTop, nf_dspRastTop+nf_ovbuffysize),
@@ -285,12 +359,12 @@ class ViewerRasterLayer(ViewerLayer):
             # rgb
             datalist = []
             for bandnum in self.stretch.bands:
-                band = self.ds.GetRasterBand(bandnum)
+                band = self.gdalDataset.GetRasterBand(bandnum)
 
                 # create blank array of right size to read in to. This data
                 # array represents the window pixels, one-for-one
                 numpytype = GDALTypeToNumpyType(band.DataType)
-                data = numpy.zeros((winysize, winxsize), dtype=numpytype) 
+                data = numpy.zeros((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpytype) 
 
                 # get correct overview
                 if nf_selectedovi.index > 0:
@@ -328,11 +402,11 @@ class ViewerRasterLayer(ViewerLayer):
 
         else:
             # must be single band
-            band = self.ds.GetRasterBand(self.stretch.bands[0])
+            band = self.gdalDataset.GetRasterBand(self.stretch.bands[0])
 
             # create blank array of right size to read in to
             numpytype = GDALTypeToNumpyType(band.DataType)
-            data = numpy.zeros((winysize, winxsize), dtype=numpytype) 
+            data = numpy.zeros((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpytype) 
 
             # get correct overview
             if nf_selectedovi.index > 0:
@@ -357,64 +431,149 @@ class ViewerRasterLayer(ViewerLayer):
 
 
 class ViewerVectorLayer(ViewerLayer):
+    """
+    A vector layer. I don't do much with this yet...
+    """
     def __init__(self):
         ViewerLayer.__init__(self)
         self.ogrDataset = None
         self.coordmgr = coordinatemgr.VectorCoordinateManager()
 
 class LayerManager(object):
+    """
+    Class that manages a list of layers
+    """
     def __init__(self):
         self.layers = []
 
-    def addRasterLayer(self, filename, stretch, lut=None):
+    def setDisplaySize(self, width, height):
+        """
+        When window resized this updates all the layers
+        """
+        for layer in self.layers:
+            layer.coordmgr.setDisplaySize(width, height)
+            layer.coordmgr.recalcBottomRight()
+        self.updateImages()
+
+    def addRasterLayer(self, filename, width, height, stretch, lut=None):
+        """
+        Add a new raster layer with given display width and height, stretch
+        and optional lut.
+        """
+        # create and open
         layer = ViewerRasterLayer()
-        layer.open(filename, stretch, lut)
+        layer.open(filename, width, height, stretch, lut)
 
         if len(self.layers) > 0:
             # get the existing extent
             extent = self.layers[-1].coordmgr.getWorldExtent()
-            layer.setWorldExtent(extent)
+            layer.coordmgr.setWorldExtent(extent)
 
         layer.getImage()
-        layers.append(layer)
+        self.layers.append(layer)
 
     def addVectorLayer(self, filename, color):
+        """
+        Add a vector layer. Don't do much here yet...
+        """
         pass
 
     def removeTopLayer(self):
+        """
+        Removes the top layer
+        """
         if len(self.layers) > 0:
             self.layers.pop()
 
+    def getTopRasterLayer(self):
+        """
+        Returns the top most raster layer
+        (if there is one) otherwise None
+        """
+        rasterLayer = None
+        for layer in reversed(self.layers):
+            if isinstance(layer, ViewerRasterLayer):
+                rasterLayer = layer
+                break
+        return rasterLayer
+
+    def getTopVectorLayer(self):
+        """
+        Returns the top most vector layer
+        (if there is one) otherwise None
+        """
+        vectorLayer = None
+        for layer in reversed(self.layers):
+            if isinstance(layer, ViewerVectorLayer):
+                vectorLayer = layer
+                break
+        return vectorLayer
+
     def updateImages(self):
+        """
+        Tell each of the layers to get a new
+        'image' for rendering. This is called
+        when extents have changed etc.
+        """
         for layer in self.layers:
             layer.getImage()
 
-    def makeLayersConsistantWithTop(self):
-        toplayer = self.layers[-1]
-        extent = toplayer.coordmgr.getWorldExtent()        
+    def makeLayersConsistant(self, reflayer):
+        """
+        Make all layers spatially consistant with reflayer
+        """
+        extent = reflayer.coordmgr.getWorldExtent()        
 
         for layer in self.layers[:-1]:
-            layer.coordmgr.setWorldExtent(extent)
+            if not reflayer is layer:
+                layer.coordmgr.setWorldExtent(extent)
 
     def zoomNativeResolution(self):
-        if len(self.layers) > 0:
-            toplayer = self.layers[-1]
-            toplayer.coordmgr.setZoomFactor(1.0)
-            self.makeLayersConsistantWithTop()
+        """
+        Zoom to the native resolution of the top
+        raster later
+        """
+        layer = self.getTopRasterLayer()
+        if layer is not None:
+            # take care to preserve the center
+            (wldX, wldY) = layer.coordmgr.getWorldCenter()
+            layer.coordmgr.setZoomFactor(1.0)
+            layer.coordmgr.setWorldCenter(wldX, wldY)
+            self.makeLayersConsistant(layer)
             self.updateImages()
 
     def zoomFullExtent(self):
-        if len(self.layers) > 0:
-            toplayer = self.layers[-1]
-            toplayer.coordmgr.setTopLeftPixel(0, 0)
-            firstoverview = toplayer.overviews.getFullRes()
-            toplayer.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
-            self.makeLayersConsistantWithTop()
+        """
+        Zoom to the full extent of the top raster layer
+        This might need a re-think for vectors.
+        """
+        layer = self.getTopRasterLayer()
+        if layer is not None:
+            layer.coordmgr.setTopLeftPixel(0, 0)
+            firstoverview = layer.overviews.getFullRes()
+            layer.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
+            self.makeLayersConsistant(layer)
             self.updateImages()
 
 
-
-
+def replicateArray(arr, outarr):
+    """
+    Replicate the data in the given 2-d array so that it increases
+    in size to be (ysize, xsize). 
+    
+    Replicates each pixel in both directions. 
+    
+    """
+    (ysize, xsize) = outarr.shape
+    (nrows, ncols) = arr.shape
+    nRptsX = int(numpy.ceil(xsize / ncols))
+    nRptsY = int(numpy.ceil(ysize / nrows))
+    
+    for i in range(nRptsY):
+        numYvals = int(numpy.ceil((ysize-i) / nRptsY))
+        for j in range(nRptsX):
+            numXvals = int(numpy.ceil((xsize-j) / nRptsX))
+            outarr[i::nRptsY, j::nRptsX] = arr[:numYvals, :numXvals]
 
 
 

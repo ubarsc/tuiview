@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/viewer/images" >
-        <file>open.png</file>
+        <file>addraster.png</file>
+	<file>removelayer.png</file>
         <file>zoomin.png</file>
         <file>zoomout.png</file>
         <file>pan.png</file>

@@ -8,13 +8,58 @@ from __future__ import division
 import math
 
 class CoordManager(object):
+    def __init__(self):
+        # The size of the display window, in display coords
+        self.dspWidth = None
+        self.dspHeight = None
+
+    def setDisplaySize(self, width, height):
+        """
+        Set display size in units of display coordinate system
+        """
+        self.dspWidth = width
+        self.dspHeight = height
+
     def getWorldExtent(self):
+        """
+        Gets the extent in world coords as a 4 element tuple.
+        To be implmented by derived class
+        """
         raise NotImplementedError("getWorldExtent needs to be overridden")
+
     def setWorldExtent(self, extent):
+        """
+        Sets the extent in world coords as a 4 element tuple.
+        To be implmented by derived class
+        """
         raise NotImplementedError("setWorldExtent needs to be overridden")
 
+    def getWorldCenter(self):
+        """
+        Gets the center of the extent in world coords
+        """
+        (left, top, right, bottom) = self.getWorldExtent()
+        x = left + (right - left) / 2.0
+        y = bottom + (top - bottom) / 2.0
+        return x, y
+
+    def setWorldCenter(self, wldX, wldY):
+        """
+        Sets the center of the extent in world coords
+        """
+        currentX, currentY = self.getWorldCenter()
+        diffX = wldX - currentX
+        diffY = wldY - currentY
+        (left, top, right, bottom) = self.getWorldExtent()
+        extents = (left + diffX, top + diffY, right + diffX, bottom + diffY)
+        self.setWorldExtent(extents)
+
 class VectorCoordManager(CoordManager):
+    """
+    Manages coords for a vector layer
+    """
     def __init__(self):
+        CoordManager.__init__(self)
         self.extent = None
 
     def getWorldExtent(self):
@@ -48,9 +93,7 @@ class RasterCoordManager(CoordManager):
                          
     """
     def __init__(self):
-        # The size of the display window, in display coords
-        self.dspWidth = None
-        self.dspHeight = None
+        CoordManager.__init__(self)
         # The raster row/col which is to live in the top-left corner of the display
         self.pixTop = None
         self.pixLeft = None
@@ -70,13 +113,6 @@ class RasterCoordManager(CoordManager):
         return ("dw:%s dh:%s pt:%s pl:%s pb:%s pr:%s z:%s gt:%s" % (self.dspWidth, self.dspHeight, 
             self.pixTop, self.pixLeft, self.pixBottom, self.pixRight, 
             self.imgPixPerWinPix, self.geotransform))
-    
-    def setDisplaySize(self, width, height):
-        """
-        Set display size in units of display coordinate system
-        """
-        self.dspWidth = width
-        self.dspHeight = height
     
     def setTopLeftPixel(self, leftcol, toprow):
         """
