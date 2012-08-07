@@ -768,7 +768,9 @@ class ViewerLUT(QObject):
         
         # create QImage from numpy array
         # see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17961.html
-        image = QImage(bgra.data, winxsize, winysize, QImage.Format_RGB32)
+        # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
+        # is faster. Not sure what this means
+        image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32)
         image.viewerdata = data # hold on to the data in case we
                             # want to change the lut and quickly re-apply it
                             # or calculate local stats
@@ -785,7 +787,6 @@ class ViewerLUT(QObject):
 
         # create blank array to stretch into
         bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8, 'C')
-        # don't do alpha for now
         for (data, code) in zip(datalist, RGB_CODES):
             lutindex = CODE_TO_LUTINDEX[code]
             bandinfo = self.bandinfo[code]
@@ -819,8 +820,22 @@ class ViewerLUT(QObject):
             # do the lookup
             bgra[...,lutindex] = self.lut[lutindex][data]
         
+        # now alpha - all 255 apart from nodata and background
+        lutindex = CODE_TO_LUTINDEX['a']
+        bgra[...,lutindex].fill(255)
+        # just use blue since alpha has no bandinfo and 
+        # they should all be the same anyway
+        nodata_index = self.bandinfo['b'].nodata_index
+        background_index = self.bandinfo['b'].background_index
+
+        nodata_value = self.lut[lutindex, nodata_index]
+        background_value = self.lut[lutindex, background_index]
+        bgra[nodata_index, lutindex] = nodata_value
+        bgra[background_index, lutindex] = background_value
         # turn into QImage
-        image = QImage(bgra.data, winxsize, winysize, QImage.Format_RGB32)
+        # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
+        # is faster. Not sure what this means
+        image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32)
         image.viewerdata = datalist # so we have the data if we want to calculate stats etc
         image.viewermask = mask
         return image
