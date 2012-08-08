@@ -16,10 +16,6 @@ from . import viewerlayers
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
 
-QUERY_CURSOR_HALFSIZE = 8 # number of pixels
-QUERY_CURSOR_WIDTH = 2 # in pixels
-
-
 class QueryInfo(object):
     """
     Container class for the information passed in the locationSelected
@@ -229,44 +225,53 @@ class ViewerWidget(QAbstractScrollArea):
         """
         Handle the user moving the scroll bars
         """
-        # if nothing open, just return
-        #if self.ds is None:
-        #    return
+        if not self.suppressscrollevent:
+            layer = self.layer.getTopRasterLayer()
+            if layer is not None:
+                xamount = dx * -(layer.coordmgr.imgPixPerWinPix / float(layer.gdalDataset.RasterXSize))
+                yamount = dy * -(layer.coordmgr.imgPixPerWinPix / float(layer.gdalDataset.RasterYSize))
+                leftcol = layer.coordmgr.pixLeft + xamount
+                toprow = layer.coordmgr.pixTop + yamount
+                layer.coordmgr.setTopLeftPixel(leftcol, toprow)
+                layer.coordmgr.recalcBottomRight()
+                self.layers.makeLayersConsistant(layer)
+                self.layers.updateImages()
+                self.viewport().update()
 
-        #if not self.suppressscrollevent:
-        #    xamount = dx * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterXSize))
-        #    yamount = dy * -(self.windowfraction.imgpixperwinpix / float(self.ds.RasterYSize))
-        #    self.windowfraction.moveView(xamount, yamount)
-
-        #    self.getData()
-        #    # geolink
-        #    self.emitGeolinkMoved()
+                # geolink
+                self.emitGeolinkMoved()
 
     def wheelEvent(self, event):
         """
         User has used mouse wheel to zoom in/out or pan depending on defined preference
         """
-        # if nothing open, just return
-        #if self.ds is None:
-        #    return
+        layer = self.layers.getTopRasterLayer()
+        if layer is not None:
 
-        #if self.mouseWheelZoom:
-        #    if event.delta() > 0:
-        #        self.windowfraction.zoomViewCenter(0, 0, 1.0 - VIEWER_ZOOM_WHEEL_FRACTION)
-        #    elif event.delta() < 0:
-        #        self.windowfraction.zoomViewCenter(0, 0, 1.0 + VIEWER_ZOOM_WHEEL_FRACTION)
-        #    self.getData()
-        #else:
-        #    dx = 0
-        #    dy = 0
-        #    if event.orientation() == Qt.Horizontal:
-        #        dx = event.delta()
-        #    else:
-        #        dy = event.delta()
-        #    self.scrollContentsBy(dx,dy)
+            if self.mouseWheelZoom:
+                (wldX, wldY) = layer.coordmgr.getWorldCenter()
+
+                impixperwinpix = layer.coordmgr.imgPixPerWinPix
+                if event.delta() > 0:
+                    impixperwinpix *= 1.0 - VIEWER_ZOOM_WHEEL_FRACTION
+                elif event.delta() < 0:
+                    impixperwinpix *= 1.0 + VIEWER_ZOOM_WHEEL_FRACTION
+                layer.coordmgr.setZoomFactor(impixperwinpix)
+                layer.coordmgr.setWorldCenter(wldX, wldY)
+                self.layers.makeLayersConsistant(layer)
+                self.layers.updateImages()
+                self.viewport().update()
+            else:
+                dx = 0
+                dy = 0
+                if event.orientation() == Qt.Horizontal:
+                    dx = event.delta()
+                else:
+                    dy = event.delta()
+                self.scrollContentsBy(dx,dy)
         
-        # geolink
-        #self.emitGeolinkMoved()
+            # geolink
+            self.emitGeolinkMoved()
 
     def resizeEvent(self, event):
         """

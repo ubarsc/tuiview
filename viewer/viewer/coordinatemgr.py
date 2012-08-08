@@ -61,12 +61,35 @@ class VectorCoordManager(CoordManager):
     def __init__(self):
         CoordManager.__init__(self)
         self.extent = None
+        self.metersperpix = None
+
+    def recalc(self):
+        if self.extent is not None:
+            metersaccross = self.extent[2] - self.extent[0]
+            self.metersperpix = metersaccross / self.dspWidth
+
+    def setDisplaySize(self, width, height):
+        CoordManager.setDisplaySize(width, height)
+        self.recalc()
 
     def getWorldExtent(self):
         return self.extent
 
     def setWorldExtent(self, extent):
         self.extent = extent
+        self.recalc()
+
+    def world2display(self, wldX, wldY):
+        display = None
+        if self.extent is not None:
+            xoff = wldX - self.extent[0]
+            yoff = self.exten[1] - wldY
+            if xoff >= 0 and yoff >= 0:
+                dspX = xoff / self.metersperpix
+                dspY = yoff / self.metersperpix
+                if dspX < self.dspWidth and dspY < self.dspHeight:
+                    display = (dspX, dspY)
+        return display
 
 class RasterCoordManager(CoordManager):
     """

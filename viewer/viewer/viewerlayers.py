@@ -10,6 +10,9 @@ from . import viewerRAT
 from . import viewerLUT
 from . import coordinatemgr
 
+QUERY_CURSOR_HALFSIZE = 8 # number of pixels
+QUERY_CURSOR_WIDTH = 2 # in pixels
+
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
@@ -129,6 +132,9 @@ class ViewerLayer(object):
     def __init__(self):
         self.image = None
         self.filename = None
+
+    def getImage(self):
+        raise NotImplementedError("Must implement in derived class")
 
 class ViewerRasterLayer(ViewerLayer):
     """
@@ -437,6 +443,22 @@ class ViewerRasterLayer(ViewerLayer):
             self.image = self.lut.applyLUTSingle(data, mask)
 
 
+class ViewerQueryPointLayer(ViewerLayer):
+    def __init__(self):
+        ViewerLayer.__init__(self)
+        self.coordmgr = coordinatemgr.VectorCoordManager()
+        self.queryPoints = {}
+
+    def setQueryPoint(self, id, easting, northing, color, size=QUERY_CURSOR_HALFSIZE):
+        self.queryPoints[id] = (easting, northing, color, size)
+
+    def removeQueryPoint(self, id):
+        del self.queryPoints[id]
+
+    def getImage(self):
+        for id in self.queryPoints:
+            (easting, northing, color, size) = self.queryPoints[id]
+
 class ViewerVectorLayer(ViewerLayer):
     """
     A vector layer. I don't do much with this yet...
@@ -444,7 +466,7 @@ class ViewerVectorLayer(ViewerLayer):
     def __init__(self):
         ViewerLayer.__init__(self)
         self.ogrDataset = None
-        self.coordmgr = coordinatemgr.VectorCoordinateManager()
+        self.coordmgr = coordinatemgr.VectorCoordManager()
 
 class LayerManager(object):
     """
@@ -452,6 +474,7 @@ class LayerManager(object):
     """
     def __init__(self):
         self.layers = []
+        self.queryPoints = ViewerQueryPointLayer()
 
     def setDisplaySize(self, width, height):
         """
