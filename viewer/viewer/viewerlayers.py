@@ -334,13 +334,18 @@ class ViewerRasterLayer(ViewerLayer):
         nf_ovysize = nf_ovbottom - nf_ovtop + 1
 
         ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
-        print 'ovPixPerWinPix', ovPixPerWinPix
-        nf_ovbuffxsize = int(numpy.ceil(nf_ovxsize / ovPixPerWinPix))
-        nf_ovbuffysize = int(numpy.ceil(nf_ovysize / ovPixPerWinPix))
+        print 'ovPixPerWinPix', ovPixPerWinPix, pixTop, pixLeft
+        nf_ovbuffxsize = int(numpy.ceil(float(nf_ovxsize) / ovPixPerWinPix))
+        nf_ovbuffysize = int(numpy.ceil(float(nf_ovysize) / ovPixPerWinPix))
 
         # The display coordinates of the top-left corner of the raster data. Often this
         # is (0, 0), but need not be if there is blank area left/above the raster data
         (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(int(pixLeft), int(pixTop))
+        # TODO : don't understand why I have to do this
+        if nf_dspRastLeft < 0:
+            nf_dspRastLeft = 0
+        if nf_dspRastTop <  0:
+            nf_dspRastTop = 0
         nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
         nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
         print self.coordmgr
@@ -371,15 +376,16 @@ class ViewerRasterLayer(ViewerLayer):
                     band = band.GetOverview(nf_selectedovi.index - 1)
 
                 # read into correct part of our window array
-                if self.coordmgr.imgPixPerWinPix >= 1.0:
-                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+                #if self.coordmgr.imgPixPerWinPix >= 1.0:
+                dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
                         nf_ovbuffxsize, nf_ovbuffysize)
-                    print dataTmp.shape, dataslice
-                    data[dataslice] = dataTmp
-                else:
-                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
-                    print 'repl', dataTmp.shape, dataslice
-                    replicateArray(dataTmp, data[dataslice])
+                print dataTmp.shape, dataslice
+                data[dataslice] = dataTmp
+                # TODO
+                #else:
+                #    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+                #    print 'repl', dataTmp.shape, dataslice
+                #    replicateArray(dataTmp, data[dataslice])
                     
                 # do the no data test
                 nodata_value = self.noDataValues[bandnum-1]
@@ -413,12 +419,13 @@ class ViewerRasterLayer(ViewerLayer):
                 band = band.GetOverview(nf_selectedovi.index - 1)
 
             # read into correct part of our window array
-            if self.coordmgr.imgPixPerWinPix >= 1.0:
-                data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+            #if self.coordmgr.imgPixPerWinPix >= 1.0:
+            data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
                     nf_ovbuffxsize, nf_ovbuffysize)
-            else:
-                dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
-                replicateArray(dataTmp, data[dataslice])
+            # TODO
+            #else:
+            #    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+            #    replicateArray(dataTmp, data[dataslice])
 
             # do we have no data for this band?
             nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
@@ -568,7 +575,7 @@ def replicateArray(arr, outarr):
     (nrows, ncols) = arr.shape
     nRptsX = int(numpy.ceil(xsize / ncols))
     nRptsY = int(numpy.ceil(ysize / nrows))
-    
+    print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
     for i in range(nRptsY):
         numYvals = int(numpy.ceil((ysize-i) / nRptsY))
         for j in range(nRptsX):
