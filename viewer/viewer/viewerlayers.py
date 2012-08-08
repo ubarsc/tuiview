@@ -492,6 +492,12 @@ class LayerManager(object):
         if len(self.layers) > 0:
             self.layers.pop()
 
+    def getTopLayer(self):
+        layer = None
+        if len(self.layers) > 0:
+            layer = self.layers[-1]
+        return layer
+
     def getTopRasterLayer(self):
         """
         Returns the top most raster layer

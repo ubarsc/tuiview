@@ -491,24 +491,25 @@ class ViewerWidget(QAbstractScrollArea):
         Call this when widget needs to be moved because
         of geolinking event.
         """
-        # if we not moving extent set to 0 will be ignored
-        if not self.geolinkFollowExtent:
-            metresperwinpix = 0
-
-        if self.windowfraction is not None:
-            self.windowfraction.moveToCoord(easting, northing, metresperwinpix, self.transform)
-            self.getData()
+        layer = self.layers.getTopRasterLayer()
+        if layer is not None:
+            layer.coordmgr.setWorldCenter(easting, northing)
+            if self.geolinkFollowExtent:
+                layer.coordmgr.imgPixPerWinPix = metresperwinpix / layer.coordmgr.geotransform[1]
+            self.layers.makeLayersConsistant(layer)
+            self.layers.updateImages()
+            self.viewport().update()
 
     def emitGeolinkMoved(self):
         """
         Call this on each zoom/pan to emit the appropriate signal.
         """
         # get the coords of the current centre
-        # TODO
-        #easting, northing, col, row = self.windowfraction.getCoordFor(0, 0, self.transform)
-        #metresperwinpix = self.windowfraction.imgpixperwinpix * self.transform[1]
-
-        # emit the signal
-        #self.emit(SIGNAL("geolinkMove(double, double, double, long)"), easting, northing, metresperwinpix, id(self) )
+        layer = self.layers.getTopRasterLayer()
+        if layer is not None:
+            easting, northing = layer.coordmgr.getWorldCenter()
+            metresperwinpix = layer.coordmgr.imgPixPerWinPix * layer.coordmgr.geotransform[1]
+            # emit the signal
+            self.emit(SIGNAL("geolinkMove(double, double, double, long)"), easting, northing, metresperwinpix, id(self) )
 
 
