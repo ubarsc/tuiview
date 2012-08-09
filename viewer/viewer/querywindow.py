@@ -430,7 +430,7 @@ class QueryDockWidget(QDockWidget):
     
             # if there is a previous point, redisplay in new color
             if self.lastqi is not None:
-                self.viewwidget.setQueryPoint(id(self), self.lastqi.column, self.lastqi.row, newcolor)
+                self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, newcolor)
                 if HAVE_QWT and self.lastqi is not None:
                     # to get new color
                     self.updatePlot(self.lastqi, newcolor)
@@ -597,7 +597,7 @@ class QueryDockWidget(QDockWidget):
                 self.updatePlot(qi, self.cursorColor)
 
             # add/modify this is a query point to the widget
-            self.viewwidget.setQueryPoint(id(self), qi.column, qi.row, self.cursorColor)
+            self.viewwidget.setQueryPoint(id(self), qi.easting, qi.northing, self.cursorColor)
             # remember this qi in case we need to change color
             self.lastqi = qi
 

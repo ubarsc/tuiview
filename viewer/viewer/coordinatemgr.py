@@ -64,26 +64,40 @@ class VectorCoordManager(CoordManager):
         self.metersperpix = None
 
     def recalc(self):
-        if self.extent is not None:
+        """
+        Recalculate self.metersperpix
+        Called when extents or display size changes
+        """
+        if self.extent is not None and self.dspWidth is not None:
             metersaccross = self.extent[2] - self.extent[0]
             self.metersperpix = metersaccross / self.dspWidth
 
     def setDisplaySize(self, width, height):
-        CoordManager.setDisplaySize(width, height)
+        """
+        derived implementation - calls recalc()
+        """
+        CoordManager.setDisplaySize(self, width, height)
         self.recalc()
 
     def getWorldExtent(self):
+        "Get extent in world coords"
         return self.extent
 
     def setWorldExtent(self, extent):
+        "Set extent in world coords"
         self.extent = extent
         self.recalc()
 
     def world2display(self, wldX, wldY):
+        """
+        convert world coords to display coords
+        returns None if outside
+        May have C implementation also. Not sure yet.
+        """
         display = None
         if self.extent is not None:
             xoff = wldX - self.extent[0]
-            yoff = self.exten[1] - wldY
+            yoff = self.extent[1] - wldY
             if xoff >= 0 and yoff >= 0:
                 dspX = xoff / self.metersperpix
                 dspY = yoff / self.metersperpix

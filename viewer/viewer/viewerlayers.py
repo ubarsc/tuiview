@@ -5,6 +5,7 @@ this module contains the LayerManager and related classes
 
 import numpy
 from osgeo import gdal
+from PyQt4.QtGui import QImage, QPainter, QPen
 
 from . import viewerRAT
 from . import viewerLUT
@@ -322,10 +323,12 @@ class ViewerRasterLayer(ViewerLayer):
         """
         # find the best overview based on imgpixperwinpix
         nf_selectedovi = self.overviews.findBestOverview(self.coordmgr.imgPixPerWinPix)
+        print nf_selectedovi.index
         
         nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
         pixLeft = max(self.coordmgr.pixLeft, 0)
+        print 'pixTop', pixTop, pixLeft, pixTop / nf_fullrespixperovpix
         pixBottom = min(self.coordmgr.pixBottom, self.gdalDataset.RasterYSize-1)
         pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize-1)
         nf_ovtop = int(pixTop / nf_fullrespixperovpix)
@@ -346,12 +349,7 @@ class ViewerRasterLayer(ViewerLayer):
 
         # The display coordinates of the top-left corner of the raster data. Often this
         # is (0, 0), but need not be if there is blank area left/above the raster data
-        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(int(pixLeft), int(pixTop))
-        # TODO : don't understand why I have to do this
-        if nf_dspRastLeft < 0:
-            nf_dspRastLeft = 0
-        if nf_dspRastTop <  0:
-            nf_dspRastTop = 0
+        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(pixLeft, pixTop)
         nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
         nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
         print self.coordmgr
@@ -382,16 +380,16 @@ class ViewerRasterLayer(ViewerLayer):
                     band = band.GetOverview(nf_selectedovi.index - 1)
 
                 # read into correct part of our window array
-                #if self.coordmgr.imgPixPerWinPix >= 1.0:
-                dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+                if self.coordmgr.imgPixPerWinPix >= 1.0:
+                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
                         nf_ovbuffxsize, nf_ovbuffysize)
-                print dataTmp.shape, dataslice
-                data[dataslice] = dataTmp
+                    print dataTmp.shape, dataslice
+                    data[dataslice] = dataTmp
                 # TODO
-                #else:
-                #    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
-                #    print 'repl', dataTmp.shape, dataslice
-                #    replicateArray(dataTmp, data[dataslice])
+                else:
+                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+                    print 'repl', dataTmp.shape, dataslice
+                    data[dataslice] = replicateArray(dataTmp, data[dataslice])
                     
                 # do the no data test
                 nodata_value = self.noDataValues[bandnum-1]
@@ -444,20 +442,53 @@ class ViewerRasterLayer(ViewerLayer):
 
 
 class ViewerQueryPointLayer(ViewerLayer):
+    """
+    Class for display of query points.
+    """
     def __init__(self):
         ViewerLayer.__init__(self)
         self.coordmgr = coordinatemgr.VectorCoordManager()
         self.queryPoints = {}
+        self.image = None
 
     def setQueryPoint(self, id, easting, northing, color, size=QUERY_CURSOR_HALFSIZE):
+        """
+        Add/replace a query point based on the id() of the requesting object
+        """
         self.queryPoints[id] = (easting, northing, color, size)
 
     def removeQueryPoint(self, id):
+        """
+        remove a query point based on the id() of the requesting object
+        """
         del self.queryPoints[id]
 
     def getImage(self):
-        for id in self.queryPoints:
-            (easting, northing, color, size) = self.queryPoints[id]
+        """
+        Update self.image
+        """
+        if self.coordmgr.dspWidth is None:
+            self.image = QImage()
+        else:
+            self.image = QImage(self.coordmgr.dspWidth, self.coordmgr.dspHeight, QImage.Format_ARGB32)
+            self.image.fill(0)
+            pen = QPen()
+            pen.setWidth(QUERY_CURSOR_WIDTH)
+            paint = QPainter(self.image)
+            for id in self.queryPoints:
+                (easting, northing, color, size) = self.queryPoints[id]
+                display = self.coordmgr.world2display(easting, northing)
+                if display is not None:
+                    (dspX, dspY) = display
+                    dspX = int(dspX)
+                    dspY = int(dspY)
+                    pen.setColor(color)
+                    paint.setPen(pen)
+                    paint.drawLine(dspX - size, dspY, dspX + size, dspY)
+                    paint.drawLine(dspX, dspY - size, dspX, dspY + size)
+            paint.end()
+                
+                
 
 class ViewerVectorLayer(ViewerLayer):
     """
@@ -474,7 +505,7 @@ class LayerManager(object):
     """
     def __init__(self):
         self.layers = []
-        self.queryPoints = ViewerQueryPointLayer()
+        self.queryPointLayer = ViewerQueryPointLayer()
 
     def setDisplaySize(self, width, height):
         """
@@ -483,6 +514,7 @@ class LayerManager(object):
         for layer in self.layers:
             layer.coordmgr.setDisplaySize(width, height)
             layer.coordmgr.recalcBottomRight()
+        self.queryPointLayer.coordmgr.setDisplaySize(width, height)
         self.updateImages()
 
     def addRasterLayer(self, filename, width, height, stretch, lut=None):
@@ -498,6 +530,10 @@ class LayerManager(object):
             # get the existing extent
             extent = self.layers[-1].coordmgr.getWorldExtent()
             layer.coordmgr.setWorldExtent(extent)
+        
+        # ensure the query points have the correct extent
+        extent = layer.coordmgr.getWorldExtent()
+        self.queryPointLayer.coordmgr.setWorldExtent(extent)
 
         layer.getImage()
         self.layers.append(layer)
@@ -553,16 +589,18 @@ class LayerManager(object):
         """
         for layer in self.layers:
             layer.getImage()
+        self.queryPointLayer.getImage()
 
-    def makeLayersConsistant(self, reflayer):
+    def makeLayersConsistent(self, reflayer):
         """
-        Make all layers spatially consistant with reflayer
+        Make all layers spatially consistent with reflayer
         """
         extent = reflayer.coordmgr.getWorldExtent()        
 
-        for layer in self.layers[:-1]:
+        for layer in self.layers:
             if not reflayer is layer:
                 layer.coordmgr.setWorldExtent(extent)
+        self.queryPointLayer.coordmgr.setWorldExtent(extent)
 
     def zoomNativeResolution(self):
         """
@@ -575,7 +613,7 @@ class LayerManager(object):
             (wldX, wldY) = layer.coordmgr.getWorldCenter()
             layer.coordmgr.setZoomFactor(1.0)
             layer.coordmgr.setWorldCenter(wldX, wldY)
-            self.makeLayersConsistant(layer)
+            self.makeLayersConsistent(layer)
             self.updateImages()
 
     def zoomFullExtent(self):
@@ -588,7 +626,7 @@ class LayerManager(object):
             layer.coordmgr.setTopLeftPixel(0, 0)
             firstoverview = layer.overviews.getFullRes()
             layer.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
-            self.makeLayersConsistant(layer)
+            self.makeLayersConsistent(layer)
             self.updateImages()
 
 
@@ -602,14 +640,17 @@ def replicateArray(arr, outarr):
     """
     (ysize, xsize) = outarr.shape
     (nrows, ncols) = arr.shape
-    nRptsX = int(numpy.ceil(xsize / ncols))
-    nRptsY = int(numpy.ceil(ysize / nrows))
+    nRptsX = int(numpy.ceil(float(xsize) / float(ncols)))
+    nRptsY = int(numpy.ceil(float(ysize) / float(nrows)))
     print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
-    for i in range(nRptsY):
-        numYvals = int(numpy.ceil((ysize-i) / nRptsY))
-        for j in range(nRptsX):
-            numXvals = int(numpy.ceil((xsize-j) / nRptsX))
-            outarr[i::nRptsY, j::nRptsX] = arr[:numYvals, :numXvals]
+
+    rowCount = nrows * nRptsX * 1j
+    colCount = ncols * nRptsX * 1j
+    
+    (row, col) = numpy.mgrid[0:nrows-1:rowCount, 0:ncols-1:colCount].astype(numpy.int32)
+    print rowCount, colCount
+    outarr = arr[row, col]
+    return outarr[:ysize, :xsize]
 
 
 
