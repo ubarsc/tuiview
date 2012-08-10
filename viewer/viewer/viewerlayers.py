@@ -324,6 +324,16 @@ class ViewerRasterLayer(ViewerLayer):
         # find the best overview based on imgpixperwinpix
         nf_selectedovi = self.overviews.findBestOverview(self.coordmgr.imgPixPerWinPix)
         print nf_selectedovi.index
+
+        # if this layer isn't anywhere near where we currently are
+        # don't even bother reading - just create a empty QImage
+        # and nothing will be rendered
+        if self.coordmgr.pixTop < 0 and self.coordmgr.pixBottom < 0:
+            self.image = QImage()
+            return 
+        elif self.coordmgr.pixLeft < 0 and self.coordmgr.pixRight < 0:
+            self.image = QImage()
+            return
         
         nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
@@ -342,8 +352,12 @@ class ViewerRasterLayer(ViewerLayer):
         nf_ovxsize = nf_ovright - nf_ovleft + 1
         nf_ovysize = nf_ovbottom - nf_ovtop + 1
 
+        # GDAL always reads full pixels. We need to work out
+        # what fraction of the first pixel is not needed.
+        pixTopFract = (pixTop / nf_fullrespixperovpix) - nf_ovtop
+        pixLeftFract = (pixLeft / nf_fullrespixperovpix) - nf_ovleft
         ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
-        print 'ovPixPerWinPix', ovPixPerWinPix, pixTop, pixLeft
+        print 'ovPixPerWinPix', ovPixPerWinPix, pixTop, pixLeft, pixTopFract, pixLeftFract
         nf_ovbuffxsize = int(numpy.ceil(float(nf_ovxsize) / ovPixPerWinPix))
         nf_ovbuffysize = int(numpy.ceil(float(nf_ovysize) / ovPixPerWinPix))
 
@@ -385,11 +399,10 @@ class ViewerRasterLayer(ViewerLayer):
                         nf_ovbuffxsize, nf_ovbuffysize)
                     print dataTmp.shape, dataslice
                     data[dataslice] = dataTmp
-                # TODO
                 else:
                     dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
                     print 'repl', dataTmp.shape, dataslice
-                    data[dataslice] = replicateArray(dataTmp, data[dataslice])
+                    data[dataslice] = replicateArray(dataTmp, data[dataslice], pixLeftFract, pixTopFract)
                     
                 # do the no data test
                 nodata_value = self.noDataValues[bandnum-1]
@@ -423,13 +436,12 @@ class ViewerRasterLayer(ViewerLayer):
                 band = band.GetOverview(nf_selectedovi.index - 1)
 
             # read into correct part of our window array
-            #if self.coordmgr.imgPixPerWinPix >= 1.0:
-            data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
+            if self.coordmgr.imgPixPerWinPix >= 1.0:
+                data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
                     nf_ovbuffxsize, nf_ovbuffysize)
-            # TODO
-            #else:
-            #    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
-            #    replicateArray(dataTmp, data[dataslice])
+            else:
+                dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
+                data[dataslice] = replicateArray(dataTmp, data[dataslice], pixLeftFract, pixTopFract)
 
             # do we have no data for this band?
             nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
@@ -630,13 +642,16 @@ class LayerManager(object):
             self.updateImages()
 
 
-def replicateArray(arr, outarr):
+def replicateArray(arr, outarr, xfract, yfract):
     """
     Replicate the data in the given 2-d array so that it increases
     in size to be (ysize, xsize). 
     
     Replicates each pixel in both directions. 
     
+    xfract and yfract is the fracton of the first pixel that needs to be removed
+    because GDAL always reads in first pixel. This is taken out of the repeated
+    values of the first pixel.
     """
     (ysize, xsize) = outarr.shape
     (nrows, ncols) = arr.shape
@@ -644,13 +659,28 @@ def replicateArray(arr, outarr):
     nRptsY = int(numpy.ceil(float(ysize) / float(nrows)))
     print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
 
-    rowCount = nrows * nRptsX * 1j
+    rowCount = nrows * nRptsY * 1j
     colCount = ncols * nRptsX * 1j
     
-    (row, col) = numpy.mgrid[0:nrows-1:rowCount, 0:ncols-1:colCount].astype(numpy.int32)
-    print rowCount, colCount
+    (row, col) = numpy.mgrid[0:nrows:rowCount, 0:ncols:colCount].astype(numpy.int32)
+    # TODO: Neil - why do I have to do this?
+    row = numpy.clip(row, 0, nrows-1)
+    col = numpy.clip(col, 0, ncols-1)
+    xmiss = int(xfract * nRptsX)
+    ymiss = int(yfract * nRptsY)
+    print rowCount, colCount, row.shape, xmiss, ymiss
     outarr = arr[row, col]
-    return outarr[:ysize, :xsize]
+
+    # TODO: awful hack. Need to expand the size of the array so that clipping out of xfract etc works
+    # maybe we can do better with mgrid?
+    (outysize, outxsize) = outarr.shape
+
+    bottomBuffer = numpy.zeros((nRptsY, outxsize), dtype=arr.dtype)
+    rightBuffer = numpy.zeros((outysize+nRptsY, nRptsX), dtype=arr.dtype)
+    print bottomBuffer.shape, rightBuffer.shape, outarr.shape
+    outarr = numpy.append(outarr, bottomBuffer, 0)
+    outarr = numpy.append(outarr, rightBuffer, 1)
+    return outarr[ymiss:ymiss+ysize, xmiss:xmiss+xsize]
 
 
 
