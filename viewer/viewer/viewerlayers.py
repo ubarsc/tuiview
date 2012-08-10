@@ -183,7 +183,7 @@ class ViewerRasterLayer(ViewerLayer):
         # reset these values
         firstoverview = self.overviews.getFullRes()
         self.coordmgr.setDisplaySize(width, height)
-        self.coordmgr.setGeoTransform(transform)
+        self.coordmgr.setGeoTransformAndSize(transform, firstoverview.xsize, firstoverview.ysize)
         self.coordmgr.setTopLeftPixel(0, 0)  # This may be changed by the LayerManager if there are other layers
         self.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
 
@@ -517,7 +517,38 @@ class LayerManager(object):
     """
     def __init__(self):
         self.layers = []
+        self.fullextent = None
         self.queryPointLayer = ViewerQueryPointLayer()
+
+    def getFullExtent(self):
+        """
+        Return the full extent for all the open layers
+        """
+        return self.fullextent
+
+    def recalcFullExtent(self):
+        """
+        Internal method. Recalculates the full extent of all
+        the layers. Called when dataset added or removed.
+        """
+        self.fullextent = None
+        for layer in self.layers:
+            extent = layer.coordmgr.getFullWorldExtent()
+            if extent is not None:
+                if self.fullextent is None:
+                    self.fullextent = extent
+                else:
+                    (left, top, right, bottom) = self.fullextent
+                    (newleft, newtop, newright, newbottom) = extent
+                    if newleft < left:
+                        left = newleft
+                    if newtop > top:
+                        top = newtop
+                    if newright > right:
+                        right = newright
+                    if newbottom < bottom:
+                        bottom = newbottom
+                    self.fullextent = (left, top, right, bottom)
 
     def setDisplaySize(self, width, height):
         """
@@ -549,12 +580,13 @@ class LayerManager(object):
 
         layer.getImage()
         self.layers.append(layer)
+        self.recalcFullExtent()
 
     def addVectorLayer(self, filename, color):
         """
         Add a vector layer. Don't do much here yet...
         """
-        pass
+        self.recalcFullExtent()
 
     def removeTopLayer(self):
         """

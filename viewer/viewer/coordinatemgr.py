@@ -34,6 +34,13 @@ class CoordManager(object):
         """
         raise NotImplementedError("setWorldExtent needs to be overridden")
 
+    def getFullWorldExtent(self):
+        """
+        Gets the full extent of the dataset in world coords as a 4 element tuple.
+        To be implmented by derived class
+        """
+        raise NotImplementedError("getFullWorldExtent needs to be overridden")
+
     def getWorldCenter(self):
         """
         Gets the center of the extent in world coords
@@ -142,6 +149,9 @@ class RasterCoordManager(CoordManager):
         # GDAL geotransform array, which defines relationship between
         # pixel and world coords
         self.geotransform = None
+        # size of the raster
+        self.datasetSizeX = None
+        self.datasetSizeY = None
     
     def __str__(self):
         """
@@ -159,11 +169,13 @@ class RasterCoordManager(CoordManager):
         self.pixTop = toprow
         self.pixLeft = leftcol
     
-    def setGeoTransform(self, transform):
+    def setGeoTransformAndSize(self, transform, xsize, ysize):
         """
-        Set the GDAL geotransform array
+        Set the GDAL geotransform array and size
         """
         self.geotransform = transform
+        self.datasetSizeX = xsize
+        self.datasetSizeY = ysize
     
     def calcZoomFactor(self, right, bottom):
         """
@@ -298,3 +310,10 @@ class RasterCoordManager(CoordManager):
         (right, bottom) = self.world2pixel(rightWorld, bottomWorld)
         self.calcZoomFactor(right, bottom)
 
+    def getFullWorldExtent(self):
+        """
+        Gets the full extent of the dataset in world coords as a 4 element tuple.
+        """
+        (left, top) = self.pixel2world(0, 0)
+        (right, bottom) = self.pixel2world(self.datasetSizeX-1, self.datasetSizeY-1)
+        return (left, top, right, bottom)

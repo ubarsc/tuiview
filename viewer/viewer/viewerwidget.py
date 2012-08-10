@@ -81,6 +81,49 @@ class ViewerWidget(QAbstractScrollArea):
         # do we follow extent when geolinking?
         self.geolinkFollowExtent = True
 
+    def updateScrollBars(self):
+        """
+        Update the scroll bars to accurately show where
+        we are relative to the full extent
+        """
+        fullextent = self.layers.getFullExtent()
+        setbars = False
+        self.suppressscrollevent = True
+        if fullextent is not None:
+            (fullleft, fulltop, fullright, fullbottom) = fullextent
+            layer = self.layers.getTopLayer()
+            if layer is not None:
+                (left, top, right, bottom) = layer.coordmgr.getWorldExtent()
+                print fullleft, fulltop, fullright, fullbottom
+                print left, top, right, bottom
+                (wldX, wldY) = layer.coordmgr.getWorldCenter()
+                verticalBar = self.verticalScrollBar()
+                horizontalBar = self.horizontalScrollBar()
+                # always set range to 0 - 1000 and calculate everything as fraction of that
+                verticalBar.setRange(0, 1000)
+                horizontalBar.setRange(0, 1000)
+
+                # to pagestep which is also the slider size
+                fullxsize = float(fullright - fullleft)
+                hpagestep = (float(right - left) / fullxsize) * 1000
+                horizontalBar.setPageStep(int(hpagestep))
+                fullysize = float(fulltop - fullbottom)
+                vpagestep = (float(top - bottom) / fullysize) * 1000
+                verticalBar.setPageStep(int(vpagestep))
+                print hpagestep, vpagestep
+
+                # position of the slider relative to the center of the image
+                hpos = (float(wldX - fullleft) / fullxsize) * 1000
+                horizontalBar.setSliderPosition(int(hpos))
+                vpos = (float(fulltop - wldY) / fullysize) * 1000
+                verticalBar.setSliderPosition(int(vpos))
+                setbars = True
+        if not setbars:
+            # something went wrong - disable
+            self.horizontalScrollBar().setRange(0, 0)
+            self.verticalScrollBar().setRange(0, 0)
+        self.suppressscrollevent = False
+
     def addRasterLayer(self, fname, stretch, lut=None):
         """
         Add the given filename to the stack of images being displayed
@@ -89,6 +132,7 @@ class ViewerWidget(QAbstractScrollArea):
         size = self.viewport().size()
         self.layers.addRasterLayer(fname, size.width(), size.height(), stretch, lut)
         self.viewport().update()
+        self.updateScrollBars()
 
     def removeLayer(self):
         """
@@ -96,6 +140,7 @@ class ViewerWidget(QAbstractScrollArea):
         """
         self.layers.removeTopLayer()
         self.viewport().update()
+        self.updateScrollBars()
 
     # query point functions
     def setQueryPoint(self, id, easting, northing, color):
@@ -130,6 +175,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.layers.zoomNativeResolution()
         # force repaint
         self.viewport().update()
+        self.updateScrollBars()
         # geolink
         self.emitGeolinkMoved()
 
@@ -141,6 +187,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.layers.zoomFullExtent()
         # force repaint
         self.viewport().update()
+        self.updateScrollBars()
         # geolink
         self.emitGeolinkMoved()
 
@@ -237,17 +284,17 @@ class ViewerWidget(QAbstractScrollArea):
         Handle the user moving the scroll bars
         """
         if not self.suppressscrollevent:
-            layer = self.layer.getTopRasterLayer()
+            layer = self.layers.getTopLayer()
             if layer is not None:
-                xamount = dx * -(layer.coordmgr.imgPixPerWinPix / float(layer.gdalDataset.RasterXSize))
-                yamount = dy * -(layer.coordmgr.imgPixPerWinPix / float(layer.gdalDataset.RasterYSize))
-                leftcol = layer.coordmgr.pixLeft + xamount
-                toprow = layer.coordmgr.pixTop + yamount
-                layer.coordmgr.setTopLeftPixel(leftcol, toprow)
-                layer.coordmgr.recalcBottomRight()
+                (left, top, right, bottom) = layer.coordmgr.getWorldExtent()
+                xamount = -(float(dx) / float(self.horizontalScrollBar().pageStep())) * (right - left)
+                yamount = (float(dy) / float(self.verticalScrollBar().pageStep())) * (top - bottom)
+                wldX, wldY = layer.coordmgr.getWorldCenter()
+                layer.coordmgr.setWorldCenter(wldX + xamount, wldY + yamount)
                 self.layers.makeLayersConsistent(layer)
                 self.layers.updateImages()
                 self.viewport().update()
+                self.updateScrollBars()
 
                 # geolink
                 self.emitGeolinkMoved()
@@ -271,6 +318,7 @@ class ViewerWidget(QAbstractScrollArea):
                 layer.coordmgr.setWorldCenter(wldX, wldY)
                 self.layers.makeLayersConsistent(layer)
                 self.layers.updateImages()
+                self.updateScrollBars()
                 self.viewport().update()
             else:
                 dx = 0
@@ -290,6 +338,7 @@ class ViewerWidget(QAbstractScrollArea):
         """
         size = event.size()
         self.layers.setDisplaySize(size.width(), size.height())
+        self.updateScrollBars()
 
     def paintEvent(self, event):
         """
@@ -401,6 +450,7 @@ class ViewerWidget(QAbstractScrollArea):
                 self.layers.makeLayersConsistent(layer)
                 self.layers.updateImages()
                 self.viewport().update()
+                self.updateScrollBars()
 
                 # geolink
                 self.emitGeolinkMoved()
@@ -426,6 +476,7 @@ class ViewerWidget(QAbstractScrollArea):
                 self.layers.makeLayersConsistent(layer)
                 self.layers.updateImages()
                 self.viewport().update()
+                self.updateScrollBars()
                 # geolink
                 self.emitGeolinkMoved()
 
@@ -452,6 +503,7 @@ class ViewerWidget(QAbstractScrollArea):
             self.paintPoint.setY(yamount)
             # force repaint - self.paintPoint used by paintEvent()
             self.viewport().update()
+            self.updateScrollBars()
 
     # query point routines
     def updateQueryPoint(self, easting, northing, column, row):
@@ -499,6 +551,7 @@ class ViewerWidget(QAbstractScrollArea):
                 layer.coordmgr.imgPixPerWinPix = metresperwinpix / layer.coordmgr.geotransform[1]
             self.layers.makeLayersConsistent(layer)
             self.layers.updateImages()
+            self.updateScrollBars()
             self.viewport().update()
 
     def emitGeolinkMoved(self):
