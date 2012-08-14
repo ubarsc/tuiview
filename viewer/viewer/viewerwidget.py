@@ -159,6 +159,7 @@ class ViewerWidget(QAbstractScrollArea):
         if layer is not None:
             if len(layer.stretch.bands) != 1:
                 raise viewererrors.InvalidDataset('can only highlight values on single band images')
+            layer.highlightRows(color, selectionArray)
 
             # force repaint
             self.viewport().update()

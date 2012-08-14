@@ -289,7 +289,7 @@ class ViewerRasterLayer(ViewerLayer):
         """
         Highlight selected rows in the LUT
         """
-        layer.lut.highlightRows(color, selectionArray)
+        self.lut.highlightRows(color, selectionArray)
         # re-apply the lut to the data from last time
         self.image = self.lut.applyLUTSingle(self.image.viewerdata, self.image.viewermask)
 
