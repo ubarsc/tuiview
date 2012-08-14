@@ -810,33 +810,21 @@ class StretchDockWidget(QDockWidget):
         User wants to save the stretch to the file
         """
         stretch = self.stretchLayout.getStretch()
-        lut = self.layer.lut
-        filename = self.layer.filename
+
         try:
-            gdaldataset = gdal.Open(filename, gdal.GA_Update)
-
-            stretch.writeToGDAL(gdaldataset)
-            lut.writeToGDAL(gdaldataset)
-
-            del gdaldataset
+            
+            self.layer.saveStretchToFile(stretch)
             self.parent.showStatusMessage("Stretch written to file")
-        except RuntimeError:
-            QMessageBox.critical(self, "Viewer", "Unable to save stretch to file")
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e))
 
     def onDelete(self):
         """
         Delete any stretch/LUT from the file
         """
-        from . import viewerLUT
-        filename = self.viewwidget.filename
         try:
-            gdaldataset = gdal.Open(filename, gdal.GA_Update)
-
-            viewerstretch.ViewerStretch.deleteFromGDAL(gdaldataset)
-            viewerLUT.ViewerLUT.deleteFromGDAL(gdaldataset)
-
-            del gdaldataset
+            self.layer.deleteStretchFromFile()
             self.parent.showStatusMessage("Stretch deleted from file")
-        except RuntimeError:
-            QMessageBox.critical(self, "Viewer", "Unable to delete stretch from file")
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e))
 

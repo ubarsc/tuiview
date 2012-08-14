@@ -11,6 +11,7 @@ from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewerRAT
 from . import viewerLUT
+from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
 
@@ -326,6 +327,54 @@ class ViewerRasterLayer(ViewerLayer):
             # we can get the stats and apply the stretch locally
             self.lut.createLUT(self.gdalDataset, newstretch, self.image)
             self.getImage()
+
+    def saveStretchToFile(self, stretch):
+        """
+        Saves the given stretch and current LUT to the file
+        """
+        # ok we need to close the current file handle and re-open in write mode
+        del self.gdalDataset
+        try:
+            # now open as writeable
+            dataset = gdal.Open(self.filename, gdal.GA_Update)
+
+            # write the stretch
+            stretch.writeToGDAL(dataset)
+
+            # write the LUT
+            self.lut.writeToGDAL(dataset)
+
+            # close this (writeable) file handle
+            del dataset
+        except RuntimeError:
+            raise viewererrors.InvalidDataset('Unable to save stretch to file')
+        finally:
+            # attempt to open the file readonly again
+            self.gdalDataset = gdal.Open(self.filename)
+
+    def deleteStretchFromFile(self):
+        """
+        deletes the stretch and current LUT from the file
+        """
+        # ok we need to close the current file handle and re-open in write mode
+        del self.gdalDataset
+        try:
+            # now open as writeable
+            dataset = gdal.Open(self.filename, gdal.GA_Update)
+
+            # delete the stretch
+            viewerstretch.ViewerStretch.deleteFromGDAL(dataset)
+
+            # delete the LUT
+            viewerLUT.ViewerLUT.deleteFromGDAL(dataset)
+
+            # close this (writeable) file handle
+            del dataset
+        except RuntimeError:
+            raise viewererrors.InvalidDataset('Unable to delete stretch from file')
+        finally:
+            # attempt to open the file readonly again
+            self.gdalDataset = gdal.Open(self.filename)
 
     def getImage(self):
         """
