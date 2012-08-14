@@ -6,6 +6,7 @@ this module contains the LayerManager and related classes
 import numpy
 from osgeo import gdal
 from PyQt4.QtGui import QImage, QPainter, QPen
+from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewerRAT
 from . import viewerLUT
@@ -141,7 +142,7 @@ class ViewerRasterLayer(ViewerLayer):
     """
     Represents a raster layer
     """
-    def __init__(self):
+    def __init__(self, layermanager):
         ViewerLayer.__init__(self)
         self.coordmgr = coordinatemgr.RasterCoordManager()
         self.gdalDataset = None
@@ -153,6 +154,16 @@ class ViewerRasterLayer(ViewerLayer):
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
         self.stretch = None
+
+        # connect the signals from the RAT and LUT back to the layermanager
+        layermanager.connect(self.lut, SIGNAL("newProgress(QString)"), layermanager.newProgress)
+        layermanager.connect(self.lut, SIGNAL("endProgress()"), layermanager.endProgress)
+        layermanager.connect(self.lut, SIGNAL("newPercent(int)"), layermanager.newPercent)
+
+        layermanager.connect(self.attributes, SIGNAL("newProgress(QString)"), layermanager.newProgress)
+        layermanager.connect(self.attributes, SIGNAL("endProgress()"), layermanager.endProgress)
+        layermanager.connect(self.attributes, SIGNAL("newPercent(int)"), layermanager.newPercent)
+
 
     def open(self, filename, width, height, stretch, lut=None):
         """
@@ -525,11 +536,12 @@ class ViewerVectorLayer(ViewerLayer):
         self.ogrDataset = None
         self.coordmgr = coordinatemgr.VectorCoordManager()
 
-class LayerManager(object):
+class LayerManager(QObject):
     """
     Class that manages a list of layers
     """
     def __init__(self):
+        QObject.__init__(self)
         self.layers = []
         self.fullextent = None
         self.queryPointLayer = ViewerQueryPointLayer()
@@ -580,7 +592,7 @@ class LayerManager(object):
         and optional lut.
         """
         # create and open
-        layer = ViewerRasterLayer()
+        layer = ViewerRasterLayer(self)
         layer.open(filename, width, height, stretch, lut)
 
         if len(self.layers) > 0:
@@ -686,6 +698,28 @@ class LayerManager(object):
             layer.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
             self.makeLayersConsistent(layer)
             self.updateImages()
+
+    # the following functions are needed as this class
+    # acts as a 'proxy' between the RAT and LUT's inside
+    # the individual layers and anything wanting to listen
+    # to the progress (the window in this case)
+    def newProgress(self, string):
+        """
+        Called when we are about to start a new progress
+        """
+        self.emit(SIGNAL("newProgress(QString)"), string)
+
+    def endProgress(self):
+        """
+        Called when a progress run has finished
+        """
+        self.emit(SIGNAL("endProgress()"))
+
+    def newPercent(self, percent):
+        """
+        New progress value
+        """
+        self.emit(SIGNAL("newPercent(int)"), percent)
 
 
 def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra, dspBottomExtra):

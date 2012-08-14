@@ -81,17 +81,11 @@ class ViewerWindow(QMainWindow):
         self.setWindowTitle('Viewer')
         self.viewwidget = viewerwidget.ViewerWidget(self)
 
-        # connect to the signals emmitted by the LUT
+        # connect to the signals emmitted by the LUT/RAT via the LayerManager
         # so we can update our progress bar
-        # TODO
-        #self.connect(self.viewwidget.lut, SIGNAL("newProgress(QString)"), self.newProgress)
-        #self.connect(self.viewwidget.lut, SIGNAL("endProgress()"), self.endProgress)
-        #self.connect(self.viewwidget.lut, SIGNAL("newPercent(int)"), self.newPercent)
-
-        # same with the RAT for reading in attributes
-        #self.connect(self.viewwidget.attributes, SIGNAL("newProgress(QString)"), self.newProgress)
-        #self.connect(self.viewwidget.attributes, SIGNAL("endProgress()"), self.endProgress)
-        #self.connect(self.viewwidget.attributes, SIGNAL("newPercent(int)"), self.newPercent)
+        self.connect(self.viewwidget.layers, SIGNAL("newProgress(QString)"), self.newProgress)
+        self.connect(self.viewwidget.layers, SIGNAL("endProgress()"), self.endProgress)
+        self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), self.newPercent)
 
         self.setCentralWidget(self.viewwidget)
 
