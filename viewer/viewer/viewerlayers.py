@@ -688,14 +688,12 @@ class LayerManager(QObject):
 
     def zoomFullExtent(self):
         """
-        Zoom to the full extent of the top raster layer
+        Zoom to the full extent of all the layers
         This might need a re-think for vectors.
         """
-        layer = self.getTopRasterLayer()
-        if layer is not None:
-            layer.coordmgr.setTopLeftPixel(0, 0)
-            firstoverview = layer.overviews.getFullRes()
-            layer.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
+        layer = self.getTopLayer()
+        if layer is not None and self.fullextent is not None:
+            layer.coordmgr.setWorldExtent(self.fullextent)
             self.makeLayersConsistent(layer)
             self.updateImages()
 
