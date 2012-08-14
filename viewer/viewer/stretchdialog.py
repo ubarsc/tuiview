@@ -737,8 +737,14 @@ class StretchDockWidget(QDockWidget):
         self.setupToolbar()
 
         # our stretch layout
-        self.stretchLayout = StretchLayout(self.dockWidget, 
-                    viewwidget.stretch, viewwidget.ds)
+        self.layer = viewwidget.layers.getTopRasterLayer()
+        if self.layer is None:
+            QMessageBox.critical(self, "Viewer", "No raster layer available" )
+            self.close()
+            return
+        else:
+            self.stretchLayout = StretchLayout(self.dockWidget, 
+                    self.layer.stretch, self.layer.gdalDataset)
 
         # layout for stretch and buttons
         self.mainLayout = QVBoxLayout()
@@ -804,8 +810,8 @@ class StretchDockWidget(QDockWidget):
         User wants to save the stretch to the file
         """
         stretch = self.stretchLayout.getStretch()
-        lut = self.viewwidget.lut
-        filename = self.viewwidget.filename
+        lut = self.layer.lut
+        filename = self.layer.filename
         try:
             gdaldataset = gdal.Open(filename, gdal.GA_Update)
 
