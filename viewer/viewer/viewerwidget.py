@@ -94,8 +94,6 @@ class ViewerWidget(QAbstractScrollArea):
             layer = self.layers.getTopLayer()
             if layer is not None:
                 (left, top, right, bottom) = layer.coordmgr.getWorldExtent()
-                print fullleft, fulltop, fullright, fullbottom
-                print left, top, right, bottom
                 (wldX, wldY) = layer.coordmgr.getWorldCenter()
                 verticalBar = self.verticalScrollBar()
                 horizontalBar = self.horizontalScrollBar()
@@ -110,7 +108,6 @@ class ViewerWidget(QAbstractScrollArea):
                 fullysize = float(fulltop - fullbottom)
                 vpagestep = (float(top - bottom) / fullysize) * 1000
                 verticalBar.setPageStep(int(vpagestep))
-                print hpagestep, vpagestep
 
                 # position of the slider relative to the center of the image
                 hpos = (float(wldX - fullleft) / fullxsize) * 1000
@@ -383,7 +380,7 @@ class ViewerWidget(QAbstractScrollArea):
                 # Raster row/column
                 (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
                 (easting, northing) = layer.coordmgr.pixel2world(column, row)
-                print 'mousePressEvent', easting, northing, dspX, dspY
+                print 'mousePressEvent', easting, northing, dspX, dspY, column, row
                 print layer.coordmgr
 
                 # update the point
@@ -425,6 +422,7 @@ class ViewerWidget(QAbstractScrollArea):
                         wldX, wldY = layer.coordmgr.display2world(selection.left(), selection.top())
                         layer.coordmgr.setZoomFactor(layer.coordmgr.imgPixPerWinPix * fraction)
                         layer.coordmgr.setWorldCenter(wldX, wldY)
+                        layer.coordmgr.recalcBottomRight() # not sure why we need this but get black strips around otherwise
                     else:
                         # I don't think anything needs to be added here
                         dspTop = selection.top()
@@ -437,6 +435,7 @@ class ViewerWidget(QAbstractScrollArea):
                         print layer.coordmgr
                         layer.coordmgr.setTopLeftPixel(rastLeft, rastTop)
                         layer.coordmgr.calcZoomFactor(rastRight, rastBottom)
+                        layer.coordmgr.recalcBottomRight() # not sure why we need this but get black strips around otherwise
                         print layer.coordmgr
 
 
@@ -510,7 +509,7 @@ class ViewerWidget(QAbstractScrollArea):
         # read the data out of the dataset
         layer = self.layers.getTopRasterLayer()
         if layer is not None and column >= 0 and column < layer.gdalDataset.RasterXSize and row >= 0 and row < layer.gdalDataset.RasterYSize:
-            data = layer.gdalDataset.ReadAsArray(int(numpy.round(column)), int(numpy.round(row)), 1, 1)
+            data = layer.gdalDataset.ReadAsArray(int(column), int(row), 1, 1)
             if data is not None:
                 # we just want the single 'drill down' of data as a 1d array
                 data = data[...,0,0]

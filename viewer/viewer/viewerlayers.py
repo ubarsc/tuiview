@@ -343,8 +343,8 @@ class ViewerRasterLayer(ViewerLayer):
         pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize-1)
         nf_ovtop = int(pixTop / nf_fullrespixperovpix)
         nf_ovleft = int(pixLeft / nf_fullrespixperovpix)
-        nf_ovbottom = int(pixBottom / nf_fullrespixperovpix)
-        nf_ovright = int(pixRight / nf_fullrespixperovpix)
+        nf_ovbottom = int(numpy.ceil(pixBottom / nf_fullrespixperovpix))
+        nf_ovright = int(numpy.ceil(pixRight / nf_fullrespixperovpix))
         nf_ovtop = max(nf_ovtop, 0)
         nf_ovleft = max(nf_ovleft, 0)
         nf_ovbottom = min(nf_ovbottom, nf_selectedovi.ysize-1)
@@ -352,29 +352,41 @@ class ViewerRasterLayer(ViewerLayer):
         nf_ovxsize = nf_ovright - nf_ovleft + 1
         nf_ovysize = nf_ovbottom - nf_ovtop + 1
 
-        # GDAL always reads full pixels. We need to work out
-        # what fraction of the first pixel is not needed.
-        pixTopFract = (pixTop / nf_fullrespixperovpix) - nf_ovtop
-        pixLeftFract = (pixLeft / nf_fullrespixperovpix) - nf_ovleft
-        ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
-        print 'ovPixPerWinPix', ovPixPerWinPix, pixTop, pixLeft, pixTopFract, pixLeftFract
-        nf_ovbuffxsize = int(numpy.ceil(float(nf_ovxsize) / ovPixPerWinPix))
-        nf_ovbuffysize = int(numpy.ceil(float(nf_ovysize) / ovPixPerWinPix))
+        #ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
+        #print 'ovPixPerWinPix', ovPixPerWinPix, pixTop, pixLeft
+        #nf_ovbuffxsize = int(numpy.ceil(float(nf_ovxsize) / ovPixPerWinPix))
+        #nf_ovbuffysize = int(numpy.ceil(float(nf_ovysize) / ovPixPerWinPix))
 
         # The display coordinates of the top-left corner of the raster data. Often this
         # is (0, 0), but need not be if there is blank area left/above the raster data
         (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(pixLeft, pixTop)
-        nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
-        nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
+        (nf_dspRastRight, nf_dspRastBottom) = self.coordmgr.pixel2display(pixRight, pixBottom)
+        nf_dspRastXSize = nf_dspRastRight - nf_dspRastLeft 
+        nf_dspRastYSize = nf_dspRastBottom - nf_dspRastTop 
+        print 'nf_dspRastXSize', nf_dspRastXSize, nf_dspRastYSize, nf_dspRastLeft, nf_dspRastTop, nf_dspRastRight, nf_dspRastBottom,pixLeft, pixTop, pixRight, pixBottom
+
+        if self.coordmgr.imgPixPerWinPix < 1:
+            # need to calc 'extra' around the edge as we have partial pixels
+            # GDAL reads in full pixels
+            (nf_dspRastAbsLeft, nf_dspRastAbsTop) = self.coordmgr.pixel2display(numpy.floor(pixLeft), numpy.floor(pixTop))
+            (nf_dspRastAbsRight, nf_dspRastAbsBottom) = self.coordmgr.pixel2display(numpy.ceil(pixRight), numpy.ceil(pixBottom))
+            nf_dspLeftExtra = (nf_dspRastLeft - nf_dspRastAbsLeft) / nf_fullrespixperovpix
+            nf_dspTopExtra = (nf_dspRastTop - nf_dspRastAbsTop) / nf_fullrespixperovpix
+            nf_dspRightExtra = (nf_dspRastAbsRight - nf_dspRastRight) / nf_fullrespixperovpix
+            nf_dspBottomExtra = (nf_dspRastAbsBottom - nf_dspRastBottom) / nf_fullrespixperovpix
+            print 'extra', nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, nf_dspBottomExtra
+
+        #nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
+        #nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
         print self.coordmgr
-        print nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
+        #print nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
 
         # only need to do the mask once
         mask = numpy.empty((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpy.uint8)
         mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
         
-        dataslice = (slice(nf_dspRastTop, nf_dspRastTop+nf_ovbuffysize),
-            slice(nf_dspRastLeft, nf_dspRastLeft+nf_ovbuffxsize))
+        dataslice = (slice(nf_dspRastTop, nf_dspRastTop+nf_dspRastYSize),
+            slice(nf_dspRastLeft, nf_dspRastLeft+nf_dspRastXSize))
         mask[dataslice] = viewerLUT.MASK_IMAGE_VALUE # 0 where there is data
         nodata_mask = None
 
@@ -396,13 +408,14 @@ class ViewerRasterLayer(ViewerLayer):
                 # read into correct part of our window array
                 if self.coordmgr.imgPixPerWinPix >= 1.0:
                     dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
-                        nf_ovbuffxsize, nf_ovbuffysize)
+                        nf_dspRastXSize, nf_dspRastYSize)
                     print dataTmp.shape, dataslice
                     data[dataslice] = dataTmp
                 else:
                     dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
                     print 'repl', dataTmp.shape, dataslice
-                    data[dataslice] = replicateArray(dataTmp, data[dataslice], pixLeftFract, pixTopFract)
+                    data[dataslice] = replicateArray(dataTmp, data[dataslice], 
+                        nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, nf_dspBottomExtra)
                     
                 # do the no data test
                 nodata_value = self.noDataValues[bandnum-1]
@@ -438,10 +451,11 @@ class ViewerRasterLayer(ViewerLayer):
             # read into correct part of our window array
             if self.coordmgr.imgPixPerWinPix >= 1.0:
                 data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
-                    nf_ovbuffxsize, nf_ovbuffysize)
+                    nf_dspRastXSize, nf_dspRastYSize)
             else:
                 dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
-                data[dataslice] = replicateArray(dataTmp, data[dataslice], pixLeftFract, pixTopFract)
+                data[dataslice] = replicateArray(dataTmp, data[dataslice], 
+                    nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, nf_dspBottomExtra)
 
             # do we have no data for this band?
             nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
@@ -674,7 +688,7 @@ class LayerManager(object):
             self.updateImages()
 
 
-def replicateArray(arr, outarr, xfract, yfract):
+def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra, dspBottomExtra):
     """
     Replicate the data in the given 2-d array so that it increases
     in size to be (ysize, xsize). 
@@ -687,32 +701,25 @@ def replicateArray(arr, outarr, xfract, yfract):
     """
     (ysize, xsize) = outarr.shape
     (nrows, ncols) = arr.shape
-    nRptsX = int(numpy.ceil(float(xsize) / float(ncols)))
-    nRptsY = int(numpy.ceil(float(ysize) / float(nrows)))
+    nRptsX = float(xsize + dspLeftExtra + dspRightExtra) / float(ncols)
+    nRptsY = float(ysize + dspTopExtra + dspBottomExtra) / float(nrows)
     print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
 
-    rowCount = nrows * nRptsY * 1j
-    colCount = ncols * nRptsX * 1j
+    rowCount = int(numpy.ceil(nrows * nRptsY)) * 1j
+    colCount = int(numpy.ceil(ncols * nRptsX)) * 1j
     
-    (row, col) = numpy.mgrid[0:nrows:rowCount, 0:ncols:colCount].astype(numpy.int32)
-    # TODO: Neil - why do I have to do this?
-    row = numpy.clip(row, 0, nrows-1)
-    col = numpy.clip(col, 0, ncols-1)
-    xmiss = int(xfract * nRptsX)
-    ymiss = int(yfract * nRptsY)
-    print rowCount, colCount, row.shape, xmiss, ymiss
+    # create the lookup table (up to nrows/ncols-1)
+    (row, col) = numpy.mgrid[0:nrows-1:rowCount, 0:ncols-1:colCount].astype(numpy.int32)
+    print row.shape
+    # do the lookup
     outarr = arr[row, col]
 
-    # TODO: awful hack. Need to expand the size of the array so that clipping out of xfract etc works
-    # maybe we can do better with mgrid?
-    (outysize, outxsize) = outarr.shape
+    # chop out the extra pixels
+    print 'pre', outarr.shape
+    outarr = outarr[dspTopExtra:dspTopExtra+ysize, dspLeftExtra:dspLeftExtra+xsize]
+    print 'post', outarr.shape
 
-    bottomBuffer = numpy.zeros((nRptsY, outxsize), dtype=arr.dtype)
-    rightBuffer = numpy.zeros((outysize+nRptsY, nRptsX), dtype=arr.dtype)
-    print bottomBuffer.shape, rightBuffer.shape, outarr.shape
-    outarr = numpy.append(outarr, bottomBuffer, 0)
-    outarr = numpy.append(outarr, rightBuffer, 1)
-    return outarr[ymiss:ymiss+ysize, xmiss:xmiss+xsize]
+    return outarr
 
 
 

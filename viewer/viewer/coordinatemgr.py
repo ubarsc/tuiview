@@ -208,7 +208,7 @@ class RasterCoordManager(CoordManager):
             rastHeight = int(math.ceil(rastWidth / displayAspectRatio))
             bottom = self.pixTop + rastHeight
         
-        self.imgPixPerWinPix = (right - self.pixLeft + 1) / self.dspWidth
+        self.imgPixPerWinPix = (right - self.pixLeft) / self.dspWidth
         self.pixBottom = bottom
         self.pixRight = right
     
@@ -219,8 +219,8 @@ class RasterCoordManager(CoordManager):
         zoom factor
         
         """
-        self.pixRight = self.pixLeft + self.imgPixPerWinPix * self.dspWidth - 1
-        self.pixBottom = self.pixTop + self.imgPixPerWinPix * self.dspHeight - 1
+        self.pixRight = self.pixLeft + self.imgPixPerWinPix * self.dspWidth 
+        self.pixBottom = self.pixTop + self.imgPixPerWinPix * self.dspHeight 
     
     def setZoomFactor(self, imgPixPerWinPix):
         """
