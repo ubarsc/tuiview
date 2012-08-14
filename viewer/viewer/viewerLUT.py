@@ -829,10 +829,12 @@ class ViewerLUT(QObject):
         background_index = self.bandinfo['b'].background_index
         nodata_value = self.lut[lutindex, nodata_index]
         background_value = self.lut[lutindex, background_index]
-        # could optimise the below...
-        bgra[...,lutindex].fill(255)
-        bgra[...,lutindex] = numpy.where(mask == MASK_NODATA_VALUE, nodata_value, bgra[...,lutindex])
-        bgra[...,lutindex] = numpy.where(mask == MASK_BACKGROUND_VALUE, background_value, bgra[...,lutindex])
+
+        # create the alpha array (do separately so we not always doing strides)
+        alpha = numpy.empty((winysize, winxsize), numpy.uint8)
+        alpha.fill(255)
+        alpha = numpy.where(mask == MASK_NODATA_VALUE, nodata_value, alpha)
+        bgra[...,lutindex] = numpy.where(mask == MASK_BACKGROUND_VALUE, background_value, alpha)
         # turn into QImage
         # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
         # is faster. Not sure what this means
