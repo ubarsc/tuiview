@@ -5,12 +5,14 @@ this module contains the LayerManager and related classes
 
 import numpy
 from osgeo import gdal
+from osgeo import osr
 from PyQt4.QtGui import QImage, QPainter, QPen
 from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewerRAT
 from . import viewerLUT
 from . import coordinatemgr
+from . import viewererrors
 
 QUERY_CURSOR_HALFSIZE = 8 # number of pixels
 QUERY_CURSOR_WIDTH = 2 # in pixels
@@ -175,7 +177,6 @@ class ViewerRasterLayer(ViewerLayer):
         # open the file
         self.filename = filename
         self.gdalDataset = gdal.Open(filename)
-        # TODO check WKT matches other layers
 
         # do some checks to see if we can deal with the data
         # currently only support square pixels and non rotated
@@ -586,6 +587,17 @@ class LayerManager(QObject):
         self.queryPointLayer.coordmgr.setDisplaySize(width, height)
         self.updateImages()
 
+    @staticmethod
+    def isSameRasterProjection(layer1, layer2):
+        """
+        Checks to see if 2 raster layers have the same projection
+        """
+        proj1 = layer1.gdalDataset.GetProjection()
+        proj2 = layer2.gdalDataset.GetProjection()
+        sr1 = osr.SpatialReference(proj1)
+        sr2 = osr.SpatialReference(proj2)
+        return bool(sr1.IsSame(sr2))
+
     def addRasterLayer(self, filename, width, height, stretch, lut=None):
         """
         Add a new raster layer with given display width and height, stretch
@@ -599,6 +611,13 @@ class LayerManager(QObject):
             # get the existing extent
             extent = self.layers[-1].coordmgr.getWorldExtent()
             layer.coordmgr.setWorldExtent(extent)
+
+        # if there is an existing raster layer, check we have an equivalent
+        # projection. Perhaps we should do similar if there is a vector layer. Not sure.
+        existinglayer = self.getTopRasterLayer()
+        if existinglayer is not None:
+            if not self.isSameRasterProjection(layer, existinglayer):
+                raise viewererrors.InvalidDataset('projections do not match')
         
         # ensure the query points have the correct extent
         extent = layer.coordmgr.getWorldExtent()

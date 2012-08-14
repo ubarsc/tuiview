@@ -419,12 +419,11 @@ The default stretch dialog will now open."
             del gdaldataset
 
         # now open it for real
-        #try:
-        # TODO
-        self.viewwidget.addRasterLayer(fname, stretch, lut)
-        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
-        #except Exception as e:
-        #    QMessageBox.critical(self, "Viewer", str(e) )
+        try:
+            self.viewwidget.addRasterLayer(fname, stretch, lut)
+            self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
         # set the window title
         self.setWindowTitle(os.path.basename(fname))
@@ -491,21 +490,19 @@ The default stretch dialog will now open."
         """
         Tell the widget to zoom to native resolution
         """
-        #try:
-        # TODO
-        self.viewwidget.zoomNativeResolution()
-        #except Exception as e:
-        #    QMessageBox.critical(self, "Viewer", str(e) )
+        try:
+            self.viewwidget.zoomNativeResolution()
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
     def zoomFullExtent(self):
         """
         Tell the widget to zoom back to the full extent
         """
-        #try:
-        # TODO
-        self.viewwidget.zoomFullExtent()
-        #except Exception as e:
-        #    QMessageBox.critical(self, "Viewer", str(e) )
+        try:
+            self.viewwidget.zoomFullExtent()
+        except Exception as e:
+            QMessageBox.critical(self, "Viewer", str(e) )
 
     def followExtent(self, state):
         """
