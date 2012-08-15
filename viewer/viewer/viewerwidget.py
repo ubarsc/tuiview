@@ -33,6 +33,17 @@ class QueryInfo(object):
         self.wavelengths = None
         self.attributes = None
 
+class GeolinkInfo(object):
+    """
+    Conainter class for the information passed in the geolinkMove
+    and geolinkQueryPoint signals.
+    """
+    def __init__(self, senderid, easting, northing, metresperwinpix=0):
+        self.senderid = senderid
+        self.easting = easting
+        self.northing = northing
+        self.metresperwinpix = metresperwinpix
+
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
 VIEWER_TOOL_ZOOMOUT = 2
@@ -388,7 +399,8 @@ class ViewerWidget(QAbstractScrollArea):
                 self.updateQueryPoint(easting, northing, column, row)
 
                 # emit the geolinked query point signal
-                self.emit(SIGNAL("geolinkQueryPoint(double, double, long)"), easting, northing, id(self) )
+                obj = GeolinkInfo(id(self), easting, northing)
+                self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
 
 
     def mouseReleaseEvent(self, event):
@@ -535,7 +547,7 @@ class ViewerWidget(QAbstractScrollArea):
         if self.activeTool == VIEWER_TOOL_QUERY:
             layer = self.layers.getTopRasterLayer()
             if layer is not None:
-                (col, row) = self.coordmgr.world2pixel(easting, northing)
+                (col, row) = layer.coordmgr.world2pixel(easting, northing)
                 self.updateQueryPoint(easting, northing, col, row)
 
     # geolinking routines
@@ -564,6 +576,7 @@ class ViewerWidget(QAbstractScrollArea):
             easting, northing = layer.coordmgr.getWorldCenter()
             metresperwinpix = layer.coordmgr.imgPixPerWinPix * layer.coordmgr.geotransform[1]
             # emit the signal
-            self.emit(SIGNAL("geolinkMove(double, double, double, long)"), easting, northing, metresperwinpix, id(self) )
+            obj = GeolinkInfo(id(self), easting, northing, metresperwinpix)
+            self.emit(SIGNAL("geolinkMove(PyQt_PyObject)"), obj )
 
 

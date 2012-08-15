@@ -93,10 +93,10 @@ class GeolinkedViewers(QObject):
         """
         # connect to the signal the widget sends when moved
         # sends new easting, northing and id() of the widget. 
-        self.connect(newviewer.viewwidget, SIGNAL("geolinkMove(double, double, double, long)"), self.onMove)
+        self.connect(newviewer.viewwidget, SIGNAL("geolinkMove(PyQt_PyObject)"), self.onMove)
         # the signal when a new query point is chosen
         # on a widget. Sends easting, northing and id() of the widget
-        self.connect(newviewer.viewwidget, SIGNAL("geolinkQueryPoint(double, double, long)"), self.onQuery)
+        self.connect(newviewer.viewwidget, SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), self.onQuery)
         # signal for request for new window
         self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
         # signal for request for windows to be tiled
@@ -170,24 +170,26 @@ class GeolinkedViewers(QObject):
                 xcount = 0
                 ycount += 1
 
-    def onMove(self, easting, northing, metresperwinpix, senderid):
+    def onMove(self, obj):
         """
         Called when a widget signals it has moved. Move all the
-        other widgets. Sends the id() of the widget.
+        other widgets. A GeolinkInfo object is passed.
+        Sends the id() of the widget and uses this to not move the original widget
         """
         for viewer in self.getViewerList():
             # we use the id() of the widget to 
             # identify them.
-            if id(viewer.viewwidget) != senderid:
-                viewer.viewwidget.doGeolinkMove(easting, northing, metresperwinpix)
+            if id(viewer.viewwidget) != obj.senderid:
+                viewer.viewwidget.doGeolinkMove(obj.easting, obj.northing, obj.metresperwinpix)
 
-    def onQuery(self, easting, northing, senderid):
+    def onQuery(self, obj):
         """
         Called when a widget signals the query point has moved.
-        Notify the other widgets. Sends the id() of the widget.
+        Notify the other widgets. A GeolinkInfo object is passed.
+        Sends the id() of the widget and uses this not to notify the original widget
         """
         for viewer in self.getViewerList():
             # we use the id() of the widget to 
             # identify them.
-            if id(viewer.viewwidget) != senderid:
-                viewer.viewwidget.doGeolinkQueryPoint(easting, northing)
+            if id(viewer.viewwidget) != obj.senderid:
+                viewer.viewwidget.doGeolinkQueryPoint(obj.easting, obj.northing)
