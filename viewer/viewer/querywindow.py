@@ -209,7 +209,7 @@ class ThematicSelectionModel(QItemSelectionModel):
 
         # if we are to clear first, do so
         if (command & QItemSelectionModel.Clear) == QItemSelectionModel.Clear:
-            self.parent.selectionArray[...] = False
+            self.parent.selectionArray.fill(False)
 
         # toggle all the indexes
         for idx in unique_rows:
@@ -287,9 +287,12 @@ class QueryDockWidget(QDockWidget):
         # None by default and for Continuous
         self.selectionArray = None
 
-        # the .id of the last ViewerRAT class so we can 
+        # the id() of the last ViewerRAT class so we can 
         # update display only when needed
         self.lastAttributeid = -1
+        # the 'count' of files opened by that object
+        # so we can tell if the same object has opened another file
+        self.lastAttributeCount = -1
 
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
@@ -487,7 +490,7 @@ class QueryDockWidget(QDockWidget):
         """
         Remove the current selection from the table widget
         """
-        self.selectionArray[...] = False
+        self.selectionArray.fill(False)
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
@@ -546,9 +549,11 @@ class QueryDockWidget(QDockWidget):
         val = qi.data[0]
 
         # do we need a new table model?
-        # do we have a new attribute 'id'
-        if qi.attributes.id != self.lastAttributeid:
-            self.lastAttributeid = qi.attributes.id
+        # do we have a new id() if the attribute obj
+        # or a new count of the file opened by that object
+        if id(qi.attributes) != self.lastAttributeid or qi.attributes.count != self.lastAttributeCount:
+            self.lastAttributeCount = qi.attributes.count
+            self.lastAttributeid = id(qi.attributes)
 
             self.tableModel = ThematicTableModel(qi.attributes, self)
             self.tableView.setModel(self.tableModel)
@@ -560,7 +565,7 @@ class QueryDockWidget(QDockWidget):
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(qi.attributes.getNumRows(), numpy.bool)
-            self.selectionArray[...] = False # none selected by default
+            self.selectionArray.fill(False) # none selected by default
 
         # set the highlight row
         self.tableModel.setHighlightRow(val)

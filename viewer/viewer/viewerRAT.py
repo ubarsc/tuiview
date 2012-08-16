@@ -49,7 +49,7 @@ class ViewerRAT(QObject):
     def __init__(self):
         QObject.__init__(self)
         self.clear()
-        self.id = 0 # is incremented each time attributes read into class
+        self.count = 0 # is incremented each time attributes read into class
                     # so querywindow can tell if it is new data or not
 
     def hasAttributes(self):
@@ -119,7 +119,7 @@ class ViewerRAT(QObject):
         if rat is not None and thematic:
             # looks like we have attributes
             self.emit(SIGNAL("newProgress(QString)"), "Reading Attributes...")
-            self.id += 1
+            self.count += 1
             self.columnNames = []
             self.attributeData = {}
 
