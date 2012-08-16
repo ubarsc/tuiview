@@ -66,7 +66,7 @@ class GeolinkedViewers(QObject):
         Calls setQueryPointNE on all the widgets
         """
         for viewer in self.viewers:
-            viewer.viewwidget.setQueryPointNE(id, easting, northing, color)
+            viewer.viewwidget.setQueryPoint(id, easting, northing, color)
 
     def newViewer(self, filename=None, stretch=None):
         """

@@ -559,7 +559,7 @@ class ViewerWidget(QAbstractScrollArea):
         layer = self.layers.getTopRasterLayer()
         if layer is not None:
             layer.coordmgr.setWorldCenter(easting, northing)
-            if self.geolinkFollowExtent:
+            if self.geolinkFollowExtent and metresperwinpix != 0:
                 layer.coordmgr.imgPixPerWinPix = metresperwinpix / layer.coordmgr.geotransform[1]
             self.layers.makeLayersConsistent(layer)
             self.layers.updateImages()
