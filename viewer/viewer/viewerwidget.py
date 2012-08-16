@@ -392,8 +392,8 @@ class ViewerWidget(QAbstractScrollArea):
                 # Raster row/column
                 (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
                 (easting, northing) = layer.coordmgr.pixel2world(column, row)
-                print 'mousePressEvent', easting, northing, dspX, dspY, column, row
-                print layer.coordmgr
+                #print 'mousePressEvent', easting, northing, dspX, dspY, column, row
+                #print layer.coordmgr
 
                 # update the point
                 self.updateQueryPoint(easting, northing, column, row)
@@ -444,12 +444,12 @@ class ViewerWidget(QAbstractScrollArea):
                         dspRight = selection.right()
                         (rastLeft, rastTop) = layer.coordmgr.display2pixel(dspLeft, dspTop)
                         (rastRight, rastBottom) = layer.coordmgr.display2pixel(dspRight, dspBottom)
-                        print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
-                        print layer.coordmgr
+                        #print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
+                        #print layer.coordmgr
                         layer.coordmgr.setTopLeftPixel(rastLeft, rastTop)
                         layer.coordmgr.calcZoomFactor(rastRight, rastBottom)
                         layer.coordmgr.recalcBottomRight() # not sure why we need this but get black strips around otherwise
-                        print layer.coordmgr
+                        #print layer.coordmgr
 
 
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
@@ -476,11 +476,11 @@ class ViewerWidget(QAbstractScrollArea):
                 dspXmove = -self.paintPoint.x()
                 dspYmove = -self.paintPoint.y()
                 (pixNewX, pixNewY) = layer.coordmgr.display2pixel(dspXmove, dspYmove)
-                print 'panning'
-                print layer.coordmgr
+                #print 'panning'
+                #print layer.coordmgr
                 layer.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
                 layer.coordmgr.recalcBottomRight()
-                print layer.coordmgr
+                #print layer.coordmgr
                 # reset
                 self.paintPoint.setX(0)
                 self.paintPoint.setY(0)

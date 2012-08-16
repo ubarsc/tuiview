@@ -399,7 +399,7 @@ class ViewerRasterLayer(ViewerLayer):
         nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
         pixLeft = max(self.coordmgr.pixLeft, 0)
-        print 'pixTop', pixTop, pixLeft, pixTop / nf_fullrespixperovpix
+        #print 'pixTop', pixTop, pixLeft, pixTop / nf_fullrespixperovpix
         pixBottom = min(self.coordmgr.pixBottom, self.gdalDataset.RasterYSize-1)
         pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize-1)
         nf_ovtop = int(pixTop / nf_fullrespixperovpix)
@@ -424,7 +424,7 @@ class ViewerRasterLayer(ViewerLayer):
         (nf_dspRastRight, nf_dspRastBottom) = self.coordmgr.pixel2display(pixRight, pixBottom)
         nf_dspRastXSize = nf_dspRastRight - nf_dspRastLeft 
         nf_dspRastYSize = nf_dspRastBottom - nf_dspRastTop 
-        print 'nf_dspRastXSize', nf_dspRastXSize, nf_dspRastYSize, nf_dspRastLeft, nf_dspRastTop, nf_dspRastRight, nf_dspRastBottom,pixLeft, pixTop, pixRight, pixBottom
+        #print 'nf_dspRastXSize', nf_dspRastXSize, nf_dspRastYSize, nf_dspRastLeft, nf_dspRastTop, nf_dspRastRight, nf_dspRastBottom,pixLeft, pixTop, pixRight, pixBottom
 
         if self.coordmgr.imgPixPerWinPix < 1:
             # need to calc 'extra' around the edge as we have partial pixels
@@ -435,11 +435,11 @@ class ViewerRasterLayer(ViewerLayer):
             nf_dspTopExtra = (nf_dspRastTop - nf_dspRastAbsTop) / nf_fullrespixperovpix
             nf_dspRightExtra = (nf_dspRastAbsRight - nf_dspRastRight) / nf_fullrespixperovpix
             nf_dspBottomExtra = (nf_dspRastAbsBottom - nf_dspRastBottom) / nf_fullrespixperovpix
-            print 'extra', nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, nf_dspBottomExtra
+            #print 'extra', nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, nf_dspBottomExtra
 
         #nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
         #nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
-        print self.coordmgr
+        #print self.coordmgr
         #print nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
 
         # only need to do the mask once
@@ -470,11 +470,11 @@ class ViewerRasterLayer(ViewerLayer):
                 if self.coordmgr.imgPixPerWinPix >= 1.0:
                     dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize,
                         nf_dspRastXSize, nf_dspRastYSize)
-                    print dataTmp.shape, dataslice
+                    #print dataTmp.shape, dataslice
                     data[dataslice] = dataTmp
                 else:
                     dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize)
-                    print 'repl', dataTmp.shape, dataslice
+                    #print 'repl', dataTmp.shape, dataslice
                     data[dataslice] = replicateArray(dataTmp, data[dataslice], 
                         nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, nf_dspBottomExtra)
                     
@@ -803,21 +803,18 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra, dspBot
     (nrows, ncols) = arr.shape
     nRptsX = float(xsize + dspLeftExtra + dspRightExtra) / float(ncols)
     nRptsY = float(ysize + dspTopExtra + dspBottomExtra) / float(nrows)
-    print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
+    #print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
 
     rowCount = int(numpy.ceil(nrows * nRptsY)) * 1j
     colCount = int(numpy.ceil(ncols * nRptsX)) * 1j
     
     # create the lookup table (up to nrows/ncols-1)
     (row, col) = numpy.mgrid[0:nrows-1:rowCount, 0:ncols-1:colCount].astype(numpy.int32)
-    print row.shape
     # do the lookup
     outarr = arr[row, col]
 
     # chop out the extra pixels
-    print 'pre', outarr.shape
     outarr = outarr[dspTopExtra:dspTopExtra+ysize, dspLeftExtra:dspLeftExtra+xsize]
-    print 'post', outarr.shape
 
     return outarr
 
