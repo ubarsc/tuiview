@@ -306,6 +306,7 @@ class QueryDockWidget(QDockWidget):
 
         if HAVE_QWT:
             self.plotWidget = QwtPlot()
+            self.plotWidget.setMinimumSize(100, 100)
             self.plotCurve = QwtPlotCurve()
             self.plotCurve.attach(self.plotWidget)
             self.oldPlotLabels = [] # so we can detach() them when we want to redisplay
