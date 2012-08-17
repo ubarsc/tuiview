@@ -18,6 +18,8 @@
         <file>highlight.png</file>
 	<file>removeselection.png</file>
 	<file>userexpression.png</file>
+	<file>queryincrease.png</file>
+	<file>querydecrease.png</file>
     </qresource>
 </RCC>
 

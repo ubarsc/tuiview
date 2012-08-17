@@ -151,8 +151,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.updateScrollBars()
 
     # query point functions
-    def setQueryPoint(self, id, easting, northing, color):
-        self.layers.queryPointLayer.setQueryPoint(id, easting, northing, color)
+    def setQueryPoint(self, id, easting, northing, color, size):
+        self.layers.queryPointLayer.setQueryPoint(id, easting, northing, color, size)
         self.layers.queryPointLayer.getImage()
         self.viewport().update()
 

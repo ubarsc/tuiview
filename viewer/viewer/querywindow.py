@@ -23,6 +23,7 @@ from .viewerRAT import ViewerRAT
 from . import viewererrors
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
+QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 # icons for displaying in the 'band' column for RGB
@@ -248,6 +249,7 @@ class QueryDockWidget(QDockWidget):
         QDockWidget.__init__(self, "Query", parent)
         self.viewwidget = viewwidget
         self.cursorColor = QUERYWIDGET_DEFAULT_CURSORCOLOR
+        self.cursorSize = QUERYWIDGET_DEFAULT_CURSORSIZE
         self.highlightColor = QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR
 
         # create a new widget that lives in the dock window
@@ -367,6 +369,18 @@ class QueryDockWidget(QDockWidget):
         self.cursorColorAction.setIcon(icon)        
         self.connect(self.cursorColorAction, SIGNAL("triggered()"), self.changeCursorColor)
 
+        self.increaseCursorSizeAction = QAction(self)
+        self.increaseCursorSizeAction.setText("&Increase Cursor Size")
+        self.increaseCursorSizeAction.setStatusTip("Increase Cursor Size")
+        self.increaseCursorSizeAction.setIcon(QIcon(":/viewer/images/queryincrease.png"))
+        self.connect(self.increaseCursorSizeAction, SIGNAL("triggered()"), self.increaseCursorSize)
+
+        self.decreaseCursorSizeAction = QAction(self)
+        self.decreaseCursorSizeAction.setText("&Decrease Cursor Size")
+        self.decreaseCursorSizeAction.setStatusTip("Decrease Cursor Size")
+        self.decreaseCursorSizeAction.setIcon(QIcon(":/viewer/images/querydecrease.png"))
+        self.connect(self.decreaseCursorSizeAction, SIGNAL("triggered()"), self.decreaseCursorSize)
+
         self.labelAction = QAction(self)
         self.labelAction.setText("&Display Plot Labels")
         self.labelAction.setStatusTip("Display Plot Labels")
@@ -412,6 +426,8 @@ class QueryDockWidget(QDockWidget):
         """
         self.toolBar.addAction(self.followAction)
         self.toolBar.addAction(self.cursorColorAction)
+        self.toolBar.addAction(self.increaseCursorSizeAction)
+        self.toolBar.addAction(self.decreaseCursorSizeAction)
         self.toolBar.addAction(self.highlightAction)
         self.toolBar.addAction(self.highlightColorAction)
         self.toolBar.addAction(self.removeSelectionAction)
@@ -436,10 +452,26 @@ class QueryDockWidget(QDockWidget):
     
             # if there is a previous point, redisplay in new color
             if self.lastqi is not None:
-                self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, newcolor)
+                self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, newcolor, self.cursorSize)
                 if HAVE_QWT and self.lastqi is not None:
                     # to get new color
                     self.updatePlot(self.lastqi, newcolor)
+
+    def increaseCursorSize(self):
+        """
+        increase the cursor size
+        """
+        if self.lastqi is not None:
+            self.cursorSize += QUERYWIDGET_DEFAULT_CURSORSIZE
+            self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, self.cursorColor, self.cursorSize)
+
+    def decreaseCursorSize(self):
+        """
+        increase the cursor size
+        """
+        if self.lastqi is not None and self.cursorSize > QUERYWIDGET_DEFAULT_CURSORSIZE:
+            self.cursorSize -= QUERYWIDGET_DEFAULT_CURSORSIZE
+            self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, self.cursorColor, self.cursorSize)
 
     def changeHighlightColor(self):
         """
@@ -622,7 +654,7 @@ class QueryDockWidget(QDockWidget):
                 self.updatePlot(qi, self.cursorColor)
 
             # add/modify this is a query point to the widget
-            self.viewwidget.setQueryPoint(id(self), qi.easting, qi.northing, self.cursorColor)
+            self.viewwidget.setQueryPoint(id(self), qi.easting, qi.northing, self.cursorColor, self.cursorSize)
             # remember this qi in case we need to change color
             self.lastqi = qi
 
