@@ -275,6 +275,13 @@ class ViewerWindow(QMainWindow):
         self.preferencesAct.setShortcut("CTRL+L")
         self.connect(self.preferencesAct, SIGNAL("triggered()"), self.setPreferences)
 
+        self.flickerAct = QAction(self)
+        self.flickerAct.setText("F&licker")
+        self.flickerAct.setStatusTip("Flicker top 2 layers")
+        self.flickerAct.setShortcut("CTRL+K")
+        self.flickerAct.setIcon(QIcon(":/viewer/images/flickeron.png"))
+        self.connect(self.flickerAct, SIGNAL("triggered()"), self.flicker)
+
     def setupMenus(self):
         """
         Creates the menus and adds the actions to them
@@ -301,6 +308,7 @@ class ViewerWindow(QMainWindow):
         self.viewMenu.addAction(self.followExtentAct)
         self.viewMenu.addAction(self.queryAct)
         self.viewMenu.addAction(self.newQueryAct)
+        self.viewMenu.addAction(self.flickerAct)
 
     def setupToolbars(self):
         """
@@ -319,6 +327,7 @@ class ViewerWindow(QMainWindow):
         self.viewToolbar.addAction(self.zoomFullExtAct)
         self.viewToolbar.addAction(self.followExtentAct)
         self.viewToolbar.addAction(self.queryAct)
+        self.viewToolbar.addAction(self.flickerAct)
 
     def setupStatusBar(self):
         """
@@ -556,6 +565,12 @@ The default stretch dialog will now open."
 
         # increment our count
         self.queryWindowCount += 1
+
+    def flicker(self):
+        """
+        Tell the widget to flicker
+        """
+        self.viewwidget.flicker()
 
     def closeEvent(self, event):
         """

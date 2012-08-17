@@ -20,6 +20,7 @@
 	<file>userexpression.png</file>
 	<file>queryincrease.png</file>
 	<file>querydecrease.png</file>
+	<file>flickeron.png</file>
     </qresource>
 </RCC>
 
