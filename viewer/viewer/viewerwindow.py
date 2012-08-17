@@ -31,18 +31,19 @@ def createFilter(driver):
     Given a GDAL driver, creates the Qt QFileDialog
     compatible filter for the file type
     """
+    from osgeo.gdal import DMD_LONGNAME, DMD_EXTENSION
     drivermeta = driver.GetMetadata()
     name = 'Image Files'
-    if drivermeta.has_key("DMD_LONGNAME"):
-        name = drivermeta["DMD_LONGNAME"]
+    if drivermeta.has_key(DMD_LONGNAME):
+        name = drivermeta[DMD_LONGNAME]
         # get rid of any stuff in brackets - seems to
         # confuse Qt 4.x
         firstbracket = name.find('(')
         if firstbracket != -1:
             name = name[:firstbracket]
     filter = '*'
-    if drivermeta.has_key("DMD_EXTENSION"):
-        filter = drivermeta["DMD_EXTENSION"]
+    if drivermeta.has_key(DMD_EXTENSION):
+        filter = drivermeta[DMD_EXTENSION]
     return "%s (*.%s)" % (name,filter)
 
 def populateFilters(defaultDriver=DEFAULT_DRIVER):
