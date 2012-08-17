@@ -299,6 +299,7 @@ class ViewerWidget(QAbstractScrollArea):
         if len(self.layers.layers) > 1:
             self.flickerState = not self.flickerState
             self.viewport().update()
+        return self.flickerState
 
     def scrollContentsBy(self, dx, dy):
         """

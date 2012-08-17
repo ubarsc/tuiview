@@ -21,6 +21,7 @@
 	<file>queryincrease.png</file>
 	<file>querydecrease.png</file>
 	<file>flickeron.png</file>
+	<file>flickeroff.png</file>
     </qresource>
 </RCC>
 

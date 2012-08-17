@@ -279,7 +279,9 @@ class ViewerWindow(QMainWindow):
         self.flickerAct.setText("F&licker")
         self.flickerAct.setStatusTip("Flicker top 2 layers")
         self.flickerAct.setShortcut("CTRL+K")
-        self.flickerAct.setIcon(QIcon(":/viewer/images/flickeron.png"))
+        self.flickerAct.iconOn = QIcon(":/viewer/images/flickeron.png")
+        self.flickerAct.iconOff = QIcon(":/viewer/images/flickeroff.png")
+        self.flickerAct.setIcon(self.flickerAct.iconOn)
         self.connect(self.flickerAct, SIGNAL("triggered()"), self.flicker)
 
     def setupMenus(self):
@@ -570,7 +572,11 @@ The default stretch dialog will now open."
         """
         Tell the widget to flicker
         """
-        self.viewwidget.flicker()
+        state = self.viewwidget.flicker()
+        if state:
+            self.flickerAct.setIcon(self.flickerAct.iconOff)
+        else:
+            self.flickerAct.setIcon(self.flickerAct.iconOn)
 
     def closeEvent(self, event):
         """
