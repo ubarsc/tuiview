@@ -215,6 +215,8 @@ class ThematicSelectionModel(QItemSelectionModel):
         for idx in unique_rows:
             self.parent.selectionArray[idx] = not self.parent.selectionArray[idx]
 
+        self.parent.updateToolTip()
+
         # update the view
         self.parent.tableView.viewport().update()
         # note: the behaviour still not right....
@@ -491,6 +493,7 @@ class QueryDockWidget(QDockWidget):
         Remove the current selection from the table widget
         """
         self.selectionArray.fill(False)
+        self.updateToolTip()
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
@@ -513,11 +516,23 @@ class QueryDockWidget(QDockWidget):
             # use it as our selection array
             self.selectionArray = result
 
+            self.updateToolTip()
             # so we repaint and our itemdelegate gets called
             self.tableView.viewport().update()
 
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
+
+    def updateToolTip(self):
+        """
+        When in thematic mode we set a toolip
+        over the attributes that tells the user how many items selected
+        """
+        # in numpy, False=0 and True=1 so we can do a sum()
+        # to find how many selected
+        nselected = self.selectionArray.sum()
+        self.tableView.setToolTip("%d Selected" % nselected)
+        
 
     def setupTableContinuous(self, qi):
         """
@@ -534,6 +549,8 @@ class QueryDockWidget(QDockWidget):
         self.tableView.setModel(self.tableModel)
 
         self.selectionArray = None # no selections
+
+        self.tableView.setToolTip("") # disable toolip
 
     def setupTableThematic(self, qi):
         """
@@ -573,6 +590,8 @@ class QueryDockWidget(QDockWidget):
         # scroll to the new index
         index = self.tableView.model().index(val, 0)
         self.tableView.scrollTo(index, QTableView.PositionAtCenter)
+
+        self.updateToolTip()
 
         # so the items get redrawn and old highlight areas get removed
         self.tableView.viewport().update()
