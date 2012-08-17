@@ -545,6 +545,7 @@ The default stretch dialog will now open."
         from . import querywindow
         queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
+        queryDock.setFloating(True) # detach so it isn't docked by default
 
         # connect it to signals emitted by the viewerwidget
         self.connect(self.viewwidget, SIGNAL("locationSelected(PyQt_PyObject)"), queryDock.locationSelected)
