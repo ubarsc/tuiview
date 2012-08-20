@@ -24,6 +24,9 @@
 	<file>flickeroff.png</file>
 	<file>layers.png</file>
 	<file>rasterlayer.png</file>
+	<file>zoomlayer.png</file>
+	<file>arrowup.png</file>
+	<file>arrowdown.png</file>
     </qresource>
 </RCC>
 

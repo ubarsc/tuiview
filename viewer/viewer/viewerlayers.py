@@ -142,6 +142,9 @@ class ViewerLayer(object):
     def getImage(self):
         raise NotImplementedError("Must implement in derived class")
 
+    def getPropertiesString(self):
+        raise NotImplementedError("Must implement in derived class")
+
 class ViewerRasterLayer(ViewerLayer):
     """
     Represents a raster layer
@@ -528,6 +531,42 @@ class ViewerRasterLayer(ViewerLayer):
             # apply LUT
             self.image = self.lut.applyLUTSingle(data, mask)
 
+    def getPropertiesString(self):
+        """
+        Get the properties of the file as a string for presentation to user.
+        Do something similar to gdalinfo.
+        """
+        fmt = """Driver: %s
+Files: %s
+Size is %d, %d
+Number of Bands: %d
+Coordinate System is:\n%s
+Origin = (%f,%f)
+Pixel Size = (%f,%f)
+Corner Coordinates:
+Upper Left  ( %f, %f)
+Lower Left  ( %f, %f)
+Upper Right ( %f, %f)
+Lower Right ( %f, %f)
+Center      ( %f, %f)
+"""
+        driver = self.gdalDataset.GetDriver()
+        driverString = "%s/%s" % (driver.ShortName, driver.LongName)
+        fileString = " ".join(self.gdalDataset.GetFileList())
+        proj = self.gdalDataset.GetProjection()
+        sr = osr.SpatialReference(proj)
+        coordString = sr.ExportToPrettyWkt()
+
+        (ulx, uly) = self.coordmgr.pixel2world(0, 0)
+        (llx, lly) = self.coordmgr.pixel2world(0, self.gdalDataset.RasterYSize)
+        (urx, ury) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 0)
+        (lrx, lry) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, self.gdalDataset.RasterYSize)
+        (cx, cy) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize / 2.0, self.gdalDataset.RasterYSize / 2.0)
+        
+        propstr = fmt % (driverString, fileString, self.gdalDataset.RasterXSize, self.gdalDataset.RasterYSize,
+                    self.gdalDataset.RasterCount, coordString, self.transform[0], self.transform[3],
+                    self.transform[1], self.transform[5], ulx, uly, llx, lly, urx, ury, lrx, lry, cx, cy)
+        return propstr
 
 class ViewerQueryPointLayer(ViewerLayer):
     """
@@ -691,6 +730,37 @@ class LayerManager(QObject):
         """
         if len(self.layers) > 0:
             self.layers.pop()
+            self.recalcFullExtent()
+            self.emit(SIGNAL("layersChanged()"))
+
+    def removeLayer(self, layer):
+        """
+        Remove the specified layer
+        """
+        self.layers.remove(layer)
+        self.recalcFullExtent()
+        self.emit(SIGNAL("layersChanged()"))
+
+    def moveLayerUp(self, layer):
+        """
+        Move the specified layer 'up' - ie
+        render it later which is actually down the list
+        """
+        index = self.layers.index(layer)
+        if index < len(self.layers) - 1:
+            self.layers.pop(index)
+            self.layers.insert(index + 1, layer)
+            self.emit(SIGNAL("layersChanged()"))
+
+    def moveLayerDown(self, layer):
+        """
+        Move the specified layer 'down' - ie
+        render it later which is actually up the list
+        """
+        index = self.layers.index(layer)
+        if index > 0:
+            self.layers.pop(index)
+            self.layers.insert(index - 1, layer)
             self.emit(SIGNAL("layersChanged()"))
 
     def getTopLayer(self):

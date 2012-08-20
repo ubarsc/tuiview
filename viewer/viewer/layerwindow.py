@@ -3,7 +3,7 @@ Module that contains the LayerWindow class
 """
 
 import os
-from PyQt4.QtGui import QDockWidget, QListView, QIcon
+from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction, QMessageBox
 from PyQt4.QtCore import QAbstractListModel, QVariant, Qt, SIGNAL
 
 class LayerItemModel(QAbstractListModel):
@@ -21,9 +21,9 @@ class LayerItemModel(QAbstractListModel):
         return len(self.viewwidget.layers.layers)
 
     def flags(self, index):
-        "Have to override to make it checkable and drag enabled"
+        "Have to override to make it checkable"
         f = QAbstractListModel.flags(self, index)
-        return f | Qt.ItemIsUserCheckable | Qt.ItemIsDragEnabled
+        return f | Qt.ItemIsUserCheckable
 
     def getLayer(self, index):
         """
@@ -75,6 +75,121 @@ class LayerItemModel(QAbstractListModel):
             return True
         return False
 
+class LayerListView(QListView):
+    """
+    Our own QListView derived class so we can handle the context menu event
+    """
+    def __init__(self):
+        QListView.__init__(self)
+        self.setupActions()
+        self.setupMenu()
+
+    def setupActions(self):
+        "Set up the actions for the popup menu"
+        self.layerExtentAct = QAction(self)
+        self.layerExtentAct.setText("&Zoom to Layer Extent")
+        self.layerExtentAct.setStatusTip("Zoom to Layer Extent")
+        self.layerExtentAct.setIcon(QIcon(":/viewer/images/zoomlayer.png"))
+        self.layerExtentAct.setIconVisibleInMenu(True)
+        self.connect(self.layerExtentAct, SIGNAL("triggered()"), self.zoomLayer)
+
+        self.removeLayerAct = QAction(self)
+        self.removeLayerAct.setText("&Remove Layer")
+        self.removeLayerAct.setStatusTip("Remove selected layer")
+        self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
+        self.removeLayerAct.setIconVisibleInMenu(True)
+        self.connect(self.removeLayerAct, SIGNAL("triggered()"), self.removeLayer)
+
+        self.moveUpAct = QAction(self)
+        self.moveUpAct.setText("Move &Up")
+        self.moveUpAct.setStatusTip("Move selected layer up in list")
+        self.moveUpAct.setIcon(QIcon(":/viewer/images/arrowup.png"))
+        self.moveUpAct.setIconVisibleInMenu(True)
+        self.connect(self.moveUpAct, SIGNAL("triggered()"), self.moveUp)
+
+        self.moveDownAct = QAction(self)
+        self.moveDownAct.setText("Move &Down")
+        self.moveDownAct.setStatusTip("Move selected layer down in list")
+        self.moveDownAct.setIcon(QIcon(":/viewer/images/arrowdown.png"))
+        self.moveDownAct.setIconVisibleInMenu(True)
+        self.connect(self.moveDownAct, SIGNAL("triggered()"), self.moveDown)
+
+        self.propertiesAct = QAction(self)
+        self.propertiesAct.setText("&Properties")
+        self.propertiesAct.setStatusTip("Show properties of file")
+        self.connect(self.propertiesAct, SIGNAL("triggered()"), self.properties)
+
+    def setupMenu(self):
+        "Create the popup menu"
+        self.popupMenu = QMenu(self)
+        self.popupMenu.addAction(self.layerExtentAct)
+        self.popupMenu.addAction(self.removeLayerAct)
+        self.popupMenu.addAction(self.moveUpAct)
+        self.popupMenu.addAction(self.moveDownAct)
+        self.popupMenu.addSeparator()
+        self.popupMenu.addAction(self.propertiesAct)
+
+    def contextMenuEvent(self, e):
+        "Show our popup menu"
+        self.popupMenu.popup(e.globalPos())
+
+    def zoomLayer(self):
+        "zoom to the extents of the selected layer"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            extent = layer.coordmgr.getFullWorldExtent()
+            layer.coordmgr.setWorldExtent(extent)
+            model.viewwidget.layers.makeLayersConsistent(layer)
+            model.viewwidget.layers.updateImages()
+            model.viewwidget.viewport().update()
+
+    def removeLayer(self):
+        "remove the selected layer"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            model.viewwidget.layers.removeLayer(layer)
+            model.viewwidget.viewport().update()
+
+    def moveUp(self):
+        "Move the selected layer up in order"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            model.viewwidget.layers.moveLayerUp(layer)
+            model.viewwidget.viewport().update()
+
+    def moveDown(self):
+        "Move the selected layer down in order"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            model.viewwidget.layers.moveLayerDown(layer)
+            model.viewwidget.viewport().update()
+
+    def properties(self):
+        "Show the properties for the layer"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            propstring = layer.getPropertiesString()
+            QMessageBox.information(self, "Viewer", propstring)
 
 class LayerWindow(QDockWidget):
     """
@@ -86,9 +201,7 @@ class LayerWindow(QDockWidget):
         self.viewwidget = viewwidget
 
         # create the list view
-        self.listView = QListView()
-        self.listView.setDragDropMode(QListView.InternalMove)
-        self.listView.setDragEnabled(True)
+        self.listView = LayerListView()
 
         # set our item model
         model = LayerItemModel(viewwidget, self)
