@@ -114,11 +114,11 @@ class ViewerRAT(QObject):
         self.clear()
         
         # have rat and thematic?
+        self.emit(SIGNAL("newProgress(QString)"), "Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
         thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
         if rat is not None and thematic:
             # looks like we have attributes
-            self.emit(SIGNAL("newProgress(QString)"), "Reading Attributes...")
             self.count += 1
             self.columnNames = []
             self.attributeData = {}
@@ -173,7 +173,7 @@ class ViewerRAT(QObject):
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
 
-            self.emit(SIGNAL("endProgress()"))
+        self.emit(SIGNAL("endProgress()"))
 
 
     def evaluateUserExpression(self, expression):
