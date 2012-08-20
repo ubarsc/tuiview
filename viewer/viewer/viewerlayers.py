@@ -399,6 +399,12 @@ class ViewerRasterLayer(ViewerLayer):
         elif self.coordmgr.pixLeft < 0 and self.coordmgr.pixRight < 0:
             self.image = QImage()
             return
+        elif self.coordmgr.pixLeft > self.gdalDataset.RasterXSize and self.coordmgr.pixRight > self.gdalDataset.RasterXSize:
+            self.image = QImage()
+            return
+        elif self.coordmgr.pixTop > self.gdalDataset.RasterXSize and self.coordmgr.pixBottom > self.gdalDataset.RasterXSize:
+            self.image = QImage()
+            return
         
         nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
@@ -444,7 +450,7 @@ class ViewerRasterLayer(ViewerLayer):
         #nf_ovbuffxsize = min(nf_ovbuffxsize, self.coordmgr.dspWidth - nf_dspRastLeft)
         #nf_ovbuffysize = min(nf_ovbuffysize, self.coordmgr.dspHeight - nf_dspRastTop)
         #print self.coordmgr
-        #print nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize, nf_ovbuffxsize, nf_ovbuffysize, nf_dspRastLeft, nf_dspRastTop
+        #print nf_ovleft, nf_ovtop, nf_ovxsize, nf_ovysize, nf_dspRastLeft, nf_dspRastTop
 
         # only need to do the mask once
         mask = numpy.empty((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpy.uint8)
