@@ -81,10 +81,12 @@ class VectorCoordManager(CoordManager):
 
     def setDisplaySize(self, width, height):
         """
-        derived implementation - calls recalc()
+        derived implementation - calls recalculates extent
         """
         CoordManager.setDisplaySize(self, width, height)
-        self.recalc()
+        if self.extent is not None:
+            (left, top, right, bottom) = self.extent
+            self.extent = (left, top, left + self.metersperpix * width, top - self.metersperpix * height)
 
     def getWorldExtent(self):
         "Get extent in world coords"
