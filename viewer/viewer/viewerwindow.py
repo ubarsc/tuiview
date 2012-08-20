@@ -167,6 +167,7 @@ class ViewerWindow(QMainWindow):
         self.addRasterAct.setStatusTip("Open a GDAL supported image")
         self.addRasterAct.setShortcut("CTRL+O")
         self.addRasterAct.setIcon(QIcon(":/viewer/images/addraster.png"))
+        self.addRasterAct.setIconVisibleInMenu(True)
         self.connect(self.addRasterAct, SIGNAL("triggered()"), self.addRaster)
 
         self.removeLayerAct = QAction(self)
@@ -174,6 +175,7 @@ class ViewerWindow(QMainWindow):
         self.removeLayerAct.setStatusTip("Remove top layer")
         self.removeLayerAct.setShortcut("CTRL+R")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
+        self.removeLayerAct.setIconVisibleInMenu(True)
         self.connect(self.removeLayerAct, SIGNAL("triggered()"), self.removeLayer)
 
         self.newWindowAct = QAction(self)
@@ -181,6 +183,7 @@ class ViewerWindow(QMainWindow):
         self.newWindowAct.setStatusTip("Create a new geo linked window")
         self.newWindowAct.setShortcut("CTRL+N")
         self.newWindowAct.setIcon(QIcon(":/viewer/images/newwindow.png"))
+        self.newWindowAct.setIconVisibleInMenu(True)
         self.connect(self.newWindowAct, SIGNAL("triggered()"), self.newWindow)
 
         self.tileWindowsAct = QAction(self)
@@ -208,6 +211,7 @@ class ViewerWindow(QMainWindow):
         self.panAct.setShortcut("CTRL+P")
         self.panAct.setCheckable(True)
         self.panAct.setIcon(QIcon(":/viewer/images/pan.png"))
+        self.panAct.setIconVisibleInMenu(True)
         self.connect(self.panAct, SIGNAL("toggled(bool)"), self.pan)
 
         self.zoomInAct = QAction(self)
@@ -216,6 +220,7 @@ class ViewerWindow(QMainWindow):
         self.zoomInAct.setShortcut("CTRL++")
         self.zoomInAct.setCheckable(True)
         self.zoomInAct.setIcon(QIcon(":/viewer/images/zoomin.png"))
+        self.zoomInAct.setIconVisibleInMenu(True)
         self.connect(self.zoomInAct, SIGNAL("toggled(bool)"), self.zoomIn)
 
         self.zoomOutAct = QAction(self)
@@ -224,6 +229,7 @@ class ViewerWindow(QMainWindow):
         self.zoomOutAct.setShortcut("CTRL+-")
         self.zoomOutAct.setCheckable(True)
         self.zoomOutAct.setIcon(QIcon(":/viewer/images/zoomout.png"))
+        self.zoomOutAct.setIconVisibleInMenu(True)
         self.connect(self.zoomOutAct, SIGNAL("toggled(bool)"), self.zoomOut)
 
         self.zoomNativeAct = QAction(self)
@@ -231,6 +237,7 @@ class ViewerWindow(QMainWindow):
         self.zoomNativeAct.setStatusTip("Zoom to Native Resolution")
         self.zoomNativeAct.setShortcut("CTRL+1")
         self.zoomNativeAct.setIcon(QIcon(":/viewer/images/zoomnative.png"))
+        self.zoomNativeAct.setIconVisibleInMenu(True)
         self.connect(self.zoomNativeAct, SIGNAL("triggered()"), self.zoomNative)
 
         self.zoomFullExtAct = QAction(self)
@@ -238,6 +245,7 @@ class ViewerWindow(QMainWindow):
         self.zoomFullExtAct.setStatusTip("Zoom to Full Extent")
         self.zoomFullExtAct.setShortcut("CTRL+F")
         self.zoomFullExtAct.setIcon(QIcon(":/viewer/images/zoomfullextent.png"))
+        self.zoomFullExtAct.setIconVisibleInMenu(True)
         self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), self.zoomFullExtent)
 
         self.followExtentAct = QAction(self)
@@ -247,6 +255,7 @@ class ViewerWindow(QMainWindow):
         self.followExtentAct.setCheckable(True)
         self.followExtentAct.setChecked(True) # by default to match viewerwidget
         self.followExtentAct.setIcon(QIcon(":/viewer/images/followextents.png"))
+        self.followExtentAct.setIconVisibleInMenu(True)
         self.connect(self.followExtentAct, SIGNAL("toggled(bool)"), self.followExtent)
 
         self.queryAct = QAction(self)
@@ -255,6 +264,7 @@ class ViewerWindow(QMainWindow):
         self.queryAct.setShortcut("CTRL+U")
         self.queryAct.setCheckable(True)
         self.queryAct.setIcon(QIcon(":/viewer/images/query.png"))
+        self.queryAct.setIconVisibleInMenu(True)
         self.connect(self.queryAct, SIGNAL("toggled(bool)"), self.query)
 
         self.newQueryAct = QAction(self)
@@ -282,6 +292,7 @@ class ViewerWindow(QMainWindow):
         self.flickerAct.iconOn = QIcon(":/viewer/images/flickeron.png")
         self.flickerAct.iconOff = QIcon(":/viewer/images/flickeroff.png")
         self.flickerAct.setIcon(self.flickerAct.iconOn)
+        self.flickerAct.setIconVisibleInMenu(True)
         self.connect(self.flickerAct, SIGNAL("triggered()"), self.flicker)
 
         self.layerAct = QAction(self)
@@ -289,6 +300,7 @@ class ViewerWindow(QMainWindow):
         self.layerAct.setStatusTip("Arrange Layers")
         self.layerAct.setShortcut("CTRL+Y")
         self.layerAct.setIcon(QIcon(":/viewer/images/layers.png"))
+        self.layerAct.setIconVisibleInMenu(True)
         self.connect(self.layerAct, SIGNAL("triggered()"), self.arrangeLayers)
 
     def setupMenus(self):
