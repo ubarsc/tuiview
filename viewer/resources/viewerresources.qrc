@@ -22,6 +22,8 @@
 	<file>querydecrease.png</file>
 	<file>flickeron.png</file>
 	<file>flickeroff.png</file>
+	<file>layers.png</file>
+	<file>rasterlayer.png</file>
     </qresource>
 </RCC>
 

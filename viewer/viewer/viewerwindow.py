@@ -284,52 +284,61 @@ class ViewerWindow(QMainWindow):
         self.flickerAct.setIcon(self.flickerAct.iconOn)
         self.connect(self.flickerAct, SIGNAL("triggered()"), self.flicker)
 
+        self.layerAct = QAction(self)
+        self.layerAct.setText("Arrange La&yers")
+        self.layerAct.setStatusTip("Arrange Layers")
+        self.layerAct.setShortcut("CTRL+Y")
+        self.layerAct.setIcon(QIcon(":/viewer/images/layers.png"))
+        self.connect(self.layerAct, SIGNAL("triggered()"), self.arrangeLayers)
+
     def setupMenus(self):
         """
         Creates the menus and adds the actions to them
         """
-        self.fileMenu = self.menuBar().addMenu("&File")
-        self.fileMenu.addAction(self.addRasterAct)
-        self.fileMenu.addAction(self.removeLayerAct)
-        self.fileMenu.addAction(self.newWindowAct)
-        self.fileMenu.addAction(self.tileWindowsAct)
-        self.fileMenu.addAction(self.defaultStretchAct)
-        self.fileMenu.addAction(self.exitAct)
-        self.fileMenu.insertSeparator(self.exitAct)
+        fileMenu = self.menuBar().addMenu("&File")
+        fileMenu.addAction(self.addRasterAct)
+        fileMenu.addAction(self.removeLayerAct)
+        fileMenu.addAction(self.layerAct)
+        fileMenu.addAction(self.newWindowAct)
+        fileMenu.addAction(self.tileWindowsAct)
+        fileMenu.addAction(self.defaultStretchAct)
+        fileMenu.addAction(self.exitAct)
+        fileMenu.insertSeparator(self.exitAct)
 
-        self.editMenu = self.menuBar().addMenu("&Edit")
-        self.editMenu.addAction(self.stretchAct)
-        self.editMenu.addAction(self.preferencesAct);
+        editMenu = self.menuBar().addMenu("&Edit")
+        editMenu.addAction(self.stretchAct)
+        editMenu.addAction(self.preferencesAct);
 
-        self.viewMenu = self.menuBar().addMenu("&View")
-        self.viewMenu.addAction(self.panAct)
-        self.viewMenu.addAction(self.zoomInAct)
-        self.viewMenu.addAction(self.zoomOutAct)
-        self.viewMenu.addAction(self.zoomNativeAct)
-        self.viewMenu.addAction(self.zoomFullExtAct)
-        self.viewMenu.addAction(self.followExtentAct)
-        self.viewMenu.addAction(self.queryAct)
-        self.viewMenu.addAction(self.newQueryAct)
-        self.viewMenu.addAction(self.flickerAct)
+        viewMenu = self.menuBar().addMenu("&View")
+        viewMenu.addAction(self.panAct)
+        viewMenu.addAction(self.zoomInAct)
+        viewMenu.addAction(self.zoomOutAct)
+        viewMenu.addAction(self.zoomNativeAct)
+        viewMenu.addAction(self.zoomFullExtAct)
+        viewMenu.addAction(self.followExtentAct)
+        viewMenu.addAction(self.queryAct)
+        viewMenu.addAction(self.newQueryAct)
+        viewMenu.addAction(self.flickerAct)
 
     def setupToolbars(self):
         """
         Creates the toolbars and adds the actions to them
         """
-        self.fileToolbar = self.addToolBar("File")
-        self.fileToolbar.addAction(self.addRasterAct)
-        self.fileToolbar.addAction(self.removeLayerAct)
-        self.fileToolbar.addAction(self.newWindowAct)
+        fileToolbar = self.addToolBar("File")
+        fileToolbar.addAction(self.addRasterAct)
+        fileToolbar.addAction(self.removeLayerAct)
+        fileToolbar.addAction(self.layerAct)
+        fileToolbar.addAction(self.newWindowAct)
 
-        self.viewToolbar = self.addToolBar("View")
-        self.viewToolbar.addAction(self.panAct)
-        self.viewToolbar.addAction(self.zoomInAct)
-        self.viewToolbar.addAction(self.zoomOutAct)
-        self.viewToolbar.addAction(self.zoomNativeAct)
-        self.viewToolbar.addAction(self.zoomFullExtAct)
-        self.viewToolbar.addAction(self.followExtentAct)
-        self.viewToolbar.addAction(self.queryAct)
-        self.viewToolbar.addAction(self.flickerAct)
+        viewToolbar = self.addToolBar("View")
+        viewToolbar.addAction(self.panAct)
+        viewToolbar.addAction(self.zoomInAct)
+        viewToolbar.addAction(self.zoomOutAct)
+        viewToolbar.addAction(self.zoomNativeAct)
+        viewToolbar.addAction(self.zoomFullExtAct)
+        viewToolbar.addAction(self.followExtentAct)
+        viewToolbar.addAction(self.queryAct)
+        viewToolbar.addAction(self.flickerAct)
 
     def setupStatusBar(self):
         """
@@ -447,6 +456,14 @@ The default stretch dialog will now open."
         Remove the top most layer
         """
         self.viewwidget.removeLayer()
+
+    def arrangeLayers(self):
+        """
+        Bring up the LayerWindow
+        """
+        from . import layerwindow
+        layerWindow = layerwindow.LayerWindow(self, self.viewwidget)
+        self.addDockWidget(Qt.LeftDockWidgetArea, layerWindow)
 
     def editStretch(self):
         """
@@ -574,9 +591,9 @@ The default stretch dialog will now open."
         """
         state = self.viewwidget.flicker()
         if state:
-            self.flickerAct.setIcon(self.flickerAct.iconOff)
-        else:
             self.flickerAct.setIcon(self.flickerAct.iconOn)
+        else:
+            self.flickerAct.setIcon(self.flickerAct.iconOff)
 
     def closeEvent(self, event):
         """

@@ -137,6 +137,7 @@ class ViewerLayer(object):
     def __init__(self):
         self.image = None
         self.filename = None
+        self.displayed = True
 
     def getImage(self):
         raise NotImplementedError("Must implement in derived class")
@@ -675,12 +676,14 @@ class LayerManager(QObject):
         layer.getImage()
         self.layers.append(layer)
         self.recalcFullExtent()
+        self.emit(SIGNAL("layersChanged()"))
 
     def addVectorLayer(self, filename, color):
         """
         Add a vector layer. Don't do much here yet...
         """
         self.recalcFullExtent()
+        self.emit(SIGNAL("layersChanged()"))
 
     def removeTopLayer(self):
         """
@@ -688,6 +691,7 @@ class LayerManager(QObject):
         """
         if len(self.layers) > 0:
             self.layers.pop()
+            self.emit(SIGNAL("layersChanged()"))
 
     def getTopLayer(self):
         layer = None

@@ -87,9 +87,6 @@ class ViewerWidget(QAbstractScrollArea):
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
 
-        # flicker - controls if the top level displayed - call flicker() to change
-        self.flickerState = False
-
         # Define the scroll wheel behaviour
         self.mouseWheelZoom = True
         # do we follow extent when geolinking?
@@ -293,13 +290,16 @@ class ViewerWidget(QAbstractScrollArea):
 
     def flicker(self):
         """
-        Call to change the flicker state (ie draw the top image
-        or not). Only does something if there are 2 or more layers.
+        Call to change the flicker state (ie draw the top raster image
+        or not). 
         """
-        if len(self.layers.layers) > 1:
-            self.flickerState = not self.flickerState
+        state = False
+        layer = self.layers.getTopLayer()
+        if layer is not None:
+            layer.displayed = not layer.displayed
+            state = layer.displayed
             self.viewport().update()
-        return self.flickerState
+        return state
 
     def scrollContentsBy(self, dx, dy):
         """
@@ -370,14 +370,10 @@ class ViewerWidget(QAbstractScrollArea):
         """
         paint = QPainter(self.viewport())
 
-        if self.flickerState:
-            # don't draw the top one
-            paintlayers = self.layers.layers[:-1]
-        else:
-            paintlayers = self.layers.layers
+        for layer in self.layers.layers:
+            if layer.displayed:
+                paint.drawImage(self.paintPoint, layer.image)
 
-        for layer in paintlayers:
-            paint.drawImage(self.paintPoint, layer.image)
         paint.drawImage(self.paintPoint, self.layers.queryPointLayer.image)    # draw any query points on top of image
         paint.end()
 
