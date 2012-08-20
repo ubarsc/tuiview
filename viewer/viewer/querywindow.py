@@ -578,6 +578,10 @@ class QueryDockWidget(QDockWidget):
         self.highlightColorAction.setEnabled(False)
         self.expressionAction.setEnabled(False)
 
+        # any new thematic data after this will have to be reloaded
+        self.lastAttributeCount = -1
+        self.lastAttributeid = -1
+
         self.tableModel = ContinuousTableModel(qi.data, qi.bandNames, qi.stretch, self)
         self.tableView.setModel(self.tableModel)
 
@@ -620,9 +624,12 @@ class QueryDockWidget(QDockWidget):
         # set the highlight row
         self.tableModel.setHighlightRow(val)
 
-        # scroll to the new index
+        # scroll to the new index - remembering the existing horizontal scroll value
+        horiz_scroll_bar = self.tableView.horizontalScrollBar()
+        horiz_pos = horiz_scroll_bar.sliderPosition()
         index = self.tableView.model().index(val, 0)
         self.tableView.scrollTo(index, QTableView.PositionAtCenter)
+        horiz_scroll_bar.setSliderPosition(horiz_pos)
 
         self.updateToolTip()
 
