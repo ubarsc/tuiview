@@ -44,7 +44,8 @@ class ViewerStretch(object):
         self.bands = None
         self.nodata_rgba = (0, 0, 0, 0)
         self.background_rgba = (0, 0, 0, 0)
-        self.attributeTableSize = None # override with size of attribute table if one exists
+        self.attributeTableSize = None # override with size of attribute table 
+                                    # if one exists
                                     # LUT will then be created with this size
 
     def setBands(self, bands):
@@ -81,7 +82,8 @@ class ViewerStretch(object):
         self.stretchmode = VIEWER_STRETCHMODE_STDDEV
         self.stretchparam = (stddev,)
 
-    def setHistStretch(self, minVal=VIEWER_DEFAULT_HISTMIN, maxVal=VIEWER_DEFAULT_HISTMAX):
+    def setHistStretch(self, minVal=VIEWER_DEFAULT_HISTMIN, 
+                            maxVal=VIEWER_DEFAULT_HISTMAX):
         "Do a histogram stretch"
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (minVal, maxVal)
@@ -108,7 +110,8 @@ class ViewerStretch(object):
         """
         rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
                 'stretchparam' : self.stretchparam, 'bands' : self.bands,
-                'nodata_rgba' : self.nodata_rgba, 'background_rgba' : self.background_rgba }
+                'nodata_rgba' : self.nodata_rgba, 
+                'background_rgba' : self.background_rgba }
         return json.dumps(rep)
 
     @staticmethod
@@ -198,7 +201,8 @@ class StretchRule(object):
             msg = 'invalid value for comparison'
             raise viewererrors.InvalidParameters(msg)
 
-        if match and self.ctband is not None and self.ctband <= gdaldataset.RasterCount:
+        if (match and self.ctband is not None 
+                and self.ctband <= gdaldataset.RasterCount):
             # we match the number of bands
             # but we need to check there is a color 
             # table in the specified band

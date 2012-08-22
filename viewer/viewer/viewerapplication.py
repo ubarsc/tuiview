@@ -66,22 +66,33 @@ class CmdArgs(object):
         self.parser.stretchModeSet = False
         self.parser.bandsSet = False
 
-        self.parser.add_option('-b', '--bands', action="callback", callback=optionCallback,
-                            type="string", nargs=1,  help="comma seperated list of bands to display")
-        self.parser.add_option('-c', '--colortable', action="callback", callback=optionCallback,
-                                            help="Apply color table to image")
-        self.parser.add_option('-g', '--greyscale', action="callback", callback=optionCallback,
-                                            help="Display image in greyscale")
-        self.parser.add_option('-r', '--rgb', action="callback", callback=optionCallback,
-                                            help="use 3 bands to create RGB image")
-        self.parser.add_option('-n', '--nostretch', action="callback", callback=optionCallback,
-                                            help="do no stretch on data")
-        self.parser.add_option('-l', '--linear', action="callback", callback=optionCallback,
-                                            type="string", nargs=2, help="do a linear stretch between two values. Pass 'stats' for statistics")
-        self.parser.add_option('-s', '--stddev', action="callback", callback=optionCallback,
-                                            help="do a 2 standard deviation stretch")
-        self.parser.add_option('--hist', action="callback", callback=optionCallback, 
-                                            help="do a histogram stretch")
+        self.parser.add_option('-b', '--bands', action="callback", 
+                            callback=optionCallback,
+                            type="string", nargs=1,  
+                            help="comma seperated list of bands to display")
+        self.parser.add_option('-c', '--colortable', action="callback", 
+                            callback=optionCallback,
+                            help="Apply color table to image")
+        self.parser.add_option('-g', '--greyscale', action="callback", 
+                            callback=optionCallback,
+                            help="Display image in greyscale")
+        self.parser.add_option('-r', '--rgb', action="callback", 
+                            callback=optionCallback,
+                            help="use 3 bands to create RGB image")
+        self.parser.add_option('-n', '--nostretch', action="callback", 
+                            callback=optionCallback,
+                            help="do no stretch on data")
+        self.parser.add_option('-l', '--linear', action="callback", 
+                            callback=optionCallback,
+                            type="string", nargs=2, 
+                            help="do a linear stretch between two values. " +
+                                    "Pass 'stats' for statistics")
+        self.parser.add_option('-s', '--stddev', action="callback", 
+                            callback=optionCallback,
+                            help="do a 2 standard deviation stretch")
+        self.parser.add_option('--hist', action="callback", 
+                            callback=optionCallback, 
+                            help="do a histogram stretch")
 
         (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
@@ -101,11 +112,14 @@ class ViewerApplication(QApplication):
 
         cmdargs = CmdArgs()
         stretch = None
-        if cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet and cmdargs.parser.bandsSet:
+        if (cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet 
+                    and cmdargs.parser.bandsSet):
             # use the stretch they have constructed
             stretch = cmdargs.parser.stretch
-        elif cmdargs.parser.modeSet or cmdargs.parser.stretchModeSet or cmdargs.parser.bandsSet:
-            msg = 'Stretch incomplete. Must specify one of [-c|-g|-r] and one of [-n|-l|-s|--hist] and -b, or none to use defaults.'
+        elif (cmdargs.parser.modeSet or cmdargs.parser.stretchModeSet 
+                        or cmdargs.parser.bandsSet):
+            msg = ('Stretch incomplete. Must specify one of [-c|-g|-r] and' + 
+                ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
             raise SystemExit(msg)
 
         if len(cmdargs.args) == 0:

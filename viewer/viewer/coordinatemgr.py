@@ -8,6 +8,10 @@ from __future__ import division
 import math
 
 class CoordManager(object):
+    """
+    base class for the layer's coordmgr instance. Derived separately
+    for vector and raster layers.
+    """
     def __init__(self):
         # The size of the display window, in display coords
         self.dspWidth = None
@@ -86,7 +90,8 @@ class VectorCoordManager(CoordManager):
         CoordManager.setDisplaySize(self, width, height)
         if self.extent is not None:
             (left, top, right, bottom) = self.extent
-            self.extent = (left, top, left + self.metersperpix * width, top - self.metersperpix * height)
+            self.extent = (left, top, left + self.metersperpix * width, 
+                                top - self.metersperpix * height)
 
     def getWorldExtent(self):
         "Get extent in world coords"
@@ -140,13 +145,15 @@ class RasterCoordManager(CoordManager):
     """
     def __init__(self):
         CoordManager.__init__(self)
-        # The raster row/col which is to live in the top-left corner of the display
+        # The raster row/col which is to live in the top-left 
+        # corner of the display
         self.pixTop = None
         self.pixLeft = None
         # And the bottom-right
         self.pixBottom = None
         self.pixRight = None
-        # Ratio of raster pixels to display pixels. This defines the zoom level. 
+        # Ratio of raster pixels to display pixels. 
+        # This defines the zoom level. 
         self.imgPixPerWinPix = None
         # GDAL geotransform array, which defines relationship between
         # pixel and world coords
@@ -159,7 +166,8 @@ class RasterCoordManager(CoordManager):
         """
         For debugging, so I can see what I am set to
         """
-        return ("dw:%s dh:%s pt:%s pl:%s pb:%s pr:%s z:%s gt:%s" % (self.dspWidth, self.dspHeight, 
+        return ("dw:%s dh:%s pt:%s pl:%s pb:%s pr:%s z:%s gt:%s" % (
+            self.dspWidth, self.dspHeight, 
             self.pixTop, self.pixLeft, self.pixBottom, self.pixRight, 
             self.imgPixPerWinPix, self.geotransform))
     
@@ -314,8 +322,10 @@ class RasterCoordManager(CoordManager):
 
     def getFullWorldExtent(self):
         """
-        Gets the full extent of the dataset in world coords as a 4 element tuple.
+        Gets the full extent of the dataset in world coords as a 
+        4 element tuple.
         """
         (left, top) = self.pixel2world(0, 0)
-        (right, bottom) = self.pixel2world(self.datasetSizeX-1, self.datasetSizeY-1)
+        (right, bottom) = self.pixel2world(self.datasetSizeX-1, 
+                                self.datasetSizeY-1)
         return (left, top, right, bottom)

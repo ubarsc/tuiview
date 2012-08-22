@@ -3,7 +3,8 @@
 Contains the TileDialog class
 """
 
-from PyQt4.QtGui import QDialog, QFormLayout, QHBoxLayout, QPushButton, QSpinBox, QPushButton
+from PyQt4.QtGui import QDialog, QFormLayout, QHBoxLayout, QPushButton
+from PyQt4.QtGui import QSpinBox, QPushButton
 from PyQt4.QtCore import SIGNAL
 
 class TileDialog(QDialog):
@@ -43,4 +44,5 @@ class TileDialog(QDialog):
         self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
 
     def getValues(self):
+        "Returns the x and y value as a tuple"
         return self.xspin.value(), self.yspin.value()

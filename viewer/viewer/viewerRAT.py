@@ -18,27 +18,27 @@ def formatException(code):
     import traceback
   
     # extract the current traceback and turn it into a list
-    (type,value,tb) = sys.exc_info()
+    (ttype, value, tb) = sys.exc_info()
     stack = traceback.extract_tb(tb)
   
     # replace all instances of <string> with actual code
     fixedstack = []
     codearr = code.split('\n')
-    for (filename,line,function,text) in stack:
+    for (filename, line, function, text) in stack:
         if filename == '<string>' and text is None:
             text = codearr[line - 1]
-        fixedstack.append((filename,line,function,text))
+        fixedstack.append((filename, line, function, text))
   
     trace = '\n'.join(traceback.format_list(fixedstack))
   
     # if a SyntaxError the error won't be part of the trace
-    if type.__name__ == 'SyntaxError' and value.offset is not None:
-      # simulate the offset pointer
-      offset = ' ' * value.offset + '^'
-      value = str(value) + '\n' + value.text + offset
+    if ttype.__name__ == 'SyntaxError' and value.offset is not None:
+        # simulate the offset pointer
+        offset = ' ' * value.offset + '^'
+        value = str(value) + '\n' + value.text + offset
     
     # add on the actual exceptions
-    trace = '%s\n%s: %s' % (trace,type.__name__,value)
+    trace = '%s\n%s: %s' % (trace, ttype.__name__, value)
     return trace
 
 class ViewerRAT(QObject):
@@ -90,7 +90,8 @@ class ViewerRAT(QObject):
 
     def getNumRows(self):
         "get the number of rows"
-        if self.columnNames is not None and self.attributeData is not None and len(self.columnNames) > 0:
+        if (self.columnNames is not None and self.attributeData is not None 
+            and len(self.columnNames) > 0):
             # assume all same length
             firstCol = self.columnNames[0]
             return self.attributeData[firstCol].size
@@ -140,12 +141,13 @@ class ViewerRAT(QObject):
                 dtype = rat.GetTypeOfCol(col)
 
                 if dtype == gdal.GFT_Integer:
-                    colArray = numpy.zeros(nrows,int)
+                    colArray = numpy.zeros(nrows, int)
                 elif dtype == gdal.GFT_Real:
-                    colArray = numpy.zeros(nrows,float)
+                    colArray = numpy.zeros(nrows, float)
                 elif dtype == gdal.GFT_String:
                     # for string attributes, create a list
-                    # convert to array later - don't know the length of strings yet
+                    # convert to array later - don't know the length 
+                    # of strings yet
                     colArray = []
                 else:
                     msg = "Can't interpret data type of attribute"
@@ -154,19 +156,20 @@ class ViewerRAT(QObject):
                 # do it checking the type
                 if dtype == gdal.GFT_Integer:
                     for row in range(nrows):
-                        val = rat.GetValueAsInt(row,col)
+                        val = rat.GetValueAsInt(row, col)
                         colArray[row] = val
                 elif dtype == gdal.GFT_Real:
                     for row in range(nrows):
-                        val = rat.GetValueAsDouble(row,col)
+                        val = rat.GetValueAsDouble(row, col)
                         colArray[row] = val
                 else:
                     for row in range(nrows):
-                        val = rat.GetValueAsString(row,col)
+                        val = rat.GetValueAsString(row, col)
                         colArray.append(val)
 
                 if isinstance(colArray, list):
-                    # convert to array - numpy can handle this now it can work out the lengths
+                    # convert to array - numpy can handle this now it 
+                    # can work out the lengths
                     colArray = numpy.array(colArray)
 
                 self.attributeData[colname] = colArray
@@ -188,19 +191,20 @@ class ViewerRAT(QObject):
             msg = 'no attributes to work on'
             raise viewererrors.AttributeTableTypeError(msg)
 
-        globals = {}
+        globaldict = {}
         # insert each column into the global namespace
         # as the array it represents
-        for colName, saneName in zip(self.columnNames, self.getSaneColumnNames()):
+        for colName, saneName in (
+                zip(self.columnNames, self.getSaneColumnNames())):
             # use sane names so as not to confuse Python
-            globals[saneName] = self.attributeData[colName]
+            globaldict[saneName] = self.attributeData[colName]
 
         # give them access to numpy
-        globals['numpy'] = numpy
+        globaldict['numpy'] = numpy
 
         try:
-            result = eval(expression, globals)
-        except Exception, e:
+            result = eval(expression, globaldict)
+        except Exception:
             msg = formatException(expression)
             raise viewererrors.UserExpressionSyntaxError(msg)
 

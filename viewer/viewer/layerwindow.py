@@ -3,7 +3,8 @@ Module that contains the LayerWindow class
 """
 
 import os
-from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction, QMessageBox
+from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction
+from PyQt4.QtGui import QMessageBox
 from PyQt4.QtCore import QAbstractListModel, QVariant, Qt, SIGNAL
 
 class LayerItemModel(QAbstractListModel):
@@ -98,7 +99,8 @@ class LayerListView(QListView):
         self.removeLayerAct.setStatusTip("Remove selected layer")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
         self.removeLayerAct.setIconVisibleInMenu(True)
-        self.connect(self.removeLayerAct, SIGNAL("triggered()"), self.removeLayer)
+        self.connect(self.removeLayerAct, SIGNAL("triggered()"), 
+                                                        self.removeLayer)
 
         self.moveUpAct = QAction(self)
         self.moveUpAct.setText("Move &Up")
@@ -210,7 +212,8 @@ class LayerWindow(QDockWidget):
         self.setWidget(self.listView)
 
         # connect so we get told when layers added and removed
-        self.connect(viewwidget.layers, SIGNAL("layersChanged()"), self.layersChanged)
+        self.connect(viewwidget.layers, SIGNAL("layersChanged()"), 
+                                        self.layersChanged)
 
     def layersChanged(self):
         """
