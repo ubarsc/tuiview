@@ -308,7 +308,10 @@ class QueryDockWidget(QDockWidget):
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
         fm = QFontMetrics(font)
-        height = fm.height()
+        # add 3 pixels as some platforms (Windows, Solaris) need a few more
+        # as the vertical header has a 'box' around it and font 
+        # ends up squashed otherwise
+        height = fm.height() + 3
         # default height actually controlled by headers
         # don't worry about QItemDelegate etc
         self.tableView.verticalHeader().setDefaultSectionSize(height)
