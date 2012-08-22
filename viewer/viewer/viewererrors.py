@@ -1,4 +1,6 @@
-
+"""
+Exception classes for use in Viewer
+"""
 class ViewerException(Exception):
     "Base class for all Viewer exceptions"
 

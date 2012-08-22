@@ -5,11 +5,11 @@ and StretchDefaultsDialog classes
 """
 
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
-from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel, QPushButton, QGroupBox
-from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QDockWidget
+from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
+from PyQt4.QtGui import QPushButton, QGroupBox, QDockWidget
+from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox
 from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor, QMessageBox
 from PyQt4.QtCore import QVariant, QSettings, SIGNAL, Qt
-from osgeo import gdal
 import json
 
 from . import viewerstretch
@@ -92,7 +92,8 @@ class StretchLayout(QFormLayout):
             index += 1
 
         # callback so we can set the state of other items when changed
-        self.connect(self.modeCombo, SIGNAL("currentIndexChanged(int)"), self.modeChanged)
+        self.connect(self.modeCombo, SIGNAL("currentIndexChanged(int)"), 
+                            self.modeChanged)
 
         self.addRow("Mode", self.modeCombo)
 
@@ -107,7 +108,6 @@ class StretchLayout(QFormLayout):
 
         # set the bands depending on if we are RGB or not
         if stretch.mode == viewerstretch.VIEWER_MODE_RGB:
-            (r, g, b) = stretch.bands
             self.redWidget.setToolTip("Red")
             self.greenWidget.setToolTip("Green")
             self.blueWidget.setToolTip("Blue")
@@ -128,7 +128,8 @@ class StretchLayout(QFormLayout):
                 self.stretchCombo.setCurrentIndex(index)
             index += 1
         # callback so we can set the state of other items when changed
-        self.connect(self.stretchCombo, SIGNAL("currentIndexChanged(int)"), self.stretchChanged)
+        self.connect(self.stretchCombo, SIGNAL("currentIndexChanged(int)"), 
+                        self.stretchChanged)
 
         self.stretchLayout.addWidget(self.stretchCombo)
 
@@ -179,7 +180,8 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setEnabled(False)
 
         self.addRow("Stretch", self.stretchLayout)
-        self.stretchCombo.setEnabled(stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE)
+        state = stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE
+        self.stretchCombo.setEnabled(state)
 
         # now for no data and background
         self.fixedColorLayout = QHBoxLayout()
@@ -342,7 +344,8 @@ class StretchLayout(QFormLayout):
         if mode == viewerstretch.VIEWER_MODE_COLORTABLE:
             # need to set stretch to none
             self.stretchCombo.setCurrentIndex(0)
-        self.stretchCombo.setEnabled(mode != viewerstretch.VIEWER_MODE_COLORTABLE)
+        state = mode != viewerstretch.VIEWER_MODE_COLORTABLE
+        self.stretchCombo.setEnabled(state)
 
     def stretchChanged(self, index):
         """
@@ -355,7 +358,8 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setEnabled(False)
             self.stretchParam1.setRange(0, 10)
             self.stretchParam1.setSingleStep(0.1)
-            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) # always set back to this default
+            # always set back to this default
+            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) 
             self.stretchParam1.setToolTip("Number of Standard Deviations")
             self.stretchParam2.setToolTip("")
             self.stretchParam1.setSpecialValueText("")
@@ -369,7 +373,8 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setRange(0, 1)
             self.stretchParam2.setSingleStep(0.005)
             self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
-            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) # set back to these defaults
+            # set back to these defaults
+            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) 
             self.stretchParam2.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
             self.stretchParam1.setSpecialValueText("")
             self.stretchParam2.setSpecialValueText("")
@@ -488,7 +493,8 @@ class StretchDefaultsDialog(QDialog):
         # new and delete buttons
         self.newBeforeButton = QPushButton(self)
         self.newBeforeButton.setText("New Rule Before")
-        self.connect(self.newBeforeButton, SIGNAL("clicked()"), self.onNewBefore)
+        self.connect(self.newBeforeButton, SIGNAL("clicked()"), 
+                            self.onNewBefore)
 
         self.newAfterButton = QPushButton(self)
         self.newAfterButton.setText("New Rule After")
@@ -525,10 +531,10 @@ class StretchDefaultsDialog(QDialog):
 
         self.setWindowTitle("Default Stretch")
         self.setSizeGripEnabled(True)
-        self.resize(600,400)
+        self.resize(600, 400)
 
     def createWidget(self, rule, stretch):
-        # create a widget that contains the rule/stretch
+        "create a widget that contains the rule/stretch"
         widget = QWidget()
     
         # create the rule layout and put it into a group box
@@ -590,20 +596,20 @@ class StretchDefaultsDialog(QDialog):
             # 3 bands
             stretch.setRGB()
             stretch.setNoStretch()
-            stretch.setBands((1,2,3))
+            stretch.setBands((1, 2, 3))
             rule = viewerstretch.StretchRule(
                         viewerstretch.VIEWER_COMP_EQ, 3, None, stretch)
             ruleList.append(rule)
 
             # < 6 bands
             stretch.setStdDevStretch()
-            stretch.setBands((4,3,2))
+            stretch.setBands((4, 3, 2))
             rule = viewerstretch.StretchRule(
                         viewerstretch.VIEWER_COMP_LT, 6, None, stretch)
             ruleList.append(rule)
 
             # > 5 bands
-            stretch.setBands((5,4,2))
+            stretch.setBands((5, 4, 2))
             rule = viewerstretch.StretchRule(
                         viewerstretch.VIEWER_COMP_GT, 5, None, stretch)
             ruleList.append(rule)
@@ -780,7 +786,8 @@ class StretchDockWidget(QDockWidget):
 
         self.localAction = QAction(self)
         self.localAction.setText("&Local Stretch")
-        self.localAction.setStatusTip("Calculate approximate local stretch on Apply")
+        tip = "Calculate approximate local stretch on Apply"
+        self.localAction.setStatusTip(tip)
         self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
         self.localAction.setCheckable(True)
         

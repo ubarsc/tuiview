@@ -41,10 +41,10 @@ def createFilter(driver):
         firstbracket = name.find('(')
         if firstbracket != -1:
             name = name[:firstbracket]
-    filter = '*'
+    qfilter = '*'
     if drivermeta.has_key(DMD_EXTENSION):
-        filter = drivermeta[DMD_EXTENSION]
-    return "%s (*.%s)" % (name,filter)
+        qfilter = drivermeta[DMD_EXTENSION]
+    return "%s (*.%s)" % (name, qfilter)
 
 def populateFilters(defaultDriver=DEFAULT_DRIVER):
     """
@@ -63,14 +63,14 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
         # if we have a default driver do it next
         if not defaultDriver is None:
             driver = gdal.GetDriverByName(defaultDriver)
-            filter = createFilter(driver)
-            GDAL_FILTERS.append(filter)
+            qfilter = createFilter(driver)
+            GDAL_FILTERS.append(qfilter)
 
         # just go thru them all and create filters
         for count in range(gdal.GetDriverCount()):
             driver = gdal.GetDriver(count)
-            filter = createFilter(driver)
-            GDAL_FILTERS.append(filter)
+            qfilter = createFilter(driver)
+            GDAL_FILTERS.append(qfilter)
 
 
 class ViewerWindow(QMainWindow):
@@ -84,9 +84,12 @@ class ViewerWindow(QMainWindow):
 
         # connect to the signals emmitted by the LUT/RAT via the LayerManager
         # so we can update our progress bar
-        self.connect(self.viewwidget.layers, SIGNAL("newProgress(QString)"), self.newProgress)
-        self.connect(self.viewwidget.layers, SIGNAL("endProgress()"), self.endProgress)
-        self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), self.newPercent)
+        self.connect(self.viewwidget.layers, SIGNAL("newProgress(QString)"), 
+                                                self.newProgress)
+        self.connect(self.viewwidget.layers, SIGNAL("endProgress()"), 
+                                                self.endProgress)
+        self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
+                                                self.newPercent)
 
         self.setCentralWidget(self.viewwidget)
 
@@ -155,7 +158,8 @@ class ViewerWindow(QMainWindow):
 
         settings.beginGroup('ViewerMouse')
         self.mouseWheelZoom = True
-        self.mouseWheelZoom = settings.value("mousescroll", self.mouseWheelZoom).toBool()
+        value = settings.value("mousescroll", self.mouseWheelZoom)
+        self.mouseWheelZoom = value.toBool()
         settings.endGroup()
 
     def setupActions(self):
@@ -176,7 +180,8 @@ class ViewerWindow(QMainWindow):
         self.removeLayerAct.setShortcut("CTRL+R")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
         self.removeLayerAct.setIconVisibleInMenu(True)
-        self.connect(self.removeLayerAct, SIGNAL("triggered()"), self.removeLayer)
+        self.connect(self.removeLayerAct, SIGNAL("triggered()"), 
+                                                        self.removeLayer)
 
         self.newWindowAct = QAction(self)
         self.newWindowAct.setText("&New Window")
@@ -190,13 +195,15 @@ class ViewerWindow(QMainWindow):
         self.tileWindowsAct.setText("&Tile Windows...")
         self.tileWindowsAct.setStatusTip("Tile all open windows")
         self.tileWindowsAct.setShortcut("CTRL+I")
-        self.connect(self.tileWindowsAct, SIGNAL("triggered()"), self.tileWindows)
+        self.connect(self.tileWindowsAct, SIGNAL("triggered()"), 
+                                                        self.tileWindows)
 
         self.defaultStretchAct = QAction(self)
         self.defaultStretchAct.setText("&Default Stretch...")
         self.defaultStretchAct.setStatusTip("Set default stretches")
         self.defaultStretchAct.setShortcut("CTRL+D")
-        self.connect(self.defaultStretchAct, SIGNAL("triggered()"), self.defaultStretch)
+        self.connect(self.defaultStretchAct, SIGNAL("triggered()"), 
+                                                        self.defaultStretch)
 
         self.stretchAct = QAction(self)
         self.stretchAct.setText("S&tretch")
@@ -246,7 +253,8 @@ class ViewerWindow(QMainWindow):
         self.zoomFullExtAct.setShortcut("CTRL+F")
         self.zoomFullExtAct.setIcon(QIcon(":/viewer/images/zoomfullextent.png"))
         self.zoomFullExtAct.setIconVisibleInMenu(True)
-        self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), self.zoomFullExtent)
+        self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), 
+                                                           self.zoomFullExtent)
 
         self.followExtentAct = QAction(self)
         self.followExtentAct.setText("Follow &Extent")
@@ -256,7 +264,8 @@ class ViewerWindow(QMainWindow):
         self.followExtentAct.setChecked(True) # by default to match viewerwidget
         self.followExtentAct.setIcon(QIcon(":/viewer/images/followextents.png"))
         self.followExtentAct.setIconVisibleInMenu(True)
-        self.connect(self.followExtentAct, SIGNAL("toggled(bool)"), self.followExtent)
+        self.connect(self.followExtentAct, SIGNAL("toggled(bool)"), 
+                                                            self.followExtent)
 
         self.queryAct = QAction(self)
         self.queryAct.setText("&Query Tool")
@@ -271,7 +280,8 @@ class ViewerWindow(QMainWindow):
         self.newQueryAct.setText("New Query &Window")
         self.newQueryAct.setStatusTip("Open New Query Window")
         self.newQueryAct.setShortcut("CTRL+W")
-        self.connect(self.newQueryAct, SIGNAL("triggered()"), self.newQueryWindow)
+        self.connect(self.newQueryAct, SIGNAL("triggered()"), 
+                                                            self.newQueryWindow)
 
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
@@ -283,7 +293,8 @@ class ViewerWindow(QMainWindow):
         self.preferencesAct.setText("&Preferences")
         self.preferencesAct.setStatusTip("Edit Preferences")
         self.preferencesAct.setShortcut("CTRL+L")
-        self.connect(self.preferencesAct, SIGNAL("triggered()"), self.setPreferences)
+        self.connect(self.preferencesAct, SIGNAL("triggered()"), 
+                                                    self.setPreferences)
 
         self.flickerAct = QAction(self)
         self.flickerAct.setText("F&licker")
@@ -319,7 +330,7 @@ class ViewerWindow(QMainWindow):
 
         editMenu = self.menuBar().addMenu("&Edit")
         editMenu.addAction(self.stretchAct)
-        editMenu.addAction(self.preferencesAct);
+        editMenu.addAction(self.preferencesAct)
 
         viewMenu = self.menuBar().addMenu("&View")
         viewMenu.addAction(self.panAct)
@@ -396,7 +407,6 @@ class ViewerWindow(QMainWindow):
         User has asked to open a file. Show file
         dialog and open file
         """
-        from osgeo import gdal
         populateFilters()
         dlg = QFileDialog(self)
         dlg.setNameFilters(GDAL_FILTERS)
@@ -418,7 +428,8 @@ class ViewerWindow(QMainWindow):
             try:
                 gdaldataset = gdal.Open(fname)
             except RuntimeError:
-                QMessageBox.critical(self, MESSAGE_TITLE, "Unable to open %s" % fname)
+                msg = "Unable to open %s" % fname
+                QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return
 
             from . import viewerstretch
@@ -441,8 +452,8 @@ class ViewerWindow(QMainWindow):
             # open default stretch dialog
             if stretch is None:
                 del gdaldataset
-                msg = "File has no stretch saved and none of the default stretches match\n\
-The default stretch dialog will now open."
+                msg = ("File has no stretch saved and none of the default " + 
+                "stretches match\nThe default stretch dialog will now open.")
                 QMessageBox.warning(self, MESSAGE_TITLE, msg)
                 self.defaultStretch()
                 return
@@ -575,7 +586,9 @@ The default stretch dialog will now open."
         Query dock window has been closed. Disconnect from
         locationSelected signal and decrement our count
         """
-        self.disconnect(self.viewwidget, SIGNAL("locationSelected(PyQt_PyObject)"), queryDock.locationSelected)
+        self.disconnect(self.viewwidget, 
+                            SIGNAL("locationSelected(PyQt_PyObject)"), 
+                            queryDock.locationSelected)
         self.queryWindowCount -= 1
 
     def newQueryWindow(self):
@@ -589,10 +602,13 @@ The default stretch dialog will now open."
         queryDock.setFloating(True) # detach so it isn't docked by default
 
         # connect it to signals emitted by the viewerwidget
-        self.connect(self.viewwidget, SIGNAL("locationSelected(PyQt_PyObject)"), queryDock.locationSelected)
+        self.connect(self.viewwidget, 
+                                SIGNAL("locationSelected(PyQt_PyObject)"), 
+                                queryDock.locationSelected)
 
         # grab the signal with queryDock sends when it is closed
-        self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), self.queryClosed)
+        self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), 
+                                                self.queryClosed)
 
         # increment our count
         self.queryWindowCount += 1
@@ -636,7 +652,8 @@ The default stretch dialog will now open."
         settings = QSettings()
         settings.beginGroup('ViewerMouse')
         self.mouseWheelZoom = True
-        self.mouseWheelZoom = settings.value("mousescroll", self.mouseWheelZoom).toBool()
+        value = settings.value("mousescroll", self.mouseWheelZoom)
+        self.mouseWheelZoom = value.toBool()
         settings.endGroup()
 
         self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)

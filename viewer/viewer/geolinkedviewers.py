@@ -33,17 +33,20 @@ class GeolinkedViewers(QObject):
         """
         viewers = []
         for viewer in QApplication.topLevelWidgets():
-            if isinstance(viewer, viewerwindow.ViewerWindow) and viewer.isVisible():
+            if (isinstance(viewer, viewerwindow.ViewerWindow) 
+                    and viewer.isVisible()):
                 viewers.append(viewer)
         return viewers
 
     def cleanUp(self):
+        "remove any viewers that are no longer in the activelist"
         activeviewers = self.getViewerList()
 
         # remove any viewers that are no longer in the activelist
         # (they must have been closed)
         # they should now be cleaned up by Python and memory released
-        self.viewers = [viewer for viewer in self.viewers if viewer in activeviewers]
+        self.viewers = [viewer for viewer in self.viewers 
+                                if viewer in activeviewers]
 
     def closeAll(self):
         """
@@ -61,12 +64,12 @@ class GeolinkedViewers(QObject):
         for viewer in self.viewers:
             viewer.viewwidget.setActiveTool(tool)
 
-    def setQueryPointNEAll(self, id, easting, northing, color):
+    def setQueryPointNEAll(self, senderid, easting, northing, color):
         """
         Calls setQueryPointNE on all the widgets
         """
         for viewer in self.viewers:
-            viewer.viewwidget.setQueryPoint(id, easting, northing, color)
+            viewer.viewwidget.setQueryPoint(senderid, easting, northing, color)
 
     def newViewer(self, filename=None, stretch=None):
         """
@@ -93,14 +96,17 @@ class GeolinkedViewers(QObject):
         """
         # connect to the signal the widget sends when moved
         # sends new easting, northing and id() of the widget. 
-        self.connect(newviewer.viewwidget, SIGNAL("geolinkMove(PyQt_PyObject)"), self.onMove)
+        self.connect(newviewer.viewwidget, 
+                    SIGNAL("geolinkMove(PyQt_PyObject)"), self.onMove)
         # the signal when a new query point is chosen
         # on a widget. Sends easting, northing and id() of the widget
-        self.connect(newviewer.viewwidget, SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), self.onQuery)
+        self.connect(newviewer.viewwidget, 
+                    SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), self.onQuery)
         # signal for request for new window
         self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
         # signal for request for windows to be tiled
-        self.connect(newviewer, SIGNAL("tileWindows(int, int)"), self.onTileWindows)
+        self.connect(newviewer, SIGNAL("tileWindows(int, int)"), 
+                    self.onTileWindows)
 
     def onNewWindow(self):
         """
@@ -162,8 +168,10 @@ class GeolinkedViewers(QObject):
                 viewer.setWindowState(state ^ Qt.WindowMaximized)
             # resize takes the area without the frame so we correct for that
             viewer.resize(viewerwidth - framewidth, viewerheight - frameheight)
-            # remember that taskbar etc mean that we might not want to start at 0,0
-            viewer.move(desktop.x() + viewerwidth * xcount, desktop.y() + viewerheight * ycount)
+            # remember that taskbar etc mean that we might not want 
+            # to start at 0,0
+            viewer.move(desktop.x() + viewerwidth * xcount, 
+                            desktop.y() + viewerheight * ycount)
 
             xcount += 1
             if xcount >= nxside:
@@ -180,7 +188,8 @@ class GeolinkedViewers(QObject):
             # we use the id() of the widget to 
             # identify them.
             if id(viewer.viewwidget) != obj.senderid:
-                viewer.viewwidget.doGeolinkMove(obj.easting, obj.northing, obj.metresperwinpix)
+                viewer.viewwidget.doGeolinkMove(obj.easting, obj.northing, 
+                                    obj.metresperwinpix)
 
     def onQuery(self, obj):
         """

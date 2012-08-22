@@ -3,7 +3,8 @@
 Contains the UserExpressionDialog class
 """
 
-from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QPalette
+from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
+from PyQt4.QtGui import QTextEdit, QPalette
 from PyQt4.QtCore import SIGNAL, Qt
 
 class UserExpressionDialog(QDialog):
@@ -20,14 +21,16 @@ class UserExpressionDialog(QDialog):
         self.exprEdit.setAcceptRichText(False)
 
         self.hintEdit = QTextEdit(self)
-        self.hintEdit.setText("Hint: Enter an expression using column names (ie 'col_a < 10'). " + 
-"Combine more complicated expressions with '&' and '|'.\n" + 
-"For example '(a < 10) & (b > 1)'\n" + 
-"Any other numpy expressions also valid - columns are represented as numpy arrays")
+        self.hintEdit.setText("""
+Hint: Enter an expression using column names (ie 'col_a < 10'). 
+Combine more complicated expressions with '&' and '|'.
+For example '(a < 10) & (b > 1)'\n
+Any other numpy expressions also valid - columns are represented as 
+numpy arrays""")
         self.hintEdit.setReadOnly(True)
         # make background gray
         palette = self.hintEdit.palette()
-        palette.setColor(QPalette.Base, Qt.lightGray);
+        palette.setColor(QPalette.Base, Qt.lightGray)
         self.hintEdit.setPalette(palette)
 
         self.applyButton = QPushButton(self)
@@ -46,10 +49,12 @@ class UserExpressionDialog(QDialog):
         self.mainLayout.addLayout(self.buttonLayout)
 
         self.connect(self.closeButton, SIGNAL("clicked()"), self.close)
-        self.connect(self.applyButton, SIGNAL("clicked()"), self.applyExpression)
+        self.connect(self.applyButton, SIGNAL("clicked()"), 
+                                    self.applyExpression)
 
 
     def applyExpression(self):
+        "Sends a signal with the expression"
         expression = self.exprEdit.toPlainText()
         self.emit(SIGNAL("newExpression(QString)"), expression)
 

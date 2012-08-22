@@ -6,9 +6,9 @@ zooming and panning etc.
 
 from __future__ import division # ensure we are using Python 3 semantics
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QPixmap, QImage, QPen
+from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor
+from PyQt4.QtGui import QPixmap
 from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
-from osgeo import gdal
 
 from . import viewererrors
 from . import viewerlayers
@@ -74,7 +74,7 @@ class ViewerWidget(QAbstractScrollArea):
         # new areas are initially black.
         widget = self.viewport()
         palette = widget.palette()
-        palette.setColor(widget.backgroundRole(), Qt.black);
+        palette.setColor(widget.backgroundRole(), Qt.black)
         widget.setPalette(palette)
 
         # to do with tools
@@ -108,7 +108,8 @@ class ViewerWidget(QAbstractScrollArea):
                 (wldX, wldY) = layer.coordmgr.getWorldCenter()
                 verticalBar = self.verticalScrollBar()
                 horizontalBar = self.horizontalScrollBar()
-                # always set range to 0 - 1000 and calculate everything as fraction of that
+                # always set range to 0 - 1000 and calculate 
+                # everything as fraction of that
                 verticalBar.setRange(0, 1000)
                 horizontalBar.setRange(0, 1000)
 
@@ -138,7 +139,8 @@ class ViewerWidget(QAbstractScrollArea):
         as a raster layer
         """
         size = self.viewport().size()
-        self.layers.addRasterLayer(fname, size.width(), size.height(), stretch, lut)
+        self.layers.addRasterLayer(fname, size.width(), size.height(), 
+                            stretch, lut)
         self.viewport().update()
         self.updateScrollBars()
 
@@ -151,13 +153,20 @@ class ViewerWidget(QAbstractScrollArea):
         self.updateScrollBars()
 
     # query point functions
-    def setQueryPoint(self, id, easting, northing, color, size):
-        self.layers.queryPointLayer.setQueryPoint(id, easting, northing, color, size)
+    def setQueryPoint(self, senderid, easting, northing, color, size):
+        """
+        Sets/Updates query point keyed on the id() of the sender
+        """
+        self.layers.queryPointLayer.setQueryPoint(senderid, easting, northing, 
+                                                color, size)
         self.layers.queryPointLayer.getImage()
         self.viewport().update()
 
-    def removeQueryPoint(self, id):
-        self.layers.queryPointLayer.removeQueryPoint(id)
+    def removeQueryPoint(self, senderid):
+        """
+        Removes a query point. keyed on the id() of the sender
+        """
+        self.layers.queryPointLayer.removeQueryPoint(senderid)
         self.layers.queryPointLayer.getImage()
         self.viewport().update()
 
@@ -169,7 +178,8 @@ class ViewerWidget(QAbstractScrollArea):
         layer = self.layers.getTopRasterLayer()
         if layer is not None:
             if len(layer.stretch.bands) != 1:
-                raise viewererrors.InvalidDataset('can only highlight values on single band images')
+                msg = 'can only highlight values on single band images'
+                raise viewererrors.InvalidDataset(msg)
             layer.highlightRows(color, selectionArray)
 
             # force repaint
@@ -283,9 +293,11 @@ class ViewerWidget(QAbstractScrollArea):
             self.viewport().update()
 
     def setMouseScrollWheelAction(self, scrollZoom):
+        "Set the action for a mouse wheen event (scroll/zoom)"
         self.mouseWheelZoom = scrollZoom
 
     def setGeolinkFollowExtentAction(self, followExtent):
+        "Set whether we are following geolink extent of just center"
         self.geolinkFollowExtent = followExtent
 
     def flicker(self):
@@ -309,8 +321,10 @@ class ViewerWidget(QAbstractScrollArea):
             layer = self.layers.getTopLayer()
             if layer is not None:
                 (left, top, right, bottom) = layer.coordmgr.getWorldExtent()
-                xamount = -(float(dx) / float(self.horizontalScrollBar().pageStep())) * (right - left)
-                yamount = (float(dy) / float(self.verticalScrollBar().pageStep())) * (top - bottom)
+                hpagestep = float(self.horizontalScrollBar().pageStep())
+                xamount = -(float(dx) / hpagestep) * (right - left)
+                vpagestep = float(self.verticalScrollBar().pageStep())
+                yamount = (float(dy) / vpagestep) * (top - bottom)
                 wldX, wldY = layer.coordmgr.getWorldCenter()
                 layer.coordmgr.setWorldCenter(wldX + xamount, wldY + yamount)
                 self.layers.makeLayersConsistent(layer)
@@ -349,7 +363,7 @@ class ViewerWidget(QAbstractScrollArea):
                     dx = event.delta()
                 else:
                     dy = event.delta()
-                self.scrollContentsBy(dx,dy)
+                self.scrollContentsBy(dx, dy)
         
             # geolink
             self.emitGeolinkMoved()
@@ -374,7 +388,8 @@ class ViewerWidget(QAbstractScrollArea):
             if layer.displayed:
                 paint.drawImage(self.paintPoint, layer.image)
 
-        paint.drawImage(self.paintPoint, self.layers.queryPointLayer.image)    # draw any query points on top of image
+        # draw any query points on top of image
+        paint.drawImage(self.paintPoint, self.layers.queryPointLayer.image)   
         paint.end()
 
     def mousePressEvent(self, event):
@@ -383,7 +398,8 @@ class ViewerWidget(QAbstractScrollArea):
         mode we need to start doing stuff here
         """
         QAbstractScrollArea.mousePressEvent(self, event)
-        if self.activeTool == VIEWER_TOOL_ZOOMIN or self.activeTool == VIEWER_TOOL_ZOOMOUT:
+        if (self.activeTool == VIEWER_TOOL_ZOOMIN or 
+                    self.activeTool == VIEWER_TOOL_ZOOMOUT):
             origin = event.pos()
             if self.rubberBand is None:
                 self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
@@ -399,16 +415,14 @@ class ViewerWidget(QAbstractScrollArea):
 
         elif self.activeTool == VIEWER_TOOL_QUERY:
             pos = event.pos()
-            geom = self.viewport().geometry()
 
             layer = self.layers.getTopRasterLayer()
             if layer is not None:
-                # display coords. I don't think anything needs to be added here....
+                # display coords. I don't think anything needs to be added here
                 (dspX, dspY) = (pos.x(), pos.y())
                 # Raster row/column
                 (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
                 (easting, northing) = layer.coordmgr.pixel2world(column, row)
-                #print 'mousePressEvent', easting, northing, dspX, dspY, column, row
                 #print layer.coordmgr
 
                 # update the point
@@ -431,10 +445,8 @@ class ViewerWidget(QAbstractScrollArea):
             selection = self.rubberBand.geometry()
             geom = self.viewport().geometry()
 
-            selectioncenter = selection.center()
             selectionsize = float(selection.width() * selection.height())
 
-            geomcenter = geom.center()
             geomsize = float(geom.width() * geom.height())
 
             self.rubberBand.hide()
@@ -448,30 +460,39 @@ class ViewerWidget(QAbstractScrollArea):
 
                 if self.activeTool == VIEWER_TOOL_ZOOMIN:
                     if selectionsize == 0:
-                        wldX, wldY = layer.coordmgr.display2world(selection.left(), selection.top())
-                        layer.coordmgr.setZoomFactor(layer.coordmgr.imgPixPerWinPix * fraction)
+                        wldX, wldY = layer.coordmgr.display2world(
+                                            selection.left(), selection.top())
+                        layer.coordmgr.setZoomFactor(
+                                    layer.coordmgr.imgPixPerWinPix * fraction)
                         layer.coordmgr.setWorldCenter(wldX, wldY)
-                        layer.coordmgr.recalcBottomRight() # not sure why we need this but get black strips around otherwise
+                        # not sure why we need this but get black strips 
+                        # around otherwise
+                        layer.coordmgr.recalcBottomRight() 
                     else:
                         # I don't think anything needs to be added here
                         dspTop = selection.top()
                         dspLeft = selection.left()
                         dspBottom = selection.bottom()
                         dspRight = selection.right()
-                        (rastLeft, rastTop) = layer.coordmgr.display2pixel(dspLeft, dspTop)
-                        (rastRight, rastBottom) = layer.coordmgr.display2pixel(dspRight, dspBottom)
-                        #print 'mouseReleaseEvent', dspTop, dspLeft, dspBottom, dspRight
+                        (rastLeft, rastTop) = layer.coordmgr.display2pixel(
+                                                            dspLeft, dspTop)
+                        (rastRight, rastBottom) = layer.coordmgr.display2pixel(
+                                                        dspRight, dspBottom)
                         #print layer.coordmgr
                         layer.coordmgr.setTopLeftPixel(rastLeft, rastTop)
                         layer.coordmgr.calcZoomFactor(rastRight, rastBottom)
-                        layer.coordmgr.recalcBottomRight() # not sure why we need this but get black strips around otherwise
+                        # not sure why we need this but get black strips 
+                        # around otherwise
+                        layer.coordmgr.recalcBottomRight() 
                         #print layer.coordmgr
 
 
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
                     # the smaller the area the larger the zoom
-                    wldX, wldY = layer.coordmgr.display2world(selection.left(), selection.top())
-                    layer.coordmgr.setZoomFactor(layer.coordmgr.imgPixPerWinPix / fraction)
+                    wldX, wldY = layer.coordmgr.display2world(
+                                            selection.left(), selection.top())
+                    layer.coordmgr.setZoomFactor(
+                                    layer.coordmgr.imgPixPerWinPix / fraction)
                     layer.coordmgr.setWorldCenter(wldX, wldY)
 
                 # redraw
@@ -491,7 +512,8 @@ class ViewerWidget(QAbstractScrollArea):
                 # stop panning and move viewport
                 dspXmove = -self.paintPoint.x()
                 dspYmove = -self.paintPoint.y()
-                (pixNewX, pixNewY) = layer.coordmgr.display2pixel(dspXmove, dspYmove)
+                (pixNewX, pixNewY) = layer.coordmgr.display2pixel(dspXmove, 
+                                                                dspYmove)
                 #print 'panning'
                 #print layer.coordmgr
                 layer.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
@@ -535,19 +557,27 @@ class ViewerWidget(QAbstractScrollArea):
 
     # query point routines
     def updateQueryPoint(self, easting, northing, column, row):
+        """
+        Map has been clicked, get the value and emit
+        a locationSelected signal.
+        """
         # read the data out of the dataset
         layer = self.layers.getTopRasterLayer()
-        if layer is not None and column >= 0 and column < layer.gdalDataset.RasterXSize and row >= 0 and row < layer.gdalDataset.RasterYSize:
+        if (layer is not None and column >= 0 and 
+                column < layer.gdalDataset.RasterXSize and 
+                row >= 0 and row < layer.gdalDataset.RasterYSize):
             data = layer.gdalDataset.ReadAsArray(int(column), int(row), 1, 1)
             if data is not None:
                 # we just want the single 'drill down' of data as a 1d array
-                data = data[...,0,0]
-                # if single band GDAL gives us a single value - convert back to array
+                data = data[..., 0, 0]
+                # if single band GDAL gives us a single value - 
+                # convert back to array
                 # to make life easier
                 if data.size == 1:
                     data = numpy.array([data])
 
-                qi = QueryInfo(easting, northing, column, row, data, layer.stretch)
+                qi = QueryInfo(easting, northing, column, row, data, 
+                                                            layer.stretch)
                 qi.bandNames = layer.bandNames
                 qi.wavelengths = layer.wavelengths
                 qi.attributes = layer.attributes
@@ -576,7 +606,8 @@ class ViewerWidget(QAbstractScrollArea):
         if layer is not None:
             layer.coordmgr.setWorldCenter(easting, northing)
             if self.geolinkFollowExtent and metresperwinpix != 0:
-                layer.coordmgr.imgPixPerWinPix = metresperwinpix / layer.coordmgr.geotransform[1]
+                layer.coordmgr.imgPixPerWinPix = (metresperwinpix / 
+                                    layer.coordmgr.geotransform[1])
             self.layers.makeLayersConsistent(layer)
             self.layers.updateImages()
             self.updateScrollBars()
@@ -590,7 +621,8 @@ class ViewerWidget(QAbstractScrollArea):
         layer = self.layers.getTopRasterLayer()
         if layer is not None:
             easting, northing = layer.coordmgr.getWorldCenter()
-            metresperwinpix = layer.coordmgr.imgPixPerWinPix * layer.coordmgr.geotransform[1]
+            metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
+                                        layer.coordmgr.geotransform[1])
             # emit the signal
             obj = GeolinkInfo(id(self), easting, northing, metresperwinpix)
             self.emit(SIGNAL("geolinkMove(PyQt_PyObject)"), obj )

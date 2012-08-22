@@ -2,24 +2,26 @@
 Module that contains the QueryDockWidget
 """
 
-from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog, QItemDelegate
-from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget, QColorDialog, QPixmap
-from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter, QBrush
+from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog
+from PyQt4.QtGui import QColorDialog, QPixmap, QBrush
+from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
+from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter
 from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox
 from PyQt4.QtGui import QStyledItemDelegate, QStyle, QItemSelectionModel
-from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel, QSize, QModelIndex
+from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel 
+from PyQt4.QtCore import QModelIndex
 import numpy
 
 # See if we have access to Qwt
 HAVE_QWT = True
 try:
-    from PyQt4.Qwt5 import QwtPlot, QwtPlotCurve, QwtPlotMarker, QwtText, QwtScaleDiv
+    from PyQt4.Qwt5 import QwtPlot, QwtPlotCurve, QwtPlotMarker, QwtText
+    from PyQt4.Qwt5 import QwtScaleDiv
 except ImportError:
     HAVE_QWT = False
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 from .userexpressiondialog import UserExpressionDialog
-from .viewerRAT import ViewerRAT
 from . import viewererrors
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
@@ -110,16 +112,16 @@ class ContinuousTableModel(QAbstractTableModel):
     This class is the 'model' that drives the continuous table.
     QTableView asks it for the data etc
     """
-    def __init__(self, data, bandNames, stretch, parent):
+    def __init__(self, banddata, bandNames, stretch, parent):
         QAbstractTableModel.__init__(self, parent)
-        self.data = data
+        self.banddata = banddata
         self.bandNames = bandNames
         self.stretch = stretch
         self.colNames = ["Band", "Name", "Value"]
 
     def rowCount(self, parent):
         "returns the number of rows"
-        return self.data.shape[0]
+        return self.banddata.shape[0]
 
     def columnCount(self, parent):
         "number of columns"
@@ -153,7 +155,8 @@ class ContinuousTableModel(QAbstractTableModel):
         if column == 0 and role == Qt.DecorationRole:
             # icon column
             band = row + 1
-            if self.stretch.mode == VIEWER_MODE_RGB and band in self.stretch.bands:
+            if (self.stretch.mode == VIEWER_MODE_RGB and 
+                            band in self.stretch.bands):
                 if band == self.stretch.bands[0]:
                     return RED_ICON
                 elif band == self.stretch.bands[1]:
@@ -162,7 +165,8 @@ class ContinuousTableModel(QAbstractTableModel):
                     return BLUE_ICON
                 else:
                     return QVariant()
-            elif self.stretch.mode == VIEWER_MODE_GREYSCALE and band == self.stretch.bands[0]:
+            elif (self.stretch.mode == VIEWER_MODE_GREYSCALE 
+                    and band == self.stretch.bands[0]):
                 return GREY_ICON
 
             else:
@@ -174,7 +178,7 @@ class ContinuousTableModel(QAbstractTableModel):
 
         elif column == 2 and role == Qt.DisplayRole:
             # band values column
-            return QVariant("%s" % self.data[row])
+            return QVariant("%s" % self.banddata[row])
 
         else:
             QVariant()
@@ -214,7 +218,8 @@ class ThematicSelectionModel(QItemSelectionModel):
 
         # toggle all the indexes
         for idx in unique_rows:
-            self.parent.selectionArray[idx] = not self.parent.selectionArray[idx]
+            self.parent.selectionArray[idx] = (
+                    not self.parent.selectionArray[idx])
 
         self.parent.updateToolTip()
 
@@ -232,7 +237,9 @@ class ThematicItemDelegate(QStyledItemDelegate):
         self.parent = parent
 
     def paint(self, painter, option, index):
-        if self.parent.selectionArray is not None and self.parent.selectionArray[index.row()]:
+        "Paint method - paint as selected if needed"
+        if (self.parent.selectionArray is not None 
+                and self.parent.selectionArray[index.row()]):
             option.state |= QStyle.State_Selected
         # shouldn't have to un-select as nothing should be selected
         # according to the model
@@ -311,10 +318,11 @@ class QueryDockWidget(QDockWidget):
             self.plotWidget.setMinimumSize(100, 100)
             self.plotCurve = QwtPlotCurve()
             self.plotCurve.attach(self.plotWidget)
-            self.oldPlotLabels = [] # so we can detach() them when we want to redisplay
+            self.oldPlotLabels = [] # so we can detach() them when 
+                                    # we want to redisplay
         else:
             self.noQWTLabel = QLabel()
-            self.noQWTLabel.setText("PyQwt needs to be installed for plot display")
+            self.noQWTLabel.setText("PyQwt needs to be installed for plot")
             self.noQWTLabel.setAlignment(Qt.AlignCenter)
 
         self.tabWidget.addTab(self.tableView, "Table")
@@ -367,19 +375,24 @@ class QueryDockWidget(QDockWidget):
         self.cursorColorAction.setStatusTip("Change Cursor Color")
         icon = self.getColorIcon(self.cursorColor)
         self.cursorColorAction.setIcon(icon)        
-        self.connect(self.cursorColorAction, SIGNAL("triggered()"), self.changeCursorColor)
+        self.connect(self.cursorColorAction, SIGNAL("triggered()"), 
+                        self.changeCursorColor)
 
         self.increaseCursorSizeAction = QAction(self)
         self.increaseCursorSizeAction.setText("&Increase Cursor Size")
         self.increaseCursorSizeAction.setStatusTip("Increase Cursor Size")
-        self.increaseCursorSizeAction.setIcon(QIcon(":/viewer/images/queryincrease.png"))
-        self.connect(self.increaseCursorSizeAction, SIGNAL("triggered()"), self.increaseCursorSize)
+        icon = QIcon(":/viewer/images/queryincrease.png")
+        self.increaseCursorSizeAction.setIcon(icon)
+        self.connect(self.increaseCursorSizeAction, SIGNAL("triggered()"), 
+                        self.increaseCursorSize)
 
         self.decreaseCursorSizeAction = QAction(self)
         self.decreaseCursorSizeAction.setText("&Decrease Cursor Size")
         self.decreaseCursorSizeAction.setStatusTip("Decrease Cursor Size")
-        self.decreaseCursorSizeAction.setIcon(QIcon(":/viewer/images/querydecrease.png"))
-        self.connect(self.decreaseCursorSizeAction, SIGNAL("triggered()"), self.decreaseCursorSize)
+        icon = QIcon(":/viewer/images/querydecrease.png")
+        self.decreaseCursorSizeAction.setIcon(icon)
+        self.connect(self.decreaseCursorSizeAction, SIGNAL("triggered()"), 
+                        self.decreaseCursorSize)
 
         self.labelAction = QAction(self)
         self.labelAction.setText("&Display Plot Labels")
@@ -387,7 +400,8 @@ class QueryDockWidget(QDockWidget):
         self.labelAction.setIcon(QIcon(":/viewer/images/label.png"))
         self.labelAction.setCheckable(True)
         self.labelAction.setChecked(True)
-        self.connect(self.labelAction, SIGNAL("toggled(bool)"), self.changeLabel)
+        self.connect(self.labelAction, SIGNAL("toggled(bool)"), 
+                        self.changeLabel)
 
         self.saveAction = QAction(self)
         self.saveAction.setText("&Save Plot")
@@ -399,26 +413,32 @@ class QueryDockWidget(QDockWidget):
         self.highlightAction.setText("&Highlight Selection")
         self.highlightAction.setStatusTip("Highlight Selection")
         self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
-        self.connect(self.highlightAction, SIGNAL("triggered()"), self.highlight)
+        self.connect(self.highlightAction, SIGNAL("triggered()"), 
+                        self.highlight)
 
         self.highlightColorAction = QAction(self)
         self.highlightColorAction.setText("Ch&ange Highlight Color")
         self.highlightColorAction.setStatusTip("Change Highlight Color")
         icon = self.getColorIcon(self.highlightColor)
         self.highlightColorAction.setIcon(icon)
-        self.connect(self.highlightColorAction, SIGNAL("triggered()"), self.changeHighlightColor)
+        self.connect(self.highlightColorAction, SIGNAL("triggered()"), 
+                        self.changeHighlightColor)
 
         self.removeSelectionAction = QAction(self)
         self.removeSelectionAction.setText("&Remove Current Selection")
         self.removeSelectionAction.setStatusTip("Remove Current Selection")
-        self.removeSelectionAction.setIcon(QIcon(":/viewer/images/removeselection.png"))
-        self.connect(self.removeSelectionAction, SIGNAL("triggered()"), self.removeSelection)
+        icon = QIcon(":/viewer/images/removeselection.png")
+        self.removeSelectionAction.setIcon(icon)
+        self.connect(self.removeSelectionAction, SIGNAL("triggered()"), 
+                        self.removeSelection)
 
         self.expressionAction = QAction(self)
         self.expressionAction.setText("Select using an &Expression")
         self.expressionAction.setStatusTip("Select using an Expression")
-        self.expressionAction.setIcon(QIcon(":/viewer/images/userexpression.png"))
-        self.connect(self.expressionAction, SIGNAL("triggered()"), self.showUserExpression)
+        icon = QIcon(":/viewer/images/userexpression.png")
+        self.expressionAction.setIcon(icon)
+        self.connect(self.expressionAction, SIGNAL("triggered()"), 
+                        self.showUserExpression)
 
     def setupToolbar(self):
         """
@@ -452,7 +472,8 @@ class QueryDockWidget(QDockWidget):
     
             # if there is a previous point, redisplay in new color
             if self.lastqi is not None:
-                self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, newcolor, self.cursorSize)
+                self.viewwidget.setQueryPoint(id(self), self.lastqi.easting,
+                         self.lastqi.northing, newcolor, self.cursorSize)
                 if HAVE_QWT and self.lastqi is not None:
                     # to get new color
                     self.updatePlot(self.lastqi, newcolor)
@@ -463,15 +484,18 @@ class QueryDockWidget(QDockWidget):
         """
         if self.lastqi is not None:
             self.cursorSize += QUERYWIDGET_DEFAULT_CURSORSIZE
-            self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, self.cursorColor, self.cursorSize)
+            self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, 
+                    self.lastqi.northing, self.cursorColor, self.cursorSize)
 
     def decreaseCursorSize(self):
         """
         increase the cursor size
         """
-        if self.lastqi is not None and self.cursorSize > QUERYWIDGET_DEFAULT_CURSORSIZE:
+        if (self.lastqi is not None and 
+                self.cursorSize > QUERYWIDGET_DEFAULT_CURSORSIZE):
             self.cursorSize -= QUERYWIDGET_DEFAULT_CURSORSIZE
-            self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, self.lastqi.northing, self.cursorColor, self.cursorSize)
+            self.viewwidget.setQueryPoint(id(self), self.lastqi.easting, 
+                self.lastqi.northing, self.cursorColor, self.cursorSize)
 
     def changeHighlightColor(self):
         """
@@ -502,7 +526,8 @@ class QueryDockWidget(QDockWidget):
         chooses format based on extension.
         """
         if HAVE_QWT:
-            fname = QFileDialog.getSaveFileName(self, "Plot File", filter="PDF (*.pdf);;Postscript (*.ps)")
+            fname = QFileDialog.getSaveFileName(self, "Plot File", 
+                        filter="PDF (*.pdf);;Postscript (*.ps)")
             if not fname.isEmpty():
                 printer = QPrinter()
                 printer.setOrientation(QPrinter.Landscape)
@@ -517,7 +542,8 @@ class QueryDockWidget(QDockWidget):
         """
         # tell the widget to update
         try:
-            self.viewwidget.highlightValues(self.highlightColor, self.selectionArray)
+            self.viewwidget.highlightValues(self.highlightColor, 
+                        self.selectionArray)
         except viewererrors.InvalidDataset:
             pass
 
@@ -535,7 +561,8 @@ class QueryDockWidget(QDockWidget):
         Allow user to enter expression to select rows
         """
         dlg = UserExpressionDialog(self)
-        self.connect(dlg, SIGNAL("newExpression(QString)"), self.newUserExpression)
+        self.connect(dlg, SIGNAL("newExpression(QString)"), 
+                        self.newUserExpression)
         dlg.show()
 
     def newUserExpression(self, expression):
@@ -544,7 +571,8 @@ class QueryDockWidget(QDockWidget):
         """
         try:
             # get the numpy array with bools
-            result = self.lastqi.attributes.evaluateUserExpression(str(expression))
+            attributes = self.lastqi.attributes
+            result = attributes.evaluateUserExpression(str(expression))
 
             # use it as our selection array
             self.selectionArray = result
@@ -582,7 +610,8 @@ class QueryDockWidget(QDockWidget):
         self.lastAttributeCount = -1
         self.lastAttributeid = -1
 
-        self.tableModel = ContinuousTableModel(qi.data, qi.bandNames, qi.stretch, self)
+        self.tableModel = ContinuousTableModel(qi.data, qi.bandNames, 
+                    qi.stretch, self)
         self.tableView.setModel(self.tableModel)
 
         self.selectionArray = None # no selections
@@ -605,7 +634,8 @@ class QueryDockWidget(QDockWidget):
         # do we need a new table model?
         # do we have a new id() if the attribute obj
         # or a new count of the file opened by that object
-        if id(qi.attributes) != self.lastAttributeid or qi.attributes.count != self.lastAttributeCount:
+        if (id(qi.attributes) != self.lastAttributeid or 
+                qi.attributes.count != self.lastAttributeCount):
             self.lastAttributeCount = qi.attributes.count
             self.lastAttributeid = id(qi.attributes)
 
@@ -618,13 +648,15 @@ class QueryDockWidget(QDockWidget):
             self.tableView.setSelectionModel(selectionModel)
 
             # create our selection array to record which items selected
-            self.selectionArray = numpy.empty(qi.attributes.getNumRows(), numpy.bool)
+            self.selectionArray = numpy.empty(qi.attributes.getNumRows(), 
+                                    numpy.bool)
             self.selectionArray.fill(False) # none selected by default
 
         # set the highlight row
         self.tableModel.setHighlightRow(val)
 
-        # scroll to the new index - remembering the existing horizontal scroll value
+        # scroll to the new index - remembering the existing horizontal 
+        # scroll value
         horiz_scroll_bar = self.tableView.horizontalScrollBar()
         horiz_pos = horiz_scroll_bar.sliderPosition()
         index = self.tableView.model().index(val, 0)
@@ -661,7 +693,8 @@ class QueryDockWidget(QDockWidget):
                 self.updatePlot(qi, self.cursorColor)
 
             # add/modify this is a query point to the widget
-            self.viewwidget.setQueryPoint(id(self), qi.easting, qi.northing, self.cursorColor, self.cursorSize)
+            self.viewwidget.setQueryPoint(id(self), qi.easting, 
+                        qi.northing, self.cursorColor, self.cursorSize)
             # remember this qi in case we need to change color
             self.lastqi = qi
 

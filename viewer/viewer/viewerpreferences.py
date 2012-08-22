@@ -3,9 +3,9 @@
 Module that contains the ViewerPreferences class
 """
 
-from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton, QFormLayout
-from PyQt4.QtGui import QLabel, QPushButton, QCheckBox, QGroupBox, QButtonGroup
-from PyQt4.QtCore import QVariant, QSettings, SIGNAL, Qt
+from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
+from PyQt4.QtGui import QPushButton, QGroupBox, QButtonGroup
+from PyQt4.QtCore import QSettings, SIGNAL
 
 class ViewerPreferencesDialog(QDialog):
     """
@@ -67,7 +67,8 @@ class ViewerPreferencesDialog(QDialog):
         settings = QSettings()
 
         settings.beginGroup('ViewerMouse')
-        self.settingMouseWheelZoom = settings.value("mousescroll", True).toBool()
+        value = settings.value("mousescroll", True)
+        self.settingMouseWheelZoom = value.toBool()
         settings.endGroup()
 
     def onOK(self):
