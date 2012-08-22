@@ -26,7 +26,8 @@ Hint: Enter an expression using column names (ie 'col_a < 10').
 Combine more complicated expressions with '&' and '|'.
 For example '(a < 10) & (b > 1)'\n
 Any other numpy expressions also valid - columns are represented as 
-numpy arrays""")
+numpy arrays.
+Use the special column 'row' for the row number.""")
         self.hintEdit.setReadOnly(True)
         # make background gray
         palette = self.hintEdit.palette()

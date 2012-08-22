@@ -192,6 +192,8 @@ class ViewerRAT(QObject):
             raise viewererrors.AttributeTableTypeError(msg)
 
         globaldict = {}
+        # give them access to 'row' which is the row number
+        globaldict['row'] = numpy.arange(self.getNumRows())
         # insert each column into the global namespace
         # as the array it represents
         for colName, saneName in (
