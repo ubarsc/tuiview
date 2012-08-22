@@ -16,7 +16,7 @@ from . import coordinatemgr
 from . import viewererrors
 
 QUERY_CURSOR_HALFSIZE = 8 # number of pixels
-QUERY_CURSOR_WIDTH = 2 # in pixels
+QUERY_CURSOR_WIDTH = 1 # in pixels
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
