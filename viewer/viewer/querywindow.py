@@ -640,7 +640,9 @@ class QueryDockWidget(QDockWidget):
 For example '(a < 10) & (b > 1)'\n
 Any other numpy expressions also valid - columns are represented as 
 numpy arrays.
-Use the special column 'row' for the row number."""
+Use the special columns:
+'row' for the row number and 
+'isselected' for the currently selected rows"""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString)"), 
                         self.newSelectUserExpression)
@@ -654,8 +656,8 @@ Use the special column 'row' for the row number."""
         try:
             # get the numpy array with bools
             attributes = self.lastqi.layer.attributes
-            result = attributes.evaluateUserSelectExpression(str(expression))
-
+            result = attributes.evaluateUserSelectExpression(str(expression),
+                                                self.selectionArray)
 
             # use it as our selection array
             self.selectionArray = result
@@ -703,7 +705,9 @@ Note: only selected rows are changed.
 
 Any other numpy expressions also valid - columns are represented as 
 numpy arrays.
-Use the special column 'row' for the row number."""
+Use the special columns:
+'row' for the row number and 
+'isselected' for the currently selected rows"""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString,int)"), 
                         self.newEditUserExpression)
@@ -721,7 +725,8 @@ Use the special column 'row' for the row number."""
         try:
             # get the numpy array or scalar from user
             attributes = self.lastqi.layer.attributes
-            result = attributes.evaluateUserEditExpression(str(expression))
+            result = attributes.evaluateUserEditExpression(str(expression),
+                                                    self.selectionArray)
 
             # use it to update the column
             colname = attributes.getColumnNames()[col]
