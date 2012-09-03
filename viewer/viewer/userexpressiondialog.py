@@ -12,8 +12,10 @@ class UserExpressionDialog(QDialog):
     Allows user to enter a expression and have it applied.
     Sends a signal with the expresson on Apply
     """
-    def __init__(self, parent):
+    def __init__(self, parent, col=None):
         QDialog.__init__(self, parent)
+        # if this is not none col included in signal
+        self.col = col 
 
         self.setWindowTitle("Enter Expression")
 
@@ -53,9 +55,17 @@ Use the special column 'row' for the row number.""")
         self.connect(self.applyButton, SIGNAL("clicked()"), 
                                     self.applyExpression)
 
+    def setHint(self, hint):
+        "set the hint displayed"
+        self.hintEdit.setText(hint)
 
     def applyExpression(self):
         "Sends a signal with the expression"
         expression = self.exprEdit.toPlainText()
-        self.emit(SIGNAL("newExpression(QString)"), expression)
+        if self.col is None:
+            self.emit(SIGNAL("newExpression(QString)"), expression)
+        else:
+            # include column
+            self.emit(SIGNAL("newExpression(QString,int)"), 
+                            expression, self.col)
 

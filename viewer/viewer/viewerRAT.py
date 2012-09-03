@@ -172,12 +172,25 @@ class ViewerRAT(QObject):
         # make sure we do something sensible with type
         # hopefully I have this right
         coltype = self.columnTypes[colname]
-        if coltype == gdal.GFT_Integer:
-            values = values.astype(numpy.integer)
-        elif coltype == gdal.GFT_Real:
-            values = values.astype(numpy.float)
-        else:
-            values = values.astype(str)
+        try:
+            if coltype == gdal.GFT_Integer:
+                if numpy.isscalar(values):
+                    values = int(values)
+                else:
+                    values = values.astype(numpy.integer)
+            elif coltype == gdal.GFT_Real:
+                if numpy.isscalar(values):
+                    values = float(values)
+                else:
+                    values = values.astype(numpy.float)
+            else:
+                if numpy.isscalar(values):
+                    values = str(values)
+                else:
+                    values = values.astype(str)
+        except ValueError, e:
+            msg = str(e)
+            raise viewererrors.UserExpressionTypeError(msg)
 
         # do the masking
         # it is assumed this will do the right thing when 
@@ -318,14 +331,9 @@ class ViewerRAT(QObject):
 
         self.emit(SIGNAL("endProgress()"))
 
-
-    def evaluateUserExpression(self, expression):
+    def getUserExpressionGlobals(self):
         """
-        Evaluate a user expression. It is expected that a fragment
-        of numpy code will be passed. numpy is provided in the global
-        namespace.
-        An exception is raised if code is invalid, or does not return
-        an array of bools.
+        Get globals for user in user expression
         """
         if not self.hasAttributes():
             msg = 'no attributes to work on'
@@ -343,6 +351,18 @@ class ViewerRAT(QObject):
 
         # give them access to numpy
         globaldict['numpy'] = numpy
+        return globaldict
+
+    def evaluateUserSelectExpression(self, expression):
+        """
+        Evaluate a user expression for selection. 
+        It is expected that a fragment
+        of numpy code will be passed. numpy is provided in the global
+        namespace.
+        An exception is raised if code is invalid, or does not return
+        an array of bools.
+        """
+        globaldict = self.getUserExpressionGlobals()
 
         try:
             result = eval(expression, globaldict)
@@ -358,6 +378,27 @@ class ViewerRAT(QObject):
         if result.dtype.kind != 'b':
             msg = 'must return a boolean array'
             raise viewererrors.UserExpressionTypeError(msg)
+
+        return result
+
+    def evaluateUserEditExpression(self, expression):
+        """
+        Evaluate a user expression for editing. 
+        Returns a vector or scalar - no checking on result
+        is hoped it will work with where() in self.updateColumn
+        It is expected that a fragment
+        of numpy code will be passed. numpy is provided in the global
+        namespace.
+        An exception is raised if code is invalid, or does not return
+        an array of bools.
+        """
+        globaldict = self.getUserExpressionGlobals()
+
+        try:
+            result = eval(expression, globaldict)
+        except Exception:
+            msg = formatException(expression)
+            raise viewererrors.UserExpressionSyntaxError(msg)
 
         return result
 

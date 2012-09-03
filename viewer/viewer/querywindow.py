@@ -3,10 +3,10 @@ Module that contains the QueryDockWidget
 """
 
 from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog
-from PyQt4.QtGui import QColorDialog, QPixmap, QBrush
+from PyQt4.QtGui import QColorDialog, QPixmap, QBrush, QMenu
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter
-from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox
+from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QHeaderView
 from PyQt4.QtGui import QStyledItemDelegate, QStyle, QItemSelectionModel
 from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel 
 from PyQt4.QtCore import QModelIndex
@@ -245,6 +245,39 @@ class ThematicItemDelegate(QStyledItemDelegate):
         # according to the model
         QStyledItemDelegate.paint(self, painter, option, index)
 
+class ThematicHorizontalHeader(QHeaderView):
+    """
+    Same as a horizontal QHeaderView but responds to context
+    menu requests when setThematicMode(True)
+    """
+    def __init__(self, parent):
+        QHeaderView.__init__(self, Qt.Horizontal, parent)
+        self.thematic = True
+        self.parent = parent
+
+        self.editColumnAction = QAction(self)
+        self.editColumnAction.setText("&Edit Column")
+        self.editColumnAction.setStatusTip("Edit selected rows in this column")
+        # don't connect signal - will grab directly below so we can pass
+        # on the column that was clicked
+        self.popup = QMenu(self)
+        self.popup.addAction(self.editColumnAction)
+
+        self.setToolTip("Right click for menu")
+
+    def setThematicMode(self, mode):
+        "Set the mode (True or False) for context menu"
+        self.thematic = mode
+
+    def contextMenuEvent(self, event):
+        "Respond to context menu event"
+        if self.thematic:
+            col = self.logicalIndexAt(event.pos())
+            action = self.popup.exec_(event.globalPos())
+            if action is self.editColumnAction:
+                self.parent.editColumn(col)
+
+
 class QueryDockWidget(QDockWidget):
     """
     Dock widget that contains the query window. Follows query 
@@ -283,6 +316,9 @@ class QueryDockWidget(QDockWidget):
         self.tableView = QTableView()
         # can only select rows - not individual items
         self.tableView.setSelectionBehavior(QTableView.SelectRows)
+        # our own horizontal header that can do context menus
+        self.thematicHeader = ThematicHorizontalHeader(self)
+        self.tableView.setHorizontalHeader(self.thematicHeader)
 
         # the model - this is None by default - changed if 
         # it is a thematic view
@@ -590,18 +626,27 @@ class QueryDockWidget(QDockWidget):
         Allow user to enter expression to select rows
         """
         dlg = UserExpressionDialog(self)
+        hint = """Hint: Enter an expression using column names 
+(ie 'col_a < 10'). Combine more complicated expressions with '&' and '|'.
+For example '(a < 10) & (b > 1)'\n
+Any other numpy expressions also valid - columns are represented as 
+numpy arrays.
+Use the special column 'row' for the row number."""
+        dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString)"), 
-                        self.newUserExpression)
+                        self.newSelectUserExpression)
         dlg.show()
 
-    def newUserExpression(self, expression):
+    def newSelectUserExpression(self, expression):
         """
         Called in reponse to signal from UserExpressionDialog
+        for selection
         """
         try:
             # get the numpy array with bools
             attributes = self.lastqi.attributes
-            result = attributes.evaluateUserExpression(str(expression))
+            result = attributes.evaluateUserSelectExpression(str(expression))
+
 
             # use it as our selection array
             self.selectionArray = result
@@ -631,6 +676,42 @@ class QueryDockWidget(QDockWidget):
 
             self.updateThematicTableModel(attributes)
 
+    def editColumn(self, col):
+        """
+        User has requested to edit a column
+        """
+        dlg = UserExpressionDialog(self, col)
+        hint = """Hint: Enter an expression using column names 
+(ie 'col_a * 2.1'). Or a scalar (ie '3').
+Any other numpy expressions also valid - columns are represented as 
+numpy arrays.
+Use the special column 'row' for the row number."""
+        dlg.setHint(hint)
+        self.connect(dlg, SIGNAL("newExpression(QString,int)"), 
+                        self.newEditUserExpression)
+        # should be modal?
+        dlg.show()
+
+    def newEditUserExpression(self, expression, col):
+        """
+        Called in reponse to signal from UserExpressionDialog
+        for editing
+        """
+        try:
+            # get the numpy array or scalar from user
+            attributes = self.lastqi.attributes
+            result = attributes.evaluateUserEditExpression(str(expression))
+
+            # use it to update the column
+            colname = attributes.getColumnNames()[col]
+            attributes.updateColumn(colname, self.selectionArray, result)
+
+            # so we repaint and new values get shown
+            self.tableView.viewport().update()
+
+        except viewererrors.UserExpressionError, e:
+            QMessageBox.critical(self, "Viewer", str(e))
+
     def updateToolTip(self):
         """
         When in thematic mode we set a toolip
@@ -653,6 +734,7 @@ class QueryDockWidget(QDockWidget):
         self.highlightColorAction.setEnabled(False)
         self.expressionAction.setEnabled(False)
         self.addColumnAction.setEnabled(False)
+        self.thematicHeader.setThematicMode(False)
 
         # any new thematic data after this will have to be reloaded
         self.lastAttributeCount = -1
@@ -691,6 +773,7 @@ class QueryDockWidget(QDockWidget):
         self.highlightColorAction.setEnabled(True)
         self.expressionAction.setEnabled(True)
         self.addColumnAction.setEnabled(True)
+        self.thematicHeader.setThematicMode(True)
 
         val = qi.data[0]
 
