@@ -231,7 +231,8 @@ class ViewerRAT(QObject):
                 if dtype == gdal.GFT_Integer:
                     for row in range(nrows):
                         val = colData[row]
-                        val = rat.SetValueAsInt(row, col, val)
+                        # convert from numpy int to python int
+                        val = rat.SetValueAsInt(row, col, int(val))
                 elif dtype == gdal.GFT_Real:
                     for row in range(nrows):
                         val = colData[row]

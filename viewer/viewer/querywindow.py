@@ -442,11 +442,11 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.labelAction, SIGNAL("toggled(bool)"), 
                         self.changeLabel)
 
-        self.saveAction = QAction(self)
-        self.saveAction.setText("&Save Plot")
-        self.saveAction.setStatusTip("Save Plot")
-        self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
-        self.connect(self.saveAction, SIGNAL("triggered()"), self.savePlot)
+        self.savePlotAction = QAction(self)
+        self.savePlotAction.setText("&Save Plot")
+        self.savePlotAction.setStatusTip("Save Plot")
+        self.savePlotAction.setIcon(QIcon(":/viewer/images/saveplot.png"))
+        self.connect(self.savePlotAction, SIGNAL("triggered()"), self.savePlot)
 
         self.highlightAction = QAction(self)
         self.highlightAction.setText("&Highlight Selection")
@@ -494,6 +494,14 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.addColumnAction, SIGNAL("triggered()"), 
                         self.addColumn)
 
+        self.saveAttrAction = QAction(self)
+        self.saveAttrAction.setText("Save Edited Columns")
+        self.saveAttrAction.setStatusTip("Save Edited Columns")
+        icon = QIcon(":/viewer/images/saveattributes.png")
+        self.saveAttrAction.setIcon(icon)
+        self.connect(self.saveAttrAction, SIGNAL("triggered()"),
+                        self.saveAttributes)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -508,9 +516,10 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.selectAllAction)
         self.toolBar.addAction(self.expressionAction)
         self.toolBar.addAction(self.addColumnAction)
+        self.toolBar.addAction(self.saveAttrAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
-            self.toolBar.addAction(self.saveAction)
+            self.toolBar.addAction(self.savePlotAction)
 
 
     def changeCursorColor(self):
@@ -683,6 +692,9 @@ Use the special column 'row' for the row number."""
         dlg = UserExpressionDialog(self, col)
         hint = """Hint: Enter an expression using column names 
 (ie 'col_a * 2.1'). Or a scalar (ie '3').
+
+Note: only selected rows are changed.
+
 Any other numpy expressions also valid - columns are represented as 
 numpy arrays.
 Use the special column 'row' for the row number."""
@@ -710,6 +722,18 @@ Use the special column 'row' for the row number."""
             self.tableView.viewport().update()
 
         except viewererrors.UserExpressionError, e:
+            QMessageBox.critical(self, "Viewer", str(e))
+
+    def saveAttributes(self):
+        """
+        Get the layer to save the 'dirty' columns
+        ie ones that have been added or edited.
+        """
+        try:
+
+            self.lastqi.layer.writeDirtyRATColumns()
+
+        except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
     def updateToolTip(self):

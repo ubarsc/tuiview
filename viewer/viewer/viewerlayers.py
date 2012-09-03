@@ -397,6 +397,28 @@ class ViewerRasterLayer(ViewerLayer):
             # attempt to open the file readonly again
             self.gdalDataset = gdal.Open(self.filename)
 
+    def writeDirtyRATColumns(self):
+        """
+        calls self.attributes.writeDirtyColumns on the band opening
+        the file in update mode first.
+        """
+        # close the current file handle and re-open in write mode
+        del self.gdalDataset
+        try:
+            # now open as writeable
+            dataset = gdal.Open(self.filename, gdal.GA_Update)
+
+            gdalband = dataset.GetRasterBand(self.stretch.bands[0])
+            self.attributes.writeDirtyColumns(gdalband)
+            # close this (writeable) file handle
+            del dataset
+        except RuntimeError:
+            msg = 'Unable to save columns'
+            raise viewererrors.InvalidDataset(msg)
+        finally:
+            # attempt to open the file readonly again
+            self.gdalDataset = gdal.Open(self.filename)
+
     def getImage(self):
         """
         Refresh the 'image' which is a QImage instance used for rendering.

@@ -32,6 +32,7 @@ class QueryInfo(object):
         self.bandNames = None
         self.wavelengths = None
         self.attributes = None
+        self.layer = None
 
 class GeolinkInfo(object):
     """
@@ -581,6 +582,7 @@ class ViewerWidget(QAbstractScrollArea):
                 qi.bandNames = layer.bandNames
                 qi.wavelengths = layer.wavelengths
                 qi.attributes = layer.attributes
+                qi.layer = layer
                 # emit the signal - handled by the QueryDockWidget
                 self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 
