@@ -10,6 +10,10 @@ from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewererrors
 
+NEWCOL_INT = 0
+NEWCOL_FLOAT = 1
+NEWCOL_STRING = 2
+
 def formatException(code):
     """
     Formats an exception for display and returns string
@@ -102,13 +106,135 @@ class ViewerRAT(QObject):
         """
         Removes attributes from this class
         """
-        self.columnNames = None
-        self.attributeData = None
+        self.columnNames = None # list
+        self.attributeData = None # dict
+        self.columnTypes = None # dict
+        # list of columns in self.columnNames
+        # that need to be written to (and possibly created)
+        # into a a file.
+        self.dirtyColumns = None
+
+    def addColumn(self, colname, coltype):
+        """
+        Adds a new column with the specified name. Pass one of
+        the NEWCOL constants as coltype.
+        The new column is added to the 'dirty' list so it
+        is written out when writeDirtyColumns() is called.
+        """
+        if self.columnNames is None:
+            msg = 'No valid RAT for this file'
+            raise rioserrors.InvalidDataset(msg)
+
+        if colname in self.columnNames:
+            msg = 'Already have a column called %s' % colname
+            raise viewererrors.InvalidParameters(msg)
+
+        self.columnNames.append(colname)
+        self.dirtyColumns.append(colname)
+        nrows = self.getNumRows()
+
+        if coltype == NEWCOL_INT:
+            col = numpy.zeros(nrows, numpy.int)
+            self.columnTypes[colname] = gdal.GFT_Integer
+        elif coltype == NEWCOL_FLOAT:
+            col = numpy.zeros(nrows, numpy.float)
+            self.columnTypes[colname] = gdal.GFT_Real
+        elif coltype == NEWCOL_STRING:
+            # assume the strings aren't any bigger than 10 chars for now
+            stringtype = numpy.dtype('S10')
+            col =  numpy.zeros(nrows, dtype=stringtype)
+            self.columnTypes[colname] = gdal.GFT_String
+        else:
+            msg = 'invalid column type'
+            raise viewererrors.InvalidParameters(msg)
+        
+        self.attributeData[colname] = col
+
+    def updateColumn(self, colname, selection, values):
+        """
+        Update the specified column. selection is a boolean array that
+        specifies which rows are to be updated, values are taken
+        from values where this is True.
+        The column is added to the list of columns that are
+        written out when writeDirtyColumns() is called.
+        """
+        if colname not in self.columnNames:
+            msg = "Don't have a column named %s" % colname
+            raise viewererrors.InvalidParameters(msg)
+
+        # get the existing values
+        oldvalues = self.attributeData[colname]
+
+        # make sure we do something sensible with type
+        # hopefully I have this right
+        coltype = self.columnTypes[colname]
+        if coltype == gdal.GFT_Integer:
+            values = values.astype(numpy.integer)
+        elif coltype == gdal.GFT_Real:
+            values = values.astype(numpy.float)
+        else:
+            values = values.astype(str)
+
+        # do the masking
+        # it is assumed this will do the right thing when 
+        # string lengths are different
+        newvalues = numpy.where(selection, values, oldvalues)
+
+        # set the new values as our data
+        self.attributeData[colname] = newvalues
+
+        # add to list of 'dirty' columns
+        if colname not in self.dirtyColumns:
+            self.dirtyColumns.append(colname)
+
+    def writeDirtyColumns(self, gdalband):
+        """
+        Writes out the columns that are marked as 'dirty'
+        to the specified gdalband. It is assumed this has been
+        opened with GA_Update.
+        The list of dirty columns gets reset.
+        """
+        ncols = len(self.dirtyColumns)
+        if ncols > 0:
+            self.emit(SIGNAL("newProgress(QString)"), "Writing Attributes...")
+
+            nrows = self.getNumRows()
+            rat = gdal.RasterAttributeTable()
+            col = 0
+            percent_per_col = 100.0 / float(ncols)
+
+            for colname in self.dirtyColumns:
+                colData = self.attributeData[colname]
+                dtype = self.columnTypes[colname]
+                # should this always be generic? What about re-writing colours?
+                rat.CreateColumn(colname, dtype, gdal.GFU_Generic)
+
+                # do it checking the type
+                if dtype == gdal.GFT_Integer:
+                    for row in range(nrows):
+                        val = colData[row]
+                        val = rat.SetValueAsInt(row, col, val)
+                elif dtype == gdal.GFT_Real:
+                    for row in range(nrows):
+                        val = colData[row]
+                        val = rat.SetValueAsDouble(row, col, val)
+                else:
+                    for row in range(nrows):
+                        val = colData[row]
+                        val = rat.SetValueAsString(row, col, val)
+
+                col += 1
+                self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
+
+            gdalband.SetDefaultRAT(rat)
+            self.dirtyColumns = []
+            self.emit(SIGNAL("endProgress()"))
+                
 
     def readFromGDALBand(self, gdalband):
         """
         Reads attributes from a GDAL band
-        Does nothing if no attrbute table
+        Does nothing if no attribute table
         or file not marked as thematic.
         """
         # reset vars
@@ -123,6 +249,8 @@ class ViewerRAT(QObject):
             self.count += 1
             self.columnNames = []
             self.attributeData = {}
+            self.columnTypes = {}
+            self.dirtyColumns = []
 
             # first get the column names
             # we do this so we can preserve the order
@@ -139,6 +267,7 @@ class ViewerRAT(QObject):
                 # being an array of attribute values
                 # adapted from rios.rat
                 dtype = rat.GetTypeOfCol(col)
+                self.columnTypes[colname] = dtype
 
                 if dtype == gdal.GFT_Integer:
                     colArray = numpy.zeros(nrows, int)

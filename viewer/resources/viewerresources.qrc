@@ -27,6 +27,7 @@
 	<file>zoomlayer.png</file>
 	<file>arrowup.png</file>
 	<file>arrowdown.png</file>
+	<file>addcolumn.png</file>
     </qresource>
 </RCC>
 

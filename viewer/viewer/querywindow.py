@@ -443,6 +443,13 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.expressionAction, SIGNAL("triggered()"), 
                         self.showUserExpression)
 
+        self.addColumnAction = QAction(self)
+        self.addColumnAction.setText("Add C&olumn")
+        self.addColumnAction.setStatusTip("Add Column")
+        self.addColumnAction.setIcon(QIcon(":/viewer/images/addcolumn.png"))
+        self.connect(self.addColumnAction, SIGNAL("triggered()"), 
+                        self.addColumn)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -455,6 +462,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.highlightColorAction)
         self.toolBar.addAction(self.removeSelectionAction)
         self.toolBar.addAction(self.expressionAction)
+        self.toolBar.addAction(self.addColumnAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.saveAction)
@@ -587,6 +595,24 @@ class QueryDockWidget(QDockWidget):
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
+    def addColumn(self):
+        """
+        User wants to add a column
+        """
+        from .addcolumndialog import AddColumnDialog
+
+        attributes = self.lastqi.attributes
+        dlg = AddColumnDialog(self)
+        if dlg.exec_() == AddColumnDialog.Accepted:
+            dtype = dlg.getColumnType()
+            colname = dlg.getColumnName()
+            try:
+                attributes.addColumn(colname, dtype)
+            except Exception, e:
+                QMessageBox.critical(self, "Viewer", str(e))
+
+            self.updateThematicTableModel(attributes)
+
     def updateToolTip(self):
         """
         When in thematic mode we set a toolip
@@ -608,6 +634,7 @@ class QueryDockWidget(QDockWidget):
         self.highlightAction.setEnabled(False)
         self.highlightColorAction.setEnabled(False)
         self.expressionAction.setEnabled(False)
+        self.addColumnAction.setEnabled(False)
 
         # any new thematic data after this will have to be reloaded
         self.lastAttributeCount = -1
@@ -621,6 +648,20 @@ class QueryDockWidget(QDockWidget):
 
         self.tableView.setToolTip("") # disable toolip
 
+    def updateThematicTableModel(self, attributes):
+        """
+        Install our own table model that shows the contents of
+        attributes. Call whenever data is updated.
+        """
+        self.tableModel = ThematicTableModel(attributes, self)
+        self.tableView.setModel(self.tableModel)
+
+        # create our own selection model so nothing gets selected
+        # as far as the model is concerned
+        selectionModel = ThematicSelectionModel(self.tableModel, self)
+        self.tableView.setSelectionModel(selectionModel)
+
+
     def setupTableThematic(self, qi):
         """
         For a single band dataset with attributes. Displays
@@ -631,6 +672,7 @@ class QueryDockWidget(QDockWidget):
         self.highlightAction.setEnabled(True)
         self.highlightColorAction.setEnabled(True)
         self.expressionAction.setEnabled(True)
+        self.addColumnAction.setEnabled(True)
 
         val = qi.data[0]
 
@@ -642,13 +684,7 @@ class QueryDockWidget(QDockWidget):
             self.lastAttributeCount = qi.attributes.count
             self.lastAttributeid = id(qi.attributes)
 
-            self.tableModel = ThematicTableModel(qi.attributes, self)
-            self.tableView.setModel(self.tableModel)
-
-            # create our own selection model so nothing gets selected
-            # as far as the model is concerned
-            selectionModel = ThematicSelectionModel(self.tableModel, self)
-            self.tableView.setSelectionModel(selectionModel)
+            self.updateThematicTableModel(qi.attributes)
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(qi.attributes.getNumRows(), 
