@@ -435,6 +435,14 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.removeSelectionAction, SIGNAL("triggered()"), 
                         self.removeSelection)
 
+        self.selectAllAction = QAction(self)
+        self.selectAllAction.setText("Se&lect All")
+        self.selectAllAction.setStatusTip("Select All Rows")
+        icon = QIcon(":/viewer/images/selectall.png")
+        self.selectAllAction.setIcon(icon)
+        self.connect(self.selectAllAction, SIGNAL("triggered()"), 
+                        self.selectAll)
+
         self.expressionAction = QAction(self)
         self.expressionAction.setText("Select using an &Expression")
         self.expressionAction.setStatusTip("Select using an Expression")
@@ -461,6 +469,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.highlightAction)
         self.toolBar.addAction(self.highlightColorAction)
         self.toolBar.addAction(self.removeSelectionAction)
+        self.toolBar.addAction(self.selectAllAction)
         self.toolBar.addAction(self.expressionAction)
         self.toolBar.addAction(self.addColumnAction)
         if HAVE_QWT:
@@ -563,6 +572,15 @@ class QueryDockWidget(QDockWidget):
         Remove the current selection from the table widget
         """
         self.selectionArray.fill(False)
+        self.updateToolTip()
+        # so we repaint and our itemdelegate gets called
+        self.tableView.viewport().update()
+
+    def selectAll(self):
+        """
+        Select all the rows in the table
+        """
+        self.selectionArray.fill(True)
         self.updateToolTip()
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()

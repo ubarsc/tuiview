@@ -109,6 +109,7 @@ class ViewerRAT(QObject):
         self.columnNames = None # list
         self.attributeData = None # dict
         self.columnTypes = None # dict
+        self.columnUsages = None # dict
         # list of columns in self.columnNames
         # that need to be written to (and possibly created)
         # into a a file.
@@ -147,6 +148,9 @@ class ViewerRAT(QObject):
         else:
             msg = 'invalid column type'
             raise viewererrors.InvalidParameters(msg)
+
+        # new cols always this type
+        self.columnUsages[colname] = gdal.GFU_Generic 
         
         self.attributeData[colname] = col
 
@@ -206,8 +210,9 @@ class ViewerRAT(QObject):
             for colname in self.dirtyColumns:
                 colData = self.attributeData[colname]
                 dtype = self.columnTypes[colname]
-                # should this always be generic? What about re-writing colours?
-                rat.CreateColumn(colname, dtype, gdal.GFU_Generic)
+                usage = self.columnUsages[colname]
+                # preserve usage
+                rat.CreateColumn(colname, dtype, usage)
 
                 # do it checking the type
                 if dtype == gdal.GFT_Integer:
@@ -226,6 +231,9 @@ class ViewerRAT(QObject):
                 col += 1
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
+            # assume that existing cols re-written
+            # and new cols created in output file.
+            # this is correct for HFA and KEA AKAIK
             gdalband.SetDefaultRAT(rat)
             self.dirtyColumns = []
             self.emit(SIGNAL("endProgress()"))
@@ -250,6 +258,7 @@ class ViewerRAT(QObject):
             self.columnNames = []
             self.attributeData = {}
             self.columnTypes = {}
+            self.columnUsages = {}
             self.dirtyColumns = []
 
             # first get the column names
@@ -268,6 +277,8 @@ class ViewerRAT(QObject):
                 # adapted from rios.rat
                 dtype = rat.GetTypeOfCol(col)
                 self.columnTypes[colname] = dtype
+                usage = rat.GetUsageOfCol(col)
+                self.columnUsages[colname] = usage
 
                 if dtype == gdal.GFT_Integer:
                     colArray = numpy.zeros(nrows, int)
