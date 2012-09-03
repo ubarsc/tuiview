@@ -689,7 +689,13 @@ Use the special column 'row' for the row number."""
         """
         User has requested to edit a column
         """
-        dlg = UserExpressionDialog(self, col)
+        # create an undo opject which is a copy
+        # of that column before any editing
+        attributes = self.lastqi.layer.attributes
+        colName = attributes.getColumnNames()[col]
+        undoObject = attributes.getAttribute(colName).copy()
+
+        dlg = UserExpressionDialog(self, col=col, undoObject=undoObject)
         hint = """Hint: Enter an expression using column names 
 (ie 'col_a * 2.1'). Or a scalar (ie '3').
 
@@ -701,6 +707,9 @@ Use the special column 'row' for the row number."""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString,int)"), 
                         self.newEditUserExpression)
+        self.connect(dlg, SIGNAL("undoEdit(PyQt_PyObject,int)"),
+                        self.undoEditUserExpression)
+
         # should be modal?
         dlg.show()
 
@@ -723,6 +732,19 @@ Use the special column 'row' for the row number."""
 
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
+
+    def undoEditUserExpression(self, undoObject, col):
+        """
+        Called in reponse to signal from UserExpressionDialog
+        for editing - says the user wants to undo back to
+        as the column was before we started - data in undoObject
+        """
+        attributes = self.lastqi.layer.attributes
+        colName = attributes.getColumnNames()[col]
+        attributes.attributeData[colName] = undoObject
+
+        # so we repaint and new values get shown
+        self.tableView.viewport().update()
 
     def saveAttributes(self):
         """

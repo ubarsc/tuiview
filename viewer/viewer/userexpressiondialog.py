@@ -12,10 +12,13 @@ class UserExpressionDialog(QDialog):
     Allows user to enter a expression and have it applied.
     Sends a signal with the expresson on Apply
     """
-    def __init__(self, parent, col=None):
+    def __init__(self, parent, col=None, undoObject=None):
         QDialog.__init__(self, parent)
         # if this is not none col included in signal
         self.col = col 
+        # if this is not none an undo button will be created
+        # and an undo signal sent
+        self.undoObject = undoObject
 
         self.setWindowTitle("Enter Expression")
 
@@ -44,6 +47,14 @@ Use the special column 'row' for the row number.""")
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.applyButton)
+        
+        # if we have something to undo add a button
+        if undoObject is not None:
+            self.undoButton = QPushButton(self)
+            self.undoButton.setText("Undo")
+            self.buttonLayout.addWidget(self.undoButton)
+            self.connect(self.undoButton, SIGNAL("clicked()"), self.undo)
+
         self.buttonLayout.addWidget(self.closeButton)
 
         self.mainLayout = QVBoxLayout(self)
@@ -69,3 +80,7 @@ Use the special column 'row' for the row number.""")
             self.emit(SIGNAL("newExpression(QString,int)"), 
                             expression, self.col)
 
+    def undo(self):
+        "sends a signal with the undo object"
+        self.emit(SIGNAL("undoEdit(PyQt_PyObject,int)"), self.undoObject, 
+                                                        self.col)
