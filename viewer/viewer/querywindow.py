@@ -653,7 +653,7 @@ Use the special column 'row' for the row number."""
         """
         try:
             # get the numpy array with bools
-            attributes = self.lastqi.attributes
+            attributes = self.lastqi.layer.attributes
             result = attributes.evaluateUserSelectExpression(str(expression))
 
 
@@ -673,7 +673,7 @@ Use the special column 'row' for the row number."""
         """
         from .addcolumndialog import AddColumnDialog
 
-        attributes = self.lastqi.attributes
+        attributes = self.lastqi.layer.attributes
         dlg = AddColumnDialog(self)
         if dlg.exec_() == AddColumnDialog.Accepted:
             dtype = dlg.getColumnType()
@@ -711,7 +711,7 @@ Use the special column 'row' for the row number."""
         """
         try:
             # get the numpy array or scalar from user
-            attributes = self.lastqi.attributes
+            attributes = self.lastqi.layer.attributes
             result = attributes.evaluateUserEditExpression(str(expression))
 
             # use it to update the column
@@ -764,8 +764,8 @@ Use the special column 'row' for the row number."""
         self.lastAttributeCount = -1
         self.lastAttributeid = -1
 
-        self.tableModel = ContinuousTableModel(qi.data, qi.bandNames, 
-                    qi.stretch, self)
+        self.tableModel = ContinuousTableModel(qi.data, qi.layer.bandNames,
+                    qi.layer.stretch, self)
         self.tableView.setModel(self.tableModel)
 
         self.selectionArray = None # no selections
@@ -804,15 +804,15 @@ Use the special column 'row' for the row number."""
         # do we need a new table model?
         # do we have a new id() if the attribute obj
         # or a new count of the file opened by that object
-        if (id(qi.attributes) != self.lastAttributeid or 
-                qi.attributes.count != self.lastAttributeCount):
-            self.lastAttributeCount = qi.attributes.count
-            self.lastAttributeid = id(qi.attributes)
+        if (id(qi.layer.attributes) != self.lastAttributeid or 
+                qi.layer.attributes.count != self.lastAttributeCount):
+            self.lastAttributeCount = qi.layer.attributes.count
+            self.lastAttributeid = id(qi.layer.attributes)
 
-            self.updateThematicTableModel(qi.attributes)
+            self.updateThematicTableModel(qi.layer.attributes)
 
             # create our selection array to record which items selected
-            self.selectionArray = numpy.empty(qi.attributes.getNumRows(), 
+            self.selectionArray = numpy.empty(qi.layer.attributes.getNumRows(),
                                     numpy.bool)
             self.selectionArray.fill(False) # none selected by default
 
@@ -846,7 +846,7 @@ Use the special column 'row' for the row number."""
 
             # do the attribute thing if there is only one band
             # and we have attributes
-            if nbands == 1 and qi.attributes.hasAttributes():
+            if nbands == 1 and qi.layer.attributes.hasAttributes():
                 self.setupTableThematic(qi)
             else:
                 # otherwise the multi band table
@@ -871,11 +871,11 @@ Use the special column 'row' for the row number."""
         self.plotCurve.setPen(pen)
         nbands = qi.data.shape[0]
 
-        if qi.wavelengths is None:
+        if qi.layer.wavelengths is None:
             # no wavelengths stored with data - just use band number
             xdata = range(1, nbands+1, 1)
         else:
-            xdata = qi.wavelengths
+            xdata = qi.layer.wavelengths
 
         self.plotCurve.setData(xdata, qi.data)
 
@@ -887,7 +887,7 @@ Use the special column 'row' for the row number."""
         # only do new labels if they have asked for them.
         if self.labelAction.isChecked():
             count = 1
-            for x, y, text in zip(xdata, qi.data, qi.bandNames):
+            for x, y, text in zip(xdata, qi.data, qi.layer.bandNames):
                 marker = QwtPlotMarker()
                 text = QwtText(text)
                 marker.setLabel(text)
@@ -904,11 +904,14 @@ Use the special column 'row' for the row number."""
                 count += 1
 
         # make xaxis labels integer if no wavelengths
-        if qi.wavelengths is None:
+        if qi.layer.wavelengths is None:
             div = self.plotWidget.axisScaleDiv(QwtPlot.xBottom)
             div.setInterval(1, nbands)
             div.setTicks(QwtScaleDiv.MajorTick, xdata)
             self.plotWidget.setAxisScaleDiv(QwtPlot.xBottom, div)
+        else:
+            # set back to autoscale
+            self.plotWidget.setAxisAutoScale(QwtPlot.xBottom)
 
         self.plotWidget.replot()
         

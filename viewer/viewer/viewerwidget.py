@@ -21,18 +21,13 @@ class QueryInfo(object):
     Container class for the information passed in the locationSelected
     signal.
     """
-    def __init__(self, easting, northing, column, row, data, stretch):
+    def __init__(self, easting, northing, column, row, data, layer):
         self.easting = easting
         self.northing = northing
         self.column = column
         self.row = row
         self.data = data
-        self.stretch = stretch
-        # set the following fields manually
-        self.bandNames = None
-        self.wavelengths = None
-        self.attributes = None
-        self.layer = None
+        self.layer = layer
 
 class GeolinkInfo(object):
     """
@@ -577,12 +572,7 @@ class ViewerWidget(QAbstractScrollArea):
                 if data.size == 1:
                     data = numpy.array([data])
 
-                qi = QueryInfo(easting, northing, column, row, data, 
-                                                            layer.stretch)
-                qi.bandNames = layer.bandNames
-                qi.wavelengths = layer.wavelengths
-                qi.attributes = layer.attributes
-                qi.layer = layer
+                qi = QueryInfo(easting, northing, column, row, data, layer)
                 # emit the signal - handled by the QueryDockWidget
                 self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 
