@@ -245,6 +245,11 @@ class ThematicItemDelegate(QStyledItemDelegate):
         # according to the model
         QStyledItemDelegate.paint(self, painter, option, index)
 
+MOVE_LEFT = 0
+MOVE_RIGHT = 1
+MOVE_LEFTMOST = 2
+MOVE_RIGHTMOST = 3
+
 class ThematicHorizontalHeader(QHeaderView):
     """
     Same as a horizontal QHeaderView but responds to context
@@ -256,12 +261,33 @@ class ThematicHorizontalHeader(QHeaderView):
         self.parent = parent
 
         self.editColumnAction = QAction(self)
-        self.editColumnAction.setText("&Edit Column")
+        self.editColumnAction.setText("&Edit Selected Rows in Column")
         self.editColumnAction.setStatusTip("Edit selected rows in this column")
+
+        self.moveLeftAction = QAction(self)
+        self.moveLeftAction.setText("Move &Left")
+        self.moveLeftAction.setStatusTip("Move column one left")
+
+        self.moveRightAction = QAction(self)
+        self.moveRightAction.setText("Move &Right")
+        self.moveRightAction.setStatusTip("Move column one right")
+        
+        self.moveLeftMostAction = QAction(self)
+        self.moveLeftMostAction.setText("&Move Left Most")
+        self.moveLeftMostAction.setStatusTip("Move to left most position")
+
+        self.moveRightMostAction = QAction(self)
+        self.moveRightMostAction.setText("Move &Right Most")
+        self.moveRightMostAction.setStatusTip("Move to right most position")
+        
         # don't connect signal - will grab directly below so we can pass
         # on the column that was clicked
         self.popup = QMenu(self)
         self.popup.addAction(self.editColumnAction)
+        self.popup.addAction(self.moveLeftAction)
+        self.popup.addAction(self.moveRightAction)
+        self.popup.addAction(self.moveLeftMostAction)
+        self.popup.addAction(self.moveRightMostAction)
 
         self.setToolTip("Right click for menu")
 
@@ -276,7 +302,14 @@ class ThematicHorizontalHeader(QHeaderView):
             action = self.popup.exec_(event.globalPos())
             if action is self.editColumnAction:
                 self.parent.editColumn(col)
-
+            elif action is self.moveLeftAction:
+                self.parent.moveColumn(col, MOVE_LEFT)
+            elif action is self.moveRightAction:
+                self.parent.moveColumn(col, MOVE_RIGHT)
+            elif action is self.moveLeftMostAction:
+                self.parent.moveColumn(col, MOVE_LEFTMOST)
+            elif action is self.moveRightMostAction:
+                self.parent.moveColumn(col, MOVE_RIGHTMOST)
 
 class QueryDockWidget(QDockWidget):
     """
@@ -495,12 +528,20 @@ class QueryDockWidget(QDockWidget):
                         self.addColumn)
 
         self.saveAttrAction = QAction(self)
-        self.saveAttrAction.setText("Save Edited Columns")
+        self.saveAttrAction.setText("Save Edi&ted Columns")
         self.saveAttrAction.setStatusTip("Save Edited Columns")
         icon = QIcon(":/viewer/images/saveattributes.png")
         self.saveAttrAction.setIcon(icon)
         self.connect(self.saveAttrAction, SIGNAL("triggered()"),
                         self.saveAttributes)
+
+        self.saveColOrderAction = QAction(self)
+        self.saveColOrderAction.setText("Sa&ve Column Order")
+        self.saveColOrderAction.setStatusTip("Save Column Order to file")
+        icon =  QIcon(":/viewer/images/savecolumnorder.png")
+        self.saveColOrderAction.setIcon(icon)
+        self.connect(self.saveColOrderAction, SIGNAL("triggered()"),
+                        self.saveColOrder)
 
     def setupToolbar(self):
         """
@@ -517,6 +558,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.expressionAction)
         self.toolBar.addAction(self.addColumnAction)
         self.toolBar.addAction(self.saveAttrAction)
+        self.toolBar.addAction(self.saveColOrderAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
@@ -751,6 +793,28 @@ Use the special columns:
         # so we repaint and new values get shown
         self.tableView.viewport().update()
 
+    def moveColumn(self, col, code):
+        """
+        Move column left or right in the display
+        based on code.
+        """
+        attributes = self.lastqi.layer.attributes
+        columnNames = attributes.getColumnNames()
+        # remove the one we are interested in 
+        colName = columnNames.pop(col)
+
+        if code == MOVE_LEFT and col > 0:
+            col -= 1
+        elif code == MOVE_RIGHT and col < len(columnNames):
+            col += 1
+        elif code == MOVE_LEFTMOST:
+            col = 0
+        elif code == MOVE_RIGHTMOST:
+            col = len(columnNames)
+                
+        columnNames.insert(col, colName)
+        self.updateThematicTableModel(attributes)
+
     def saveAttributes(self):
         """
         Get the layer to save the 'dirty' columns
@@ -759,6 +823,18 @@ Use the special columns:
         try:
 
             self.lastqi.layer.writeDirtyRATColumns()
+
+        except viewererrors.InvalidDataset, e:
+            QMessageBox.critical(self, "Viewer", str(e))
+
+    def saveColOrder(self):
+        """
+        Get the layer to save the current order
+        of columns into the GDAL metadata
+        """
+        try:
+
+            self.lastqi.layer.writeRATColumnOrder()
 
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
@@ -785,6 +861,12 @@ Use the special columns:
         self.highlightColorAction.setEnabled(False)
         self.expressionAction.setEnabled(False)
         self.addColumnAction.setEnabled(False)
+        self.removeSelectionAction.setEnabled(False)
+        self.selectAllAction.setEnabled(False)
+        self.expressionAction.setEnabled(False)
+        self.addColumnAction.setEnabled(False)
+        self.saveAttrAction.setEnabled(False)
+        self.saveColOrderAction.setEnabled(False)
         self.thematicHeader.setThematicMode(False)
 
         # any new thematic data after this will have to be reloaded
@@ -824,6 +906,12 @@ Use the special columns:
         self.highlightColorAction.setEnabled(True)
         self.expressionAction.setEnabled(True)
         self.addColumnAction.setEnabled(True)
+        self.removeSelectionAction.setEnabled(True)
+        self.selectAllAction.setEnabled(True)
+        self.expressionAction.setEnabled(True)
+        self.addColumnAction.setEnabled(True)
+        self.saveAttrAction.setEnabled(True)
+        self.saveColOrderAction.setEnabled(True)
         self.thematicHeader.setThematicMode(True)
 
         val = qi.data[0]

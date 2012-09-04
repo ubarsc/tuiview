@@ -5,6 +5,7 @@ Contains the ViewerRAT class
 
 import keyword
 import numpy
+import json
 from osgeo import gdal
 from PyQt4.QtCore import QObject, SIGNAL
 
@@ -13,6 +14,8 @@ from . import viewererrors
 NEWCOL_INT = 0
 NEWCOL_FLOAT = 1
 NEWCOL_STRING = 2
+
+VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
 
 def formatException(code):
     """
@@ -329,9 +332,33 @@ class ViewerRAT(QObject):
                 self.attributeData[colname] = colArray
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
+            # read in a preferred column order (if any)
+            prefColOrder = self.readColumnOrderFromGDAL(gdalband)
+            if len(prefColOrder) > 0:
+                # rearrange our columns given this
+                self.arrangeColumnOrder(prefColOrder)
 
         self.emit(SIGNAL("endProgress()"))
 
+    def arrangeColumnOrder(self, prefColOrder):
+        """
+        rearrange self.columnNames given the preferred column
+        order that is passed. Any columns not included
+        in prefColOrder are tacked onto the end.
+        Any columns in prefColOrder that don't exist are ignored.
+        """
+        newColOrder = []
+        for pref in prefColOrder:
+            if pref in self.columnNames:
+                newColOrder.append(pref)
+                self.columnNames.remove(pref)
+        # ok all columns in prefColOrder should now have
+        # been added to newColOrder. Add the remaining
+        # values from  self.columnNames
+        newColOrder.extend(self.columnNames)
+        # finally clobber the old self.columnNames
+        self.columnNames = newColOrder
+        
     def getUserExpressionGlobals(self, isselected):
         """
         Get globals for user in user expression
@@ -406,4 +433,24 @@ class ViewerRAT(QObject):
 
         return result
 
-
+    def writeColumnOrderToGDAL(self, gdalband):
+        """
+        Given a GDAL band opened in update mode,
+        writes the currently selected column order
+        to the file (this can be changed by the querywindow)
+        """
+        string = json.dumps(self.columnNames)
+        gdalband.SetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY, string)
+        
+    @staticmethod
+    def readColumnOrderFromGDAL(gdalband):
+        """
+        Reads the column order out of the gdalband.
+        Returns empty list if none
+        """
+        string = gdalband.GetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY)
+        if string is not None and string != '':
+            columns = json.loads(string)
+        else:
+            columns = []
+        return columns
