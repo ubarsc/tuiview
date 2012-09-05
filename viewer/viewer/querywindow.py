@@ -418,9 +418,7 @@ class QueryDockWidget(QDockWidget):
         self.lastqi = None
 
         # these stay disabled until thematic selected
-        self.highlightAction.setEnabled(False)
-        self.highlightColorAction.setEnabled(False)
-        self.expressionAction.setEnabled(False)
+        self.setToolBarState(False)
 
     def getColorIcon(self, color):
         """
@@ -851,7 +849,24 @@ Use the special columns:
         # to find how many selected
         nselected = self.selectionArray.sum()
         self.tableView.setToolTip("%d Selected" % nselected)
-        
+
+    def setToolBarState(self, thematic):
+        """
+        Set tool bar state to either thematic (True)
+        or continuous (False). This enables/disables
+        some of the toolbar buttons and the table header contect menu
+        """        
+        self.highlightAction.setEnabled(thematic)
+        self.highlightColorAction.setEnabled(thematic)
+        self.expressionAction.setEnabled(thematic)
+        self.addColumnAction.setEnabled(thematic)
+        self.removeSelectionAction.setEnabled(thematic)
+        self.selectAllAction.setEnabled(thematic)
+        self.expressionAction.setEnabled(thematic)
+        self.addColumnAction.setEnabled(thematic)
+        self.saveAttrAction.setEnabled(thematic)
+        self.saveColOrderAction.setEnabled(thematic)
+        self.thematicHeader.setThematicMode(thematic)
 
     def setupTableContinuous(self, qi):
         """
@@ -859,18 +874,8 @@ Use the special columns:
         data. This is a row per band with the pixel values for each band shown
         The current red, green and blue bands have an icon 
         """
-        # can't highlight continuous
-        self.highlightAction.setEnabled(False)
-        self.highlightColorAction.setEnabled(False)
-        self.expressionAction.setEnabled(False)
-        self.addColumnAction.setEnabled(False)
-        self.removeSelectionAction.setEnabled(False)
-        self.selectAllAction.setEnabled(False)
-        self.expressionAction.setEnabled(False)
-        self.addColumnAction.setEnabled(False)
-        self.saveAttrAction.setEnabled(False)
-        self.saveColOrderAction.setEnabled(False)
-        self.thematicHeader.setThematicMode(False)
+        # disable relevant toolbars
+        self.setToolBarState(False)
 
         # any new thematic data after this will have to be reloaded
         self.lastAttributeCount = -1
@@ -904,6 +909,9 @@ Use the special columns:
         the attributes as a table and highlights the current
         value in the table. 
         """
+        # enable relevant toolbars
+        self.setToolBarState(True)
+
         # we can highlight thematic
         self.highlightAction.setEnabled(True)
         self.highlightColorAction.setEnabled(True)
