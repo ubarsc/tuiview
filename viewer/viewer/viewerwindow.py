@@ -107,6 +107,9 @@ class ViewerWindow(QMainWindow):
         # tool selected
         self.queryWindowCount = 0
 
+        # accept dropping files
+        self.setAcceptDrops(True)
+
         self.mouseWheelZoom = True
 
     def newProgress(self, string):
@@ -639,6 +642,27 @@ class ViewerWindow(QMainWindow):
         settings.endGroup()
 
         event.accept()
+
+    def dragEnterEvent(self, event):
+        """
+        Called when user about to drop some data on the window
+        accept it if it has urls (which are usually just files)
+        """
+        mimeData = event.mimeData()
+        if mimeData.hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """
+        Called when the user attempts to drop some data onto the window
+        We only respond to files being dropped
+        """
+        mimeData = event.mimeData()
+        if mimeData.hasUrls():
+            for url in mimeData.urls():
+                # things will get tricky when we support vectors
+                # try raster then vector?
+                self.addRasterInternal(url.path())
 
     def setPreferences(self):
         """
