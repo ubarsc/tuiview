@@ -820,12 +820,15 @@ Use the special columns:
         Get the layer to save the 'dirty' columns
         ie ones that have been added or edited.
         """
+        self.setCursor(Qt.WaitCursor)  # look like we are busy
         try:
 
             self.lastqi.layer.writeDirtyRATColumns()
 
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
+        finally:
+            self.setCursor(Qt.ArrowCursor)  # look like we are finished
 
     def saveColOrder(self):
         """

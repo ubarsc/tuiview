@@ -119,6 +119,7 @@ class ViewerWindow(QMainWindow):
         self.statusBar().showMessage(string)
         self.progressWidget.setValue(0)
         self.progressWidget.setVisible(True)
+        self.setCursor(Qt.WaitCursor)  # look like we are busy
         # process any events show gets shown while busy
         QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
@@ -128,6 +129,7 @@ class ViewerWindow(QMainWindow):
         """
         self.statusBar().clearMessage()
         self.progressWidget.setVisible(False)
+        self.setCursor(Qt.ArrowCursor)  # look like we are finished
         # process any events show gets shown while busy
         QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
