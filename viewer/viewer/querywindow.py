@@ -772,6 +772,10 @@ Use the special columns:
         Called in reponse to signal from UserExpressionDialog
         for editing
         """
+        if not self.selectionArray.any():
+            # if nothing selected, don't even bother
+            return
+
         try:
             # get the numpy array or scalar from user
             attributes = self.lastqi.layer.attributes

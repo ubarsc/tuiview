@@ -189,8 +189,17 @@ class ViewerRAT(QObject):
             else:
                 if numpy.isscalar(values):
                     values = str(values)
+                    # there is a slight probo here
+                    # where doesn't resize the string
+                    # arrays automatically so we manually
+                    # convert oldvalues to a large enough array
+                    # for values
+                    vdtype = numpy.dtype('S%d' % len(values))
+                    oldvalues = oldvalues.astype(vdtype)
                 else:
-                    values = values.astype(str)
+                    # this converts to a string array
+                    # of the right dtype to handle values
+                    values = numpy.array(values, dtype=str)
         except ValueError, e:
             msg = str(e)
             raise viewererrors.UserExpressionTypeError(msg)
