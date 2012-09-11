@@ -466,8 +466,8 @@ class ViewerRasterLayer(ViewerLayer):
                     self.coordmgr.pixRight > self.gdalDataset.RasterXSize):
             self.image = QImage()
             return
-        elif (self.coordmgr.pixTop > self.gdalDataset.RasterXSize and 
-                    self.coordmgr.pixBottom > self.gdalDataset.RasterXSize):
+        elif (self.coordmgr.pixTop > self.gdalDataset.RasterYSize and 
+                    self.coordmgr.pixBottom > self.gdalDataset.RasterYSize):
             self.image = QImage()
             return
         
