@@ -110,6 +110,9 @@ class ViewerWindow(QMainWindow):
         # accept dropping files
         self.setAcceptDrops(True)
 
+        # our layer window so we can toggle it
+        self.layerWindow = None
+
         self.mouseWheelZoom = True
 
     def newProgress(self, string):
@@ -487,11 +490,16 @@ class ViewerWindow(QMainWindow):
 
     def arrangeLayers(self):
         """
-        Bring up the LayerWindow
+        Toggle the LayerWindow
         """
         from . import layerwindow
-        layerWindow = layerwindow.LayerWindow(self, self.viewwidget)
-        self.addDockWidget(Qt.LeftDockWidgetArea, layerWindow)
+        if self.layerWindow is None:
+            self.layerWindow = layerwindow.LayerWindow(self, self.viewwidget)
+            self.addDockWidget(Qt.LeftDockWidgetArea, self.layerWindow)
+        else:
+            # remove
+            self.removeDockWidget(self.layerWindow)
+            self.layerWindow = None
 
     def editStretch(self):
         """
