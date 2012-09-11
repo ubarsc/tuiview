@@ -31,6 +31,7 @@
 	<file>arrowdown.png</file>
 	<file>addcolumn.png</file>
 	<file>selectall.png</file>
+	<file>geographicselect.png</file>
     </qresource>
 </RCC>
 

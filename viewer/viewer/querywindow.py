@@ -541,6 +541,15 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.saveColOrderAction, SIGNAL("triggered()"),
                         self.saveColOrder)
 
+        self.geogSelectAction = QAction(self)
+        self.geogSelectAction.setText("&Geographic Selection")
+        self.geogSelectAction.setStatusTip(
+                                    "Select rows by geographic selection")
+        icon = QIcon(":/viewer/images/geographicselect.png")
+        self.geogSelectAction.setIcon(icon)
+        self.connect(self.geogSelectAction, SIGNAL("triggered()"),
+                        self.geogSelect)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -557,6 +566,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.addColumnAction)
         self.toolBar.addAction(self.saveAttrAction)
         self.toolBar.addAction(self.saveColOrderAction)
+        self.toolBar.addAction(self.geogSelectAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
@@ -840,6 +850,9 @@ Use the special columns:
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
+    def geogSelect(self):
+        pass
+
     def updateToolTip(self):
         """
         When in thematic mode we set a toolip
@@ -866,6 +879,7 @@ Use the special columns:
         self.addColumnAction.setEnabled(thematic)
         self.saveAttrAction.setEnabled(thematic)
         self.saveColOrderAction.setEnabled(thematic)
+        self.geogSelectAction.setEnabled(thematic)
         self.thematicHeader.setThematicMode(thematic)
 
     def setupTableContinuous(self, qi):
@@ -911,19 +925,6 @@ Use the special columns:
         """
         # enable relevant toolbars
         self.setToolBarState(True)
-
-        # we can highlight thematic
-        self.highlightAction.setEnabled(True)
-        self.highlightColorAction.setEnabled(True)
-        self.expressionAction.setEnabled(True)
-        self.addColumnAction.setEnabled(True)
-        self.removeSelectionAction.setEnabled(True)
-        self.selectAllAction.setEnabled(True)
-        self.expressionAction.setEnabled(True)
-        self.addColumnAction.setEnabled(True)
-        self.saveAttrAction.setEnabled(True)
-        self.saveColOrderAction.setEnabled(True)
-        self.thematicHeader.setThematicMode(True)
 
         val = qi.data[0]
 
