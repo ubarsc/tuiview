@@ -712,6 +712,17 @@ Use the special columns:
             # use it as our selection array
             self.selectionArray = result
 
+            # find the first selected index and scroll to it
+            selectedIdx = self.selectionArray.nonzero()[0] # first axis
+            if selectedIdx.size != 0:
+                # scroll to the new index - remembering the existing horizontal 
+                # scroll value
+                horiz_scroll_bar = self.tableView.horizontalScrollBar()
+                horiz_pos = horiz_scroll_bar.sliderPosition()
+                index = self.tableView.model().index(selectedIdx[0], 0)
+                self.tableView.scrollTo(index, QTableView.PositionAtCenter)
+                horiz_scroll_bar.setSliderPosition(horiz_pos)
+
             self.updateToolTip()
             # so we repaint and our itemdelegate gets called
             self.tableView.viewport().update()
