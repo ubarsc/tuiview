@@ -15,6 +15,10 @@ NEWCOL_INT = 0
 NEWCOL_FLOAT = 1
 NEWCOL_STRING = 2
 
+DEFAULT_INT_FMT = "%d"
+DEFAULT_FLOAT_FMT = "%.2f"
+DEFAULT_STRING_FMT = "%s"
+
 VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
 
 def formatException(code):
@@ -88,6 +92,26 @@ class ViewerRAT(QObject):
         "return the array of attributes for a given column name"
         return self.attributeData[colName]
 
+    def setAttribute(self, colName, data):
+        "replace the array of attributes for a given column name"
+        self.attributeData[colName] = data
+
+    def getType(self, colName):
+        "return the type for a given column name"
+        return self.columnTypes[colName]
+
+    def getUsage(self, colName):
+        "return the usage for a given column name"
+        return self.columnUsages[colName]
+
+    def getFormat(self, colName):
+        "return the preferred format string for a given column name"
+        return self.columnFormats[colName]
+
+    def setFormat(self, colName, fmt):
+        "replace the format string for a given column name"
+        self.columnFormats[colName] = fmt
+
     def getNumColumns(self):
         "get the number of columns"
         if self.columnNames is not None:
@@ -113,6 +137,7 @@ class ViewerRAT(QObject):
         self.attributeData = None # dict
         self.columnTypes = None # dict
         self.columnUsages = None # dict
+        self.columnFormats = None # dict
         # list of columns in self.columnNames
         # that need to be written to (and possibly created)
         # into a a file.
@@ -140,14 +165,17 @@ class ViewerRAT(QObject):
         if coltype == NEWCOL_INT:
             col = numpy.zeros(nrows, numpy.int)
             self.columnTypes[colname] = gdal.GFT_Integer
+            self.columnFormats[colname] = DEFAULT_INT_FMT
         elif coltype == NEWCOL_FLOAT:
             col = numpy.zeros(nrows, numpy.float)
             self.columnTypes[colname] = gdal.GFT_Real
+            self.columnFormats[colname] = DEFAULT_FLOAT_FMT
         elif coltype == NEWCOL_STRING:
             # assume the strings aren't any bigger than 10 chars for now
             stringtype = numpy.dtype('S10')
             col =  numpy.zeros(nrows, dtype=stringtype)
             self.columnTypes[colname] = gdal.GFT_String
+            self.columnFormats[colname] = DEFAULT_STRING_FMT
         else:
             msg = 'invalid column type'
             raise viewererrors.InvalidParameters(msg)
@@ -285,6 +313,7 @@ class ViewerRAT(QObject):
             self.attributeData = {}
             self.columnTypes = {}
             self.columnUsages = {}
+            self.columnFormats = {}
             self.dirtyColumns = []
 
             # first get the column names
@@ -321,14 +350,17 @@ class ViewerRAT(QObject):
 
                 # do it checking the type
                 if dtype == gdal.GFT_Integer:
+                    self.columnFormats[colname] = DEFAULT_INT_FMT
                     for row in range(nrows):
                         val = rat.GetValueAsInt(row, col)
                         colArray[row] = val
                 elif dtype == gdal.GFT_Real:
+                    self.columnFormats[colname] = DEFAULT_FLOAT_FMT
                     for row in range(nrows):
                         val = rat.GetValueAsDouble(row, col)
                         colArray[row] = val
                 else:
+                    self.columnFormats[colname] = DEFAULT_STRING_FMT
                     for row in range(nrows):
                         val = rat.GetValueAsString(row, col)
                         colArray.append(val)

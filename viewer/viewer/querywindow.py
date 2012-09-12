@@ -103,7 +103,8 @@ class ThematicTableModel(QAbstractTableModel):
             column = index.column()
             name = self.attributes.getColumnNames()[column]
             attr = self.attributes.getAttribute(name)
-            return QVariant("%s" % attr[row]) 
+            fmt = self.attributes.getFormat(name)
+            return QVariant(fmt % attr[row]) 
         else:
             QVariant()
 
@@ -280,6 +281,10 @@ class ThematicHorizontalHeader(QHeaderView):
         self.moveRightMostAction = QAction(self)
         self.moveRightMostAction.setText("Move &Right Most")
         self.moveRightMostAction.setStatusTip("Move to right most position")
+
+        self.setDPAction = QAction(self)
+        self.setDPAction.setText("&Set number of decimal places")
+        self.setDPAction.setStatusTip("Set number of decimal places")
         
         # don't connect signal - will grab directly below so we can pass
         # on the column that was clicked
@@ -289,6 +294,7 @@ class ThematicHorizontalHeader(QHeaderView):
         self.popup.addAction(self.moveRightAction)
         self.popup.addAction(self.moveLeftMostAction)
         self.popup.addAction(self.moveRightMostAction)
+        self.popup.addAction(self.setDPAction) # enabled when float col
 
         self.setToolTip("Right click for menu")
 
@@ -299,7 +305,13 @@ class ThematicHorizontalHeader(QHeaderView):
     def contextMenuEvent(self, event):
         "Respond to context menu event"
         if self.thematic:
+            from osgeo.gdal import GFT_Real
             col = self.logicalIndexAt(event.pos())
+            # work out whether this is float column
+            colName = self.parent.lastLayer.attributes.getColumnNames()[col]
+            colType = self.parent.lastLayer.attributes.getType(colName)
+            self.setDPAction.setEnabled(colType == GFT_Real)
+
             action = self.popup.exec_(event.globalPos())
             if action is self.editColumnAction:
                 self.parent.editColumn(col)
@@ -311,6 +323,8 @@ class ThematicHorizontalHeader(QHeaderView):
                 self.parent.moveColumn(col, MOVE_LEFTMOST)
             elif action is self.moveRightMostAction:
                 self.parent.moveColumn(col, MOVE_RIGHTMOST)
+            elif action is self.setDPAction:
+                self.parent.setColumnDecimalPlaces(colName)
 
 class QueryDockWidget(QDockWidget):
     """
@@ -819,7 +833,7 @@ Use the special columns:
         """
         attributes = self.lastLayer.attributes
         colName = attributes.getColumnNames()[col]
-        attributes.attributeData[colName] = undoObject
+        attributes.setAttribute(colName, undoObject)
 
         # so we repaint and new values get shown
         self.tableView.viewport().update()
@@ -845,6 +859,22 @@ Use the special columns:
                 
         columnNames.insert(col, colName)
         self.updateThematicTableModel(attributes)
+
+    def setColumnDecimalPlaces(self, colName):
+        """
+        Allows the user to set the number of decimal places for
+        float columns
+        """
+        from PyQt4.QtGui import QInputDialog
+        attributes = self.lastLayer.attributes
+        currFormat = attributes.getFormat(colName)
+        currDP = int(currFormat[2:-1]) # dodgy but should be ok
+        (newDP, ok) = QInputDialog.getInt(self, "Viewer", 
+                    "Number of Decimal Places", currDP, 0, 100)
+        if ok:
+            newFormat = "%%.%df" % newDP
+            attributes.setFormat(colName, newFormat)
+            self.updateThematicTableModel(attributes)
 
     def saveAttributes(self):
         """
