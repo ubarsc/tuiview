@@ -121,7 +121,7 @@ class ContinuousTableModel(QAbstractTableModel):
 
     def rowCount(self, parent):
         "returns the number of rows"
-        return self.banddata.shape[0]
+        return len(self.stretch.bands)
 
     def columnCount(self, parent):
         "number of columns"
@@ -176,7 +176,8 @@ class ContinuousTableModel(QAbstractTableModel):
             # band names column
             return QVariant(self.bandNames[row])
 
-        elif column == 2 and role == Qt.DisplayRole:
+        elif (column == 2 and role == Qt.DisplayRole and 
+                            self.banddata is not None):
             # band values column
             return QVariant("%s" % self.banddata[row])
 
@@ -356,7 +357,6 @@ class QueryDockWidget(QDockWidget):
         # the model - this is None by default - changed if 
         # it is a thematic view
         self.tableModel = None
-
         # the delegate - this renders the rows with optional selection
         # style. Ideally we would overried the selection model but
         # QItemSelectionModel.isSelected not virtual...
@@ -373,6 +373,17 @@ class QueryDockWidget(QDockWidget):
         # the 'count' of files opened by that object
         # so we can tell if the same object has opened another file
         self.lastAttributeCount = -1
+
+        # the reference to the last layer object
+        self.lastLayer = None
+
+        layer = viewwidget.layers.getTopRasterLayer()
+        if layer is not None:
+            if (len(layer.stretch.bands) == 1 and 
+                        layer.attributes.hasAttributes()):
+                self.setupTableThematic(None, layer)
+            else:
+                self.setupTableContinuous(None, layer)
 
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
@@ -416,9 +427,6 @@ class QueryDockWidget(QDockWidget):
         # keep a track of the last QueryInfo in case we need to redisplay
         # when the user changes color
         self.lastqi = None
-
-        # these stay disabled until thematic selected
-        self.setToolBarState(False)
 
     def getColorIcon(self, color):
         """
@@ -705,7 +713,7 @@ Use the special columns:
         """
         try:
             # get the numpy array with bools
-            attributes = self.lastqi.layer.attributes
+            attributes = self.lastLayer.attributes
             result = attributes.evaluateUserSelectExpression(str(expression),
                                                 self.selectionArray)
 
@@ -736,7 +744,7 @@ Use the special columns:
         """
         from .addcolumndialog import AddColumnDialog
 
-        attributes = self.lastqi.layer.attributes
+        attributes = self.lastLayer.attributes
         dlg = AddColumnDialog(self)
         if dlg.exec_() == AddColumnDialog.Accepted:
             dtype = dlg.getColumnType()
@@ -754,7 +762,7 @@ Use the special columns:
         """
         # create an undo opject which is a copy
         # of that column before any editing
-        attributes = self.lastqi.layer.attributes
+        attributes = self.lastLayer.attributes
         colName = attributes.getColumnNames()[col]
         undoObject = attributes.getAttribute(colName).copy()
 
@@ -789,7 +797,7 @@ Use the special columns:
 
         try:
             # get the numpy array or scalar from user
-            attributes = self.lastqi.layer.attributes
+            attributes = self.lastLayer.attributes
             result = attributes.evaluateUserEditExpression(str(expression),
                                                     self.selectionArray)
 
@@ -809,7 +817,7 @@ Use the special columns:
         for editing - says the user wants to undo back to
         as the column was before we started - data in undoObject
         """
-        attributes = self.lastqi.layer.attributes
+        attributes = self.lastLayer.attributes
         colName = attributes.getColumnNames()[col]
         attributes.attributeData[colName] = undoObject
 
@@ -821,7 +829,7 @@ Use the special columns:
         Move column left or right in the display
         based on code.
         """
-        attributes = self.lastqi.layer.attributes
+        attributes = self.lastLayer.attributes
         columnNames = attributes.getColumnNames()
         # remove the one we are interested in 
         colName = columnNames.pop(col)
@@ -846,7 +854,7 @@ Use the special columns:
         self.setCursor(Qt.WaitCursor)  # look like we are busy
         try:
 
-            self.lastqi.layer.writeDirtyRATColumns()
+            self.lastLayer.writeDirtyRATColumns()
 
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
@@ -860,7 +868,7 @@ Use the special columns:
         """
         try:
 
-            self.lastqi.layer.writeRATColumnOrder()
+            self.lastLayer.writeRATColumnOrder()
 
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
@@ -897,7 +905,7 @@ Use the special columns:
         self.geogSelectAction.setEnabled(thematic)
         self.thematicHeader.setThematicMode(thematic)
 
-    def setupTableContinuous(self, qi):
+    def setupTableContinuous(self, data, layer):
         """
         setup the table for displaying Continuous
         data. This is a row per band with the pixel values for each band shown
@@ -909,9 +917,10 @@ Use the special columns:
         # any new thematic data after this will have to be reloaded
         self.lastAttributeCount = -1
         self.lastAttributeid = -1
+        self.lastLayer = layer
 
-        self.tableModel = ContinuousTableModel(qi.data, qi.layer.bandNames,
-                    qi.layer.stretch, self)
+        self.tableModel = ContinuousTableModel(data, layer.bandNames,
+                    layer.stretch, self)
         self.tableView.setModel(self.tableModel)
 
         self.selectionArray = None # no selections
@@ -932,7 +941,7 @@ Use the special columns:
         self.tableView.setSelectionModel(selectionModel)
 
 
-    def setupTableThematic(self, qi):
+    def setupTableThematic(self, data, layer):
         """
         For a single band dataset with attributes. Displays
         the attributes as a table and highlights the current
@@ -941,33 +950,34 @@ Use the special columns:
         # enable relevant toolbars
         self.setToolBarState(True)
 
-        val = qi.data[0]
-
         # do we need a new table model?
         # do we have a new id() if the attribute obj
         # or a new count of the file opened by that object
-        if (id(qi.layer.attributes) != self.lastAttributeid or 
-                qi.layer.attributes.count != self.lastAttributeCount):
-            self.lastAttributeCount = qi.layer.attributes.count
-            self.lastAttributeid = id(qi.layer.attributes)
+        if (id(layer.attributes) != self.lastAttributeid or 
+                layer.attributes.count != self.lastAttributeCount):
+            self.lastAttributeCount = layer.attributes.count
+            self.lastAttributeid = id(layer.attributes)
+            self.lastLayer = layer
 
-            self.updateThematicTableModel(qi.layer.attributes)
+            self.updateThematicTableModel(layer.attributes)
 
             # create our selection array to record which items selected
-            self.selectionArray = numpy.empty(qi.layer.attributes.getNumRows(),
+            self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
                                     numpy.bool)
             self.selectionArray.fill(False) # none selected by default
 
-        # set the highlight row
-        self.tableModel.setHighlightRow(val)
+        # set the highlight row if there is data
+        if data is not None:
+            val = data[0]
+            self.tableModel.setHighlightRow(val)
 
-        # scroll to the new index - remembering the existing horizontal 
-        # scroll value
-        horiz_scroll_bar = self.tableView.horizontalScrollBar()
-        horiz_pos = horiz_scroll_bar.sliderPosition()
-        index = self.tableView.model().index(val, 0)
-        self.tableView.scrollTo(index, QTableView.PositionAtCenter)
-        horiz_scroll_bar.setSliderPosition(horiz_pos)
+            # scroll to the new index - remembering the existing horizontal 
+            # scroll value
+            horiz_scroll_bar = self.tableView.horizontalScrollBar()
+            horiz_pos = horiz_scroll_bar.sliderPosition()
+            index = self.tableView.model().index(val, 0)
+            self.tableView.scrollTo(index, QTableView.PositionAtCenter)
+            horiz_scroll_bar.setSliderPosition(horiz_pos)
 
         self.updateToolTip()
 
@@ -989,10 +999,10 @@ Use the special columns:
             # do the attribute thing if there is only one band
             # and we have attributes
             if nbands == 1 and qi.layer.attributes.hasAttributes():
-                self.setupTableThematic(qi)
+                self.setupTableThematic(qi.data, qi.layer)
             else:
                 # otherwise the multi band table
-                self.setupTableContinuous(qi)
+                self.setupTableContinuous(qi.data, qi.layer)
 
             # set up the plot
             if HAVE_QWT:
