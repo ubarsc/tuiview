@@ -265,7 +265,7 @@ class ViewerRAT(QObject):
                 dtype = self.columnTypes[colname]
                 usage = self.columnUsages[colname]
                 # preserve usage
-                rat.CreateColumn(colname, dtype, usage)
+                rat.CreateColumn(str(colname), dtype, usage)
 
                 # do it checking the type
                 if dtype == gdal.GFT_Integer:
