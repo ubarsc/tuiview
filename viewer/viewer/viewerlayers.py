@@ -219,6 +219,17 @@ class ViewerRasterLayer(ViewerLayer):
         self.coordmgr.setTopLeftPixel(0, 0)  
         self.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
 
+        # if we are single band read attributes if any
+        if len(stretch.bands) == 1:
+            gdalband = self.gdalDataset.GetRasterBand(stretch.bands[0])
+            self.attributes.readFromGDALBand(gdalband)
+            if self.attributes.hasAttributes():
+                # tell stretch to create same size as attribute table
+                self.stretch.setAttributeTableSize(self.attributes.getNumRows())
+        else:
+            # keep blank
+            self.attributes.clear()
+
         # read in the LUT if not specified
         if lut is None:
             self.lut.createLUT(self.gdalDataset, stretch)
@@ -233,17 +244,6 @@ class ViewerRasterLayer(ViewerLayer):
 
         # the no data values for each band
         self.noDataValues = self.getNoDataValues()
-
-        # if we are single band read attributes if any
-        if len(stretch.bands) == 1:
-            gdalband = self.gdalDataset.GetRasterBand(stretch.bands[0])
-            self.attributes.readFromGDALBand(gdalband)
-            if self.attributes.hasAttributes():
-                # tell stretch to create same size as attribute table
-                self.stretch.setAttributeTableSize(self.attributes.getNumRows())
-        else:
-            # keep blank
-            self.attributes.clear()
 
     def getBandNames(self):
         """
