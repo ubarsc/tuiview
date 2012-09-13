@@ -21,6 +21,7 @@ except ImportError:
     HAVE_QWT = False
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
+from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
 
@@ -340,6 +341,12 @@ class QueryDockWidget(QDockWidget):
         self.cursorSize = QUERYWIDGET_DEFAULT_CURSORSIZE
         self.highlightColor = QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR
 
+        # connect to the collected polygon signal - only respond when
+        # self.geogSelectAction.isChecked() so don't interfere with
+        # other GUI elements that might as for a polygon
+        self.connect(self.viewwidget, 
+                SIGNAL("polygonCollected(PyQt_PyObject)"), self.newGeogSelect)
+
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
 
@@ -569,7 +576,8 @@ class QueryDockWidget(QDockWidget):
                                     "Select rows by geographic selection")
         icon = QIcon(":/viewer/images/geographicselect.png")
         self.geogSelectAction.setIcon(icon)
-        self.connect(self.geogSelectAction, SIGNAL("triggered()"),
+        self.geogSelectAction.setCheckable(True)
+        self.connect(self.geogSelectAction, SIGNAL("toggled(bool)"),
                         self.geogSelect)
 
     def setupToolbar(self):
@@ -720,6 +728,19 @@ Use the special columns:
                         self.newSelectUserExpression)
         dlg.show()
 
+    def scrollToFirstSelected(self):
+        "scroll to the first selected row"
+        # find the first selected index and scroll to it
+        selectedIdx = self.selectionArray.nonzero()[0] # first axis
+        if selectedIdx.size != 0:
+            # scroll to the new index - remembering the existing horizontal 
+            # scroll value
+            horiz_scroll_bar = self.tableView.horizontalScrollBar()
+            horiz_pos = horiz_scroll_bar.sliderPosition()
+            index = self.tableView.model().index(selectedIdx[0], 0)
+            self.tableView.scrollTo(index, QTableView.PositionAtCenter)
+            horiz_scroll_bar.setSliderPosition(horiz_pos)
+
     def newSelectUserExpression(self, expression):
         """
         Called in reponse to signal from UserExpressionDialog
@@ -734,16 +755,7 @@ Use the special columns:
             # use it as our selection array
             self.selectionArray = result
 
-            # find the first selected index and scroll to it
-            selectedIdx = self.selectionArray.nonzero()[0] # first axis
-            if selectedIdx.size != 0:
-                # scroll to the new index - remembering the existing horizontal 
-                # scroll value
-                horiz_scroll_bar = self.tableView.horizontalScrollBar()
-                horiz_pos = horiz_scroll_bar.sliderPosition()
-                index = self.tableView.model().index(selectedIdx[0], 0)
-                self.tableView.scrollTo(index, QTableView.PositionAtCenter)
-                horiz_scroll_bar.setSliderPosition(horiz_pos)
+            self.scrollToFirstSelected()
 
             self.updateToolTip()
             # so we repaint and our itemdelegate gets called
@@ -903,8 +915,52 @@ Use the special columns:
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
-    def geogSelect(self):
-        pass
+    def newGeogSelect(self, polyInfo):
+        """
+        New polygon just been selected as part of a 
+        geographical select
+        """
+        # if not a signal for us, ignore
+        if not self.geogSelectAction.isChecked():
+            return
+
+        # polyInfo is a PolyonToolInfo
+        # get selection in poly
+        selectMask = polyInfo.getDisplaySelectionMask()
+        # valid daya
+        validMask = polyInfo.getDisplayValidMask()
+        # we want both - flatten for compress
+        mask = numpy.logical_and(selectMask, validMask).flatten()
+        # get the actual data
+        data = polyInfo.getDisplayData().flatten()
+        # get data where mask==True
+        idx = numpy.unique(data.compress(mask))
+        
+        # reset if they havent hit Ctrl
+        if int(polyInfo.getInputModifiers() & Qt.ControlModifier) == 0:
+            self.selectionArray.fill(False)
+
+        # select rows found in poly
+        self.selectionArray[idx] = True
+
+        self.scrollToFirstSelected()
+        self.updateToolTip()
+        # so we repaint and our itemdelegate gets called
+        self.tableView.viewport().update()
+
+        # reset
+        self.geogSelectAction.setChecked(False)
+
+    def geogSelect(self, checked):
+        """
+        Turn on the polygon tool so we can select the area
+        """
+        # ask for a polygon to be collected
+        if checked:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON)
+        else:
+            # reset tool
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
 
     def updateToolTip(self):
         """

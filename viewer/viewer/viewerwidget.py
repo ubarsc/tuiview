@@ -7,7 +7,7 @@ zooming and panning etc.
 from __future__ import division # ensure we are using Python 3 semantics
 import numpy
 from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor
-from PyQt4.QtGui import QPixmap
+from PyQt4.QtGui import QPixmap, QPainterPath, QPen
 from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
 
 from . import viewererrors
@@ -45,6 +45,7 @@ VIEWER_TOOL_ZOOMIN = 1
 VIEWER_TOOL_ZOOMOUT = 2
 VIEWER_TOOL_PAN = 3
 VIEWER_TOOL_QUERY = 4
+VIEWER_TOOL_POLYGON = 5
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -80,8 +81,14 @@ class ViewerWidget(QAbstractScrollArea):
         self.zoomInCursor = None
         self.zoomOutCursor = None
         self.queryCursor = None
+        self.polygonCursor = None
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
+        self.toolPoints = None # for line and polygon tools - list of points
+        self.toolPen = QPen() # for drawing the toolPoints
+        self.toolPen.setWidth(1)
+        self.toolPen.setColor(Qt.yellow)
+        self.toolPen.setDashPattern([5, 5, 5, 5])
 
         # Define the scroll wheel behaviour
         self.mouseWheelZoom = True
@@ -275,6 +282,33 @@ class ViewerWidget(QAbstractScrollArea):
                 self.queryCursor = QCursor(Qt.CrossCursor)
             self.viewport().setCursor(self.queryCursor)
 
+        elif tool == VIEWER_TOOL_POLYGON:
+            if self.polygonCursor is None:
+                self.polygonCursor = QCursor(QPixmap(["16 16 3 1",
+                                  " \xc2     c None",
+                                  ".\xc2     c #000000",
+                                  "+\xc2     c #FFFFFF",
+                                  "                ",
+                                  "       +.+      ",
+                                  "      ++.++     ",
+                                  "     +.....+    ",
+                                  "    +.     .+   ",
+                                  "   +.   .   .+  ",
+                                  "  +.    .    .+ ",
+                                  " ++.    .    .++",
+                                  " ... ...+... ...",
+                                  " ++.    .    .++",
+                                  "  +.    .    .+ ",
+                                  "   +.   .   .+  ",
+                                  "   ++.     .+   ",
+                                  "    ++.....+    ",
+                                  "      ++.++     ",
+                                  "       +.+      "]))
+            self.viewport().setCursor(self.polygonCursor)
+            msg = ('Left click adds a point, middle to remove last,' +
+                        ' right click to end')
+            self.emit(SIGNAL("showStatusMessage(QString)"), msg)
+
         elif tool == VIEWER_TOOL_NONE:
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
@@ -385,7 +419,18 @@ class ViewerWidget(QAbstractScrollArea):
                 paint.drawImage(self.paintPoint, layer.image)
 
         # draw any query points on top of image
-        paint.drawImage(self.paintPoint, self.layers.queryPointLayer.image)   
+        paint.drawImage(self.paintPoint, self.layers.queryPointLayer.image)
+
+        # now any tool points
+        if self.toolPoints is not None:
+            path = QPainterPath()
+            firstpt = self.toolPoints[0]
+            path.moveTo(firstpt.x(), firstpt.y())
+            for pt in self.toolPoints[1:]:
+                path.lineTo(pt.x(), pt.y())
+            paint.setPen(self.toolPen)
+            paint.drawPath(path)
+
         paint.end()
 
     def mousePressEvent(self, event):
@@ -394,23 +439,23 @@ class ViewerWidget(QAbstractScrollArea):
         mode we need to start doing stuff here
         """
         QAbstractScrollArea.mousePressEvent(self, event)
+        pos = event.pos()
+
         if (self.activeTool == VIEWER_TOOL_ZOOMIN or 
                     self.activeTool == VIEWER_TOOL_ZOOMOUT):
-            origin = event.pos()
             if self.rubberBand is None:
                 self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
-            self.rubberBand.setGeometry(QRect(origin, QSize()))
+            self.rubberBand.setGeometry(QRect(pos, QSize()))
             self.rubberBand.show()
-            self.rubberBand.origin = origin
+            self.rubberBand.origin = pos
 
         elif self.activeTool == VIEWER_TOOL_PAN:
             # remember pos
-            self.panOrigin = event.pos()
+            self.panOrigin = pos
             # change cursor
             self.viewport().setCursor(self.panGrabCursor)
 
         elif self.activeTool == VIEWER_TOOL_QUERY:
-            pos = event.pos()
 
             layer = self.layers.getTopRasterLayer()
             if layer is not None:
@@ -428,6 +473,35 @@ class ViewerWidget(QAbstractScrollArea):
                 obj = GeolinkInfo(id(self), easting, northing)
                 self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
 
+        elif self.activeTool == VIEWER_TOOL_POLYGON:
+            button = event.button()
+            if button == Qt.LeftButton:
+                # adding points
+                if self.toolPoints is None:
+                    # first point - starts and ends at same pos
+                    self.toolPoints = [pos, pos]
+                else:
+                    # last point same as first - insert before last
+                    self.toolPoints.insert(-1, pos)
+
+            elif button == Qt.MiddleButton and self.toolPoints is not None:
+                # delete last point
+                if len(self.toolPoints) > 2:
+                    del self.toolPoints[-2]
+
+            elif button == Qt.RightButton and self.toolPoints is not None:
+                # finished
+                # create object for signal
+                from viewertoolclasses import PolyonToolInfo
+                layer = self.layers.getTopRasterLayer()
+                modifiers = event.modifiers()
+                obj = PolyonToolInfo(self.toolPoints, layer, modifiers)
+                self.emit(SIGNAL("polygonCollected(PyQt_PyObject)"), obj)
+
+                self.toolPoints = None
+
+            # redraw so paint() gets called
+            self.viewport().update()
 
     def mouseReleaseEvent(self, event):
         """

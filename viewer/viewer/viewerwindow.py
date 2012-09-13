@@ -90,6 +90,9 @@ class ViewerWindow(QMainWindow):
                                                 self.endProgress)
         self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
                                                 self.newPercent)
+        # general messages from the widget
+        self.connect(self.viewwidget, SIGNAL("showStatusMessage(QString)"),
+                                                self.showStatusMessage)
 
         self.setCentralWidget(self.viewwidget)
 
