@@ -123,7 +123,7 @@ class ContinuousTableModel(QAbstractTableModel):
 
     def rowCount(self, parent):
         "returns the number of rows"
-        return len(self.stretch.bands)
+        return len(self.bandNames)
 
     def columnCount(self, parent):
         "number of columns"
