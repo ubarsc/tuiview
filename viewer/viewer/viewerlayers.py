@@ -15,9 +15,6 @@ from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
 
-QUERY_CURSOR_HALFSIZE = 8 # number of pixels
-QUERY_CURSOR_WIDTH = 1 # in pixels
-
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
@@ -668,6 +665,13 @@ Center      ( %f, %f)
                     ulx, uly, llx, lly, urx, ury, lrx, lry, cx, cy)
         return propstr
 
+QUERY_CURSOR_HALFSIZE = 8 # number of pixels
+QUERY_CURSOR_WIDTH = 1 # in pixels
+
+# types of cursor
+CURSOR_CROSS = 0
+CURSOR_CROSSHAIR = 1
+
 class ViewerQueryPointLayer(ViewerLayer):
     """
     Class for display of query points.
@@ -679,11 +683,15 @@ class ViewerQueryPointLayer(ViewerLayer):
         self.image = None
 
     def setQueryPoint(self, senderid, easting, northing, color,
-                            size=QUERY_CURSOR_HALFSIZE):
+                            size=None, cursor=None):
         """
         Add/replace a query point based on the id() of the requesting object
         """
-        self.queryPoints[senderid] = (easting, northing, color, size)
+        if size is None:
+            size = QUERY_CURSOR_HALFSIZE
+        if cursor is None:
+            cursor = CURSOR_CROSS
+        self.queryPoints[senderid] = (easting, northing, color, size, cursor)
 
     def removeQueryPoint(self, senderid):
         """
@@ -705,7 +713,8 @@ class ViewerQueryPointLayer(ViewerLayer):
             pen.setWidth(QUERY_CURSOR_WIDTH)
             paint = QPainter(self.image)
             for senderid in self.queryPoints:
-                (easting, northing, color, size) = self.queryPoints[senderid]
+                (easting, northing, color, size, cursor) = (
+                                                self.queryPoints[senderid])
                 display = self.coordmgr.world2display(easting, northing)
                 if display is not None:
                     (dspX, dspY) = display
@@ -713,8 +722,17 @@ class ViewerQueryPointLayer(ViewerLayer):
                     dspY = int(dspY)
                     pen.setColor(color)
                     paint.setPen(pen)
-                    paint.drawLine(dspX - size, dspY, dspX + size, dspY)
-                    paint.drawLine(dspX, dspY - size, dspX, dspY + size)
+                    if cursor == CURSOR_CROSS:
+                        paint.drawLine(dspX - size, dspY, dspX + size, dspY)
+                        paint.drawLine(dspX, dspY - size, dspX, dspY + size)
+                    else:
+                        # CURSOR_CROSSHAIR
+                        paint.drawLine(dspX - size, dspY, dspX - 2, dspY)
+                        paint.drawLine(dspX + 2, dspY, dspX + size, dspY)
+                        paint.drawLine(dspX, dspY - size, dspX, dspY - 2)
+                        paint.drawLine(dspX, dspY + 2, dspX, dspY + size)
+                        paint.drawArc(dspX - size, dspY - size, 
+                                        size * 2, size * 2, 0, 16 * 360)
             paint.end()
                 
                 
