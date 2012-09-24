@@ -701,6 +701,65 @@ class ViewerLUT(QObject):
             self.lut[self.bandinfo.background_index, lutindex] = (
                                                 background_value)
 
+        elif stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR:
+            from . import pseudocolor
+            if len(stretch.bands) > 1:
+                msg = 'specify one band when opening a pseudocolor image'
+                raise viewererrors.InvalidParameters(msg)
+
+            band = stretch.bands[0]
+            gdalband = dataset.GetRasterBand(band)
+
+            if gdalband.DataType == gdal.GDT_Byte:
+                lutsize = 256
+            elif stretch.attributeTableSize is not None:
+                # override if there is an attribute table
+                lutsize = stretch.attributeTableSize
+            else:
+                lutsize = DEFAULT_LUTSIZE
+
+            # LUT is shape [lutsize,4] so we can index from a single 
+            # band and get the brga (native order)
+            # plus 2 for no data and background
+            self.lut = numpy.empty((lutsize + 2, 4), numpy.uint8, 'C')
+
+            # we get the LUT from createStretchLUT but we are really
+            # only interested in the bandinfo that records the stretchmin, max
+            lut, self.bandinfo = self.createStretchLUT(gdalband, 
+                        stretch, lutsize, localdata)
+
+            # we will make space for thses
+            self.bandinfo.nodata_index = lutsize
+            self.bandinfo.background_index = lutsize + 1
+
+            # now obtain for each band and copy
+            for code in RGB_CODES:
+                lutindex = CODE_TO_LUTINDEX[code]
+
+                lut = pseudocolor.getLUTForRamp(code, stretch.rampName, 
+                                                lutsize)
+                # make space for nodata and background
+                lut = numpy.append(lut, [0, 0])
+
+                # append the nodata and background while we are at it
+                rgbindex = CODE_TO_RGBINDEX[code]
+                nodata_value = stretch.nodata_rgba[rgbindex]
+                background_value = stretch.background_rgba[rgbindex]
+                lut[self.bandinfo.nodata_index] = nodata_value
+                lut[self.bandinfo.background_index] = background_value
+
+                self.lut[..., lutindex] = lut
+
+            # now do alpha seperately - 255 for all except 
+            # no data and background
+            lutindex = CODE_TO_LUTINDEX['a']
+            self.lut[..., lutindex].fill(255)
+            rgbindex = CODE_TO_RGBINDEX['a']
+            nodata_value = stretch.nodata_rgba[rgbindex]
+            background_value = stretch.background_rgba[rgbindex]
+            self.lut[self.bandinfo.nodata_index, lutindex] = nodata_value
+            self.lut[self.bandinfo.background_index, lutindex] = (
+                                                background_value)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             if len(stretch.bands) != 3:

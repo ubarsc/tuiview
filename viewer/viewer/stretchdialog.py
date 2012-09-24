@@ -13,10 +13,12 @@ from PyQt4.QtCore import QVariant, QSettings, SIGNAL, Qt
 import json
 
 from . import viewerstretch
+from . import pseudocolor
 
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),
                 ("Greyscale", viewerstretch.VIEWER_MODE_GREYSCALE),
+                ("PseudoColor", viewerstretch.VIEWER_MODE_PSEUDOCOLOR),
                 ("RGB", viewerstretch.VIEWER_MODE_RGB))
 
 STRETCH_DATA = (("None", viewerstretch.VIEWER_STRETCHMODE_NONE),
@@ -95,7 +97,26 @@ class StretchLayout(QFormLayout):
         self.connect(self.modeCombo, SIGNAL("currentIndexChanged(int)"), 
                             self.modeChanged)
 
-        self.addRow("Mode", self.modeCombo)
+        self.rampCombo = QComboBox(parent)
+
+        # populate combo - sort by type
+        index = 0
+        for (name, display) in pseudocolor.getRampsForDisplay():
+            userdata = QVariant(name)
+            self.rampCombo.addItem(display, userdata)
+            if stretch.rampName is not None and stretch.rampName == name:
+                self.rampCombo.setCurrentIndex(index)
+            index += 1
+
+        # set ramp state depending on if we are pseudo color or not
+        state = stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
+        self.rampCombo.setEnabled(state)
+
+        self.modeLayout = QHBoxLayout()
+        self.modeLayout.addWidget(self.modeCombo)
+        self.modeLayout.addWidget(self.rampCombo)
+
+        self.addRow("Mode", self.modeLayout)
 
         if gdaldataset is None:
             # we don't have a dateset - is a rule
@@ -299,6 +320,12 @@ class StretchLayout(QFormLayout):
             bands.append(value)
         obj.setBands(tuple(bands))
 
+        if obj.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR:
+            idx = self.rampCombo.currentIndex()
+            rampName = self.rampCombo.itemData(idx)
+            rampName = rampName.toString()
+            obj.setPseudoColor(str(rampName))
+
         index = self.stretchCombo.currentIndex()
         obj.stretchmode = self.stretchCombo.itemData(index).toInt()[0]
         if obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
@@ -346,6 +373,9 @@ class StretchLayout(QFormLayout):
             self.stretchCombo.setCurrentIndex(0)
         state = mode != viewerstretch.VIEWER_MODE_COLORTABLE
         self.stretchCombo.setEnabled(state)
+
+        state = mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
+        self.rampCombo.setEnabled(state)
 
     def stretchChanged(self, index):
         """

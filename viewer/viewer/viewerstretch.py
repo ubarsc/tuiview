@@ -15,6 +15,7 @@ VIEWER_MODE_DEFAULT = 0
 VIEWER_MODE_COLORTABLE = 1
 VIEWER_MODE_GREYSCALE = 2
 VIEWER_MODE_RGB = 3
+VIEWER_MODE_PSEUDOCOLOR = 4
 
 # how to stretch an image
 VIEWER_STRETCHMODE_DEFAULT = 0
@@ -42,6 +43,7 @@ class ViewerStretch(object):
         self.stretchmode = VIEWER_STRETCHMODE_DEFAULT
         self.stretchparam = None
         self.bands = None
+        self.rampName = None  # from colorbrewer2.org
         self.nodata_rgba = (0, 0, 0, 0)
         self.background_rgba = (0, 0, 0, 0)
         self.attributeTableSize = None # override with size of attribute table 
@@ -60,6 +62,11 @@ class ViewerStretch(object):
     def setGreyScale(self):
         "Display a single band in greyscale"
         self.mode = VIEWER_MODE_GREYSCALE
+
+    def setPseudoColor(self, rampName):
+        "Display with given color ramp"
+        self.mode = VIEWER_MODE_PSEUDOCOLOR
+        self.rampName = rampName
 
     def setRGB(self):
         "Display 3 bands as RGB"
@@ -110,7 +117,7 @@ class ViewerStretch(object):
         """
         rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
                 'stretchparam' : self.stretchparam, 'bands' : self.bands,
-                'nodata_rgba' : self.nodata_rgba, 
+                'nodata_rgba' : self.nodata_rgba, 'rampname' : self.rampName,
                 'background_rgba' : self.background_rgba }
         return json.dumps(rep)
 
@@ -131,6 +138,8 @@ class ViewerStretch(object):
             obj.nodata_rgba = rep['nodata_rgba']
         if 'background_rgba' in rep:
             obj.background_rgba = rep['background_rgba']
+        if 'rampname' in rep:
+            obj.rampName = rep['rampname']
         return obj
 
     def writeToGDAL(self, gdaldataset):
