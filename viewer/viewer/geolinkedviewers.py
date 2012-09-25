@@ -125,12 +125,20 @@ class GeolinkedViewers(QObject):
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
 
+    def getDesktopSize(self):
+        """
+        Called at the start of the tiling operation.
+        Default implementation just gets the size of the desktop.
+        if overridden, return a QRect
+        """
+        return QApplication.desktop().availableGeometry()
+
     def onTileWindows(self, nxside, nyside):
         """
         Called when the user wants the windows to be tiled
         """
         # get the dimensions of the desktop
-        desktop = QApplication.desktop().availableGeometry()
+        desktop = self.getDesktopSize()
 
         # do they want full auto?
         if nxside == 0 and nyside == 0:
