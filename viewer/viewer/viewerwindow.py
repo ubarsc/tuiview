@@ -109,6 +109,8 @@ class ViewerWindow(QMainWindow):
         # if zero we need to start a new one when query
         # tool selected
         self.queryWindowCount = 0
+        # same, but for profile window
+        self.profileWindowCount = 0
 
         # accept dropping files
         self.setAcceptDrops(True)
@@ -325,6 +327,22 @@ class ViewerWindow(QMainWindow):
         self.layerAct.setIconVisibleInMenu(True)
         self.connect(self.layerAct, SIGNAL("triggered()"), self.arrangeLayers)
 
+        self.profileAct = QAction(self)
+        self.profileAct.setText("Profile/R&uler")
+        self.profileAct.setStatusTip("Start Profile/Ruler tool")
+        self.profileAct.setShortcut("CTRL+A")
+        self.profileAct.setCheckable(True)
+        self.profileAct.setIcon(QIcon(":/viewer/images/profileruler.png"))
+        self.profileAct.setIconVisibleInMenu(True)
+        self.connect(self.profileAct, SIGNAL("toggled(bool)"), self.profile)
+
+        self.newProfileAct = QAction(self)
+        self.newProfileAct.setText("New Profile/Ruler Window")
+        self.newProfileAct.setStatusTip("Open New Profile/Ruler Window")
+        self.newProfileAct.setShortcut("CTRL+S")
+        self.connect(self.newProfileAct, SIGNAL("triggered()"), 
+                                                    self.newProfile)
+
     def setupMenus(self):
         """
         Creates the menus and adds the actions to them
@@ -352,6 +370,8 @@ class ViewerWindow(QMainWindow):
         viewMenu.addAction(self.followExtentAct)
         viewMenu.addAction(self.queryAct)
         viewMenu.addAction(self.newQueryAct)
+        viewMenu.addAction(self.profileAct)
+        viewMenu.addAction(self.newProfileAct)
         viewMenu.addAction(self.flickerAct)
 
     def setupToolbars(self):
@@ -372,6 +392,7 @@ class ViewerWindow(QMainWindow):
         viewToolbar.addAction(self.zoomFullExtAct)
         viewToolbar.addAction(self.followExtentAct)
         viewToolbar.addAction(self.queryAct)
+        viewToolbar.addAction(self.profileAct)
         viewToolbar.addAction(self.flickerAct)
 
     def setupStatusBar(self):
@@ -589,6 +610,7 @@ class ViewerWindow(QMainWindow):
             self.zoomInAct.setChecked(False)
             self.zoomOutAct.setChecked(False)
             self.panAct.setChecked(False)
+            self.profileAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_QUERY)
 
             # if there is no query window currently open start one
@@ -622,12 +644,58 @@ class ViewerWindow(QMainWindow):
                                 SIGNAL("locationSelected(PyQt_PyObject)"), 
                                 queryDock.locationSelected)
 
-        # grab the signal with queryDock sends when it is closed
+        # grab the signal the queryDock sends when it is closed
         self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), 
                                                 self.queryClosed)
 
         # increment our count
         self.queryWindowCount += 1
+
+    def profile(self, checked):
+        """
+        Profile tool selected.
+        Tell view widget to operate in polyline mode.
+        """
+        if checked:
+            # disable any other tools
+            self.zoomInAct.setChecked(False)
+            self.zoomOutAct.setChecked(False)
+            self.panAct.setChecked(False)
+            self.queryAct.setChecked(False)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_POLYLINE)
+
+            # if there is no query window currently open start one
+            if self.profileWindowCount <= 0:
+                self.newProfile()
+        else:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+
+    def newProfile(self):
+        from . import profilewindow
+        profileDock = profilewindow.ProfileDockWidget(self, self.viewwidget)
+        self.addDockWidget(Qt.TopDockWidgetArea, profileDock)
+        profileDock.setFloating(True) # detach so it isn't docked by default
+
+        # connect to the signal that provides our new line
+        self.connect(self.viewwidget, 
+            SIGNAL("polylineCollected(PyQt_PyObject)"), profileDock.newLine)
+
+        # grab the signal the profileDock sends when it is closed
+        self.connect(profileDock, SIGNAL("profileClosed(PyQt_PyObject)"), 
+                                                self.profileClosed)
+
+        # increment our count
+        self.profileWindowCount += 1
+
+    def profileClosed(self, profileDock):
+        """
+        Profile dock window has been closed. Disconnect from
+        polylineCollected signal and decrement our count
+        """
+        self.disconnect(self.viewwidget, 
+                            SIGNAL("polylineCollected(PyQt_PyObject)"), 
+                            profileDock.newLine)
+        self.profileWindowCount -= 1
 
     def flicker(self):
         """

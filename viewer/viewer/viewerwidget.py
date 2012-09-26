@@ -46,6 +46,7 @@ VIEWER_TOOL_ZOOMOUT = 2
 VIEWER_TOOL_PAN = 3
 VIEWER_TOOL_QUERY = 4
 VIEWER_TOOL_POLYGON = 5
+VIEWER_TOOL_POLYLINE = 6
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -283,7 +284,7 @@ class ViewerWidget(QAbstractScrollArea):
                 self.queryCursor = QCursor(Qt.CrossCursor)
             self.viewport().setCursor(self.queryCursor)
 
-        elif tool == VIEWER_TOOL_POLYGON:
+        elif tool == VIEWER_TOOL_POLYGON or tool == VIEWER_TOOL_POLYLINE:
             if self.polygonCursor is None:
                 self.polygonCursor = QCursor(QPixmap(["16 16 3 1",
                                   " \xc2     c None",
@@ -493,11 +494,41 @@ class ViewerWidget(QAbstractScrollArea):
             elif button == Qt.RightButton and self.toolPoints is not None:
                 # finished
                 # create object for signal
-                from viewertoolclasses import PolyonToolInfo
+                from viewertoolclasses import PolygonToolInfo
                 layer = self.layers.getTopRasterLayer()
                 modifiers = event.modifiers()
-                obj = PolyonToolInfo(self.toolPoints, layer, modifiers)
+                obj = PolygonToolInfo(self.toolPoints, layer, modifiers)
                 self.emit(SIGNAL("polygonCollected(PyQt_PyObject)"), obj)
+
+                self.toolPoints = None
+
+            # redraw so paint() gets called
+            self.viewport().update()
+
+        elif self.activeTool == VIEWER_TOOL_POLYLINE:
+            button = event.button()
+            if button == Qt.LeftButton:
+                # adding points
+                if self.toolPoints is None:
+                    # first point 
+                    self.toolPoints = [pos]
+                else:
+                    # add to list
+                    self.toolPoints.append(pos)
+
+            elif button == Qt.MiddleButton and self.toolPoints is not None:
+                # delete last point
+                if len(self.toolPoints) > 1:
+                    self.toolPoints.pop()
+
+            elif button == Qt.RightButton and self.toolPoints is not None:
+                # finished
+                # create object for signal
+                from viewertoolclasses import PolylineToolInfo
+                layer = self.layers.getTopRasterLayer()
+                modifiers = event.modifiers()
+                obj = PolylineToolInfo(self.toolPoints, layer, modifiers)
+                self.emit(SIGNAL("polylineCollected(PyQt_PyObject)"), obj)
 
                 self.toolPoints = None
 

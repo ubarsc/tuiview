@@ -924,7 +924,7 @@ Use the special columns:
         if not self.geogSelectAction.isChecked():
             return
 
-        # polyInfo is a PolyonToolInfo
+        # polyInfo is a PolygonToolInfo
         # get selection in poly
         selectMask = polyInfo.getDisplaySelectionMask()
         # valid daya
