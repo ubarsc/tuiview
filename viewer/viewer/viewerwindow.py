@@ -310,7 +310,7 @@ class ViewerWindow(QMainWindow):
                                                     self.setPreferences)
 
         self.flickerAct = QAction(self)
-        self.flickerAct.setText("F&licker")
+        self.flickerAct.setText("&Flicker")
         self.flickerAct.setStatusTip("Flicker top 2 layers")
         self.flickerAct.setShortcut("CTRL+K")
         self.flickerAct.iconOn = QIcon(":/viewer/images/flickeron.png")
@@ -328,7 +328,7 @@ class ViewerWindow(QMainWindow):
         self.connect(self.layerAct, SIGNAL("triggered()"), self.arrangeLayers)
 
         self.profileAct = QAction(self)
-        self.profileAct.setText("Profile/R&uler")
+        self.profileAct.setText("&Profile/Ruler")
         self.profileAct.setStatusTip("Start Profile/Ruler tool")
         self.profileAct.setShortcut("CTRL+A")
         self.profileAct.setCheckable(True)
@@ -337,7 +337,7 @@ class ViewerWindow(QMainWindow):
         self.connect(self.profileAct, SIGNAL("toggled(bool)"), self.profile)
 
         self.newProfileAct = QAction(self)
-        self.newProfileAct.setText("New Profile/Ruler Window")
+        self.newProfileAct.setText("New P&rofile/Ruler Window")
         self.newProfileAct.setStatusTip("Open New Profile/Ruler Window")
         self.newProfileAct.setShortcut("CTRL+S")
         self.connect(self.newProfileAct, SIGNAL("triggered()"), 
@@ -368,11 +368,13 @@ class ViewerWindow(QMainWindow):
         viewMenu.addAction(self.zoomNativeAct)
         viewMenu.addAction(self.zoomFullExtAct)
         viewMenu.addAction(self.followExtentAct)
-        viewMenu.addAction(self.queryAct)
-        viewMenu.addAction(self.newQueryAct)
-        viewMenu.addAction(self.profileAct)
-        viewMenu.addAction(self.newProfileAct)
-        viewMenu.addAction(self.flickerAct)
+
+        toolMenu = self.menuBar().addMenu("&Tools")
+        toolMenu.addAction(self.queryAct)
+        toolMenu.addAction(self.newQueryAct)
+        toolMenu.addAction(self.profileAct)
+        toolMenu.addAction(self.newProfileAct)
+        toolMenu.addAction(self.flickerAct)
 
     def setupToolbars(self):
         """
@@ -391,9 +393,11 @@ class ViewerWindow(QMainWindow):
         viewToolbar.addAction(self.zoomNativeAct)
         viewToolbar.addAction(self.zoomFullExtAct)
         viewToolbar.addAction(self.followExtentAct)
-        viewToolbar.addAction(self.queryAct)
-        viewToolbar.addAction(self.profileAct)
-        viewToolbar.addAction(self.flickerAct)
+
+        toolToolbar = self.addToolBar("Tools")
+        toolToolbar.addAction(self.queryAct)
+        toolToolbar.addAction(self.profileAct)
+        toolToolbar.addAction(self.flickerAct)
 
     def setupStatusBar(self):
         """
