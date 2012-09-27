@@ -118,6 +118,7 @@ class PolylineToolInfo(ToolInfo):
         lastPoint = self[0]
         # bresenhamline does not include the very first point
         profile = numpy.array([[lastPoint.x(), lastPoint.y()]])
+        distance = numpy.array([0.0])
         for pt in self[1:]:
             # need to be 2-d arrays for some reason
             start = numpy.array([[lastPoint.x(), lastPoint.y()]])
@@ -126,12 +127,21 @@ class PolylineToolInfo(ToolInfo):
             newprofile = bresenhamline(start, end, max_iter=-1)
             # add to our array of points
             profile = numpy.append(profile, newprofile, axis=0)
+
+            # now work out distance
+            # make relative to first point
+            tmpx = newprofile[..., 0] - lastPoint.x()
+            tmpy = newprofile[..., 1] - lastPoint.y()
+            # work out diag distance and make it cumulative
+            newdist = numpy.sqrt(tmpx**2 + tmpy**2) + distance[-1]
+            distance = numpy.append(distance, newdist)
+
             lastPoint = pt
 
         # see http://docs.scipy.org/doc/numpy/user/basics.indexing.html
         # #indexing-multi-dimensional-arrays
-        profilex = profile[..., 1]
-        profiley = profile[..., 0]
+        profiley = profile[..., 1]
+        profilex = profile[..., 0]
 
         # index these points in the data
         data = self.getDisplayData()
@@ -139,17 +149,26 @@ class PolylineToolInfo(ToolInfo):
             # RGB
             profiledata = []
             for banddata in data:
-                pdata = banddata[profilex, profiley]
+                pdata = banddata[profiley, profilex]
                 profiledata.append(pdata)
-                print banddata.shape, pdata.shape
         else:
-            profiledata = data[profilex, profiley]
+            # single band
+            profiledata = data[profiley, profilex]
         
         # and the mask
         mask = self.getDisplayValidMask()
-        profilemask = mask[profile]
+        profilemask = mask[profiley, profilex]
 
-        return profiledata, profilemask
+        # convert distance to metres
+        coordmgr = self.layer.coordmgr
+        if (coordmgr.imgPixPerWinPix is not None and 
+                coordmgr.geotransform is not None):
+            profiledistance = distance * (coordmgr.imgPixPerWinPix * 
+                                    coordmgr.geotransform[1])
+        else:
+            profiledistance = distance
+
+        return profiledata, profilemask, profiledistance
 
 # the following stolen from 
 # http://code.activestate.com/recipes/578112-bresenhams-line-algorithm-in-n-dimensions/

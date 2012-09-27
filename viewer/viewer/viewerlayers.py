@@ -697,7 +697,8 @@ class ViewerQueryPointLayer(ViewerLayer):
         """
         remove a query point based on the id() of the requesting object
         """
-        del self.queryPoints[senderid]
+        if senderid in self.queryPoints:
+            del self.queryPoints[senderid]
 
     def getImage(self):
         """

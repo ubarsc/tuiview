@@ -543,6 +543,7 @@ class ViewerWindow(QMainWindow):
             self.panAct.setChecked(False)
             self.zoomOutAct.setChecked(False)
             self.queryAct.setChecked(False)
+            self.profileAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
@@ -557,6 +558,7 @@ class ViewerWindow(QMainWindow):
             self.panAct.setChecked(False)
             self.zoomInAct.setChecked(False)
             self.queryAct.setChecked(False)
+            self.profileAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
@@ -571,6 +573,7 @@ class ViewerWindow(QMainWindow):
             self.zoomInAct.setChecked(False)
             self.zoomOutAct.setChecked(False)
             self.queryAct.setChecked(False)
+            self.profileAct.setChecked(False)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN)
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
