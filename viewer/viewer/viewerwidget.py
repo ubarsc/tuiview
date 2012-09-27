@@ -86,6 +86,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
         self.toolPoints = None # for line and polygon tools - list of points
+        self.toolPointsFinished = True # True if we finished collecting
+                                # with line and poly tools
         self.toolPen = QPen() # for drawing the toolPoints
         self.toolPen.setWidth(1)
         self.toolPen.setColor(Qt.yellow)
@@ -220,6 +222,15 @@ class ViewerWidget(QAbstractScrollArea):
         Set active tool (one of VIEWER_TOOL_*).
         pass VIEWER_TOOL_NONE to disable
         """
+        # if the tool was line or polygon
+        # now is the time to remove the outline from the widget
+        if (self.activeTool == VIEWER_TOOL_POLYGON or 
+                self.activeTool == VIEWER_TOOL_POLYLINE):
+            self.toolPoints = None
+            self.toolPointsFinished = True
+            # force repaint
+            self.viewport().update()
+
         self.activeTool = tool
         if tool == VIEWER_TOOL_ZOOMIN:
             if self.zoomInCursor is None:
@@ -479,9 +490,10 @@ class ViewerWidget(QAbstractScrollArea):
             button = event.button()
             if button == Qt.LeftButton:
                 # adding points
-                if self.toolPoints is None:
+                if self.toolPoints is None or self.toolPointsFinished:
                     # first point - starts and ends at same pos
                     self.toolPoints = [pos, pos]
+                    self.toolPointsFinished = False
                 else:
                     # last point same as first - insert before last
                     self.toolPoints.insert(-1, pos)
@@ -500,7 +512,7 @@ class ViewerWidget(QAbstractScrollArea):
                 obj = PolygonToolInfo(self.toolPoints, layer, modifiers)
                 self.emit(SIGNAL("polygonCollected(PyQt_PyObject)"), obj)
 
-                self.toolPoints = None
+                self.toolPointsFinished = True # done, but still display
 
             # redraw so paint() gets called
             self.viewport().update()
@@ -509,9 +521,10 @@ class ViewerWidget(QAbstractScrollArea):
             button = event.button()
             if button == Qt.LeftButton:
                 # adding points
-                if self.toolPoints is None:
+                if self.toolPoints is None or self.toolPointsFinished:
                     # first point 
                     self.toolPoints = [pos]
+                    self.toolPointsFinished = False
                 else:
                     # add to list
                     self.toolPoints.append(pos)
@@ -530,7 +543,7 @@ class ViewerWidget(QAbstractScrollArea):
                 obj = PolylineToolInfo(self.toolPoints, layer, modifiers)
                 self.emit(SIGNAL("polylineCollected(PyQt_PyObject)"), obj)
 
-                self.toolPoints = None
+                self.toolPointsFinished = True # done, but still display
 
             # redraw so paint() gets called
             self.viewport().update()

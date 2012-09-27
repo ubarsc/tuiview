@@ -948,9 +948,6 @@ Use the special columns:
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
-        # reset
-        self.geogSelectAction.setChecked(False)
-
     def geogSelect(self, checked):
         """
         Turn on the polygon tool so we can select the area
