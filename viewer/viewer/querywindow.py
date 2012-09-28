@@ -55,8 +55,10 @@ class ThematicTableModel(QAbstractTableModel):
         QAbstractTableModel.__init__(self, parent)
         self.attributes = attributes
         self.saneColNames = attributes.getSaneColumnNames()
+        self.colNames = attributes.getColumnNames()
         self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
         self.highlightRow = -1
+        self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
 
     def setHighlightRow(self, row):
         """
@@ -78,9 +80,19 @@ class ThematicTableModel(QAbstractTableModel):
         returns the header labels for either vertical or
         horizontal
         """
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            name = self.saneColNames[section]
-            return QVariant(name)
+        if orientation == Qt.Horizontal:
+            if role == Qt.DisplayRole:
+                name = self.saneColNames[section]
+                return QVariant(name)
+            elif role == Qt.DecorationRole:
+                name = self.colNames[section]
+                if name == self.attributes.getLookupColName():
+                    return QVariant(self.lookupColIcon)
+                else:
+                    return QVariant()
+            else:
+                return QVariant()
+                
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             # rows just a number
             return QVariant("%s" % section)
@@ -160,16 +172,16 @@ class ContinuousTableModel(QAbstractTableModel):
             if (self.stretch.mode == VIEWER_MODE_RGB and 
                             band in self.stretch.bands):
                 if band == self.stretch.bands[0]:
-                    return RED_ICON
+                    return QVariant(RED_ICON)
                 elif band == self.stretch.bands[1]:
-                    return GREEN_ICON
+                    return QVariant(GREEN_ICON)
                 elif band == self.stretch.bands[2]:
-                    return BLUE_ICON
+                    return QVariant(BLUE_ICON)
                 else:
                     return QVariant()
             elif (self.stretch.mode == VIEWER_MODE_GREYSCALE 
                     and band == self.stretch.bands[0]):
-                return GREY_ICON
+                return QVariant(GREY_ICON)
 
             else:
                 return QVariant()
@@ -286,6 +298,10 @@ class ThematicHorizontalHeader(QHeaderView):
         self.setDPAction = QAction(self)
         self.setDPAction.setText("&Set number of decimal places")
         self.setDPAction.setStatusTip("Set number of decimal places")
+
+        self.setLookupAction = QAction(self)
+        self.setLookupAction.setText("Set column as Color Table L&ookup")
+        self.setLookupAction.setStatusTip("Set column as Color Table Lookup")
         
         # don't connect signal - will grab directly below so we can pass
         # on the column that was clicked
@@ -296,6 +312,7 @@ class ThematicHorizontalHeader(QHeaderView):
         self.popup.addAction(self.moveLeftMostAction)
         self.popup.addAction(self.moveRightMostAction)
         self.popup.addAction(self.setDPAction) # enabled when float col
+        self.popup.addAction(self.setLookupAction) # enabled when int col
 
         self.setToolTip("Right click for menu")
 
@@ -306,12 +323,13 @@ class ThematicHorizontalHeader(QHeaderView):
     def contextMenuEvent(self, event):
         "Respond to context menu event"
         if self.thematic:
-            from osgeo.gdal import GFT_Real
+            from osgeo.gdal import GFT_Real, GFT_Integer
             col = self.logicalIndexAt(event.pos())
             # work out whether this is float column
             colName = self.parent.lastLayer.attributes.getColumnNames()[col]
             colType = self.parent.lastLayer.attributes.getType(colName)
             self.setDPAction.setEnabled(colType == GFT_Real)
+            self.setLookupAction.setEnabled(colType == GFT_Integer)
 
             action = self.popup.exec_(event.globalPos())
             if action is self.editColumnAction:
@@ -326,6 +344,8 @@ class ThematicHorizontalHeader(QHeaderView):
                 self.parent.moveColumn(col, MOVE_RIGHTMOST)
             elif action is self.setDPAction:
                 self.parent.setColumnDecimalPlaces(colName)
+            elif action is self.setLookupAction:
+                self.parent.setColumnAsLookup(colName)
 
 class QueryDockWidget(QDockWidget):
     """
@@ -834,6 +854,12 @@ Use the special columns:
             # so we repaint and new values get shown
             self.tableView.viewport().update()
 
+            # is this a the lookup column?
+            if colname == attributes.getLookupColName():
+                # can't just use result because we need selectionArray applied
+                col = attributes.getAttribute(colname)
+                self.viewwidget.setColorTableLookup(col)
+
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
@@ -887,6 +913,25 @@ Use the special columns:
             newFormat = "%%.%df" % newDP
             attributes.setFormat(colName, newFormat)
             self.updateThematicTableModel(attributes)
+
+    def setColumnAsLookup(self, colName):
+        """
+        Allows the user to specify a column to be used
+        to lookup the color table
+        """
+        attributes = self.lastLayer.attributes
+        if colName == attributes.getLookupColName():
+            # toggle off
+            attributes.setLookupColName(None)
+            self.viewwidget.setColorTableLookup()
+        else:
+            attributes.setLookupColName(colName)
+            col = attributes.getAttribute(colName)
+            self.viewwidget.setColorTableLookup(col)
+
+        # so header gets updated
+        self.updateThematicTableModel(attributes)
+
 
     def saveAttributes(self):
         """

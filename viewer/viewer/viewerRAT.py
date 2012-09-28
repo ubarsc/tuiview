@@ -129,6 +129,14 @@ class ViewerRAT(QObject):
         else:
             return 0
 
+    def getLookupColName(self):
+        "Return column to be used to lookup color table"
+        return self.lookupColName
+
+    def setLookupColName(self, name):
+        "Set column to be used to lookup color table"
+        self.lookupColName = name
+
     def clear(self):
         """
         Removes attributes from this class
@@ -138,6 +146,7 @@ class ViewerRAT(QObject):
         self.columnTypes = None # dict
         self.columnUsages = None # dict
         self.columnFormats = None # dict
+        self.lookupColName = None # string
         # list of columns in self.columnNames
         # that need to be written to (and possibly created)
         # into a a file.

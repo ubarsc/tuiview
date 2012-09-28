@@ -98,6 +98,9 @@ class ViewerLUT(QObject):
         self.lut = None
         # 'backup' lut. Used for holding the original for highlight etc
         self.backuplut = None
+        # lookupArray - if not None used to lookup image values
+        # before indexing color table
+        self.lookupArray = None
         # a single BandLUTInfo instance for single band
         # dictionary keyed on code for RGB
         self.bandinfo = None
@@ -105,7 +108,6 @@ class ViewerLUT(QObject):
     def highlightRows(self, color, selectionArray=None):
         """
         Highlights the specified where selectionArray == True
-        (or remove if 'rows' is None).
         Saves the existing LUT in self.backuplut if not already
         Assumes selectionArray is the same length as the LUT
         """
@@ -135,6 +137,32 @@ class ViewerLUT(QObject):
             lutindex = CODE_TO_LUTINDEX[code]
             self.lut[..., lutindex] = (
                 numpy.where(selectionArray, value, self.lut[..., lutindex]))
+
+    def setColorTableLookup(self, lookupArray):
+        """
+        Uses lookupArray to index into color table where 
+        values != 0. Pass None to reset.
+        """
+        if self.lut is None:
+            raise viewererrors.InvalidColorTable('stretch not loaded yet')
+
+        if self.lut.shape[1] != 4:
+            msg = 'Can only lookup thematic data'
+            raise viewererrors.InvalidColorTable(msg)
+
+        if lookupArray is not None:
+            if numpy.issubdtype(lookupArray.dtype, numpy.floating):
+                msg = 'lookup must be integer'
+                raise viewererrors.InvalidColorTable(msg)
+
+            # we are ignoring zeros. Set to beyond the range
+            # of the data and we will mask out later
+            lookupArray = numpy.where(lookupArray == 0, 
+                            int(self.bandinfo.max) + 1, lookupArray)
+            # make selectionArray the same size by adding space for 
+            # no data and ignore
+            lookupArray = numpy.append(lookupArray, [0, 0])
+        self.lookupArray = lookupArray
 
     def saveToFile(self, fname):
         """
@@ -830,19 +858,33 @@ class ViewerLUT(QObject):
         or greyscale image) and return the result as
         a QImage
         """
+        # hang on the 'old' data so we can save that back to the image
+        olddata = data            
+
         # work out where the NaN's are if float
         if numpy.issubdtype(data.dtype, numpy.floating):
             nanmask = numpy.isnan(data)
         else:
             nanmask = None
 
-        # in case data outside range of stretch
-        # don't use the in place version because if either min or max are
-        # float we need the type to change
-        data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
+        if self.lookupArray is not None:
+            # there is a lookup array we have to 'look up'
+            # the data in before we apply the color table
+            ludata = self.lookupArray[data]
+            # where needed leave it as it was
+            # we set lookupArray to max+1 where we don't want to lookup
+            data = numpy.where(ludata == (int(self.bandinfo.max) + 1), 
+                                                    data, ludata)
+            # clip
+            data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
+        else:
+            # in case data outside range of stretch
+            # don't use the in place version because if either min or max are
+            # float we need the type to change
+            data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
 
-        # apply scaling
-        data = (data + self.bandinfo.offset) / self.bandinfo.scale
+            # apply scaling
+            data = (data + self.bandinfo.offset) / self.bandinfo.scale
 
         # can only do lookups with integer data
         if numpy.issubdtype(data.dtype, numpy.floating):
@@ -868,7 +910,7 @@ class ViewerLUT(QObject):
         # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
         # is faster. Not sure what this means
         image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32)
-        image.viewerdata = data # hold on to the data in case we
+        image.viewerdata = olddata # hold on to the data in case we
                             # want to change the lut and quickly re-apply it
                             # or calculate local stats
         image.viewermask = mask 

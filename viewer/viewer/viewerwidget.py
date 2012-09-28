@@ -192,6 +192,21 @@ class ViewerWidget(QAbstractScrollArea):
             # force repaint
             self.viewport().update()
 
+    def setColorTableLookup(self, lookupArray=None):
+        """
+        Uses the supplied lookupArray to look up image
+        data before indexing into color table in the top
+        layer and redraws. Pass None to reset.
+        """
+        layer = self.layers.getTopRasterLayer()
+        if layer is not None:
+            if len(layer.stretch.bands) != 1:
+                msg = 'can only highlight values on single band images'
+                raise viewererrors.InvalidDataset(msg)
+            layer.setColorTableLookup(lookupArray)
+
+            # force repaint
+            self.viewport().update()
 
     def zoomNativeResolution(self):
         """
