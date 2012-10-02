@@ -20,7 +20,7 @@ kwargs = {'name':'viewer',
       'description':'Simple Raster Viewer',
       'author':'Sam Gillingham',
       'author_email':'gillingham.sam@gmail.com',
-      'scripts':['bin/viewer'],
+      'scripts':['bin/viewer', 'bin/viewerwritetable'],
       'packages':['viewer'],
       'license':'LICENSE.txt',
       'url':'https://bitbucket.org/chchrsc/viewer'}
@@ -42,7 +42,7 @@ if py2exe:
     # bundle the runtime
     data_files = [("Microsoft.VC90.CRT", glob(r'C:\Program Files\Microsoft Visual Studio 9.0\VC\redist\x86\Microsoft.VC90.CRT\*.*'))]
     kwargs['data_files'] = data_files
-    kwargs['windows'] = ['bin/viewer']
+    kwargs['windows'] = ['bin/viewer', 'bin/viewerwritetable']
     # see http://www.py2exe.org/index.cgi/TkInter, http://www.py2exe.org/index.cgi/Py2exeAndPyQt
     # gone all out on the optimisations - don't need docstrings etc
     options = {'py2exe':{'bundle_files' : 3, 'includes':["sip"],

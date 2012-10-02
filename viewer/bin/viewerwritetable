@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+
+"""
+Utility to insert 'surrogate' color tables
+from a specified file into the metadata of the
+destination file.
+
+Can also print info on existing 'surrogate' color tables
+"""
+
+import sys
+import optparse
+from osgeo import gdal
+from viewer.viewerLUT import ViewerLUT
+
+class CmdArgs(object):
+    """
+    Class for processing command line arguments
+    """
+    def __init__(self):
+        usage = "usage: %prog [options]"
+        self.parser = optparse.OptionParser(usage)
+        self.parser.add_option("-s", "--source", dest="source",
+            help="File to read color table from")
+        self.parser.add_option("-n", "--name", dest="name",
+            help="name to save the color table under")
+        self.parser.add_option("-d", "--dest", dest="dest",
+            help="destination file to write color table into")
+        self.parser.add_option("-p", "--print", dest="printct",
+            help="print out available color tables")
+
+        (options, args) = self.parser.parse_args()
+        writeArgs = [options.source, options.name, options.dest]
+        writeValid = [x is not None for x in writeArgs]
+        if (options.printct is None and 
+			any(writeValid) and not all(writeValid)):
+            msg = "Must specify all of --source, --name and --dest for writing"
+            raise SystemExit(msg)
+
+        if options.printct is not None and any(writeValid):
+            msg = "can't specify --name, --source or --dest with --print"
+            raise SystemExit(msg)
+
+	if not options.printct and not any(writeValid):
+		self.parser.print_help()
+		sys.exit(0)
+
+        self.__dict__.update(options.__dict__)
+
+def printTables(fname):
+    """
+    Print report on existing surrogate color tables
+    """
+    ds = gdal.Open(fname)
+    if ds is None:
+        msg = "Cannot open %s" % fname
+        raise SystemExit(msg)
+
+    tables = ViewerLUT.readSurrogateColorTables(ds)
+    if len(tables) == 0:
+        print "No tables found"
+    else:
+        print "Name\tSize"
+        print "------------------------"
+
+        for name in tables:
+            (size, bands) = tables[name].shape
+            print "%s\t%s" % (name, size)
+
+    del ds
+
+def addTable(source, name, dest):
+    """
+    Insert color table from source as a surrogate
+    color table into dest, naming it name
+    """
+    sourceds = gdal.Open(source)
+    if sourceds is None:
+        msg = "Cannot open %s" % source
+        raise SystemExit(msg)
+
+    # always band 1?
+    sourceband = sourceds.GetRasterBand(1)
+    # should we allow this to be set?
+    nodata_rgba = (0, 0, 0, 0)
+    lut, bi = ViewerLUT.loadColorTable(sourceband, nodata_rgba, nodata_rgba)
+
+    destds = gdal.Open(dest, gdal.GA_Update)
+    if destds is None:
+        msg = "Cannot open %s for writing" % dest
+        raise SystemExit(msg)
+
+    # read in existing tables (if any)
+    tables = ViewerLUT.readSurrogateColorTables(destds)
+
+    # what to do if already exists? Dunno.
+    tables[name] = lut[:-2] # strip off the nodata and background
+
+    # write out
+    ViewerLUT.writeSurrogateColorTables(destds, tables)
+
+    del sourceds
+    del destds
+
+if __name__ == '__main__':
+    # main program
+    cmdargs = CmdArgs()
+    
+    if cmdargs.printct is not None:
+        printTables(cmdargs.printct)
+    else:
+        addTable(cmdargs.source, cmdargs.name, cmdargs.dest)
+

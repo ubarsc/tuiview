@@ -43,6 +43,7 @@ MASK_BACKGROUND_VALUE = 2
 # metadata
 VIEWER_BANDINFO_METADATA_KEY = 'VIEWER_BAND_INFO'
 VIEWER_LUT_METADATA_KEY = 'VIEWER_LUT'
+VIEWER_SURROGATE_CT_KEY = 'VIEWER_SURROGATE_CT'
 
 def GDALProgressFunc(value, string, lutobject):
     """
@@ -375,7 +376,56 @@ class ViewerLUT(QObject):
 
         return obj
 
-    def loadColorTable(self, gdalband, nodata_rgba, background_rgba):
+    @staticmethod
+    def readSurrogateColorTables(gdaldataset):
+        """
+        Read the surrogate color tables stored in the file's
+        metadata into a dictionary keyed on the name.
+        """
+        surrogatetables = {}
+        surrogatestring = gdaldataset.GetMetadataItem(VIEWER_SURROGATE_CT_KEY)
+        if surrogatestring is not None and surrogatestring != '':
+            jsondict = json.loads(surrogatestring)
+            # go through each named table
+            for name in jsondict:
+                rgbadict = jsondict[name]
+                alllut = None
+                # each rgba
+                for code in rgbadict:
+                    lutstring = rgbadict[code]
+                    lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
+                    if alllut is None:
+                        # first one - all should be same size
+                        alllut = numpy.empty((lut.size, 4), numpy.uint8, 'C')
+
+                    lutindex = CODE_TO_LUTINDEX[code]
+                    alllut[..., lutindex] = lut
+                surrogatetables[name] = alllut
+
+        return surrogatetables
+
+    @staticmethod
+    def writeSurrogateColorTables(gdaldataset, tables):
+        """
+        Write a dictionary of surrogate color tables to the file's
+        metadata.
+        """
+        # need to convert everything to json combatibale format
+        jsondict = {}
+        for name in tables:
+            rgbadict = {}
+            alllut = tables[name]
+            for code in RGBA_CODES:
+                lutindex = CODE_TO_LUTINDEX[code]
+                jsonlutstring = alllut[..., lutindex].tolist()
+                lutstring = json.dumps(jsonlutstring)
+                rgbadict[code] = lutstring
+            jsondict[name] = rgbadict
+        jsonstring = json.dumps(jsondict)
+        gdaldataset.SetMetadataItem(VIEWER_SURROGATE_CT_KEY, jsonstring)
+
+    @staticmethod
+    def loadColorTable(gdalband, nodata_rgba, background_rgba):
         """
         Creates a LUT for a single band using 
         the color table
