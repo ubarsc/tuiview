@@ -6,6 +6,7 @@ from a specified file into the metadata of the
 destination file.
 
 Can also print info on existing 'surrogate' color tables
+and delete specified tables.
 """
 
 import sys
@@ -28,13 +29,23 @@ class CmdArgs(object):
             help="destination file to write color table into")
         self.parser.add_option("-p", "--print", dest="printct",
             help="print out available color tables")
+        self.parser.add_option("-r", "--remove", dest="remove", 
+            help="remove table from specified file (must specify --name also)")
 
         (options, args) = self.parser.parse_args()
         writeArgs = [options.source, options.name, options.dest]
         writeValid = [x is not None for x in writeArgs]
-        if (options.printct is None and 
+        if (options.printct is None and options.remove is None and
 			any(writeValid) and not all(writeValid)):
             msg = "Must specify all of --source, --name and --dest for writing"
+            raise SystemExit(msg)
+
+        if options.printct is not None and options.remove is not None:
+            msg = "can't specify both --print and --remove"
+            raise SystemExit(msg)
+
+        if options.remove is not None and options.name is None:
+            msg = "Must specify --name for --remove"
             raise SystemExit(msg)
 
         if options.printct is not None and any(writeValid):
@@ -102,12 +113,36 @@ def addTable(source, name, dest):
     del sourceds
     del destds
 
+def removeTable(fname, tablename):
+
+    destds = gdal.Open(fname, gdal.GA_Update)
+    if destds is None:
+        msg = "Cannot open %s for writing" % fname
+        raise SystemExit(msg)
+
+    # read in existing tables (if any)
+    tables = ViewerLUT.readSurrogateColorTables(destds)
+
+    if tablename not in tables:
+        msg = "Can't find table %s in %s" % (tablename, fname)
+        raise SystemExit(msg)
+
+    del tables[tablename]
+
+    # write out
+    ViewerLUT.writeSurrogateColorTables(destds, tables)
+
+    del destds
+
+
 if __name__ == '__main__':
     # main program
     cmdargs = CmdArgs()
     
     if cmdargs.printct is not None:
         printTables(cmdargs.printct)
+    elif cmdargs.remove is not None:
+        removeTable(cmdargs.remove, cmdargs.name)
     else:
         addTable(cmdargs.source, cmdargs.name, cmdargs.dest)
 
