@@ -872,6 +872,10 @@ Use the special columns:
         attributes = self.lastLayer.attributes
         colName = attributes.getColumnNames()[col]
         attributes.setAttribute(colName, undoObject)
+        # is this a the lookup column?
+        if colName == attributes.getLookupColName():
+            col = attributes.getAttribute(colName)
+            self.viewwidget.setColorTableLookup(col)
 
         # so we repaint and new values get shown
         self.tableView.viewport().update()
@@ -919,15 +923,37 @@ Use the special columns:
         Allows the user to specify a column to be used
         to lookup the color table
         """
+        from .viewerLUT import ViewerLUT
         attributes = self.lastLayer.attributes
         if colName == attributes.getLookupColName():
             # toggle off
             attributes.setLookupColName(None)
             self.viewwidget.setColorTableLookup()
         else:
-            attributes.setLookupColName(colName)
             col = attributes.getAttribute(colName)
-            self.viewwidget.setColorTableLookup(col)
+
+            gdaldataset = self.lastLayer.gdalDataset
+            tables = ViewerLUT.readSurrogateColorTables(gdaldataset)
+            if len(tables) == 0:
+                msg = "File has no surrogate color tables\n"
+                msg = msg + "Use viewerwritetable to insert some"
+                QMessageBox.critical(self, "Viewer", msg)
+                return
+
+            if len(tables) == 1:
+                # only one - we can assume they want that
+                tablename = tables.keys()[0]
+            else:
+                # need to ask them which one
+                from PyQt4.QtGui import QInputDialog
+                (tablename, ok) = QInputDialog.getItem(self, "Viewer", 
+                    "Select color table", tables.keys(), editable=False)
+                if not ok:
+                    return
+                tablename = str(tablename)
+
+            attributes.setLookupColName(colName)
+            self.viewwidget.setColorTableLookup(col, tables[tablename])
 
         # so header gets updated
         self.updateThematicTableModel(attributes)

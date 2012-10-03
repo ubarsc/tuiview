@@ -99,9 +99,12 @@ class ViewerLUT(QObject):
         self.lut = None
         # 'backup' lut. Used for holding the original for highlight etc
         self.backuplut = None
-        # lookupArray - if not None used to lookup image values
-        # before indexing color table
-        self.lookupArray = None
+        # surrogateLookupArray - if not None used to lookup image values
+        # in surrogateLUT
+        self.surrogateLookupArray = None
+        # surrogateLUT - if not None used to lookup image values
+        # specified by surrogateLookupArray
+        self.surrogateLUT = None
         # a single BandLUTInfo instance for single band
         # dictionary keyed on code for RGB
         self.bandinfo = None
@@ -139,9 +142,9 @@ class ViewerLUT(QObject):
             self.lut[..., lutindex] = (
                 numpy.where(selectionArray, value, self.lut[..., lutindex]))
 
-    def setColorTableLookup(self, lookupArray):
+    def setColorTableLookup(self, lookupArray, surrogateLUT):
         """
-        Uses lookupArray to index into color table where 
+        Uses lookupArray to index into surrogateLUT where 
         values != 0. Pass None to reset.
         """
         if self.lut is None:
@@ -156,14 +159,10 @@ class ViewerLUT(QObject):
                 msg = 'lookup must be integer'
                 raise viewererrors.InvalidColorTable(msg)
 
-            # we are ignoring zeros. Set to beyond the range
-            # of the data and we will mask out later
-            lookupArray = numpy.where(lookupArray == 0, 
-                            int(self.bandinfo.max) + 1, lookupArray)
-            # make selectionArray the same size by adding space for 
-            # no data and ignore
-            lookupArray = numpy.append(lookupArray, [0, 0])
-        self.lookupArray = lookupArray
+        self.surrogateLookupArray = lookupArray
+        if lookupArray is not None and surrogateLUT is not None:
+            # assume they want to keep surrogateLUT otherwise
+            self.surrogateLUT = surrogateLUT
 
     def saveToFile(self, fname):
         """
@@ -917,24 +916,13 @@ class ViewerLUT(QObject):
         else:
             nanmask = None
 
-        if self.lookupArray is not None:
-            # there is a lookup array we have to 'look up'
-            # the data in before we apply the color table
-            ludata = self.lookupArray[data]
-            # where needed leave it as it was
-            # we set lookupArray to max+1 where we don't want to lookup
-            data = numpy.where(ludata == (int(self.bandinfo.max) + 1), 
-                                                    data, ludata)
-            # clip
-            data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
-        else:
-            # in case data outside range of stretch
-            # don't use the in place version because if either min or max are
-            # float we need the type to change
-            data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
+        # in case data outside range of stretch
+        # don't use the in place version because if either min or max are
+        # float we need the type to change
+        data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
 
-            # apply scaling
-            data = (data + self.bandinfo.offset) / self.bandinfo.scale
+        # apply scaling
+        data = (data + self.bandinfo.offset) / self.bandinfo.scale
 
         # can only do lookups with integer data
         if numpy.issubdtype(data.dtype, numpy.floating):
@@ -953,6 +941,22 @@ class ViewerLUT(QObject):
         # do the lookup
         bgra = self.lut[data]
         winysize, winxsize = data.shape
+
+        if (self.surrogateLookupArray is not None and 
+                    self.surrogateLUT is not None):
+            # clip the data to the range
+            surrogatedata = olddata.clip(0, self.surrogateLookupArray.size - 1)
+            # do the lookup
+            lookup = self.surrogateLookupArray[surrogatedata]
+            # create the bgra for the surrogate
+            surrogatebgra = self.surrogateLUT[lookup]
+            # only apply when != and not no data, background etc
+            surrogatemask = ((lookup != 0) & (mask != MASK_NODATA_VALUE) & 
+                                    (mask != MASK_BACKGROUND_VALUE))
+            # mask sure mask has same number of axis
+            surrogatemask = numpy.expand_dims(surrogatemask, axis=2)
+            # swap where needed
+            bgra = numpy.where(surrogatemask, surrogatebgra, bgra)
         
         # create QImage from numpy array
         # see 

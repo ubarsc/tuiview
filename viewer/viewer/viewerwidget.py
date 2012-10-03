@@ -192,7 +192,7 @@ class ViewerWidget(QAbstractScrollArea):
             # force repaint
             self.viewport().update()
 
-    def setColorTableLookup(self, lookupArray=None):
+    def setColorTableLookup(self, lookupArray=None, surrogateLUT=None):
         """
         Uses the supplied lookupArray to look up image
         data before indexing into color table in the top
@@ -203,7 +203,7 @@ class ViewerWidget(QAbstractScrollArea):
             if len(layer.stretch.bands) != 1:
                 msg = 'can only highlight values on single band images'
                 raise viewererrors.InvalidDataset(msg)
-            layer.setColorTableLookup(lookupArray)
+            layer.setColorTableLookup(lookupArray, surrogateLUT)
 
             # force repaint
             self.viewport().update()
