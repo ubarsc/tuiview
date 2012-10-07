@@ -219,7 +219,7 @@ class ViewerRasterLayer(ViewerLayer):
         # if we are single band read attributes if any
         if len(stretch.bands) == 1:
             gdalband = self.gdalDataset.GetRasterBand(stretch.bands[0])
-            self.attributes.readFromGDALBand(gdalband)
+            self.attributes.readFromGDALBand(gdalband, self.gdalDataset)
             if self.attributes.hasAttributes():
                 # tell stretch to create same size as attribute table
                 self.stretch.setAttributeTableSize(self.attributes.getNumRows())
@@ -437,8 +437,7 @@ class ViewerRasterLayer(ViewerLayer):
             # now open as writeable
             dataset = gdal.Open(self.filename, gdal.GA_Update)
 
-            gdalband = dataset.GetRasterBand(self.stretch.bands[0])
-            self.attributes.writeColumnOrderToGDAL(gdalband)
+            self.attributes.writeColumnOrderToGDAL(dataset)
             # close this (writeable) file handle
             del dataset
         except RuntimeError:

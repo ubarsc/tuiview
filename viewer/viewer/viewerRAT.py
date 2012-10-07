@@ -302,7 +302,7 @@ class ViewerRAT(QObject):
             self.emit(SIGNAL("endProgress()"))
                 
 
-    def readFromGDALBand(self, gdalband):
+    def readFromGDALBand(self, gdalband, gdaldataset):
         """
         Reads attributes from a GDAL band
         Does nothing if no attribute table
@@ -383,7 +383,7 @@ class ViewerRAT(QObject):
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
             # read in a preferred column order (if any)
-            prefColOrder = self.readColumnOrderFromGDAL(gdalband)
+            prefColOrder = self.readColumnOrderFromGDAL(gdaldataset)
             if len(prefColOrder) > 0:
                 # rearrange our columns given this
                 self.arrangeColumnOrder(prefColOrder)
@@ -483,22 +483,25 @@ class ViewerRAT(QObject):
 
         return result
 
-    def writeColumnOrderToGDAL(self, gdalband):
+    def writeColumnOrderToGDAL(self, gdaldataset):
         """
-        Given a GDAL band opened in update mode,
+        Given a GDAL dataset opened in update mode,
         writes the currently selected column order
         to the file (this can be changed by the querywindow)
+        Ideally, this would be the band but writing metadata
+        to the band causes problems with some Imagine files
+        that have been opened in different versions of Imagine.
         """
         string = json.dumps(self.columnNames)
-        gdalband.SetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY, string)
+        gdaldataset.SetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY, string)
         
     @staticmethod
-    def readColumnOrderFromGDAL(gdalband):
+    def readColumnOrderFromGDAL(gdaldataset):
         """
-        Reads the column order out of the gdalband.
+        Reads the column order out of the gdaldataset.
         Returns empty list if none
         """
-        string = gdalband.GetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY)
+        string = gdaldataset.GetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY)
         if string is not None and string != '':
             columns = json.loads(string)
         else:
