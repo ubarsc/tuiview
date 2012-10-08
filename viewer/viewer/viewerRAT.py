@@ -11,6 +11,13 @@ from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewererrors
 
+# use TurboGDAL/TurboRAT if available
+HAVE_TURBORAT = True
+try:
+    from turbogdal import turborat
+except ImportError:
+    HAVE_TURBORAT = False
+
 NEWCOL_INT = 0
 NEWCOL_FLOAT = 1
 NEWCOL_STRING = 2
@@ -232,8 +239,10 @@ class ViewerRAT(QObject):
                     # arrays automatically so we manually
                     # convert oldvalues to a large enough array
                     # for values
-                    vdtype = numpy.dtype('S%d' % len(values))
-                    oldvalues = oldvalues.astype(vdtype)
+                    lenvalues = len(values)
+                    if lenvalues > oldvalues.itemsize:
+                        vdtype = numpy.dtype('S%d' % lenvalues)
+                        oldvalues = oldvalues.astype(vdtype)
                 else:
                     # this converts to a string array
                     # of the right dtype to handle values
@@ -277,20 +286,24 @@ class ViewerRAT(QObject):
                 # preserve usage
                 rat.CreateColumn(str(colname), dtype, usage)
 
-                # do it checking the type
-                if dtype == gdal.GFT_Integer:
-                    for row in range(nrows):
-                        val = colData[row]
-                        # convert from numpy int to python int
-                        val = rat.SetValueAsInt(row, col, int(val))
-                elif dtype == gdal.GFT_Real:
-                    for row in range(nrows):
-                        val = colData[row]
-                        val = rat.SetValueAsDouble(row, col, val)
+                if HAVE_TURBORAT:
+                    # do it fast way
+                    turborat.writeColumn(rat, col, colData, colData.size)
                 else:
-                    for row in range(nrows):
-                        val = colData[row]
-                        val = rat.SetValueAsString(row, col, val)
+                    # do it slow way checking the type
+                    if dtype == gdal.GFT_Integer:
+                        for row in range(nrows):
+                            val = colData[row]
+                            # convert from numpy int to python int
+                            val = rat.SetValueAsInt(row, col, int(val))
+                    elif dtype == gdal.GFT_Real:
+                        for row in range(nrows):
+                            val = colData[row]
+                            val = rat.SetValueAsDouble(row, col, val)
+                    else:
+                        for row in range(nrows):
+                            val = colData[row]
+                            val = rat.SetValueAsString(row, col, val)
 
                 col += 1
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
@@ -321,7 +334,11 @@ class ViewerRAT(QObject):
         """
         Read a column from the rat at index colIndex
         into a numpy array
-        """                
+        """
+        # use turborat if available
+        if HAVE_TURBORAT:
+            return turborat.readColumn(rat, colIndex)
+
         nrows = rat.GetRowCount()
         dtype = rat.GetTypeOfCol(colIndex)
         if dtype == gdal.GFT_Integer:
