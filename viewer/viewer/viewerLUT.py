@@ -43,6 +43,7 @@ MASK_BACKGROUND_VALUE = 2
 # metadata
 VIEWER_BANDINFO_METADATA_KEY = 'VIEWER_BAND_INFO'
 VIEWER_LUT_METADATA_KEY = 'VIEWER_LUT'
+VIEWER_LUT_SURROGATE_KEY = 'VIEWER_LUT_SURROGATE'
 VIEWER_SURROGATE_CT_KEY = 'VIEWER_SURROGATE_CT'
 
 def GDALProgressFunc(value, string, lutobject):
@@ -102,9 +103,11 @@ class ViewerLUT(QObject):
         # surrogateLookupArray - if not None used to lookup image values
         # in surrogateLUT
         self.surrogateLookupArray = None
+        self.surrogateLookupArrayName = None # the name gets saved to the file
         # surrogateLUT - if not None used to lookup image values
         # specified by surrogateLookupArray
         self.surrogateLUT = None
+        self.surrogateLUTName = None # name of column gets saved to file
         # a single BandLUTInfo instance for single band
         # dictionary keyed on code for RGB
         self.bandinfo = None
@@ -142,10 +145,12 @@ class ViewerLUT(QObject):
             self.lut[..., lutindex] = (
                 numpy.where(selectionArray, value, self.lut[..., lutindex]))
 
-    def setColorTableLookup(self, lookupArray, surrogateLUT):
+    def setColorTableLookup(self, lookupArray, colName, 
+                                    surrogateLUT, surrogateName):
         """
         Uses lookupArray to index into surrogateLUT where 
         values != 0. Pass None to reset.
+        Need to pass colName and surrogateName so we can save as part of LUT
         """
         if self.lut is None:
             raise viewererrors.InvalidColorTable('stretch not loaded yet')
@@ -160,9 +165,11 @@ class ViewerLUT(QObject):
                 raise viewererrors.InvalidColorTable(msg)
 
         self.surrogateLookupArray = lookupArray
+        self.surrogateLookupArrayName = colName
         if lookupArray is not None and surrogateLUT is not None:
             # assume they want to keep surrogateLUT otherwise
             self.surrogateLUT = surrogateLUT
+            self.surrogateLUTName = surrogateName
 
     def saveToFile(self, fname):
         """
@@ -218,6 +225,15 @@ class ViewerLUT(QObject):
                 string = json.dumps(self.lut[..., lutindex].tolist())
                 key = VIEWER_LUT_METADATA_KEY + '_' + code
                 gdaldataset.SetMetadataItem(key, string)
+
+            # surrogate only applicable for single band
+            if (self.surrogateLookupArrayName is not None and
+                    self.surrogateLUTName is not None):
+                surrogateInfo = {'colname' : self.surrogateLookupArrayName,
+                        'tablename' : self.surrogateLUTName}
+                string = json.dumps(surrogateInfo)
+                gdaldataset.SetMetadataItem(VIEWER_LUT_SURROGATE_KEY, string)
+
         else:
             # rgb - NB writing into band metadata results in corruption 
             # use dataset instead
@@ -335,6 +351,32 @@ class ViewerLUT(QObject):
                         lutindex = CODE_TO_LUTINDEX[code]
                         lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
                         obj.lut[..., lutindex] = lut
+
+                # only applicable for single band
+                surrogateString = (
+                        gdaldataset.GetMetadataItem(VIEWER_LUT_SURROGATE_KEY))
+                if (obj is not None and surrogateString is not None and 
+                                                        surrogateString != ''):
+                    from .viewerRAT import ViewerRAT
+                    surrogateInfo = json.loads(surrogateString)
+                    name = surrogateInfo['colname']
+                    gdalband = gdaldataset.GetRasterBand(stretch.bands[0])
+                    rat = gdalband.GetDefaultRAT()
+                    if rat is not None:
+                        colArray = ViewerRAT.readColumnName(rat, name)
+                        if colArray is not None:
+                            obj.surrogateLookupArray = colArray
+                            obj.surrogateLookupArrayName = name
+                        # show error?
+
+                    # read that color table in
+                    obj.surrogateLUTName = surrogateInfo['tablename']
+                    tables = ViewerLUT.readSurrogateColorTables(gdaldataset)
+                    if (obj.surrogateLUTName in tables and 
+                                    obj.surrogateLookupArray is not None):
+                        obj.surrogateLUT = tables[obj.surrogateLUTName]
+                    else:
+                        obj.surrogateLUTName = None # show error?
 
         else:
             # rgb

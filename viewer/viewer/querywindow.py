@@ -858,7 +858,7 @@ Use the special columns:
             if colname == attributes.getLookupColName():
                 # can't just use result because we need selectionArray applied
                 col = attributes.getAttribute(colname)
-                self.viewwidget.setColorTableLookup(col)
+                self.viewwidget.setColorTableLookup(col, colname)
 
         except viewererrors.UserExpressionError, e:
             QMessageBox.critical(self, "Viewer", str(e))
@@ -875,7 +875,7 @@ Use the special columns:
         # is this a the lookup column?
         if colName == attributes.getLookupColName():
             col = attributes.getAttribute(colName)
-            self.viewwidget.setColorTableLookup(col)
+            self.viewwidget.setColorTableLookup(col, colName)
 
         # so we repaint and new values get shown
         self.tableView.viewport().update()
@@ -953,7 +953,8 @@ Use the special columns:
                 tablename = str(tablename)
 
             attributes.setLookupColName(colName)
-            self.viewwidget.setColorTableLookup(col, tables[tablename])
+            self.viewwidget.setColorTableLookup(col, colName, 
+                                    tables[tablename], tablename)
 
         # so header gets updated
         self.updateThematicTableModel(attributes)

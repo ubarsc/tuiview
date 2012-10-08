@@ -20,6 +20,7 @@ DEFAULT_FLOAT_FMT = "%.2f"
 DEFAULT_STRING_FMT = "%s"
 
 VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
+VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
 
 def formatException(code):
     """
@@ -300,7 +301,61 @@ class ViewerRAT(QObject):
             gdalband.SetDefaultRAT(rat)
             self.dirtyColumns = []
             self.emit(SIGNAL("endProgress()"))
-                
+
+    @staticmethod
+    def readColumnName(rat, colName):
+        """
+        Same as readColumnIndex, but takes a name of
+        column. Returns None if not found.
+        """
+        colArray = None
+        ncols = rat.GetColumnCount()
+        for col in range(ncols):
+            if rat.GetNameOfCol(col) == colName:
+                colArray = ViewerRAT.readColumnIndex(rat, col)
+                break
+        return colArray
+
+    @staticmethod
+    def readColumnIndex(rat, colIndex):
+        """
+        Read a column from the rat at index colIndex
+        into a numpy array
+        """                
+        nrows = rat.GetRowCount()
+        dtype = rat.GetTypeOfCol(colIndex)
+        if dtype == gdal.GFT_Integer:
+            colArray = numpy.zeros(nrows, int)
+        elif dtype == gdal.GFT_Real:
+            colArray = numpy.zeros(nrows, float)
+        elif dtype == gdal.GFT_String:
+            # for string attributes, create a list
+            # convert to array later - don't know the length 
+            # of strings yet
+            colArray = []
+        else:
+            msg = "Can't interpret data type of attribute"
+            raise viewererrors.AttributeTableTypeError(msg)
+
+        # do it checking the type
+        if dtype == gdal.GFT_Integer:
+            for row in range(nrows):
+                val = rat.GetValueAsInt(row, colIndex)
+                colArray[row] = val
+        elif dtype == gdal.GFT_Real:
+            for row in range(nrows):
+                val = rat.GetValueAsDouble(row, colIndex)
+                colArray[row] = val
+        else:
+            for row in range(nrows):
+                val = rat.GetValueAsString(row, colIndex)
+                colArray.append(val)
+
+        if isinstance(colArray, list):
+            # convert to array - numpy can handle this now it 
+            # can work out the lengths
+            colArray = numpy.array(colArray)
+        return colArray
 
     def readFromGDALBand(self, gdalband, gdaldataset):
         """
@@ -344,49 +399,28 @@ class ViewerRAT(QObject):
                 usage = rat.GetUsageOfCol(col)
                 self.columnUsages[colname] = usage
 
-                if dtype == gdal.GFT_Integer:
-                    colArray = numpy.zeros(nrows, int)
-                elif dtype == gdal.GFT_Real:
-                    colArray = numpy.zeros(nrows, float)
-                elif dtype == gdal.GFT_String:
-                    # for string attributes, create a list
-                    # convert to array later - don't know the length 
-                    # of strings yet
-                    colArray = []
-                else:
-                    msg = "Can't interpret data type of attribute"
-                    raise viewererrors.AttributeTableTypeError(msg)
-
-                # do it checking the type
+                # format depdendent on type
                 if dtype == gdal.GFT_Integer:
                     self.columnFormats[colname] = DEFAULT_INT_FMT
-                    for row in range(nrows):
-                        val = rat.GetValueAsInt(row, col)
-                        colArray[row] = val
                 elif dtype == gdal.GFT_Real:
                     self.columnFormats[colname] = DEFAULT_FLOAT_FMT
-                    for row in range(nrows):
-                        val = rat.GetValueAsDouble(row, col)
-                        colArray[row] = val
                 else:
                     self.columnFormats[colname] = DEFAULT_STRING_FMT
-                    for row in range(nrows):
-                        val = rat.GetValueAsString(row, col)
-                        colArray.append(val)
 
-                if isinstance(colArray, list):
-                    # convert to array - numpy can handle this now it 
-                    # can work out the lengths
-                    colArray = numpy.array(colArray)
+                # read the column
+                colArray = self.readColumnIndex(rat, col)
 
                 self.attributeData[colname] = colArray
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
             # read in a preferred column order (if any)
-            prefColOrder = self.readColumnOrderFromGDAL(gdaldataset)
+            prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
             if len(prefColOrder) > 0:
                 # rearrange our columns given this
                 self.arrangeColumnOrder(prefColOrder)
+
+            # remember the lookup column if set (None if not)
+            self.lookupColName = lookup
 
         self.emit(SIGNAL("endProgress()"))
 
@@ -491,19 +525,31 @@ class ViewerRAT(QObject):
         Ideally, this would be the band but writing metadata
         to the band causes problems with some Imagine files
         that have been opened in different versions of Imagine.
+        Also writes the lookup column if there is one.
         """
         string = json.dumps(self.columnNames)
         gdaldataset.SetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY, string)
+        if self.lookupColName is not None:
+            name = str(self.lookupColName)
+        else:
+            # remove it
+            name = ''
+        gdaldataset.SetMetadataItem(VIEWER_COLUMN_LOOKUP_METADATA_KEY, name)
         
     @staticmethod
     def readColumnOrderFromGDAL(gdaldataset):
         """
         Reads the column order out of the gdaldataset.
-        Returns empty list if none
+        Returns empty list if none.
+        Also returns the lookup column
         """
         string = gdaldataset.GetMetadataItem(VIEWER_COLUMN_ORDER_METADATA_KEY)
         if string is not None and string != '':
             columns = json.loads(string)
         else:
             columns = []
-        return columns
+        string = gdaldataset.GetMetadataItem(VIEWER_COLUMN_LOOKUP_METADATA_KEY)
+        name = None
+        if string is not None and string != '':
+            name = string
+        return columns, name

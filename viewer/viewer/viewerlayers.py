@@ -312,11 +312,13 @@ class ViewerRasterLayer(ViewerLayer):
         self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
                                                 self.image.viewermask)
 
-    def setColorTableLookup(self, lookupArray=None, surrogateLUT=None):
+    def setColorTableLookup(self, lookupArray=None, colName=None, 
+                                surrogateLUT=None, surrogateName=None):
         """
         Use array as a lookup to color table
         """
-        self.lut.setColorTableLookup(lookupArray, surrogateLUT)
+        self.lut.setColorTableLookup(lookupArray, colName, surrogateLUT, 
+                                                    surrogateName)
         # re-apply the lut to the data from last time
         self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
                                                 self.image.viewermask)
