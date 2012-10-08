@@ -4,7 +4,7 @@ Contains the TileDialog class
 """
 
 from PyQt4.QtGui import QDialog, QFormLayout, QHBoxLayout, QPushButton
-from PyQt4.QtGui import QSpinBox, QPushButton
+from PyQt4.QtGui import QSpinBox
 from PyQt4.QtCore import SIGNAL
 
 class TileDialog(QDialog):

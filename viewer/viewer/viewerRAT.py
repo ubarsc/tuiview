@@ -169,7 +169,7 @@ class ViewerRAT(QObject):
         """
         if self.columnNames is None:
             msg = 'No valid RAT for this file'
-            raise rioserrors.InvalidDataset(msg)
+            raise viewererrors.InvalidDataset(msg)
 
         if colname in self.columnNames:
             msg = 'Already have a column called %s' % colname
@@ -401,7 +401,6 @@ class ViewerRAT(QObject):
             # we do this so we can preserve the order
             # of the columns in the attribute table
             ncols = rat.GetColumnCount()
-            nrows = rat.GetRowCount()
             percent_per_col = 100.0 / float(ncols)
             for col in range(ncols):
                 colname = rat.GetNameOfCol(col)
