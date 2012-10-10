@@ -147,6 +147,10 @@ class ViewerWidget(QAbstractScrollArea):
         size = self.viewport().size()
         self.layers.addRasterLayer(fname, size.width(), size.height(), 
                             stretch, lut)
+        # get rid off tool points
+        self.toolPoints = None
+        self.toolPointsFinished = True
+
         self.viewport().update()
         self.updateScrollBars()
 
@@ -155,6 +159,9 @@ class ViewerWidget(QAbstractScrollArea):
         Removes the top later
         """
         self.layers.removeTopLayer()
+        # get rid off tool points
+        self.toolPoints = None
+        self.toolPointsFinished = True
         self.viewport().update()
         self.updateScrollBars()
 
