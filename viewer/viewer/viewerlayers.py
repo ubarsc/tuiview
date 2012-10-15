@@ -457,8 +457,8 @@ class ViewerRasterLayer(ViewerLayer):
         """
         # find the best overview based on imgpixperwinpix
         imgpix = self.coordmgr.imgPixPerWinPix
-        nf_selectedovi = self.overviews.findBestOverview(imgpix)
-        print nf_selectedovi.index
+        selectedovi = self.overviews.findBestOverview(imgpix)
+        print selectedovi.index
 
         # if this layer isn't anywhere near where we currently are
         # don't even bother reading - just create a empty QImage
@@ -478,27 +478,21 @@ class ViewerRasterLayer(ViewerLayer):
             self.image = QImage()
             return
         
-        nf_fullrespixperovpix = nf_selectedovi.fullrespixperpix
+        fullrespixperovpix = selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
         pixLeft = max(self.coordmgr.pixLeft, 0)
-        #print 'pixTop', pixTop, pixLeft, pixTop / nf_fullrespixperovpix
         pixBottom = min(self.coordmgr.pixBottom, self.gdalDataset.RasterYSize-1)
         pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize-1)
-        nf_ovtop = int(pixTop / nf_fullrespixperovpix)
-        nf_ovleft = int(pixLeft / nf_fullrespixperovpix)
-        nf_ovbottom = int(numpy.ceil(pixBottom / nf_fullrespixperovpix))
-        nf_ovright = int(numpy.ceil(pixRight / nf_fullrespixperovpix))
-        nf_ovtop = max(nf_ovtop, 0)
-        nf_ovleft = max(nf_ovleft, 0)
-        nf_ovbottom = min(nf_ovbottom, nf_selectedovi.ysize-1)
-        nf_ovright = min(nf_ovright, nf_selectedovi.xsize-1)
-        nf_ovxsize = nf_ovright - nf_ovleft + 1
-        nf_ovysize = nf_ovbottom - nf_ovtop + 1
-
-        #ovPixPerWinPix = self.coordmgr.imgPixPerWinPix / nf_fullrespixperovpix
-        #print 'ovPixPerWinPix', ovPixPerWinPix, pixTop, pixLeft
-        #nf_ovbuffxsize = int(numpy.ceil(float(nf_ovxsize) / ovPixPerWinPix))
-        #nf_ovbuffysize = int(numpy.ceil(float(nf_ovysize) / ovPixPerWinPix))
+        ovtop = int(pixTop / fullrespixperovpix)
+        ovleft = int(pixLeft / fullrespixperovpix)
+        ovbottom = int(numpy.ceil(pixBottom / fullrespixperovpix))
+        ovright = int(numpy.ceil(pixRight / fullrespixperovpix))
+        ovtop = max(ovtop, 0)
+        ovleft = max(ovleft, 0)
+        ovbottom = min(ovbottom, selectedovi.ysize-1)
+        ovright = min(ovright, selectedovi.xsize-1)
+        ovxsize = ovright - ovleft + 1
+        ovysize = ovbottom - ovtop + 1
 
         # The display coordinates of the top-left corner of the raster data.
         #  Often this
@@ -507,33 +501,33 @@ class ViewerRasterLayer(ViewerLayer):
         # because we have the display in ints, other metrics floats,
         # we need to do the size calculations as floats, convert
         # to int at last. Otherwise black lines appear around side
-        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2displayF(
+        (dspRastLeft, dspRastTop) = self.coordmgr.pixel2displayF(
                                                         pixLeft, pixTop)
-        (nf_dspRastRight, nf_dspRastBottom) = self.coordmgr.pixel2displayF(
+        (dspRastRight, dspRastBottom) = self.coordmgr.pixel2displayF(
                                                         pixRight, pixBottom)
-        nf_dspRastXSize = int(numpy.round(nf_dspRastRight - nf_dspRastLeft))
-        nf_dspRastYSize = int(numpy.round(nf_dspRastBottom - nf_dspRastTop))
-        nf_dspRastLeft = int(nf_dspRastLeft)
-        nf_dspRastTop = int(nf_dspRastTop)
-        nf_dspRastRight = nf_dspRastLeft + nf_dspRastXSize
-        nf_dspRastBottom = nf_dspRastTop + nf_dspRastYSize
+        dspRastXSize = int(numpy.round(dspRastRight - dspRastLeft))
+        dspRastYSize = int(numpy.round(dspRastBottom - dspRastTop))
+        dspRastLeft = int(dspRastLeft)
+        dspRastTop = int(dspRastTop)
+        dspRastRight = dspRastLeft + dspRastXSize
+        dspRastBottom = dspRastTop + dspRastYSize
 
         if self.coordmgr.imgPixPerWinPix < 1:
             # need to calc 'extra' around the edge as we have partial pixels
             # GDAL reads in full pixels
-            (nf_dspRastAbsLeft, nf_dspRastAbsTop) = self.coordmgr.pixel2display(
+            (dspRastAbsLeft, dspRastAbsTop) = self.coordmgr.pixel2display(
                                     numpy.floor(pixLeft), numpy.floor(pixTop))
-            (nf_dspRastAbsRight, nf_dspRastAbsBottom) = (
+            (dspRastAbsRight, dspRastAbsBottom) = (
                     self.coordmgr.pixel2display(
                     numpy.ceil(pixRight), numpy.ceil(pixBottom)))
-            nf_dspLeftExtra = ((nf_dspRastLeft - nf_dspRastAbsLeft) 
-                                    / nf_fullrespixperovpix)
-            nf_dspTopExtra = ((nf_dspRastTop - nf_dspRastAbsTop) 
-                                    / nf_fullrespixperovpix)
-            nf_dspRightExtra = ((nf_dspRastAbsRight - nf_dspRastRight) 
-                                    / nf_fullrespixperovpix)
-            nf_dspBottomExtra = ((nf_dspRastAbsBottom - nf_dspRastBottom) 
-                                    / nf_fullrespixperovpix)
+            dspLeftExtra = ((dspRastLeft - dspRastAbsLeft) 
+                                    / fullrespixperovpix)
+            dspTopExtra = ((dspRastTop - dspRastAbsTop) 
+                                    / fullrespixperovpix)
+            dspRightExtra = ((dspRastAbsRight - dspRastRight) 
+                                    / fullrespixperovpix)
+            dspBottomExtra = ((dspRastAbsBottom - dspRastBottom) 
+                                    / fullrespixperovpix)
 
 
         # only need to do the mask once
@@ -541,8 +535,8 @@ class ViewerRasterLayer(ViewerLayer):
                                     dtype=numpy.uint8)
         mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
         
-        dataslice = (slice(nf_dspRastTop, nf_dspRastTop+nf_dspRastYSize),
-            slice(nf_dspRastLeft, nf_dspRastLeft+nf_dspRastXSize))
+        dataslice = (slice(dspRastTop, dspRastTop+dspRastYSize),
+            slice(dspRastLeft, dspRastLeft+dspRastXSize))
         mask[dataslice] = viewerLUT.MASK_IMAGE_VALUE # 0 where there is data
         nodata_mask = None
 
@@ -559,23 +553,21 @@ class ViewerRasterLayer(ViewerLayer):
                 data = numpy.zeros(shape, dtype=numpytype) 
 
                 # get correct overview
-                if nf_selectedovi.index > 0:
-                    band = band.GetOverview(nf_selectedovi.index - 1)
+                if selectedovi.index > 0:
+                    band = band.GetOverview(selectedovi.index - 1)
 
                 # read into correct part of our window array
                 if self.coordmgr.imgPixPerWinPix >= 1.0:
-                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, 
-                        nf_ovxsize, nf_ovysize,
-                        nf_dspRastXSize, nf_dspRastYSize)
-                    #print dataTmp.shape, dataslice
+                    dataTmp = band.ReadAsArray(ovleft, ovtop, 
+                        ovxsize, ovysize,
+                        dspRastXSize, dspRastYSize)
                     data[dataslice] = dataTmp
                 else:
-                    dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, 
-                                    nf_ovxsize, nf_ovysize)
-                    #print 'repl', dataTmp.shape, dataslice
+                    dataTmp = band.ReadAsArray(ovleft, ovtop, 
+                                    ovxsize, ovysize)
                     data[dataslice] = replicateArray(dataTmp, data[dataslice], 
-                        nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra, 
-                            nf_dspBottomExtra)
+                        dspLeftExtra, dspTopExtra, dspRightExtra, 
+                            dspBottomExtra)
                     
                 # do the no data test
                 nodata_value = self.noDataValues[bandnum-1]
@@ -610,20 +602,20 @@ class ViewerRasterLayer(ViewerLayer):
             data = numpy.zeros(shape, dtype=numpytype) 
 
             # get correct overview
-            if nf_selectedovi.index > 0:
-                band = band.GetOverview(nf_selectedovi.index - 1)
+            if selectedovi.index > 0:
+                band = band.GetOverview(selectedovi.index - 1)
 
             # read into correct part of our window array
             if self.coordmgr.imgPixPerWinPix >= 1.0:
-                data[dataslice] = band.ReadAsArray(nf_ovleft, nf_ovtop, 
-                    nf_ovxsize, nf_ovysize,
-                    nf_dspRastXSize, nf_dspRastYSize)
+                data[dataslice] = band.ReadAsArray(ovleft, ovtop, 
+                    ovxsize, ovysize,
+                    dspRastXSize, dspRastYSize)
             else:
-                dataTmp = band.ReadAsArray(nf_ovleft, nf_ovtop, 
-                        nf_ovxsize, nf_ovysize)
+                dataTmp = band.ReadAsArray(ovleft, ovtop, 
+                        ovxsize, ovysize)
                 data[dataslice] = replicateArray(dataTmp, data[dataslice], 
-                    nf_dspLeftExtra, nf_dspTopExtra, nf_dspRightExtra,
-                         nf_dspBottomExtra)
+                    dspLeftExtra, dspTopExtra, dspRightExtra,
+                         dspBottomExtra)
 
             # do we have no data for this band?
             nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
@@ -1010,16 +1002,15 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra,
     
     Replicates each pixel in both directions. 
     
-    xfract and yfract is the fracton of the first pixel that needs to 
-    be removed
-    because GDAL always reads in first pixel. This is taken out of the 
-    repeated values of the first pixel.
+    dspLeftExtra, dspTopExtra are the number of pixels to be shaved off the
+    top and left. dspRightExtra, dspBottomExtra are the number of pixels
+    to be shaved off the bottom and right of the result. This allows us
+    to display fractional pixels.
     """
     (ysize, xsize) = outarr.shape
     (nrows, ncols) = arr.shape
     nRptsX = float(xsize + dspLeftExtra + dspRightExtra) / float(ncols)
     nRptsY = float(ysize + dspTopExtra + dspBottomExtra) / float(nrows)
-    #print 'replicateArray', ysize, xsize, nrows, ncols, nRptsX, nRptsY
 
     rowCount = int(numpy.ceil(nrows * nRptsY)) * 1j
     colCount = int(numpy.ceil(ncols * nRptsX)) * 1j
