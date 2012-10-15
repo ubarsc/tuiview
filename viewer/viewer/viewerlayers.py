@@ -504,12 +504,19 @@ class ViewerRasterLayer(ViewerLayer):
         #  Often this
         # is (0, 0), but need not be if there is blank area left/above the 
         # raster data
-        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2display(
+        # because we have the display in ints, other metrics floats,
+        # we need to do the size calculations as floats, convert
+        # to int at last. Otherwise black lines appear around side
+        (nf_dspRastLeft, nf_dspRastTop) = self.coordmgr.pixel2displayF(
                                                         pixLeft, pixTop)
-        (nf_dspRastRight, nf_dspRastBottom) = self.coordmgr.pixel2display(
+        (nf_dspRastRight, nf_dspRastBottom) = self.coordmgr.pixel2displayF(
                                                         pixRight, pixBottom)
-        nf_dspRastXSize = nf_dspRastRight - nf_dspRastLeft 
-        nf_dspRastYSize = nf_dspRastBottom - nf_dspRastTop 
+        nf_dspRastXSize = int(numpy.round(nf_dspRastRight - nf_dspRastLeft))
+        nf_dspRastYSize = int(numpy.round(nf_dspRastBottom - nf_dspRastTop))
+        nf_dspRastLeft = int(nf_dspRastLeft)
+        nf_dspRastTop = int(nf_dspRastTop)
+        nf_dspRastRight = nf_dspRastLeft + nf_dspRastXSize
+        nf_dspRastBottom = nf_dspRastTop + nf_dspRastYSize
 
         if self.coordmgr.imgPixPerWinPix < 1:
             # need to calc 'extra' around the edge as we have partial pixels

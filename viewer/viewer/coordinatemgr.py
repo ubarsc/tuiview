@@ -259,6 +259,16 @@ class RasterCoordManager(CoordManager):
         x = int((col - self.pixLeft) / self.imgPixPerWinPix)
         y = int((row - self.pixTop) / self.imgPixPerWinPix)
         return (x, y)
+
+    def pixel2displayF(self, col, row):
+        """
+        Convert raster row/col to display units. Returns
+        a tuple of (x, y). This version returns floats
+        """
+        x = (col - self.pixLeft) / self.imgPixPerWinPix
+        y = (row - self.pixTop) / self.imgPixPerWinPix
+        return (x, y)
+
     
     def pixel2world(self, col, row):
         """

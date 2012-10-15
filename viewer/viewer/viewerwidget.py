@@ -419,6 +419,9 @@ class ViewerWidget(QAbstractScrollArea):
                     impixperwinpix *= 1.0 + VIEWER_ZOOM_WHEEL_FRACTION
                 layer.coordmgr.setZoomFactor(impixperwinpix)
                 layer.coordmgr.setWorldCenter(wldX, wldY)
+                # not sure why we need this but get black strips 
+                # around otherwise
+                layer.coordmgr.recalcBottomRight() 
                 self.layers.makeLayersConsistent(layer)
                 self.layers.updateImages()
                 self.updateScrollBars()
@@ -633,6 +636,9 @@ class ViewerWidget(QAbstractScrollArea):
                     layer.coordmgr.setZoomFactor(
                                     layer.coordmgr.imgPixPerWinPix / fraction)
                     layer.coordmgr.setWorldCenter(wldX, wldY)
+                    # not sure why we need this but get black strips 
+                    # around otherwise
+                    layer.coordmgr.recalcBottomRight() 
 
                 # redraw
                 self.layers.makeLayersConsistent(layer)
