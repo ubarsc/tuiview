@@ -9,13 +9,94 @@ For creation of py2exe bundle on Windows:
 > /c/Python27/python.exe setup.py py2exe
 
 """
+# This file is part of 'Viewer' - a simple Raster viewer
+# Copyright (C) 2012  Sam Gillingham
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from distutils.core import setup
 import os
 import sys
 
-# create the args to setup as a dictionary so we
-# can add extras for Windows if needed
-kwargs = {'name':'viewer',
+class OSSpecificOps(object):
+    def __init__(self, distdir):
+        self.distdir = distdir
+    def preInstall(self, kwargs, action):
+        pass
+    def postInstall(self, action):
+        pass
+        
+class Win32SpecificOps(OSSpecificOps):
+    def __init__(self, distdir):
+        OSSpecificOps.__init__(self, distdir)
+    def preInstall(self, kwargs, action):
+        if action == 'py2exe':
+            # to allow creation of an installer for Windows
+            # clean up old build
+            import py2exe
+            from glob import glob
+            import shutil
+            try:
+                shutil.rmtree(self.distdir)
+            except:
+                pass
+
+            # bundle the runtime and set up other files
+            data_files = [("Microsoft.VC90.CRT", glob(r'C:\Program Files\Microsoft Visual Studio 9.0\VC\redist\x86\Microsoft.VC90.CRT\*.*'))]
+            kwargs['data_files'] = data_files
+            kwargs['windows'] = ['bin/viewer']
+            kwargs['console'] = ['bin/viewerwritetable']
+            # see http://www.py2exe.org/index.cgi/TkInter, http://www.py2exe.org/index.cgi/Py2exeAndPyQt
+            # gone all out on the optimisations - don't need docstrings etc
+            options = {'py2exe':{'bundle_files' : 3, 'includes':["sip"],
+                        'excludes':["pywin", "pywin.debugger", "pywin.debugger.dbgcon", "pywin.dialogs", "pywin.dialogs.list",
+                        "Tkconstants","Tkinter","tcl"], 'optimize':2, 'dist_dir' : self.distdir}}
+            kwargs['options'] = options
+            
+    def postInstall(self, action):
+        if action == 'py2exe':
+            # add kea/hdf dlls
+            import addkea
+            addkea.addkea(self.distdir)
+            # don't need this file
+            os.remove(os.path.join(self.distdir, 'w9xpopen.exe'))
+            
+class MacSpecificOps(OSSpecificOps):
+    def __init__(self, distdir):
+        OSSpecificOps.__init__(self, distdir)
+    def preInstall(self, kwargs, action):
+        if action == 'py2app':
+            from setuptools import setup
+            import shutil
+            try:
+                shutil.rmtree(self.distdir)
+            except:
+                pass
+
+            app = ['bin/viewer']
+            data_files = []
+            options = {'py2app':{'argv_emulation': True, 'dist_dir': self.distdir, 'includes': ['sip']}}
+
+            kwargs['data_files'] = data_files
+            kwargs['app'] = app
+            kwargs['options'] = options
+            kwargs['setup_requires'] = 'py2app'
+
+def doSetup():
+    # create the args to setup as a dictionary so we
+    # can add extras for Windows/Mac if needed
+    kwargs = {'name':'viewer',
       'version':'0.9',
       'description':'Simple Raster Viewer',
       'author':'Sam Gillingham',
@@ -24,60 +105,27 @@ kwargs = {'name':'viewer',
       'packages':['viewer'],
       'license':'LICENSE.txt',
       'url':'https://bitbucket.org/chchrsc/viewer'}
-
-# are we building in executeable under Windows?
-py2exe = sys.platform == 'win32' and sys.argv[1] == 'py2exe'
-
-if py2exe:
-    # to allow creation of an installer for Windows
-    import py2exe
-    from glob import glob
-    import shutil
+      
+    action = None
+    if len(sys.argv) > 1:
+        action = sys.argv[1]
+        
     distdir = 'dist'
-    try:
-        shutil.rmtree(distdir)
-    except:
-        pass
+    if sys.platform == 'win32':
+        ops = Win32SpecificOps(distdir)
+    elif sys.platform == 'darwin':
+        ops = MacSpecificOps(distdir)
+    else:
+        # no specific actions
+        ops = OSSpecificOps(distdir)
 
-    # bundle the runtime
-    data_files = [("Microsoft.VC90.CRT", glob(r'C:\Program Files\Microsoft Visual Studio 9.0\VC\redist\x86\Microsoft.VC90.CRT\*.*'))]
-    kwargs['data_files'] = data_files
-    kwargs['windows'] = ['bin/viewer', 'bin/viewerwritetable']
-    # see http://www.py2exe.org/index.cgi/TkInter, http://www.py2exe.org/index.cgi/Py2exeAndPyQt
-    # gone all out on the optimisations - don't need docstrings etc
-    options = {'py2exe':{'bundle_files' : 3, 'includes':["sip"],
-                'excludes':["pywin", "pywin.debugger", "pywin.debugger.dbgcon", "pywin.dialogs", "pywin.dialogs.list",
-                "Tkconstants","Tkinter","tcl"], 'optimize':2, 'dist_dir' : distdir}}
-    kwargs['options'] = options
+    ops.preInstall(kwargs, action)
 
-# are we building in executeable under Mac OSX?
-py2appcmd = len(sys.argv) > 1 and sys.platform == 'darwin' and sys.argv[1] == 'py2app'
+    # now run setup with the options we have collected
+    setup(**kwargs)
 
-if py2appcmd:
-    from setuptools import setup
-    import shutil
-    distdir = 'dist'
-    try:
-        shutil.rmtree(distdir)
-    except:
-        pass
+    ops.postInstall(action)
 
-    app = ['viewer/viewerapplication.py']
-    #app = ['bin/viewer']
-    data_files = []
-    options = {'py2app':{'argv_emulation': True, 'dist_dir': distdir, 'includes': ['sip']}}
-
-    kwargs['data_files'] = data_files
-    kwargs['app'] = app
-    kwargs['options'] = options
-    kwargs['setup_requires'] = 'py2app'
-
-
-
-# now run setup with the options we have collected
-print kwargs
-setup(**kwargs)
-
-if py2exe:
-    # don't need this file
-    os.remove(os.path.join(distdir, 'w9xpopen.exe'))
+if __name__ == '__main__':
+    doSetup()
+    
