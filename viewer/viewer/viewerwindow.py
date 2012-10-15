@@ -343,6 +343,11 @@ class ViewerWindow(QMainWindow):
         self.connect(self.newProfileAct, SIGNAL("triggered()"), 
                                                     self.newProfile)
 
+        self.aboutAct = QAction(self)
+        self.aboutAct.setText("&About")
+        self.aboutAct.setStatusTip("Show author and version information")
+        self.connect(self.aboutAct, SIGNAL("triggered()"), self.about)
+
     def setupMenus(self):
         """
         Creates the menus and adds the actions to them
@@ -375,6 +380,9 @@ class ViewerWindow(QMainWindow):
         toolMenu.addAction(self.profileAct)
         toolMenu.addAction(self.newProfileAct)
         toolMenu.addAction(self.flickerAct)
+
+        helpMenu = self.menuBar().addMenu("&Help")
+        helpMenu.addAction(self.aboutAct)
 
     def setupToolbars(self):
         """
@@ -713,6 +721,43 @@ class ViewerWindow(QMainWindow):
             self.flickerAct.setIcon(self.flickerAct.iconOn)
         else:
             self.flickerAct.setIcon(self.flickerAct.iconOff)
+
+    def about(self):
+        """
+        Show author and version info
+        """
+        from PyQt4.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
+        from osgeo.gdal import __version__ as gdalVersion
+        import sys
+        from numpy import version as numpyVersion
+
+        msg = """ Viewer
+By Sam Gillingham, Neil Flood, Pete Bunting and James Shepherd
+
+Installed in: %s
+GDAL Version: %s
+PyQt Version: %s
+Qt Version: %s
+Python Version: %s
+Numpy Version: %s
+"""
+        appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
+                    sys.version_info.micro)
+        msg = msg % (appDir, gdalVersion, PYQT_VERSION_STR, QT_VERSION_STR, 
+                pyVer, numpyVersion.version)
+
+        # centre each line - doesn't work very well due to font
+        msgLines = msg.split('\n')
+        maxLine = max([len(line) for line in msgLines])
+        centredMsgs = []
+        for line in msgLines:
+            leftSpaces = int((maxLine - len(line)) / 2.0)
+            centred = (' ' * leftSpaces) + line
+            centredMsgs.append(centred)
+
+        QMessageBox.about(self, "Viewer", "\n".join(centredMsgs))
+
 
     def closeEvent(self, event):
         """
