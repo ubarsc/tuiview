@@ -1,0 +1,37 @@
+[
+  {
+    // Customised palette
+    "name" : "My super cool palette",
+    "author" : "ComboCentral",
+    "comments" : "Some free text goes here. For example a contact or licence.",
+    // Categorise your palette
+    "type" : "Sequential",
+    // Describes the colours [RGB or HEX] used to generate the ramp
+    "description" : {
+      "red" : "26 31 114 222 209",
+      "green" : "32 120 176 219 63",
+      "blue" : "44 114 149 167 49"
+      // "red" : [26, 31, 114, 222, 209],
+      // "green" : [32, 120, 176, 219, 63],
+      // "blue" : [44, 114, 149, 167, 49]
+    }
+  },
+
+  {
+    // ColorBrewer palette
+    "name" : "YlOrRd",
+    "author" : "ColorBrewer",
+    "comments" : "color specifications and designs developed by 
+  Cynthia Brewer, http://colorbrewer.org/",
+    "type" : "Sequential",
+    "description" : {
+      "red" : "255 255 254 254 253 252 227 189 128",
+      "green" : "255 237 217 178 141 78 26 0 0",
+      "blue" : "204 160 118 76 60 42 28 38 38"
+      // "red" : [255, 255, 254, 254, 253, 252, 227, 189, 128],
+      // "green" : [255, 237, 217, 178, 141, 78, 26, 0, 0],
+      // "blue" : [204, 160, 118, 76, 60, 42, 28, 38, 38]
+    }
+  }
+
+]
