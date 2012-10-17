@@ -80,19 +80,49 @@ RAMP['YlOrRd']['description']['red'] = '255 255 254 254 253 252 227 189 128'
 RAMP['YlOrRd']['description']['green'] = '255 237 217 178 141 78 26 0 0'
 RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
 
-# read file contents
-palsMinified = json_minify(open("/usr/local/src/viewer/viewer/viewer/custompalettes.json", "r").read())
-pals = json.loads(palsMinified)
-    
-for pal in pals:
-  cur_pal = pal["name"]
-  RAMP[cur_pal] = {'type' : pal["type"]}
-  RAMP[cur_pal]['r'] = pal["description"]["red"]
-  RAMP[cur_pal]['g'] = pal["description"]["green"]
-  RAMP[cur_pal]['b'] = pal["description"]["blue"]
-
 def getRampsFromFile(fname):
-  
+    # Read and minify file contents
+    palsMinified = json_minify(open(fname, "r").read())
+    # Loads palettes in a dict
+    pals = json.loads(palsMinified)
+    
+    # For each palette that's been detected
+    for pal in pals:
+      # Check name is present and unique
+      if "name" in pal:
+          cur_name = pal["name"]
+      else:
+          # Quit - invalid colour scheme structure
+      if cur_name in RAMP.keys():
+          # Quit - invalid colour scheme name
+      
+      # Check red, green and blue fields are present
+      if "description" in pal:
+          if pal[cur_name]["description"].keys() != ['red', 'green', 'blue']:
+              # Quit - invalid colour scheme
+      else:
+          # Quit - invalid colour scheme
+      
+      # Other fields optional
+      if "author" in pal:
+          cur_author = pal["author"]
+      else:
+          cur_author = ''
+      if "comments" in pal:
+          cur_comments = pal["comments"]
+      else:
+          cur_comments = ''
+      if "type" in pal:
+          cur_type = pal["type"]
+      else:
+          cur_type = ''
+      
+      # Assembling dictionary entry
+      RAMP[cur_name] = {'author' : cur_author, 'comments' : cur_comments, 'type' : cur_type, 'description' = {}}
+      # Add decsription fields
+      RAMP[cur_name]["description"]["red"] = pal["description"]["red"]
+      RAMP[cur_name]["description"]["green"] = pal["description"]["green"]
+      RAMP[cur_name]["description"]["blue"] = pal["description"]["blue"]
   
 def getRampsForDisplay():
     """
