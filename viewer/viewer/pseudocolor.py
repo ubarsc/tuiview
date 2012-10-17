@@ -22,6 +22,7 @@ Cynthia Brewer (http://colorbrewer.org/).
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import os
 import numpy
 import json
 # Import minify function, available from
@@ -80,9 +81,22 @@ RAMP['YlOrRd']['description']['red'] = '255 255 254 254 253 252 227 189 128'
 RAMP['YlOrRd']['description']['green'] = '255 237 217 178 141 78 26 0 0'
 RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
 
-def getRampsFromFile(fname):
+# Try to load extra colour ramps
+palettesFile = os.getenv('VIEWER_EXTRA_RAMP')
+# check that it is set
+if palettesFile is not None:
+    try:
+        # read palette file
+        palettesFobj = open(palettesFile, "r")
+        # process palettes and append RAMP dict
+        getRampsFromFile(palettesFobj)
+    except IOError:
+        # wasn't able to open file, set error
+        msg = 'Unable to open %s' % palettesFile
+        
+def getRampsFromFile(fObj):
     # Read and minify file contents
-    palsMinified = json_minify(open(fname, "r").read())
+    palsMinified = json_minify(fObj.read())
     # Loads palettes in a dict
     pals = json.loads(palsMinified)
     
