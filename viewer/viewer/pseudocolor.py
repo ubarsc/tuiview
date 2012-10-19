@@ -89,17 +89,17 @@ palettesFile = os.getenv('VIEWER_EXTRA_RAMP')
 # check that it is set
 if palettesFile is not None:
     try:
-        # read palette file
-        palettesFobj = open(palettesFile, "r")
         # process palettes and append RAMP dict
-        getRampsFromFile(palettesFobj)
+        pseudocolor.getRampsFromFile(palettesFile)
     except IOError:
         # wasn't able to open file, set error
         msg = 'Unable to open %s' % palettesFile
         
-def getRampsFromFile(fObj):
-    # Read and minify file contents
-    palsMinified = json_minify(fObj.read())
+def getRampsFromFile(fname):
+    # Read palette file
+    palettesFobj = open(fname, "r")
+    # Minify file contents
+    palsMinified = json_minify(palettesFobj.read())
     # Loads palettes in a dict
     pals = json.loads(palsMinified)
     
@@ -120,7 +120,7 @@ def getRampsFromFile(fObj):
         
         # Check red, green and blue fields are present
         if "description" in pal:
-            if pal[cur_name]["description"].keys() != ['red', 'green', 'blue']:
+            if set(pal["description"].keys()) != set(['red', 'green', 'blue']):
                 # Quit - invalid colour scheme
                 msg = 'Invalid colour ramp structure'
                 raise viewererrors.ColorRampException(msg)
