@@ -513,21 +513,8 @@ class ViewerWidget(QAbstractScrollArea):
 
         elif self.activeTool == VIEWER_TOOL_QUERY:
 
-            layer = self.layers.getTopRasterLayer()
-            if layer is not None:
-                # display coords. I don't think anything needs to be added here
-                (dspX, dspY) = (pos.x(), pos.y())
-                # Raster row/column
-                (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
-                (easting, northing) = layer.coordmgr.pixel2world(column, row)
-                #print layer.coordmgr
-
-                # update the point
-                self.updateQueryPoint(easting, northing, column, row)
-
-                # emit the geolinked query point signal
-                obj = GeolinkInfo(id(self), easting, northing)
-                self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
+            (dspX, dspY) = (pos.x(), pos.y())
+            self.newQueryPoint(dspX=dspX, dspY=dspY)
 
         elif self.activeTool == VIEWER_TOOL_POLYGON:
             button = event.button()
@@ -717,10 +704,44 @@ class ViewerWidget(QAbstractScrollArea):
             self.updateScrollBars()
 
     # query point routines
+    def newQueryPoint(self, easting=None, northing=None, 
+                                dspY=None, dspX=None):
+        """
+        This viewer has recorded a new query point. Or
+        user has entered new coords in querywindow.
+
+        Calls updateQueryPoint and emits the geolinkQueryPoint signal
+
+        pass either [easting and northing] or [dspX,dspY]
+        """
+        layer = self.layers.getTopRasterLayer()
+        if layer is None:
+            return
+
+        if (easting is None and northing is None and 
+                            dspX is None and dspY is None):
+            msg = "must provide one of [easting,northing] or [dspX,dspY]"
+            raise ValueError(msg)
+
+        if easting is None or northing is None:
+            (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
+            (easting, northing) = layer.coordmgr.pixel2world(column, row)
+        elif dspX is None or dspY is None:
+            (column, row) = layer.coordmgr.world2pixel(easting, northing)
+
+        # update the point
+        self.updateQueryPoint(easting, northing, column, row)
+
+        # emit the geolinked query point signal
+        obj = GeolinkInfo(id(self), easting, northing)
+        self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
+
     def updateQueryPoint(self, easting, northing, column, row):
         """
         Map has been clicked, get the value and emit
         a locationSelected signal.
+        Called by newQueryPoint or when a geolinkQueryPoint signal
+        has been received.
         """
         # read the data out of the dataset
         layer = self.layers.getTopRasterLayer()

@@ -19,7 +19,7 @@ Module that contains the QueryDockWidget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PyQt4.QtGui import QDockWidget, QTableView, QIcon, QFileDialog
-from PyQt4.QtGui import QColorDialog, QPixmap, QBrush, QMenu
+from PyQt4.QtGui import QColorDialog, QPixmap, QBrush, QMenu, QDoubleValidator
 from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter
 from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QHeaderView
@@ -390,13 +390,18 @@ class QueryDockWidget(QDockWidget):
         self.setupActions()
         self.setupToolbar()
 
+        self.coordValidator = QDoubleValidator()
         self.eastingEdit = QLineEdit(self.dockWidget)
-        self.eastingEdit.setReadOnly(True)
         self.eastingEdit.setToolTip("Easting")
+        self.eastingEdit.setValidator(self.coordValidator)
+        self.connect(self.eastingEdit, SIGNAL("returnPressed()"), 
+                                                        self.userNewCoord)
 
         self.northingEdit = QLineEdit(self.dockWidget)
-        self.northingEdit.setReadOnly(True)
         self.northingEdit.setToolTip("Northing")
+        self.northingEdit.setValidator(self.coordValidator)
+        self.connect(self.northingEdit, SIGNAL("returnPressed()"), 
+                                                        self.userNewCoord)
 
         self.coordLayout = QHBoxLayout()
         self.coordLayout.addWidget(self.eastingEdit)
@@ -776,6 +781,17 @@ Use the special columns:
             index = self.tableView.model().index(selectedIdx[0], 0)
             self.tableView.scrollTo(index, QTableView.PositionAtCenter)
             horiz_scroll_bar.setSliderPosition(horiz_pos)
+
+    def userNewCoord(self):
+        """
+        User has pressed enter on one of the coord boxes
+        Tell widget we want to move
+        """
+        # should have been validated by the time we got here so 
+        # should be valid floats
+        easting = float(self.eastingEdit.text())
+        northing = float(self.northingEdit.text())
+        self.viewwidget.newQueryPoint(easting=easting, northing=northing)
 
     def newSelectUserExpression(self, expression):
         """
