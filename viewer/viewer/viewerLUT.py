@@ -48,7 +48,7 @@ else:
 CODE_TO_RGBINDEX = {'r' : 0, 'g' : 1, 'b' : 2, 'a' : 3}
 
 # to save creating this tuple all the time
-RGB_CODES = ('r', 'g', 'b')
+RGB_CODES = ('red', 'green', 'blue')
 RGBA_CODES = ('r', 'g', 'b', 'a')
 
 # for the apply functions
