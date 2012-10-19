@@ -4,6 +4,10 @@ Module that deals with color ramps
 
 This product includes color specifications and designs developed by 
 Cynthia Brewer (http://colorbrewer.org/).
+
+This file uses the minify function, available from
+https://github.com/getify/JSON.minify
+
 """
 # This file is part of 'Viewer' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
@@ -25,8 +29,6 @@ Cynthia Brewer (http://colorbrewer.org/).
 import os
 import numpy
 import json
-# Import minify function, available from
-# https://github.com/getify/JSON.minify
 from minify_json import json_minify 
 
 # init our dictionary of data
@@ -83,6 +85,7 @@ RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
 
 # Try to load extra colour ramps
 palettesFile = os.getenv('VIEWER_EXTRA_RAMP')
+
 # check that it is set
 if palettesFile is not None:
     try:
@@ -102,42 +105,55 @@ def getRampsFromFile(fObj):
     
     # For each palette that's been detected
     for pal in pals:
-      # Check name is present and unique
-      if "name" in pal:
-          cur_name = pal["name"]
-      else:
-          # Quit - invalid colour scheme structure
-      if cur_name in RAMP.keys():
-          # Quit - invalid colour scheme name
-      
-      # Check red, green and blue fields are present
-      if "description" in pal:
-          if pal[cur_name]["description"].keys() != ['red', 'green', 'blue']:
-              # Quit - invalid colour scheme
-      else:
-          # Quit - invalid colour scheme
-      
-      # Other fields optional
-      if "author" in pal:
-          cur_author = pal["author"]
-      else:
-          cur_author = ''
-      if "comments" in pal:
-          cur_comments = pal["comments"]
-      else:
-          cur_comments = ''
-      if "type" in pal:
-          cur_type = pal["type"]
-      else:
-          cur_type = ''
-      
-      # Assembling dictionary entry
-      RAMP[cur_name] = {'author' : cur_author, 'comments' : cur_comments, 'type' : cur_type, 'description' = {}}
-      # Add decsription fields
-      RAMP[cur_name]["description"]["red"] = pal["description"]["red"]
-      RAMP[cur_name]["description"]["green"] = pal["description"]["green"]
-      RAMP[cur_name]["description"]["blue"] = pal["description"]["blue"]
-  
+        # Check name is present and unique
+        if "name" in pal:
+            cur_name = pal["name"]
+        else:
+            # Quit - invalid colour scheme structure
+            msg = 'Invalid colour ramp structure'
+            raise viewererrors.ColorRampException(msg)
+        
+        if cur_name in RAMP.keys():
+            # Quit - invalid colour scheme name
+            msg = 'Duplicated colour ramp name'
+            raise viewererrors.ColorRampException(msg)
+        
+        # Check red, green and blue fields are present
+        if "description" in pal:
+            if pal[cur_name]["description"].keys() != ['red', 'green', 'blue']:
+                # Quit - invalid colour scheme
+                msg = 'Invalid colour ramp structure'
+                raise viewererrors.ColorRampException(msg)
+        else:
+            # Quit - invalid colour scheme
+            msg = 'Invalid colour ramp structure'
+            raise viewererrors.ColorRampException(msg)
+        
+        # Other fields optional 
+        # not sure what we'll be doing with this yet
+        if "author" in pal:
+            cur_author = pal["author"]
+        else:
+            cur_author = ''
+        
+        if "comments" in pal:
+            cur_comments = pal["comments"]
+        else:
+            cur_comments = ''
+        
+        if "type" in pal:
+            cur_type = pal["type"]
+        else:
+            cur_type = ''
+        
+        # Assembling dictionary entry
+        RAMP[cur_name] = {'author' : cur_author, 'comments' : cur_comments, 'type' : cur_type, 'description' : {}}
+        # Add decsription fields
+        RAMP[cur_name]["description"]["red"] = pal["description"]["red"]
+        RAMP[cur_name]["description"]["green"] = pal["description"]["green"]
+        RAMP[cur_name]["description"]["blue"] = pal["description"]["blue"]
+        
+        
 def getRampsForDisplay():
     """
     Returns a list of (name, displayname) tuples for
@@ -164,7 +180,7 @@ def getLUTForRamp(code, name, lutsize):
     Returns an LUT for the specified color and name
     """
     # get the data as string
-    colstr = RAMP[name][code]
+    colstr = RAMP[name]['description'][code]
     # turn it into a list of floats
     # numpy.interp() needs floats
     colList = [float(x) for x in colstr.split()]
