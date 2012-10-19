@@ -40,16 +40,16 @@ DEFAULT_LUTSIZE = 256 # if not 8bit
 # a 32bit int. We do this by inserting stuff into
 # a 8 bit numpy array, but this is endian specific
 if BIG_ENDIAN:
-    CODE_TO_LUTINDEX = {'b' : 3, 'g' : 2, 'r' : 1, 'a' : 0}
+    CODE_TO_LUTINDEX = {'blue' : 3, 'green' : 2, 'red' : 1, 'alpha' : 0}
 else:
-    CODE_TO_LUTINDEX = {'b' : 0, 'g' : 1, 'r' : 2, 'a' : 3}
+    CODE_TO_LUTINDEX = {'blue' : 0, 'green' : 1, 'red' : 2, 'alpha' : 3}
 
 # for indexing into RGB triplets
-CODE_TO_RGBINDEX = {'r' : 0, 'g' : 1, 'b' : 2, 'a' : 3}
+CODE_TO_RGBINDEX = {'red' : 0, 'green' : 1, 'blue' : 2, 'alpha' : 3}
 
 # to save creating this tuple all the time
 RGB_CODES = ('red', 'green', 'blue')
-RGBA_CODES = ('r', 'g', 'b', 'a')
+RGBA_CODES = ('red', 'green', 'blue', 'alpha')
 
 # for the apply functions
 MASK_IMAGE_VALUE = 0
@@ -264,7 +264,7 @@ class ViewerLUT(QObject):
                 gdaldataset.SetMetadataItem(key, string)
 
             # do alpha seperately as there is no bandinfo
-            code = 'a'
+            code = 'alpha'
             lutindex = CODE_TO_LUTINDEX[code]
             string = json.dumps(self.lut[lutindex].tolist())
             key = VIEWER_LUT_METADATA_KEY + '_' + code
@@ -406,7 +406,7 @@ class ViewerLUT(QObject):
                     if lutstring is not None and lutstring != '':
                         infos.append((bistring, lutstring))
             # do alpha separately as there is no band info
-            code = 'a'
+            code = 'alpha'
             key = VIEWER_LUT_METADATA_KEY + '_' + code
             alphalutstring = gdaldataset.GetMetadataItem(key)
 
@@ -426,7 +426,7 @@ class ViewerLUT(QObject):
                     lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
                     obj.lut[lutindex] = lut
                 # now alpha
-                code = 'a'
+                code = 'alpha'
                 lutindex = CODE_TO_LUTINDEX[code]
                 lut = numpy.fromiter(json.loads(alphalutstring), numpy.uint8)
                 obj.lut[lutindex] = lut
@@ -827,9 +827,9 @@ class ViewerLUT(QObject):
 
             # now do alpha seperately - 255 for all except 
             # no data and background
-            lutindex = CODE_TO_LUTINDEX['a']
+            lutindex = CODE_TO_LUTINDEX['alpha']
             self.lut[..., lutindex].fill(255)
-            rgbindex = CODE_TO_RGBINDEX['a']
+            rgbindex = CODE_TO_RGBINDEX['alpha']
             nodata_value = stretch.nodata_rgba[rgbindex]
             background_value = stretch.background_rgba[rgbindex]
             self.lut[self.bandinfo.nodata_index, lutindex] = nodata_value
@@ -887,9 +887,9 @@ class ViewerLUT(QObject):
 
             # now do alpha seperately - 255 for all except 
             # no data and background
-            lutindex = CODE_TO_LUTINDEX['a']
+            lutindex = CODE_TO_LUTINDEX['alpha']
             self.lut[..., lutindex].fill(255)
-            rgbindex = CODE_TO_RGBINDEX['a']
+            rgbindex = CODE_TO_RGBINDEX['alpha']
             nodata_value = stretch.nodata_rgba[rgbindex]
             background_value = stretch.background_rgba[rgbindex]
             self.lut[self.bandinfo.nodata_index, lutindex] = nodata_value
@@ -942,15 +942,15 @@ class ViewerLUT(QObject):
 
             # now do alpha seperately - 255 for all except 
             # no data and background
-            lutindex = CODE_TO_LUTINDEX['a']
+            lutindex = CODE_TO_LUTINDEX['alpha']
             self.lut[lutindex].fill(255)
-            rgbindex = CODE_TO_RGBINDEX['a']
+            rgbindex = CODE_TO_RGBINDEX['alpha']
             nodata_value = stretch.nodata_rgba[rgbindex]
             background_value = stretch.background_rgba[rgbindex]
             # just use blue since alpha has no bandinfo and 
             # they should all be the same anyway
-            nodata_index = self.bandinfo['b'].nodata_index
-            background_index = self.bandinfo['b'].background_index
+            nodata_index = self.bandinfo['blue'].nodata_index
+            background_index = self.bandinfo['blue'].background_index
 
             self.lut[lutindex, nodata_index] = nodata_value
             self.lut[lutindex, background_index] = background_value
@@ -1074,12 +1074,12 @@ class ViewerLUT(QObject):
             bgra[..., lutindex] = self.lut[lutindex][data]
         
         # now alpha - all 255 apart from nodata and background
-        lutindex = CODE_TO_LUTINDEX['a']
+        lutindex = CODE_TO_LUTINDEX['alpha']
 
         # just use blue since alpha has no bandinfo and 
         # they should all be the same anyway
-        nodata_index = self.bandinfo['b'].nodata_index
-        background_index = self.bandinfo['b'].background_index
+        nodata_index = self.bandinfo['blue'].nodata_index
+        background_index = self.bandinfo['blue'].background_index
         nodata_value = self.lut[lutindex, nodata_index]
         background_value = self.lut[lutindex, background_index]
 
