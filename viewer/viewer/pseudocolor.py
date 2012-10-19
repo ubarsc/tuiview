@@ -83,18 +83,6 @@ RAMP['YlOrRd']['description']['red'] = '255 255 254 254 253 252 227 189 128'
 RAMP['YlOrRd']['description']['green'] = '255 237 217 178 141 78 26 0 0'
 RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
 
-# Try to load extra colour ramps
-palettesFile = os.getenv('VIEWER_EXTRA_RAMP')
-
-# check that it is set
-if palettesFile is not None:
-    try:
-        # process palettes and append RAMP dict
-        pseudocolor.getRampsFromFile(palettesFile)
-    except IOError:
-        # wasn't able to open file, set error
-        msg = 'Unable to open %s' % palettesFile
-        
 def getRampsFromFile(fname):
     # Read palette file
     palettesFobj = open(fname, "r")
@@ -152,8 +140,7 @@ def getRampsFromFile(fname):
         RAMP[cur_name]["description"]["red"] = pal["description"]["red"]
         RAMP[cur_name]["description"]["green"] = pal["description"]["green"]
         RAMP[cur_name]["description"]["blue"] = pal["description"]["blue"]
-        
-        
+
 def getRampsForDisplay():
     """
     Returns a list of (name, displayname) tuples for
@@ -196,3 +183,15 @@ def getLUTForRamp(code, name, lutsize):
     yinterp = numpy.interp(xinterp, xobs, yobs)
     # return as 8 bit int
     return yinterp.astype(numpy.uint8)
+
+# Try to load extra colour ramps
+palettesFile = os.getenv('VIEWER_EXTRA_RAMP')
+
+# check that it is set
+if palettesFile is not None:
+    try:
+        # process palettes and append RAMP dict
+        getRampsFromFile(palettesFile)
+    except IOError:
+        # wasn't able to open file, set error
+        msg = 'Unable to open %s' % palettesFile
