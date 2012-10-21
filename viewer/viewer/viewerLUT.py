@@ -838,6 +838,9 @@ class ViewerLUT(QObject):
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR:
             from . import pseudocolor
+            # make sure we have any other ramps loaded
+            pseudocolor.loadExtraRamps()
+
             if len(stretch.bands) > 1:
                 msg = 'specify one band when opening a pseudocolor image'
                 raise viewererrors.InvalidParameters(msg)
