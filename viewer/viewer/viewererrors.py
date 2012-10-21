@@ -49,3 +49,6 @@ class UserExpressionSyntaxError(UserExpressionError):
 
 class UserExpressionTypeError(UserExpressionError):
     "The result of user supplied code was the wrong type"
+    
+class ColorRampException(ViewerException):
+    "The customised colour ramps file is not valid"

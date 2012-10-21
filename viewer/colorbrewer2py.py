@@ -23,6 +23,10 @@ the basis of pseudocolor.py
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import sys
 
+# Fixed metadata for the ColorBrewer color ramps
+author = 'Cynthia Brewer'
+comments = 'Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.'
+
 def readData(fname):
     """
     Reads the data out of the CSV and makes it into
@@ -92,7 +96,7 @@ def emitPythonCode(infoDict):
     for key in sorted(infoDict.keys()):
         (name, type) = key.split('_')
         if name in wantList:
-            print "RAMP['%s'] = {'type' : '%s'}" % (name, type)
+            print "RAMP['%s'] = {'author' : '%s', 'comments' : '%s', 'type' : '%s'}" % (name, author, comments, type)
             # turn r,g,b tuples into list
             redList = []
             greenList = []
@@ -104,9 +108,10 @@ def emitPythonCode(infoDict):
             redstr = ' '.join(redList)
             greenstr = ' '.join(greenList)
             bluestr = ' '.join(blueList)
-            print "RAMP['%s']['r'] = '%s'" % (name, redstr)
-            print "RAMP['%s']['g'] = '%s'" % (name, greenstr)
-            print "RAMP['%s']['b'] = '%s'" % (name, bluestr)
+            print "RAMP['%s']['description'] = {}" % name
+            print "RAMP['%s']['description']['red'] = '%s'" % (name, redstr)
+            print "RAMP['%s']['description']['green'] = '%s'" % (name, greenstr)
+            print "RAMP['%s']['description']['blue'] = '%s'" % (name, bluestr)
 
 if __name__ == '__main__':
     info = readData(sys.argv[1])

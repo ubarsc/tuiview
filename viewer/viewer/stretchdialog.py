@@ -115,6 +115,12 @@ class StretchLayout(QFormLayout):
 
         self.rampCombo = QComboBox(parent)
 
+        # make sure the pseudocolor has the extra ramps loaded
+        try:
+            pseudocolor.loadExtraRamps()
+        except Exception, e:
+            QMessageBox.critical(parent, "Viewer", str(e))
+
         # populate combo - sort by type
         index = 0
         for (name, display) in pseudocolor.getRampsForDisplay():
