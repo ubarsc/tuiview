@@ -1,4 +1,6 @@
 [
+   // an example of a file that could be pointed to by the $VIEWER_EXTRA_RAMP
+   // environment variable
   {
     // Customised palette
     "name" : "My super cool palette",
