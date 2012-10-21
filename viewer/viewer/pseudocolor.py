@@ -29,7 +29,13 @@ https://github.com/getify/JSON.minify
 import os
 import numpy
 import json
-from minify_json import json_minify 
+
+from . import viewererrors
+
+# environment variable we use to specify file
+# to load extra ramps from
+EXTRA_RAMP_VAR = 'VIEWER_EXTRA_RAMP'
+HAVE_LOADED_EXTRA_RAMPS = False
 
 # init our dictionary of data
 # longest list of colors for each name
@@ -84,6 +90,11 @@ RAMP['YlOrRd']['description']['green'] = '255 237 217 178 141 78 26 0 0'
 RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
 
 def getRampsFromFile(fname):
+    """
+    Read extra color ramps into our global RAMPS dictionary
+    from specified file
+    """
+    from minify_json import json_minify 
     # Read palette file
     palettesFobj = open(fname, "r")
     # Minify file contents
@@ -141,6 +152,30 @@ def getRampsFromFile(fname):
         RAMP[cur_name]["description"]["green"] = pal["description"]["green"]
         RAMP[cur_name]["description"]["blue"] = pal["description"]["blue"]
 
+def loadExtraRamps():
+    """
+    Try to load extra colour ramps
+    from file spcified by EXTRA_RAMP_VAR env variable. 
+    Checks that we haven't done it before so we don't have
+    duplicates
+    """
+    global HAVE_LOADED_EXTRA_RAMPS
+    if HAVE_LOADED_EXTRA_RAMPS:
+        return
+
+    palettesFile = os.getenv(EXTRA_RAMP_VAR)
+
+    # check that it is set
+    if palettesFile is not None:
+        try:
+            # process palettes and append RAMP dict
+            getRampsFromFile(palettesFile)
+            HAVE_LOADED_EXTRA_RAMPS = True
+        except IOError:
+            # wasn't able to open file, set error
+            msg = 'Unable to open %s' % palettesFile
+            raise viewererrors.ColorRampException(msg)
+
 def getRampsForDisplay():
     """
     Returns a list of (name, displayname) tuples for
@@ -184,14 +219,3 @@ def getLUTForRamp(code, name, lutsize):
     # return as 8 bit int
     return yinterp.astype(numpy.uint8)
 
-# Try to load extra colour ramps
-palettesFile = os.getenv('VIEWER_EXTRA_RAMP')
-
-# check that it is set
-if palettesFile is not None:
-    try:
-        # process palettes and append RAMP dict
-        getRampsFromFile(palettesFile)
-    except IOError:
-        # wasn't able to open file, set error
-        msg = 'Unable to open %s' % palettesFile
