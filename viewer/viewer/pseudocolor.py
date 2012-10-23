@@ -89,6 +89,20 @@ RAMP['YlOrRd']['description']['red'] = '255 255 254 254 253 252 227 189 128'
 RAMP['YlOrRd']['description']['green'] = '255 237 217 178 141 78 26 0 0'
 RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
 
+def HEXtoRGB(colorstring):
+    """ 
+    Converts #RRGGBB to an (R, G, B) tuple, 
+    from http://code.activestate.com/recipes/266466-html-colors-tofrom-rgb-tuples/
+    """
+    colorstring = colorstring.strip()
+    if colorstring[0] == '#': colorstring = colorstring[1:]
+    if len(colorstring) != 6:
+        msg = "Colour #%s is not in #RRGGBB format" % colorstring
+        raise viewererrors.ColorRampException(msg)
+    r, g, b = colorstring[:2], colorstring[2:4], colorstring[4:]
+    r, g, b = [int(n, 16) for n in (r, g, b)]
+    return (r, g, b)
+    
 def getRampsFromFile(fname):
     """
     Read extra color ramps into our global RAMPS dictionary
@@ -119,10 +133,30 @@ def getRampsFromFile(fname):
         
         # Check red, green and blue fields are present
         if "description" in pal:
-            if set(pal["description"].keys()) != set(['red', 'green', 'blue']):
-                # Quit - invalid colour scheme
-                msg = 'Invalid colour ramp structure'
-                raise viewererrors.ColorRampException(msg)
+            # Parsing description of the colour ramp
+            descriptionKeys = pal["description"].keys()
+            # Is it RGB coded?
+            isRgb = set(descriptionKeys).issubset(set(['red', 'green', 'blue']))
+            # Is it hex coded?
+            isHex = descriptionKeys == ['hex']
+            # If RGB is given it has priority
+            if isRgb:
+                reds = pal["description"]["red"]
+                greens = pal["description"]["green"]
+                blues = pal["description"]["blue"]
+            else:
+                # Else look for HEX 
+                if isHex:
+                    # Convert HEX to RGB 
+                    colrgb = numpy.array([HEXtoRGB(col) for col in pal["description"]["hex"].split()])
+                    # Add RGB values to palette decription
+                    reds = " ".join(map(str,colrgb[:,0]))
+                    greens = " ".join(map(str,colrgb[:,1]))
+                    blues = " ".join(map(str,colrgb[:,2]))
+                else:
+                    # Quit - invalid colour scheme
+                    msg = 'Invalid colour ramp structure'
+                    raise viewererrors.ColorRampException(msg)
         else:
             # Quit - invalid colour scheme
             msg = 'Invalid colour ramp structure'
@@ -148,9 +182,9 @@ def getRampsFromFile(fname):
         # Assembling dictionary entry
         RAMP[cur_name] = {'author' : cur_author, 'comments' : cur_comments, 'type' : cur_type, 'description' : {}}
         # Add decsription fields
-        RAMP[cur_name]["description"]["red"] = pal["description"]["red"]
-        RAMP[cur_name]["description"]["green"] = pal["description"]["green"]
-        RAMP[cur_name]["description"]["blue"] = pal["description"]["blue"]
+        RAMP[cur_name]["description"]["red"] = reds
+        RAMP[cur_name]["description"]["green"] = greens
+        RAMP[cur_name]["description"]["blue"] = blues
 
 def loadExtraRamps():
     """
