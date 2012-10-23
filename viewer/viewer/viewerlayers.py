@@ -544,6 +544,9 @@ class ViewerRasterLayer(ViewerLayer):
                                     / fullrespixperovpix)
             dspBottomExtra = ((dspRastAbsBottom - dspRastBottom) 
                                     / fullrespixperovpix)
+            # be aware rounding errors
+            dspRightExtra = max(dspRightExtra, 0)
+            dspBottomExtra = max(dspBottomExtra, 0)
 
 
         # only need to do the mask once
