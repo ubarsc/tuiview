@@ -158,13 +158,13 @@ class ViewerWidget(QAbstractScrollArea):
             self.verticalScrollBar().setRange(0, 0)
         self.suppressscrollevent = False
 
-    def addRasterLayer(self, fname, stretch, lut=None):
+    def addRasterLayer(self, gdalDataset, stretch, lut=None):
         """
-        Add the given filename to the stack of images being displayed
+        Add the given dataset to the stack of images being displayed
         as a raster layer
         """
         size = self.viewport().size()
-        self.layers.addRasterLayer(fname, size.width(), size.height(), 
+        self.layers.addRasterLayer(gdalDataset, size.width(), size.height(), 
                             stretch, lut)
         # get rid off tool points
         self.toolPoints = None

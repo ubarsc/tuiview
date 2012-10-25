@@ -505,16 +505,17 @@ class ViewerWindow(QMainWindow):
         """
         fname = str(fname) # was QString
         lut = None
+        # first open the dataset
+        from osgeo import gdal
+        try:
+            gdaldataset = gdal.Open(fname)
+        except RuntimeError:
+            msg = "Unable to open %s" % fname
+            QMessageBox.critical(self, MESSAGE_TITLE, msg)
+            return
+
         if stretch is None:
             # first see if it has a stretch saved in the file
-            from osgeo import gdal
-            try:
-                gdaldataset = gdal.Open(fname)
-            except RuntimeError:
-                msg = "Unable to open %s" % fname
-                QMessageBox.critical(self, MESSAGE_TITLE, msg)
-                return
-
             from . import viewerstretch
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
@@ -541,13 +542,9 @@ class ViewerWindow(QMainWindow):
                 self.defaultStretch()
                 return
 
-            # close dataset before we open it again
-            # (may well be a better way)
-            del gdaldataset
-
         # now open it for real
         try:
-            self.viewwidget.addRasterLayer(fname, stretch, lut)
+            self.viewwidget.addRasterLayer(gdaldataset, stretch, lut)
             self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
         except Exception as e:
             QMessageBox.critical(self, "Viewer", str(e) )

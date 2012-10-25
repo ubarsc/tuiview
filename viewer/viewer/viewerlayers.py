@@ -205,16 +205,17 @@ class ViewerRasterLayer(ViewerLayer):
                                                     layermanager.newPercent)
 
 
-    def open(self, filename, width, height, stretch, lut=None):
+    def open(self, gdalDataset, width, height, stretch, lut=None):
         """
         Open a filename as a raster layer. width and height is the
         display size. stretch is the ViewerStretch instance to use.
         if specified, the lut is used to display the data, otherwise
         calculated from the stretch
+        Keeps a reference to gdalDataset
         """
         # open the file
-        self.filename = filename
-        self.gdalDataset = gdal.Open(filename)
+        self.filename = gdalDataset.GetDescription()
+        self.gdalDataset = gdalDataset
 
         # do some checks to see if we can deal with the data
         # currently only support square pixels and non rotated
@@ -938,14 +939,14 @@ class LayerManager(QObject):
         sr2 = osr.SpatialReference(proj2)
         return bool(sr1.IsSame(sr2))
 
-    def addRasterLayer(self, filename, width, height, stretch, lut=None):
+    def addRasterLayer(self, gdalDataset, width, height, stretch, lut=None):
         """
         Add a new raster layer with given display width and height, stretch
         and optional lut.
         """
         # create and open
         layer = ViewerRasterLayer(self)
-        layer.open(filename, width, height, stretch, lut)
+        layer.open(gdalDataset, width, height, stretch, lut)
 
         if len(self.layers) > 0:
             # get the existing extent
