@@ -23,6 +23,8 @@ from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction
 from PyQt4.QtGui import QMessageBox
 from PyQt4.QtCore import QAbstractListModel, QVariant, Qt, SIGNAL
 
+from . import viewerlayers
+
 class LayerItemModel(QAbstractListModel):
     """
     This class provides the data to the list view by 
@@ -32,6 +34,7 @@ class LayerItemModel(QAbstractListModel):
         QAbstractListModel.__init__(self, parent)
         self.viewwidget = viewwidget
         self.rasterIcon = QIcon(":/viewer/images/rasterlayer.png")
+        self.vectorIcon = QIcon(":/viewer/images/vectorlayer.png")
 
     def rowCount(self, parent):
         "Just the number of layers"
@@ -67,7 +70,11 @@ class LayerItemModel(QAbstractListModel):
             return QVariant(fname)
         elif role == Qt.DecorationRole:
             # icon
-            return QVariant(self.rasterIcon)
+            layer = self.getLayer(index)
+            if isinstance(layer, viewerlayers.ViewerRasterLayer):
+                return QVariant(self.rasterIcon)
+            else:
+                return QVariant(self.vectorIcon)
         elif role == Qt.CheckStateRole:
             # whether displayed or not
             if layer.displayed:

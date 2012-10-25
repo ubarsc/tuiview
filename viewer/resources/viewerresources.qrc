@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/viewer/images" >
         <file>addraster.png</file>
+        <file>addvector.png</file>
 	<file>removelayer.png</file>
         <file>zoomin.png</file>
         <file>zoomout.png</file>
@@ -27,6 +28,7 @@
 	<file>flickeroff.png</file>
 	<file>layers.png</file>
 	<file>rasterlayer.png</file>
+	<file>vectorlayer.png</file>
 	<file>zoomlayer.png</file>
 	<file>arrowup.png</file>
 	<file>arrowdown.png</file>

@@ -32,6 +32,9 @@ from . import viewerlayers
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
 
+def haveVector():
+    return viewerlayers.HAVE_TURBOVECTOR
+
 class QueryInfo(object):
     """
     Container class for the information passed in the locationSelected
@@ -167,6 +170,20 @@ class ViewerWidget(QAbstractScrollArea):
         self.toolPoints = None
         self.toolPointsFinished = True
 
+        self.viewport().update()
+        self.updateScrollBars()
+
+    def addVectorLayer(self, ogrDataSource, ogrLayer, color=None):
+        """
+        Add the vector given by the ogrDataSource and its dependent 
+        ogrLayer to the stack of images.
+        """
+        size = self.viewport().size()
+        if color is None:
+            color = viewerlayers.DEFAULT_VECTOR_COLOR
+
+        self.layers.addVectorLayer(ogrDataSource, ogrLayer, size.width(), 
+                    size.height(), color)
         self.viewport().update()
         self.updateScrollBars()
 

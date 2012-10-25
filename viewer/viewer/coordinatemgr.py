@@ -88,6 +88,7 @@ class VectorCoordManager(CoordManager):
     def __init__(self):
         CoordManager.__init__(self)
         self.extent = None
+        self.fullExtent = None
         self.metersperpix = None
 
     def recalc(self):
@@ -118,6 +119,14 @@ class VectorCoordManager(CoordManager):
         self.extent = extent
         self.recalc()
 
+    def getFullWorldExtent(self):
+        "full extent of dataset"
+        return self.fullExtent
+
+    def setFullWorldExtent(self, extent):
+        "sets the full extent of dataset"
+        self.fullExtent = extent
+
     def world2display(self, wldX, wldY):
         """
         convert world coords to display coords
@@ -134,6 +143,10 @@ class VectorCoordManager(CoordManager):
                 if dspX < self.dspWidth and dspY < self.dspHeight:
                     display = (dspX, dspY)
         return display
+
+    def recalcBottomRight(self):
+        "I don't think we need to do anything here"
+        pass
 
 class RasterCoordManager(CoordManager):
     """

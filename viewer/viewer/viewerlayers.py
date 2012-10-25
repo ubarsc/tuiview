@@ -31,6 +31,13 @@ from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
 
+# if we have turbovector we can handle vectors
+try:
+    from turbogdal import turbovector
+    HAVE_TURBOVECTOR = True
+except ImportError:
+    HAVE_TURBOVECTOR = False
+
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
@@ -180,6 +187,7 @@ class ViewerRasterLayer(ViewerLayer):
         self.overviews = OverviewManager()
         self.lut = viewerLUT.ViewerLUT()
         self.stretch = None
+        self.image = None
 
         # connect the signals from the RAT and LUT back to the layermanager
         layermanager.connect(self.lut, SIGNAL("newProgress(QString)"), 
@@ -761,16 +769,110 @@ class ViewerQueryPointLayer(ViewerLayer):
                                         size * 2, size * 2, 0, 16 * 360)
             paint.end()
                 
-                
+DEFAULT_VECTOR_COLOR = (255, 255, 0, 255)
 
 class ViewerVectorLayer(ViewerLayer):
     """
-    A vector layer. I don't do much with this yet...
+    A vector layer. Uses turbogdal, if installed
+    to burn in the outlines
     """
     def __init__(self):
         ViewerLayer.__init__(self)
-        self.ogrDataset = None
+        self.ogrDataSource = None
+        self.ogrLayer = None # must have both dataset and lyr for ref counts
         self.coordmgr = coordinatemgr.VectorCoordManager()
+        # we use a mini LUT to convert the 1's and zeros to colours
+        # we leave the first index blank to it is black/invisible
+        self.lut = numpy.zeros((2, 4), numpy.uint8)
+        self.image = None
+        self.filename = None
+
+    def setColor(self, color):
+        """
+        Sets up the LUT to use the specified color
+        """
+        for value, code in zip(color, viewerLUT.RGBA_CODES):
+            lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
+            self.lut[1,lutindex] = value
+
+    def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
+                    color=DEFAULT_VECTOR_COLOR):
+        """
+        Use the supplied datasource and layer for accessing vector data
+        keeps a reference to the datasource and layer
+        """
+        if not HAVE_TURBOVECTOR:
+            msg = 'Must install TurboGDAL/TurboVector to display vectors'
+            raise viewererrors.InvalidParameters(msg)
+
+        self.filename = ogrDataSource.GetName()
+        self.ogrDataSource = ogrDataSource
+        self.ogrLayer = ogrLayer
+        self.setColor(color)
+
+        self.coordmgr.setDisplaySize(width, height)
+        bbox = ogrLayer.GetExtent()
+        fullExtent = (bbox[0], bbox[3], bbox[1], bbox[2])
+        self.coordmgr.setFullWorldExtent(fullExtent)
+
+        if extent is None:
+            # if not given, get full extent of layer
+            extent = fullExtent
+
+        self.coordmgr.setWorldExtent(extent)
+
+    def updateColor(self, color):
+        """
+        Like setColor, but also updates the stored self.image
+        to be in the new color
+        """
+        self.setColor(color)
+        data = self.image.viewerdata
+        bgra = self.lut[data]
+        (ysize, xsize) = data.shape
+        self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
+        self.image.viewerdata = data
+
+    def getImage(self):
+        """
+        Updates self.image with the outlines of the
+        vector in the current color
+        """
+        extent = self.coordmgr.getWorldExtent()
+        (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
+
+        # rasterizeOutlines burns in 1 for outline, 0 otherwise
+        data = turbovector.rasterizeOutlines(self.ogrLayer, extent, 
+                    xsize, ysize, None)
+
+        # do our lookup
+        bgra = self.lut[data]
+        self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
+        self.image.viewerdata = data
+
+    def getPropertiesString(self):
+        "Return the properties as a string we can show the user"
+        from osgeo import ogr
+        fmt = """Driver: %s
+Files: %s
+Layer type is: %s
+Coordinate System is:\n%s"""
+        driver = self.ogrDataSource.GetDriver().GetName()
+        geomTypes = {ogr.wkbUnknown:'Unknown', ogr.wkbPoint:'Point',
+            ogr.wkbLineString:'Line String', ogr.wkbPolygon:'Polygon',
+            ogr.wkbMultiPoint:'Multi Point', 
+            ogr.wkbMultiLineString:'Multi Line String',
+            ogr.wkbMultiPolygon:'Polygon', 
+            ogr.wkbGeometryCollection:'Geometry Collection'}
+        geomCode = self.ogrLayer.GetGeomType()
+        geomType = geomTypes[geomCode]
+        sr = self.ogrLayer.GetSpatialRef()
+        if sr is not None:
+            coordString = sr.ExportToPrettyWkt()
+        else:
+            coordString = "None defined"
+        return fmt % (driver, self.filename, geomType, coordString)
+
 
 class LayerManager(QObject):
     """
@@ -864,10 +966,23 @@ class LayerManager(QObject):
         self.recalcFullExtent()
         self.emit(SIGNAL("layersChanged()"))
 
-    def addVectorLayer(self, filename, color):
+    def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
+                                color=DEFAULT_VECTOR_COLOR):
         """
-        Add a vector layer. Don't do much here yet...
+        Add a vector layer. 
         """
+        # copy the current extent, if available
+        extent = None
+        topLayer = self.getTopLayer()
+        if topLayer is not None:
+            extent = topLayer.coordmgr.getWorldExtent()
+
+        layer = ViewerVectorLayer()
+        layer.open(ogrDataSource, ogrLayer, width, height, extent, color)
+
+        layer.getImage()
+        self.layers.append(layer)
+
         self.recalcFullExtent()
         self.emit(SIGNAL("layersChanged()"))
 
