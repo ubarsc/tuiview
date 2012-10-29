@@ -254,6 +254,10 @@ class ThematicSelectionModel(QItemSelectionModel):
 
         self.parent.updateToolTip()
 
+        if self.parent.highlightAction.isChecked():
+            self.parent.viewwidget.highlightValues(self.parent.highlightColor,
+                                self.parent.selectionArray)
+
         # update the view
         self.parent.tableView.viewport().update()
         # note: the behaviour still not right....
@@ -553,7 +557,9 @@ class QueryDockWidget(QDockWidget):
         self.highlightAction.setText("&Highlight Selection")
         self.highlightAction.setStatusTip("Highlight Selection")
         self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
-        self.connect(self.highlightAction, SIGNAL("triggered()"), 
+        self.highlightAction.setCheckable(True)
+        self.highlightAction.setChecked(True)
+        self.connect(self.highlightAction, SIGNAL("toggled(bool)"), 
                         self.highlight)
 
         self.highlightColorAction = QAction(self)
@@ -722,14 +728,18 @@ class QueryDockWidget(QDockWidget):
                 printer.setResolution(96)
                 self.plotWidget.print_(printer)
 
-    def highlight(self):
+    def highlight(self, state):
         """
         Highlight the currently selected rows on the map
+        state contains whether we are enabling this or not
         """
         # tell the widget to update
         try:
-            self.viewwidget.highlightValues(self.highlightColor, 
+            if state:
+                self.viewwidget.highlightValues(self.highlightColor, 
                         self.selectionArray)
+            else:
+                self.viewwidget.highlightValues(self.highlightColor, None)
         except viewererrors.InvalidDataset:
             pass
 
@@ -739,6 +749,11 @@ class QueryDockWidget(QDockWidget):
         """
         self.selectionArray.fill(False)
         self.updateToolTip()
+        
+        if self.highlightAction.isChecked():
+            self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
+        
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
@@ -806,6 +821,11 @@ Use the special columns:
 
             # use it as our selection array
             self.selectionArray = result
+            
+            # if we are following the hightlight then update that
+            if self.highlightAction.isChecked():
+                self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
 
             self.scrollToFirstSelected()
 
@@ -1046,6 +1066,10 @@ Use the special columns:
 
         # select rows found in poly
         self.selectionArray[idx] = True
+
+        if self.highlightAction.isChecked():
+            self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
 
         self.scrollToFirstSelected()
         self.updateToolTip()
