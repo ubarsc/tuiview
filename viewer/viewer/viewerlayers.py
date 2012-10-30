@@ -644,15 +644,13 @@ class ViewerRasterLayer(ViewerLayer):
                     dspLeftExtra, dspTopExtra, dspRightExtra,
                          dspBottomExtra)
 
-            # Detect list of NaN pixels for this band
-            nodata_px = numpy.isnan(data)
-            nodata_value = numpy.nan
+            # do we have no data for this band?
+            nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
+            if nodata_value is not None:
             
-            # If there's any NaN detected
-            if nodata_px.any():
                 inimage_and_nodata = numpy.logical_and(
                         mask == viewerLUT.MASK_IMAGE_VALUE, 
-                        numpy.isnan(data))
+                        data == nodata_value)
                 mask = numpy.where(inimage_and_nodata, 
                         viewerLUT.MASK_NODATA_VALUE, 
                         mask)
