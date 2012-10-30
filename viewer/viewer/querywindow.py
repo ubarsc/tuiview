@@ -38,6 +38,7 @@ except ImportError:
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
+from .viewerwidget import  VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
 
@@ -389,7 +390,10 @@ class QueryDockWidget(QDockWidget):
         # self.geogSelectAction.isChecked() so don't interfere with
         # other GUI elements that might as for a polygon
         self.connect(self.viewwidget, 
-                SIGNAL("polygonCollected(PyQt_PyObject)"), self.newGeogSelect)
+            SIGNAL("polygonCollected(PyQt_PyObject)"), self.newPolyGeogSelect)
+        # same for polyline
+        self.connect(self.viewwidget, 
+            SIGNAL("polylineCollected(PyQt_PyObject)"), self.newLineGeogSelect)
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
@@ -631,6 +635,16 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.geogSelectAction, SIGNAL("toggled(bool)"),
                         self.geogSelect)
 
+        self.geogSelectLineAction = QAction(self)
+        self.geogSelectLineAction.setText("Geographic Selection with &Line")
+        self.geogSelectLineAction.setStatusTip(
+                            "Select rows by geographic selection with Line")
+        icon = QIcon(":/viewer/images/geographiclineselect.png")
+        self.geogSelectLineAction.setIcon(icon)
+        self.geogSelectLineAction.setCheckable(True)
+        self.connect(self.geogSelectLineAction, SIGNAL("toggled(bool)"),
+                        self.geogLineSelect)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -648,6 +662,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.saveAttrAction)
         self.toolBar.addAction(self.saveColOrderAction)
         self.toolBar.addAction(self.geogSelectAction)
+        self.toolBar.addAction(self.geogSelectLineAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
@@ -1044,7 +1059,7 @@ Use the special columns:
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
-    def newGeogSelect(self, polyInfo):
+    def newPolyGeogSelect(self, polyInfo):
         """
         New polygon just been selected as part of a 
         geographical select
@@ -1081,13 +1096,56 @@ Use the special columns:
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
+    def newLineGeogSelect(self, lineInfo):
+        """
+        New polyline just been selected as part of a 
+        geographical select
+        """
+        # if not a signal for us, ignore
+        if not self.geogSelectLineAction.isChecked():
+            return
+            
+        # lineInfo is an instance of PolylineToolInfo
+        data, mask, distance = lineInfo.getProfile()
+        # we only interested where mask == True
+        idx = numpy.unique(data.compress(mask))
+
+        # reset if they havent hit Ctrl
+        if int(lineInfo.getInputModifiers() & Qt.ControlModifier) == 0:
+            self.selectionArray.fill(False)
+
+        # select rows found in line
+        self.selectionArray[idx] = True
+
+        if self.highlightAction.isChecked():
+            self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
+
+        self.scrollToFirstSelected()
+        self.updateToolTip()
+        # so we repaint and our itemdelegate gets called
+        self.tableView.viewport().update()
+
     def geogSelect(self, checked):
         """
         Turn on the polygon tool so we can select the area
         """
         # ask for a polygon to be collected
         if checked:
+            self.geogSelectLineAction.setChecked(False)
             self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON)
+        else:
+            # reset tool
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+
+    def geogLineSelect(self, checked):
+        """
+        Turn on the polyline tool so we can select the area
+        """
+        # ask for a polyline to be collected
+        if checked:
+            self.geogSelectAction.setChecked(False)
+            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYLINE)
         else:
             # reset tool
             self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
