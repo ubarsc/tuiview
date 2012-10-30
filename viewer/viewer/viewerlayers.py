@@ -559,8 +559,7 @@ class ViewerRasterLayer(ViewerLayer):
 
 
         # only need to do the mask once
-        mask = numpy.empty((self.coordmgr.dspHeight, self.coordmgr.dspWidth), 
-                                    dtype=numpy.uint8)
+        mask = numpy.empty((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpy.uint8)
         mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
         
         dataslice = (slice(dspRastTop, dspRastTop+dspRastYSize),
@@ -645,16 +644,19 @@ class ViewerRasterLayer(ViewerLayer):
                     dspLeftExtra, dspTopExtra, dspRightExtra,
                          dspBottomExtra)
 
-            # do we have no data for this band?
-            nodata_value = self.noDataValues[self.stretch.bands[0] - 1]
-            if nodata_value is not None:
+            # Detect list of NaN pixels for this band
+            nodata_px = numpy.isnan(data)
+            nodata_value = numpy.nan
+            
+            # If there's any NaN detected
+            if nodata_px.any():
                 inimage_and_nodata = numpy.logical_and(
                         mask == viewerLUT.MASK_IMAGE_VALUE, 
-                        data == nodata_value)
+                        numpy.isnan(data))
                 mask = numpy.where(inimage_and_nodata, 
                         viewerLUT.MASK_NODATA_VALUE, 
                         mask)
-
+                        
             # apply LUT
             self.image = self.lut.applyLUTSingle(data, mask)
 
