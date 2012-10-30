@@ -112,6 +112,10 @@ class ThematicTableModel(QAbstractTableModel):
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             # rows just a number
             return QVariant("%s" % section)
+        elif (orientation == Qt.Vertical and role == Qt.BackgroundRole and
+                section == self.highlightRow):
+            # highlight the header also
+            return self.highlightBrush
         else:
             return QVariant()
 
@@ -703,7 +707,8 @@ class QueryDockWidget(QDockWidget):
             self.highlightColorAction.setIcon(icon)
 
             # re-highlight the selected rows
-            self.highlight()
+            if self.highlightAction.isChecked():
+                self.highlight(True)
 
     def changeLabel(self, checked):
         """
