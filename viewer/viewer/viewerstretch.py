@@ -60,8 +60,8 @@ class ViewerStretch(object):
         self.stretchparam = None
         self.bands = None
         self.rampName = None  # from colorbrewer2.org
-        self.nodata_rgba = (0, 0, 0, 0)
-        self.background_rgba = (0, 0, 0, 0)
+        self.nodata_rgba = (0, 0, 0, 255)
+        self.background_rgba = (0, 0, 0, 255)
         self.attributeTableSize = None # override with size of attribute table 
                                     # if one exists
                                     # LUT will then be created with this size
