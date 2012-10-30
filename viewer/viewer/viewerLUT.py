@@ -149,17 +149,18 @@ class ViewerLUT(QObject):
             # restore the old one so no rows highlighted
             # then highlight the ones we want
             self.lut = self.backuplut.copy()
+            
+        if selectionArray is not None:
+            # make selectionArray the same size by adding space for 
+            # no data and ignore
+            # (which aren't used here)
+            selectionArray = numpy.append(selectionArray, [False, False])
 
-        # make selectionArray the same size by adding space for 
-        # no data and ignore
-        # (which aren't used here)
-        selectionArray = numpy.append(selectionArray, [False, False])
-
-        entry = [color.red(), color.green(), color.blue(), color.alpha()]
-        for (value, code) in zip(entry, RGBA_CODES):
-            lutindex = CODE_TO_LUTINDEX[code]
-            self.lut[..., lutindex] = (
-                numpy.where(selectionArray, value, self.lut[..., lutindex]))
+            entry = [color.red(), color.green(), color.blue(), color.alpha()]
+            for (value, code) in zip(entry, RGBA_CODES):
+                lutindex = CODE_TO_LUTINDEX[code]
+                self.lut[..., lutindex] = (
+                    numpy.where(selectionArray, value, self.lut[..., lutindex]))
 
     def setColorTableLookup(self, lookupArray, colName, 
                                     surrogateLUT, surrogateName):
