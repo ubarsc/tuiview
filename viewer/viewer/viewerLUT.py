@@ -991,8 +991,9 @@ class ViewerLUT(QObject):
             data = data.astype(numpy.integer)
 
         if nanmask is not None:
-            # set NaN values back to LUT=0 if originally float
-            data = numpy.where(nanmask, 0, data)
+            # set NaN values back to LUT=nodata if originally float
+            # Must revisit
+            data = numpy.where(nanmask, self.bandinfo.nodata_index, data)
 
         # mask no data and background
         data = numpy.where(mask == MASK_NODATA_VALUE, 
@@ -1064,9 +1065,10 @@ class ViewerLUT(QObject):
             if numpy.issubdtype(data.dtype, numpy.floating):
                 data = data.astype(numpy.integer)
 
-            # set NaN values back to LUT=0 if data originally float
+            # set NaN values back to LUT=nodata if data originally float
+            # must revisit
             if nanmask is not None:
-                data = numpy.where(nanmask, 0, data)
+                data = numpy.where(nanmask, bandinfo.nodata_index, data)
 
             # mask no data and background
             data = numpy.where(mask == MASK_NODATA_VALUE, 
