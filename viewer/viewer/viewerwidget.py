@@ -40,13 +40,14 @@ class QueryInfo(object):
     Container class for the information passed in the locationSelected
     signal.
     """
-    def __init__(self, easting, northing, column, row, data, layer):
+    def __init__(self, easting, northing, column, row, data, layer, modifiers):
         self.easting = easting
         self.northing = northing
         self.column = column
         self.row = row
         self.data = data
         self.layer = layer
+        self.modifiers = modifiers
 
 class GeolinkInfo(object):
     """
@@ -530,8 +531,9 @@ class ViewerWidget(QAbstractScrollArea):
 
         elif self.activeTool == VIEWER_TOOL_QUERY:
 
+            modifiers = event.modifiers()
             (dspX, dspY) = (pos.x(), pos.y())
-            self.newQueryPoint(dspX=dspX, dspY=dspY)
+            self.newQueryPoint(dspX=dspX, dspY=dspY, modifiers=modifiers)
 
         elif self.activeTool == VIEWER_TOOL_POLYGON:
             button = event.button()
@@ -722,7 +724,7 @@ class ViewerWidget(QAbstractScrollArea):
 
     # query point routines
     def newQueryPoint(self, easting=None, northing=None, 
-                                dspY=None, dspX=None):
+                                dspY=None, dspX=None, modifiers=None):
         """
         This viewer has recorded a new query point. Or
         user has entered new coords in querywindow.
@@ -747,13 +749,13 @@ class ViewerWidget(QAbstractScrollArea):
             (column, row) = layer.coordmgr.world2pixel(easting, northing)
 
         # update the point
-        self.updateQueryPoint(easting, northing, column, row)
+        self.updateQueryPoint(easting, northing, column, row, modifiers)
 
         # emit the geolinked query point signal
         obj = GeolinkInfo(id(self), easting, northing)
         self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
 
-    def updateQueryPoint(self, easting, northing, column, row):
+    def updateQueryPoint(self, easting, northing, column, row, modifiers):
         """
         Map has been clicked, get the value and emit
         a locationSelected signal.
@@ -775,7 +777,8 @@ class ViewerWidget(QAbstractScrollArea):
                 if data.size == 1:
                     data = numpy.array([data])
 
-                qi = QueryInfo(easting, northing, column, row, data, layer)
+                qi = QueryInfo(easting, northing, column, row, data, 
+                                        layer, modifiers)
                 # emit the signal - handled by the QueryDockWidget
                 self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
 
@@ -789,7 +792,7 @@ class ViewerWidget(QAbstractScrollArea):
             layer = self.layers.getTopRasterLayer()
             if layer is not None:
                 (col, row) = layer.coordmgr.world2pixel(easting, northing)
-                self.updateQueryPoint(easting, northing, col, row)
+                self.updateQueryPoint(easting, northing, col, row, None)
 
     # geolinking routines
     def doGeolinkMove(self, easting, northing, metresperwinpix):

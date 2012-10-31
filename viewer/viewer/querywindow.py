@@ -645,6 +645,16 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.geogSelectLineAction, SIGNAL("toggled(bool)"),
                         self.geogLineSelect)
 
+        self.geogSelectPointAction = QAction(self)
+        self.geogSelectPointAction.setText("Geographic Selection with &Point")
+        self.geogSelectPointAction.setStatusTip(
+                            "Select rows by geographic selection with Point")
+        icon = QIcon(":/viewer/images/geographicpointselect.png")
+        self.geogSelectPointAction.setIcon(icon)
+        self.geogSelectPointAction.setCheckable(True)
+        self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
+                        self.geogPointSelect)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -663,6 +673,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.saveColOrderAction)
         self.toolBar.addAction(self.geogSelectAction)
         self.toolBar.addAction(self.geogSelectLineAction)
+        self.toolBar.addAction(self.geogSelectPointAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
@@ -1133,6 +1144,7 @@ Use the special columns:
         # ask for a polygon to be collected
         if checked:
             self.geogSelectLineAction.setChecked(False)
+            self.geogSelectPointAction.setChecked(False)
             self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON)
         else:
             # reset tool
@@ -1145,10 +1157,21 @@ Use the special columns:
         # ask for a polyline to be collected
         if checked:
             self.geogSelectAction.setChecked(False)
+            self.geogSelectPointAction.setChecked(False)
             self.viewwidget.setActiveTool(VIEWER_TOOL_POLYLINE)
         else:
             # reset tool
             self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+
+    def geogPointSelect(self, checked):
+        """
+        Turn on the query tool so we can select a point
+        """
+        # ask for a point to be collected
+        if checked:
+            self.geogSelectAction.setChecked(False)
+            self.geogSelectLineAction.setChecked(False)
+        self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
 
     def updateToolTip(self):
         """
@@ -1177,6 +1200,8 @@ Use the special columns:
         self.saveAttrAction.setEnabled(thematic)
         self.saveColOrderAction.setEnabled(thematic)
         self.geogSelectAction.setEnabled(thematic)
+        self.geogSelectLineAction.setEnabled(thematic)
+        self.geogSelectPointAction.setEnabled(thematic)
         self.thematicHeader.setThematicMode(thematic)
 
     def setupTableContinuous(self, data, layer):
@@ -1264,6 +1289,26 @@ Use the special columns:
         The ViewerWidget has told us it has a new coordinate from
         the query tool.
         """
+        if self.geogSelectPointAction.isChecked():
+            value = qi.data[0]
+            
+            # reset if they havent hit Ctrl
+            if (qi.modifiers is not None and 
+                    int(qi.modifiers & Qt.ControlModifier) == 0):
+                self.selectionArray.fill(False)
+
+            # select rows found in point
+            self.selectionArray[value] = True
+
+            if self.highlightAction.isChecked():
+                self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
+
+            self.scrollToFirstSelected()
+            self.updateToolTip()
+            # so we repaint and our itemdelegate gets called
+            self.tableView.viewport().update()
+        
         if self.followAction.isChecked():
             # set the coords
             self.eastingEdit.setText("%.5f" % qi.easting)

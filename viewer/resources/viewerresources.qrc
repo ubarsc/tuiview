@@ -36,6 +36,7 @@
 	<file>selectall.png</file>
 	<file>geographicselect.png</file>
 	<file>geographiclineselect.png</file>
+	<file>geographicpointselect.png</file>
 	<file>profileruler.png</file>
     </qresource>
 </RCC>
