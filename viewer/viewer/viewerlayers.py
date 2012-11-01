@@ -790,6 +790,23 @@ class ViewerVectorLayer(ViewerLayer):
         self.lut = numpy.zeros((2, 4), numpy.uint8)
         self.image = None
         self.filename = None
+        self.sql = None
+        
+    def setSQL(self, sql=None):
+        "sets the sql attribute filter"
+        self.sql = sql
+        
+    def hasSQL(self):
+        "returns True if there is an attribute filter in place"
+        return self.sql is not None
+        
+    def getColorAsRGBATuple(self):
+        rgba = []
+        for code in viewerLUT.RGBA_CODES:
+            lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
+            value = self.lut[1,lutindex]
+            rgba.append(value)
+        return tuple(rgba)
 
     def setColor(self, color):
         """
@@ -831,11 +848,12 @@ class ViewerVectorLayer(ViewerLayer):
         to be in the new color
         """
         self.setColor(color)
-        data = self.image.viewerdata
-        bgra = self.lut[data]
-        (ysize, xsize) = data.shape
-        self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
-        self.image.viewerdata = data
+        if self.image is not None:
+            data = self.image.viewerdata
+            bgra = self.lut[data]
+            (ysize, xsize) = data.shape
+            self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
+            self.image.viewerdata = data
 
     def getImage(self):
         """
@@ -847,7 +865,7 @@ class ViewerVectorLayer(ViewerLayer):
 
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
         data = turbovector.rasterizeOutlines(self.ogrLayer, extent, 
-                    xsize, ysize, None)
+                    xsize, ysize, self.sql)
 
         # do our lookup
         bgra = self.lut[data]

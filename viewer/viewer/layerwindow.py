@@ -138,6 +138,12 @@ class LayerListView(QListView):
         self.moveDownAct.setIcon(QIcon(":/viewer/images/arrowdown.png"))
         self.moveDownAct.setIconVisibleInMenu(True)
         self.connect(self.moveDownAct, SIGNAL("triggered()"), self.moveDown)
+        
+        self.changeColorAct = QAction(self)
+        self.changeColorAct.setText("Change &Color")
+        self.changeColorAct.setStatusTip("Change color of vector layer")
+        self.connect(self.changeColorAct,  SIGNAL("triggered()"), 
+                                                            self.changeColor)
 
         self.propertiesAct = QAction(self)
         self.propertiesAct.setText("&Properties")
@@ -145,18 +151,37 @@ class LayerListView(QListView):
         self.connect(self.propertiesAct, SIGNAL("triggered()"), self.properties)
 
     def setupMenu(self):
-        "Create the popup menu"
-        self.popupMenu = QMenu(self)
-        self.popupMenu.addAction(self.layerExtentAct)
-        self.popupMenu.addAction(self.removeLayerAct)
-        self.popupMenu.addAction(self.moveUpAct)
-        self.popupMenu.addAction(self.moveDownAct)
-        self.popupMenu.addSeparator()
-        self.popupMenu.addAction(self.propertiesAct)
+        "Create the popup menus"
+        self.rasterPopupMenu = QMenu(self)
+        self.rasterPopupMenu.addAction(self.layerExtentAct)
+        self.rasterPopupMenu.addAction(self.removeLayerAct)
+        self.rasterPopupMenu.addAction(self.moveUpAct)
+        self.rasterPopupMenu.addAction(self.moveDownAct)
+        self.rasterPopupMenu.addSeparator()
+        self.rasterPopupMenu.addAction(self.propertiesAct)
+        
+        self.vectorPopupMenu = QMenu(self)
+        self.vectorPopupMenu.addAction(self.layerExtentAct)
+        self.vectorPopupMenu.addAction(self.removeLayerAct)
+        self.vectorPopupMenu.addAction(self.moveUpAct)
+        self.vectorPopupMenu.addAction(self.moveDownAct)
+        self.vectorPopupMenu.addSeparator()
+        self.vectorPopupMenu.addAction(self.changeColorAct)
+        self.vectorPopupMenu.addSeparator()
+        self.vectorPopupMenu.addAction(self.propertiesAct)
 
     def contextMenuEvent(self, e):
         "Show our popup menu"
-        self.popupMenu.popup(e.globalPos())
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            if isinstance(layer, viewerlayers.ViewerVectorLayer):
+                self.vectorPopupMenu.popup(e.globalPos())
+            else:
+                self.rasterPopupMenu.popup(e.globalPos())
 
     def zoomLayer(self):
         "zoom to the extents of the selected layer"
@@ -204,6 +229,26 @@ class LayerListView(QListView):
             layer = model.getLayer(index)
             model.viewwidget.layers.moveLayerDown(layer)
             model.viewwidget.viewport().update()
+            
+    def changeColor(self):
+        "Change the color of the vector layer"
+        from PyQt4.QtGui import QColorDialog, QColor
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            
+            rgba = layer.getColorAsRGBATuple()
+            init = QColor(rgba[0], rgba[1], rgba[2], rgba[3])
+            newCol = QColorDialog.getColor(init, self, "Choose Layer Color",
+                            QColorDialog.ShowAlphaChannel)
+            if newCol.isValid():
+                rgba = (newCol.red(), newCol.green(), newCol.blue(), 
+                                                        newCol.alpha())
+                layer.updateColor(rgba)
+                model.viewwidget.viewport().update()
 
     def properties(self):
         "Show the properties for the layer"
