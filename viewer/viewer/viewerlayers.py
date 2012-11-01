@@ -796,6 +796,9 @@ class ViewerVectorLayer(ViewerLayer):
         "sets the sql attribute filter"
         self.sql = sql
         
+    def getSQL(self):
+        return self.sql
+        
     def hasSQL(self):
         "returns True if there is an attribute filter in place"
         return self.sql is not None

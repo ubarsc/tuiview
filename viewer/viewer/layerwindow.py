@@ -144,6 +144,11 @@ class LayerListView(QListView):
         self.changeColorAct.setStatusTip("Change color of vector layer")
         self.connect(self.changeColorAct,  SIGNAL("triggered()"), 
                                                             self.changeColor)
+                                                            
+        self.setSQLAct = QAction(self)
+        self.setSQLAct.setText("Set &attribute filter")
+        self.setSQLAct.setStatusTip("Set attribute filter via SQL")
+        self.connect(self.setSQLAct, SIGNAL("triggered()"), self.setSQL)
 
         self.propertiesAct = QAction(self)
         self.propertiesAct.setText("&Properties")
@@ -167,6 +172,7 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addAction(self.moveDownAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.changeColorAct)
+        self.vectorPopupMenu.addAction(self.setSQLAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.propertiesAct)
 
@@ -248,6 +254,31 @@ class LayerListView(QListView):
                 rgba = (newCol.red(), newCol.green(), newCol.blue(), 
                                                         newCol.alpha())
                 layer.updateColor(rgba)
+                model.viewwidget.viewport().update()
+                
+    def setSQL(self):
+        "Set the attribute filter for vector layers"
+        from PyQt4.QtGui import QInputDialog
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            
+            oldsql = ""
+            if layer.hasSQL():
+                oldsql = layer.getSQL()
+                
+            sql, ok = QInputDialog.getText(self, "Viewer", 
+                "Enter SQL attribute filter", text=oldsql)
+            if ok:
+                if sql == "":
+                    sql = None
+                else:
+                    sql = str(sql)
+                layer.setSQL(sql)
+                layer.getImage()
                 model.viewwidget.viewport().update()
 
     def properties(self):
