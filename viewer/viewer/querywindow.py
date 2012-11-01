@@ -809,7 +809,8 @@ Any other numpy expressions also valid - columns are represented as
 numpy arrays.
 Use the special columns:
 'row' for the row number and 
-'isselected' for the currently selected rows"""
+'isselected' for the currently selected rows
+'queryrow' is the currently queried row"""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString)"), 
                         self.newSelectUserExpression)
@@ -847,8 +848,9 @@ Use the special columns:
         try:
             # get the numpy array with bools
             attributes = self.lastLayer.attributes
+            queryRow = self.tableModel.highlightRow
             result = attributes.evaluateUserSelectExpression(str(expression),
-                                                self.selectionArray)
+                                                self.selectionArray, queryRow)
 
             # use it as our selection array
             self.selectionArray = result
@@ -905,7 +907,8 @@ Any other numpy expressions also valid - columns are represented as
 numpy arrays.
 Use the special columns:
 'row' for the row number and 
-'isselected' for the currently selected rows"""
+'isselected' for the currently selected rows and
+'queryrow' is the currently queried row"""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString,int)"), 
                         self.newEditUserExpression)
@@ -927,8 +930,9 @@ Use the special columns:
         try:
             # get the numpy array or scalar from user
             attributes = self.lastLayer.attributes
+            queryRow = self.tableModel.highlightRow
             result = attributes.evaluateUserEditExpression(str(expression),
-                                                    self.selectionArray)
+                                                self.selectionArray, queryRow)
 
             # use it to update the column
             colname = attributes.getColumnNames()[col]

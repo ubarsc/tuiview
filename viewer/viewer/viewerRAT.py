@@ -475,7 +475,7 @@ class ViewerRAT(QObject):
         # finally clobber the old self.columnNames
         self.columnNames = newColOrder
         
-    def getUserExpressionGlobals(self, isselected):
+    def getUserExpressionGlobals(self, isselected, queryRow):
         """
         Get globals for user in user expression
         """
@@ -486,6 +486,8 @@ class ViewerRAT(QObject):
         globaldict = {}
         # give them access to 'row' which is the row number
         globaldict['row'] = numpy.arange(self.getNumRows())
+        # access to 'queryrow' with is the currently queried row
+        globaldict['queryrow'] = queryRow
         # give them access to 'isselected' which is the currently
         # selected rows so they can do subselections
         globaldict['isselected'] = isselected
@@ -500,7 +502,7 @@ class ViewerRAT(QObject):
         globaldict['numpy'] = numpy
         return globaldict
 
-    def evaluateUserSelectExpression(self, expression, isselected):
+    def evaluateUserSelectExpression(self, expression, isselected, queryRow):
         """
         Evaluate a user expression for selection. 
         It is expected that a fragment
@@ -509,7 +511,7 @@ class ViewerRAT(QObject):
         An exception is raised if code is invalid, or does not return
         an array of bools.
         """
-        globaldict = self.getUserExpressionGlobals(isselected)
+        globaldict = self.getUserExpressionGlobals(isselected, queryRow)
 
         try:
             result = eval(expression, globaldict)
@@ -528,7 +530,7 @@ class ViewerRAT(QObject):
 
         return result
 
-    def evaluateUserEditExpression(self, expression, isselected):
+    def evaluateUserEditExpression(self, expression, isselected, queryRow):
         """
         Evaluate a user expression for editing. 
         Returns a vector or scalar - no checking on result
@@ -539,7 +541,7 @@ class ViewerRAT(QObject):
         An exception is raised if code is invalid, or does not return
         an array of bools.
         """
-        globaldict = self.getUserExpressionGlobals(isselected)
+        globaldict = self.getUserExpressionGlobals(isselected, queryRow)
 
         try:
             result = eval(expression, globaldict)
