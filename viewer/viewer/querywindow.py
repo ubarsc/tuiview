@@ -588,6 +588,7 @@ class QueryDockWidget(QDockWidget):
         self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
         self.highlightAction.setCheckable(True)
         self.highlightAction.setChecked(True)
+        self.highlightAction.setShortcut("CTRL+H")
         self.connect(self.highlightAction, SIGNAL("toggled(bool)"), 
                         self.highlight)
 
@@ -815,6 +816,11 @@ class QueryDockWidget(QDockWidget):
         """
         self.selectionArray.fill(True)
         self.updateToolTip()
+
+        if self.highlightAction.isChecked():
+            self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
+
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
