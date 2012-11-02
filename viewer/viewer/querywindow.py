@@ -328,6 +328,13 @@ class ThematicHorizontalHeader(QHeaderView):
         self.setLookupAction.setText("Set column as Color Table L&ookup")
         self.setLookupAction.setStatusTip("Set column as Color Table Lookup")
         
+        self.setKeyboardEditAction = QAction(self)
+        self.setKeyboardEditAction.setText(
+                                    "Set column to receive &keyboard edits")
+        self.setKeyboardEditAction.setStatusTip(
+                                        "Set column to receive keyboard edits")
+        self.setKeyboardEditAction.setCheckable(True)
+        
         # don't connect signal - will grab directly below so we can pass
         # on the column that was clicked
         self.popup = QMenu(self)
@@ -338,6 +345,7 @@ class ThematicHorizontalHeader(QHeaderView):
         self.popup.addAction(self.moveRightMostAction)
         self.popup.addAction(self.setDPAction) # enabled when float col
         self.popup.addAction(self.setLookupAction) # enabled when int col
+        self.popup.addAction(self.setKeyboardEditAction)
 
         self.setToolTip("Right click for menu")
 
@@ -355,6 +363,8 @@ class ThematicHorizontalHeader(QHeaderView):
             colType = self.parent.lastLayer.attributes.getType(colName)
             self.setDPAction.setEnabled(colType == GFT_Real)
             self.setLookupAction.setEnabled(colType == GFT_Integer)
+            colGotKeyboard = self.parent.keyboardEditColumn == colName
+            self.setKeyboardEditAction.setChecked(colGotKeyboard)
 
             action = self.popup.exec_(event.globalPos())
             if action is self.editColumnAction:
@@ -371,6 +381,8 @@ class ThematicHorizontalHeader(QHeaderView):
                 self.parent.setColumnDecimalPlaces(colName)
             elif action is self.setLookupAction:
                 self.parent.setColumnAsLookup(colName)
+            elif action is self.setKeyboardEditAction:
+                self.parent.setColumnKeyboardEdit(colName)
 
 class QueryDockWidget(QDockWidget):
     """
@@ -381,6 +393,10 @@ class QueryDockWidget(QDockWidget):
     """
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Query", parent)
+        
+        # make sure we can get keyboard focus
+        self.setFocusPolicy(Qt.StrongFocus)
+        
         self.viewwidget = viewwidget
         self.cursorColor = QUERYWIDGET_DEFAULT_CURSORCOLOR
         self.cursorSize = QUERYWIDGET_DEFAULT_CURSORSIZE
@@ -450,6 +466,11 @@ class QueryDockWidget(QDockWidget):
 
         # the reference to the last layer object
         self.lastLayer = None
+        
+        # column being edited via keyboard
+        self.keyboardEditColumn = None
+        # text entered via keypad since last return
+        self.keyboardData = None
 
         layer = viewwidget.layers.getTopRasterLayer()
         if layer is not None:
@@ -1046,6 +1067,19 @@ Use the special columns:
         # so header gets updated
         self.updateThematicTableModel(attributes)
 
+    def setColumnKeyboardEdit(self, colName):
+        """
+        set column to receive keyboard events
+        if col already sets, toggles off
+        """
+        if colName == self.keyboardEditColumn:
+            self.keyboardEditColumn = None
+            self.keyboardData = None
+        else:
+            self.keyboardEditColumn = colName
+            self.keyboardData = ''
+            # grab focus while we here
+            self.setFocus()
 
     def saveAttributes(self):
         """
@@ -1398,3 +1432,26 @@ Use the special columns:
         self.viewwidget.removeQueryPoint(id(self))
         self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
 
+    def keyPressEvent(self, event):
+        """
+        User has pressed a key. See if we are recording keystrokes
+        and updating attribute columns
+        """
+        if self.keyboardData is not None:
+            key = event.key()
+            if key == Qt.Key_Enter or key == Qt.Key_Return:
+                try:
+                    attributes = self.lastLayer.attributes
+                    colname = self.keyboardEditColumn
+                    data = str(self.keyboardData)
+                    attributes.updateColumn(colname, self.selectionArray, data)
+
+                    # so we repaint and new values get shown
+                    self.tableView.viewport().update()
+                except viewererrors.UserExpressionError, e:
+                    QMessageBox.critical(self, "Viewer", str(e))
+                self.keyboardData = ''
+            else:
+                text = event.text()
+                if text != "":
+                    self.keyboardData += text
