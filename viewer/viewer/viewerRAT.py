@@ -475,7 +475,7 @@ class ViewerRAT(QObject):
         # finally clobber the old self.columnNames
         self.columnNames = newColOrder
         
-    def getUserExpressionGlobals(self, isselected, queryRow):
+    def getUserExpressionGlobals(self, isselected, queryRow, lastselected=None):
         """
         Get globals for user in user expression
         """
@@ -491,6 +491,8 @@ class ViewerRAT(QObject):
         # give them access to 'isselected' which is the currently
         # selected rows so they can do subselections
         globaldict['isselected'] = isselected
+        # lastselected
+        globaldict['lastselected'] = lastselected
         # insert each column into the global namespace
         # as the array it represents
         for colName, saneName in (
@@ -502,7 +504,8 @@ class ViewerRAT(QObject):
         globaldict['numpy'] = numpy
         return globaldict
 
-    def evaluateUserSelectExpression(self, expression, isselected, queryRow):
+    def evaluateUserSelectExpression(self, expression, isselected, queryRow, 
+                                                    lastselected):
         """
         Evaluate a user expression for selection. 
         It is expected that a fragment
@@ -511,7 +514,8 @@ class ViewerRAT(QObject):
         An exception is raised if code is invalid, or does not return
         an array of bools.
         """
-        globaldict = self.getUserExpressionGlobals(isselected, queryRow)
+        globaldict = self.getUserExpressionGlobals(isselected, queryRow,
+                                                    lastselected)
 
         try:
             result = eval(expression, globaldict)

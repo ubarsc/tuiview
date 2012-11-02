@@ -247,6 +247,8 @@ class ThematicSelectionModel(QItemSelectionModel):
             # QItemSelection
             for idx in index.indexes():
                 unique_rows[idx.row()] = 1
+                
+        self.parent.storeLastSelection()
 
         # if we are to clear first, do so
         if (command & QItemSelectionModel.Clear) == QItemSelectionModel.Clear:
@@ -456,6 +458,8 @@ class QueryDockWidget(QDockWidget):
         # our numpy array that contains the selections
         # None by default and for Continuous
         self.selectionArray = None
+        # backup of last selectionArray
+        self.lastSelectionArray = None
 
         # the id() of the last ViewerRAT class so we can 
         # update display only when needed
@@ -522,6 +526,11 @@ class QueryDockWidget(QDockWidget):
         # keep a track of the last QueryInfo in case we need to redisplay
         # when the user changes color
         self.lastqi = None
+        
+    def storeLastSelection(self):
+        "Take a copy of self.selectionArray and store it"
+        if self.selectionArray is not None:
+            self.lastSelectionArray = self.selectionArray.copy()
 
     def getColorIcon(self, color):
         """
@@ -800,6 +809,7 @@ class QueryDockWidget(QDockWidget):
         """
         Remove the current selection from the table widget
         """
+        self.storeLastSelection()
         self.selectionArray.fill(False)
         self.updateToolTip()
         
@@ -814,6 +824,7 @@ class QueryDockWidget(QDockWidget):
         """
         Select all the rows in the table
         """
+        self.storeLastSelection()
         self.selectionArray.fill(True)
         self.updateToolTip()
 
@@ -837,7 +848,8 @@ numpy arrays.
 Use the special columns:
 'row' for the row number and 
 'isselected' for the currently selected rows
-'queryrow' is the currently queried row"""
+'queryrow' is the currently queried row and
+'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString)"), 
                         self.newSelectUserExpression)
@@ -873,11 +885,15 @@ Use the special columns:
         for selection
         """
         try:
+
             # get the numpy array with bools
             attributes = self.lastLayer.attributes
             queryRow = self.tableModel.highlightRow
             result = attributes.evaluateUserSelectExpression(str(expression),
-                                                self.selectionArray, queryRow)
+                                                self.selectionArray, queryRow,
+                                                self.lastSelectionArray)
+
+            self.storeLastSelection()
 
             # use it as our selection array
             self.selectionArray = result
@@ -1135,6 +1151,8 @@ Use the special columns:
         # get data where mask==True
         idx = numpy.unique(data.compress(mask))
         
+        self.storeLastSelection()
+        
         # reset if they havent hit Ctrl
         if int(polyInfo.getInputModifiers() & Qt.ControlModifier) == 0:
             self.selectionArray.fill(False)
@@ -1164,6 +1182,8 @@ Use the special columns:
         data, mask, distance = lineInfo.getProfile()
         # we only interested where mask == True
         idx = numpy.unique(data.compress(mask))
+
+        self.storeLastSelection()
 
         # reset if they havent hit Ctrl
         if int(lineInfo.getInputModifiers() & Qt.ControlModifier) == 0:
@@ -1307,6 +1327,7 @@ Use the special columns:
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
                                     numpy.bool)
+            self.lastSelectionArray = None
             self.selectionArray.fill(False) # none selected by default
 
         # set the highlight row if there is data
@@ -1336,6 +1357,7 @@ Use the special columns:
         if self.geogSelectPointAction.isChecked():
             value = qi.data[0]
             
+            self.storeLastSelection()
             # reset if they havent hit Ctrl
             if (qi.modifiers is not None and 
                     int(qi.modifiers & Qt.ControlModifier) == 0):
