@@ -1448,6 +1448,12 @@ Use the special columns:
 
                     # so we repaint and new values get shown
                     self.tableView.viewport().update()
+
+                    # is this a the lookup column?
+                    if colname == attributes.getLookupColName():
+                        # can't just use result because we need selectionArray applied
+                        col = attributes.getAttribute(colname)
+                        self.viewwidget.setColorTableLookup(col, colname)
                 except viewererrors.UserExpressionError, e:
                     QMessageBox.critical(self, "Viewer", str(e))
                 self.keyboardData = ''
