@@ -1480,6 +1480,7 @@ Use the special columns:
         User has pressed a key. See if we are recording keystrokes
         and updating attribute columns
         """
+        from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
         if self.keyboardData is not None:
             key = event.key()
             if key == Qt.Key_Enter or key == Qt.Key_Return:
@@ -1501,6 +1502,12 @@ Use the special columns:
                     QMessageBox.critical(self, "Viewer", str(e))
                 self.keyboardData = ''
             else:
-                text = event.text()
-                if text != "":
+                text = str(event.text())
+                attributes = self.lastLayer.attributes
+                dtype = attributes.getType(self.keyboardEditColumn)
+                if dtype == GFT_Real and (text.isdigit() or text == "."):
+                    self.keyboardData += text
+                elif dtype == GFT_Integer and text.isdigit():        
+                    self.keyboardData += text
+                elif dtype == GFT_String and text.isalnum():
                     self.keyboardData += text
