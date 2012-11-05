@@ -492,7 +492,8 @@ class ViewerRAT(QObject):
         # selected rows so they can do subselections
         globaldict['isselected'] = isselected
         # lastselected
-        globaldict['lastselected'] = lastselected
+        if lastselected is not None:
+            globaldict['lastselected'] = lastselected
         # insert each column into the global namespace
         # as the array it represents
         for colName, saneName in (
