@@ -1106,7 +1106,7 @@ Use the special columns:
         else:
             self.keyboardEditColumn = colName
             self.keyboardData = ''
-            # grab focus while we here
+            # seem to need to do this otherwise table keeps focus
             self.setFocus()
 
     def saveAttributes(self):
@@ -1175,6 +1175,9 @@ Use the special columns:
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
+        # so keyboard entry etc works
+        self.activateWindow()
+
     def newLineGeogSelect(self, lineInfo):
         """
         New polyline just been selected as part of a 
@@ -1206,6 +1209,9 @@ Use the special columns:
         self.updateToolTip()
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
+
+        # so keyboard entry etc works
+        self.activateWindow()
 
     def geogSelect(self, checked):
         """
@@ -1380,6 +1386,9 @@ Use the special columns:
             self.updateToolTip()
             # so we repaint and our itemdelegate gets called
             self.tableView.viewport().update()
+
+            # so keyboard entry etc works
+            self.activateWindow()
         
         if self.followAction.isChecked():
             # set the coords
