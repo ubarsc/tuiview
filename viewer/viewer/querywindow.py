@@ -592,7 +592,7 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.savePlotAction, SIGNAL("triggered()"), self.savePlot)
 
         self.highlightAction = QAction(self)
-        self.highlightAction.setText("&Highlight Selection")
+        self.highlightAction.setText("&Highlight Selection (CTRL+H)")
         self.highlightAction.setStatusTip("Highlight Selection")
         self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
         self.highlightAction.setCheckable(True)
@@ -657,32 +657,38 @@ class QueryDockWidget(QDockWidget):
                         self.saveColOrder)
 
         self.geogSelectAction = QAction(self)
-        self.geogSelectAction.setText("&Geographic Selection")
+        self.geogSelectAction.setText(
+                            "&Geographic Selection by Polygon (ALT+G)")
         self.geogSelectAction.setStatusTip(
                                     "Select rows by geographic selection")
         icon = QIcon(":/viewer/images/geographicselect.png")
         self.geogSelectAction.setIcon(icon)
         self.geogSelectAction.setCheckable(True)
+        self.geogSelectAction.setShortcut("ALT+G")
         self.connect(self.geogSelectAction, SIGNAL("toggled(bool)"),
                         self.geogSelect)
 
         self.geogSelectLineAction = QAction(self)
-        self.geogSelectLineAction.setText("Geographic Selection with &Line")
+        self.geogSelectLineAction.setText(
+                                    "Geographic Selection by &Line (ALT+L)")
         self.geogSelectLineAction.setStatusTip(
                             "Select rows by geographic selection with Line")
         icon = QIcon(":/viewer/images/geographiclineselect.png")
         self.geogSelectLineAction.setIcon(icon)
         self.geogSelectLineAction.setCheckable(True)
+        self.geogSelectLineAction.setShortcut("ALT+L")
         self.connect(self.geogSelectLineAction, SIGNAL("toggled(bool)"),
                         self.geogLineSelect)
 
         self.geogSelectPointAction = QAction(self)
-        self.geogSelectPointAction.setText("Geographic Selection with &Point")
+        self.geogSelectPointAction.setText(
+                                    "Geographic Selection by &Point (ALT+P)")
         self.geogSelectPointAction.setStatusTip(
                             "Select rows by geographic selection with Point")
         icon = QIcon(":/viewer/images/geographicpointselect.png")
         self.geogSelectPointAction.setIcon(icon)
         self.geogSelectPointAction.setCheckable(True)
+        self.geogSelectPointAction.setShortcut("ALT+P")
         self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
                         self.geogPointSelect)
 
