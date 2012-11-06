@@ -22,7 +22,8 @@ the ViewerWidget, menus, toolbars and status bars.
 
 import os
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
-from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox
+from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox, QToolButton
+from PyQt4.QtGui import QMenu
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 from PyQt4.QtCore import QCoreApplication, QEventLoop
 
@@ -203,14 +204,29 @@ class ViewerWindow(QMainWindow):
         self.addRasterAct.setIconVisibleInMenu(True)
         self.connect(self.addRasterAct, SIGNAL("triggered()"), self.addRaster)
 
-        self.addVectorAct = QAction(self)
-        self.addVectorAct.setText("Add &Vector")
-        self.addVectorAct.setStatusTip("Open an OGR supported vector")
-        self.addVectorAct.setShortcut("CTRL+V")
-        self.addVectorAct.setIcon(QIcon(":/viewer/images/addvector.png"))
-        self.addVectorAct.setIconVisibleInMenu(True)
-        self.addVectorAct.setEnabled(viewerwidget.haveVector())
-        self.connect(self.addVectorAct, SIGNAL("triggered()"), self.addVector)
+        self.addVectorFileAct = QAction(self)
+        self.addVectorFileAct.setText("Add &Vector File")
+        self.addVectorFileAct.setStatusTip("Open an OGR supported vector file")
+        self.addVectorFileAct.setShortcut("CTRL+V")
+        self.addVectorFileAct.setIcon(QIcon(":/viewer/images/addvector.png"))
+        self.addVectorFileAct.setIconVisibleInMenu(True)
+        self.addVectorFileAct.setEnabled(viewerwidget.haveVector())
+        self.connect(self.addVectorFileAct, SIGNAL("triggered()"), 
+                                                            self.addVectorFile)
+
+        self.addVectorDirAct = QAction(self)
+        self.addVectorDirAct.setText("Add &Vector Directory")
+        self.addVectorDirAct.setStatusTip("Open an OGR supported vector directory")
+        self.addVectorDirAct.setIcon(QIcon(":/viewer/images/addvector.png"))
+        self.addVectorDirAct.setIconVisibleInMenu(True)
+        self.addVectorDirAct.setEnabled(viewerwidget.haveVector())
+        self.connect(self.addVectorDirAct, SIGNAL("triggered()"), 
+                                                            self.addVectorDir)
+
+        self.vectorMenu = QMenu()
+        self.vectorMenu.setTitle("Add Vector")
+        self.vectorMenu.addAction(self.addVectorFileAct)
+        self.vectorMenu.addAction(self.addVectorDirAct)
 
         self.removeLayerAct = QAction(self)
         self.removeLayerAct.setText("&Remove Layer")
@@ -379,7 +395,7 @@ class ViewerWindow(QMainWindow):
         """
         fileMenu = self.menuBar().addMenu("&File")
         fileMenu.addAction(self.addRasterAct)
-        fileMenu.addAction(self.addVectorAct)
+        fileMenu.addMenu(self.vectorMenu)
         fileMenu.addAction(self.removeLayerAct)
         fileMenu.addAction(self.layerAct)
         fileMenu.addAction(self.newWindowAct)
@@ -416,7 +432,13 @@ class ViewerWindow(QMainWindow):
         """
         fileToolbar = self.addToolBar("File")
         fileToolbar.addAction(self.addRasterAct)
-        fileToolbar.addAction(self.addVectorAct)
+        vectorToolButton = QToolButton()
+        vectorToolButton.setMenu(self.vectorMenu)
+        vectorToolButton.setPopupMode(QToolButton.MenuButtonPopup)
+        vectorToolButton.setIcon(QIcon(":/viewer/images/addvector.png"))
+        vectorToolButton.setDefaultAction(self.addVectorFileAct)
+        fileToolbar.addWidget(vectorToolButton)
+
         fileToolbar.addAction(self.removeLayerAct)
         fileToolbar.addAction(self.layerAct)
         fileToolbar.addAction(self.newWindowAct)
@@ -486,10 +508,11 @@ class ViewerWindow(QMainWindow):
             fname = dlg.selectedFiles()[0]
             self.addRasterInternal(fname)
 
-    def addVector(self):
+    def addVectorFile(self):
         """
         User wants to add a vector layer. OGR seems to have no
         way to determine extensions...
+        From a file.
         """
         dlg = QFileDialog(self)
         dlg.setNameFilter("OGR Files (*)")
@@ -497,6 +520,15 @@ class ViewerWindow(QMainWindow):
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
             self.addVectorInternal(fname)
+
+    def addVectorDir(self):
+        """
+        Add a vector from a directory (filegdb/covereage)
+        """
+        dir = QFileDialog.getExistingDirectory(self, "Choose vector directory",
+            options=QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks)
+        if dir != "":
+            self.addVectorInternal(dir)
 
     def addRasterInternal(self, fname, stretch=None):
         """
@@ -554,14 +586,14 @@ class ViewerWindow(QMainWindow):
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
 
-    def addVectorInternal(self, fname):
+    def addVectorInternal(self, path):
         """
         Open OGR dataset and layer and tell widget to add it 
         to the list of layers
         """
         from osgeo import ogr
         try:
-            ds = ogr.Open(str(fname))
+            ds = ogr.Open(str(path))
             numLayers = ds.GetLayerCount()
             if numLayers == 0:
                 raise IOError("no valid layers")
