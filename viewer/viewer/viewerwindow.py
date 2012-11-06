@@ -606,7 +606,7 @@ class ViewerWindow(QMainWindow):
                     name = ds.GetLayer(n).GetName()
                     layerNames.append(name)
                 (name, ok) = QInputDialog.getItem(self, "Viewer", 
-                    "select layer to open", layerNames, False)
+                    "select layer to open", layerNames, editable=False)
                 if ok:
                     lyr = ds.GetLayerByName(str(name))
                 else:

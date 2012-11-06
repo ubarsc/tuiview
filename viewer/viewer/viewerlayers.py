@@ -1121,7 +1121,7 @@ class LayerManager(QObject):
         Zoom to the full extent of all the layers
         This might need a re-think for vectors.
         """
-        layer = self.getTopLayer()
+        layer = self.getTopRasterLayer()
         if layer is not None and self.fullextent is not None:
             layer.coordmgr.setWorldExtent(self.fullextent)
             self.makeLayersConsistent(layer)
