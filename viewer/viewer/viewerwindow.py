@@ -594,6 +594,11 @@ class ViewerWindow(QMainWindow):
         from osgeo import ogr
         try:
             ds = ogr.Open(str(path))
+            if ds is None:
+                msg = 'Unable to open %s' % path
+                QMessageBox.critical(self, "Viewer", msg)
+                return
+                
             numLayers = ds.GetLayerCount()
             if numLayers == 0:
                 raise IOError("no valid layers")
