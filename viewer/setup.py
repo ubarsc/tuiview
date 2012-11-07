@@ -40,6 +40,9 @@ class OSSpecificOps(object):
 class Win32SpecificOps(OSSpecificOps):
     def __init__(self, distdir):
         OSSpecificOps.__init__(self, distdir)
+        # can't seem to set this programatically. Sets the GDAL_DATA 
+        # environment variable
+        sys.argv.append('--custom-boot-script=winbootscript.py')
     def preInstall(self, kwargs, action):
         if action == 'py2exe':
             # to allow creation of an installer for Windows
@@ -66,8 +69,12 @@ class Win32SpecificOps(OSSpecificOps):
             
     def postInstall(self, action):
         if action == 'py2exe':
-            # add kea/hdf dlls
             import addkea
+            # copy the GDAL projections etc
+            addkea.adddata(self.distdir)
+            # any plugins we have build (fileGDB/AOI)
+            addkea.addplugins(self.distdir)
+            # add kea/hdf dlls
             addkea.addkea(self.distdir)
             # don't need this file
             os.remove(os.path.join(self.distdir, 'w9xpopen.exe'))
