@@ -1111,13 +1111,17 @@ class ViewerLUT(QObject):
         # they should all be the same anyway
         nodata_index = self.bandinfo['blue'].nodata_index
         background_index = self.bandinfo['blue'].background_index
+        nan_index = self.bandinfo['blue'].nan_index
         nodata_value = self.lut[lutindex, nodata_index]
         background_value = self.lut[lutindex, background_index]
+        nan_value = self.lut[lutindex, nan_index]
 
         # create the alpha array (do separately so we not always doing strides)
         alpha = numpy.empty((winysize, winxsize), numpy.uint8)
         alpha.fill(255)
         alpha = numpy.where(mask == MASK_NODATA_VALUE, nodata_value, alpha)
+        if nanmask is not None:
+            alpha = numpy.where(nanmask, nan_value, alpha)
         bgra[..., lutindex] = numpy.where(mask == MASK_BACKGROUND_VALUE, 
                                     background_value, alpha)
         # turn into QImage
