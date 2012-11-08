@@ -48,6 +48,8 @@ VIEWER_DEFAULT_STDDEV = 2.0
 VIEWER_DEFAULT_HISTMIN = 0.025
 VIEWER_DEFAULT_HISTMAX = 0.01
 
+VIEWER_DEFAULT_NOCOLOR = (0, 0, 0, 255)
+
 class ViewerStretch(object):
     """
     Class that represents the stretch. 
@@ -60,8 +62,9 @@ class ViewerStretch(object):
         self.stretchparam = None
         self.bands = None
         self.rampName = None  # from colorbrewer2.org
-        self.nodata_rgba = (0, 0, 0, 255)
-        self.background_rgba = (0, 0, 0, 255)
+        self.nodata_rgba = VIEWER_DEFAULT_NOCOLOR
+        self.background_rgba = VIEWER_DEFAULT_NOCOLOR
+        self.nan_rgba = VIEWER_DEFAULT_NOCOLOR
         self.attributeTableSize = None # override with size of attribute table 
                                     # if one exists
                                     # LUT will then be created with this size
@@ -119,6 +122,10 @@ class ViewerStretch(object):
         "Set the RGB to display Background areas as"
         self.background_rgba = rgba
 
+    def setNaNRGBA(self, rgba):
+        "Set the RGB to display NaN areas as"
+        self.nan_rgba = rgba
+
     def setAttributeTableSize(self, size):
         """
         set with size of attribute table if one exists
@@ -134,7 +141,8 @@ class ViewerStretch(object):
         rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
                 'stretchparam' : self.stretchparam, 'bands' : self.bands,
                 'nodata_rgba' : self.nodata_rgba, 'rampname' : self.rampName,
-                'background_rgba' : self.background_rgba }
+                'background_rgba' : self.background_rgba, 
+                'nan_rgba' : self.nan_rgba}
         return json.dumps(rep)
 
     @staticmethod
@@ -154,6 +162,8 @@ class ViewerStretch(object):
             obj.nodata_rgba = rep['nodata_rgba']
         if 'background_rgba' in rep:
             obj.background_rgba = rep['background_rgba']
+        if 'nan_rgba' in rep:
+            obj.nan_rgba = rep['nan_rgba']
         if 'rampname' in rep:
             obj.rampName = rep['rampname']
         return obj

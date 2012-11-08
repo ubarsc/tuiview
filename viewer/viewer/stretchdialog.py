@@ -226,7 +226,7 @@ class StretchLayout(QFormLayout):
         state = stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE
         self.stretchCombo.setEnabled(state)
 
-        # now for no data and background
+        # now for no data, background and NaN
         self.fixedColorLayout = QHBoxLayout()
         self.nodataLabel = QLabel(parent)
         self.nodataLabel.setText("No Data")
@@ -241,6 +241,13 @@ class StretchLayout(QFormLayout):
         self.fixedColorLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
         self.backgroundButton = ColorButton(parent, stretch.background_rgba)
         self.fixedColorLayout.addWidget(self.backgroundButton)
+
+        self.NaNLabel = QLabel(parent)
+        self.NaNLabel.setText("NaN")
+        self.fixedColorLayout.addWidget(self.NaNLabel)
+        self.fixedColorLayout.setAlignment(self.NaNLabel, Qt.AlignRight)
+        self.NaNButton = ColorButton(parent, stretch.nan_rgba)
+        self.fixedColorLayout.addWidget(self.NaNButton)
 
         self.addRow("Fixed Colors", self.fixedColorLayout)
 
@@ -369,6 +376,7 @@ class StretchLayout(QFormLayout):
 
         obj.setNoDataRGBA(self.nodataButton.getColorAsRGBATuple())
         obj.setBackgroundRGBA(self.backgroundButton.getColorAsRGBATuple())
+        obj.setNaNRGBA(self.NaNButton.getColorAsRGBATuple())
 
         return obj
 
