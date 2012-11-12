@@ -30,7 +30,7 @@ import os
 import sys
 
 class OSSpecificOps(object):
-    def __init__(self, distdir):
+    def __init__(self, distdir, action):
         self.distdir = distdir
     def preInstall(self, kwargs, action):
         pass
@@ -38,11 +38,12 @@ class OSSpecificOps(object):
         pass
         
 class Win32SpecificOps(OSSpecificOps):
-    def __init__(self, distdir):
-        OSSpecificOps.__init__(self, distdir)
-        # can't seem to set this programatically. Sets the GDAL_DATA 
-        # environment variable
-        sys.argv.append('--custom-boot-script=winbootscript.py')
+    def __init__(self, distdir, action):
+        OSSpecificOps.__init__(self, distdir, action)
+        if action == 'py2exe':
+            # can't seem to set this programatically. Sets the GDAL_DATA 
+            # environment variable
+            sys.argv.append('--custom-boot-script=winbootscript.py')
     def preInstall(self, kwargs, action):
         if action == 'py2exe':
             # to allow creation of an installer for Windows
@@ -80,8 +81,8 @@ class Win32SpecificOps(OSSpecificOps):
             os.remove(os.path.join(self.distdir, 'w9xpopen.exe'))
             
 class MacSpecificOps(OSSpecificOps):
-    def __init__(self, distdir):
-        OSSpecificOps.__init__(self, distdir)
+    def __init__(self, distdir, action):
+        OSSpecificOps.__init__(self, distdir, action)
     def preInstall(self, kwargs, action):
         if action == 'py2app':
             from setuptools import setup
@@ -119,12 +120,12 @@ def doSetup():
         
     distdir = 'dist'
     if sys.platform == 'win32':
-        ops = Win32SpecificOps(distdir)
+        ops = Win32SpecificOps(distdir, action)
     elif sys.platform == 'darwin':
-        ops = MacSpecificOps(distdir)
+        ops = MacSpecificOps(distdir, action)
     else:
         # no specific actions
-        ops = OSSpecificOps(distdir)
+        ops = OSSpecificOps(distdir, action)
 
     ops.preInstall(kwargs, action)
 
