@@ -901,7 +901,7 @@ Numpy Version: %s
             for url in mimeData.urls():
                 # things will get tricky when we support vectors
                 # try raster then vector?
-                self.addRasterInternal(url.path())
+                self.addRasterInternal(url.toLocalFile())
 
     def setPreferences(self):
         """
