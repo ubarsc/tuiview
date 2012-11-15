@@ -47,8 +47,16 @@ class PluginManager(object):
             try:
                 getattr(mod, PLUGIN_NEWVIEWER_FN)(geolinked, viewer)
             except Exception, e:
-                print 'Exception raised when calling plugin %s:' % name
-                print str(e)
+                self.printTraceback(mod)
+
+    @staticmethod
+    def printTraceback(name):
+        import traceback
+        print 'Exception raised when calling plugin %s:' % name
+        (ttype, value, tb) = sys.exc_info()
+        stack = traceback.extract_tb(tb)
+        trace = '\n'.join(traceback.format_list(stack))
+        print trace, ttype.__name__, ':', value
 
     @staticmethod
     def getSuffixes():
@@ -122,7 +130,11 @@ class PluginManager(object):
                         return
 
                 # must be ok. Get name and save it
-                modname = getattr(mod, PLUGIN_NAME_FN)()
+                try:
+                    modname = getattr(mod, PLUGIN_NAME_FN)()
+                except Exception, e:
+                    self.printTraceback(modname)
+                    return
                 self.plugins[modname] = mod
                 print 'loaded plugin %s' % modname
             except ImportError:
