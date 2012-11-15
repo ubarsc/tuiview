@@ -24,17 +24,26 @@ from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
+from . import pluginmanager
 
 class GeolinkedViewers(QObject):
     """
     Class that manages a collection of ViewerWindows
     that have their widgets geolinked.
     """
-    def __init__(self):
+    def __init__(self, loadPlugins=True):
         QObject.__init__(self)
         # need to keep a reference to keep the python objects alive
         # otherwise they are deleted before they are shown
         self.viewers = []
+
+        # load plugins if asked
+        if loadPlugins:
+            self.pluginmanager = pluginmanager.PluginManager()
+            self.pluginmanager.loadPlugins()
+        else:
+            self.pluginmanager = None
+
         # set up a timer so we can periodically remove viewer
         # instances when they are no longer open to save memory
         # Usually, in PyQt you don't have such a 'dynamic' 
@@ -106,6 +115,10 @@ class GeolinkedViewers(QObject):
 
         self.viewers.append(newviewer)
 
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callNewViewer(self, newviewer)
+
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
 
@@ -138,6 +151,10 @@ class GeolinkedViewers(QObject):
         self.connectSignals(newviewer)
 
         self.viewers.append(newviewer)
+
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callNewViewer(self, newviewer)
 
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
