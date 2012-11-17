@@ -770,6 +770,10 @@ class ViewerWindow(QMainWindow):
         # increment our count
         self.queryWindowCount += 1
 
+        # emit the signal back to geolinked viewers so that 
+        # any plugins can be informed
+        self.emit(SIGNAL("newQueryWindow(PyQt_PyObject)"), queryDock)
+
     def profile(self, checked):
         """
         Profile tool selected.

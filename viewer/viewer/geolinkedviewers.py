@@ -41,6 +41,9 @@ class GeolinkedViewers(QObject):
         if loadPlugins:
             self.pluginmanager = pluginmanager.PluginManager()
             self.pluginmanager.loadPlugins()
+            # do the init action
+            self.pluginmanager.callAction(pluginmanager.PLUGIN_ACTION_INIT, 
+                                            self)
         else:
             self.pluginmanager = None
 
@@ -117,7 +120,8 @@ class GeolinkedViewers(QObject):
 
         # call any plugins
         if self.pluginmanager is not None:
-            self.pluginmanager.callNewViewer(self, newviewer)
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWVIEWER, newviewer)
 
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
@@ -139,6 +143,9 @@ class GeolinkedViewers(QObject):
         # signal for request for windows to be tiled
         self.connect(newviewer, SIGNAL("tileWindows(int, int)"), 
                     self.onTileWindows)
+        # signal for new query window been opened
+        self.connect(newviewer, SIGNAL("newQueryWindow(PyQt_PyObject)"), 
+                    self.onNewQueryWindow)
 
     def onNewWindow(self):
         """
@@ -154,10 +161,20 @@ class GeolinkedViewers(QObject):
 
         # call any plugins
         if self.pluginmanager is not None:
-            self.pluginmanager.callNewViewer(self, newviewer)
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWVIEWER, newviewer)
 
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
+
+    def onNewQueryWindow(self, querywindow):
+        """
+        Called when the viewer starts a new query window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWQUERY, querywindow)
 
     def getDesktopSize(self):
         """

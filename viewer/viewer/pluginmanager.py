@@ -27,10 +27,14 @@ PLUGINS_ENV = 'VIEWER_PLUGINS_PATH'
 PLUGINS_SUBDIR = 'plugins'
 
 PLUGIN_NAME_FN = 'name'
-PLUGIN_NEWVIEWER_FN = 'newViewer'
+PLUGIN_ACTION_FN = 'action'
 PLUGIN_AUTHOR_FN = 'author'
 
-PLUGIN_REQUIRED_FNS = (PLUGIN_NAME_FN, PLUGIN_NEWVIEWER_FN, PLUGIN_AUTHOR_FN)
+PLUGIN_REQUIRED_FNS = (PLUGIN_NAME_FN, PLUGIN_ACTION_FN, PLUGIN_AUTHOR_FN)
+
+PLUGIN_ACTION_INIT = 0
+PLUGIN_ACTION_NEWVIEWER = 1
+PLUGIN_ACTION_NEWQUERY = 2
 
 class PluginManager(object):
     def __init__(self):
@@ -38,14 +42,16 @@ class PluginManager(object):
         self.pysuffixes = self.getSuffixes()
         self.pluginNameIndex = 1
 
-    def callNewViewer(self, geolinked, viewer):
+    def callAction(self, actioncode, param):
         """
-        Calls PLUGIN_NEWVIEWER_FN on each of the loaded plugins
+        Calls PLUGIN_ACTION_FN on each of the loaded plugins
+        with the supplit PLUGIN_ACTION_* constant and a parameter
         """
         for name in self.plugins.keys():
             mod = self.plugins[name]
             try:
-                getattr(mod, PLUGIN_NEWVIEWER_FN)(geolinked, viewer)
+                action = getattr(mod, PLUGIN_ACTION_FN)
+                action(actioncode, param)
             except Exception, e:
                 self.printTraceback(mod)
 
@@ -131,7 +137,8 @@ class PluginManager(object):
 
                 # must be ok. Get name and save it
                 try:
-                    modname = getattr(mod, PLUGIN_NAME_FN)()
+                    name = getattr(mod, PLUGIN_NAME_FN)
+                    modname = name()
                 except Exception, e:
                     self.printTraceback(modname)
                     return
