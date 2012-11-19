@@ -526,6 +526,10 @@ class QueryDockWidget(QDockWidget):
         # keep a track of the last QueryInfo in case we need to redisplay
         # when the user changes color
         self.lastqi = None
+
+        # allow plot scaling to be changed by user
+        # Min, Max. None means 'auto'.
+        self.plotScaling = (None, None)
         
     def storeLastSelection(self):
         "Take a copy of self.selectionArray and store it"
@@ -692,6 +696,14 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
                         self.geogPointSelect)
 
+        self.plotScalingAction = QAction(self)
+        self.plotScalingAction.setText("Set Plot Scaling")
+        self.plotScalingAction.setStatusTip("Set Plot Scaling")
+        icon = QIcon(":/viewer/images/setplotscale.png")
+        self.plotScalingAction.setIcon(icon)
+        self.connect(self.plotScalingAction, SIGNAL("triggered()"), 
+                        self.onPlotScaling)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -714,6 +726,7 @@ class QueryDockWidget(QDockWidget):
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
+            self.toolBar.addAction(self.plotScalingAction)
 
 
     def changeCursorColor(self):
@@ -795,6 +808,25 @@ class QueryDockWidget(QDockWidget):
                 printer.setOutputFileName(fname)
                 printer.setResolution(96)
                 self.plotWidget.print_(printer)
+
+    def onPlotScaling(self):
+        """
+        Allows the user to change the Y axis scaling of the plot
+        """
+        from .plotscalingdialog import PlotScalingDialog
+        if HAVE_QWT:
+            if self.lastqi is not None:
+                data = self.lastqi.data
+            else:
+                # uint8 default if no data 
+                data = numpy.array([0, 1], dtype=numpy.uint8) 
+
+            dlg = PlotScalingDialog(self, self.plotScaling, data)
+
+            if dlg.exec_() == PlotScalingDialog.Accepted:
+                self.plotScaling = dlg.getScale()
+                if self.lastqi is not None:
+                    self.updatePlot(self.lastqi, self.cursorColor)
 
     def highlight(self, state):
         """
@@ -1464,6 +1496,20 @@ Use the special columns:
         else:
             # set back to autoscale
             self.plotWidget.setAxisAutoScale(QwtPlot.xBottom)
+
+        # set scaling if needed
+        minScale, maxScale = self.plotScaling
+        if minScale is None and maxScale is None:
+            # set back to auto
+            self.plotWidget.setAxisAutoScale(QwtPlot.yLeft)
+        else:
+            # we need to provide both min and max so
+            # derive from data if needed
+            if minScale is None:
+                minScale = qi.data.min()
+            if maxScale is None:
+                maxScale = qi.data.max()
+            self.plotWidget.setAxisScale(QwtPlot.yLeft, minScale, maxScale)
 
         self.plotWidget.replot()
         

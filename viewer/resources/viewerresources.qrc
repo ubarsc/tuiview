@@ -38,6 +38,7 @@
 	<file>geographiclineselect.png</file>
 	<file>geographicpointselect.png</file>
 	<file>profileruler.png</file>
+	<file>setplotscale.png</file>
     </qresource>
 </RCC>
 
