@@ -85,13 +85,13 @@ class GeolinkedViewers(QObject):
             viewer.close()
         self.viewers = []
 
-    def setActiveToolAll(self, tool):
+    def setActiveToolAll(self, tool, senderid):
         """
         sets the specified tool as active on 
         all the viewers
         """
         for viewer in self.viewers:
-            viewer.viewwidget.setActiveTool(tool)
+            viewer.viewwidget.setActiveTool(tool, senderid)
 
     def setQueryPointAll(self, senderid, easting, northing, color, 
                                     size=None, cursor=None):

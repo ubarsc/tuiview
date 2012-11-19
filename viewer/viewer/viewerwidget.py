@@ -51,7 +51,7 @@ class QueryInfo(object):
 
 class GeolinkInfo(object):
     """
-    Conainter class for the information passed in the geolinkMove
+    Container class for the information passed in the geolinkMove
     and geolinkQueryPoint signals.
     """
     def __init__(self, senderid, easting, northing, metresperwinpix=0):
@@ -59,6 +59,14 @@ class GeolinkInfo(object):
         self.easting = easting
         self.northing = northing
         self.metresperwinpix = metresperwinpix
+
+class ActiveToolChangedInfo(object):
+    """
+    Container class for info pass in the activeToolChanged signal
+    """
+    def __init__(self, newTool, senderid):
+        self.newTool = newTool
+        self.senderid = senderid
 
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
@@ -275,10 +283,13 @@ class ViewerWidget(QAbstractScrollArea):
         # geolink
         self.emitGeolinkMoved()
 
-    def setActiveTool(self, tool):
+    def setActiveTool(self, tool, senderid):
         """
         Set active tool (one of VIEWER_TOOL_*).
         pass VIEWER_TOOL_NONE to disable
+        pass the id() of the calling object. This is passed around
+        in the activeToolChanged signal so GUI elements can recognise
+        who asked for the change
         """
         # if the tool was line or polygon
         # now is the time to remove the outline from the widget
@@ -383,6 +394,9 @@ class ViewerWidget(QAbstractScrollArea):
         elif tool == VIEWER_TOOL_NONE:
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
+
+        obj = ActiveToolChangedInfo(self.activeTool, senderid)
+        self.emit(SIGNAL("activeToolChanged(PyQt_PyObject)"), obj)
 
     def setNewStretch(self, newstretch, local=False):
         """

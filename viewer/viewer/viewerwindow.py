@@ -110,6 +110,10 @@ class ViewerWindow(QMainWindow):
         # general messages from the widget
         self.connect(self.viewwidget, SIGNAL("showStatusMessage(QString)"),
                                                 self.showStatusMessage)
+        # the signal that gets sent when active tool changed so we can update
+        # gui if querywindow engages a tool
+        self.connect(self.viewwidget, 
+            SIGNAL("activeToolChanged(PyQt_PyObject)"), self.activeToolChanged)
 
         self.setCentralWidget(self.viewwidget)
 
@@ -136,6 +140,12 @@ class ViewerWindow(QMainWindow):
         self.layerWindow = None
 
         self.mouseWheelZoom = True
+
+        # so if we are turning on a tool because another tool 
+        # in another window has been turned on, we don't undo 
+        # that tool being enabled. As oppossed to user unclicking
+        # the tool
+        self.suppressToolReset = False
 
     def newProgress(self, string):
         """
@@ -172,6 +182,17 @@ class ViewerWindow(QMainWindow):
         """
         self.statusBar().showMessage(message, MESSAGE_TIMEOUT)
 
+    def activeToolChanged(self, obj):
+        """
+        Called when the active tool changed. If we didn't cause it
+        then show our tools as disabled
+        """
+        if obj.senderid != id(self):
+            self.suppressToolReset = True
+            for tool in self.toolActions:
+                tool.setChecked(False)
+            self.suppressToolReset = False
+
     def restoreFromSettings(self):
         """
         Restore any settings from last time
@@ -196,6 +217,8 @@ class ViewerWindow(QMainWindow):
         """
         Creates all the actions for the Window
         """
+        self.toolActions = []
+
         self.addRasterAct = QAction(self)
         self.addRasterAct.setText("&Add Raster")
         self.addRasterAct.setStatusTip("Open a GDAL supported image")
@@ -274,6 +297,7 @@ class ViewerWindow(QMainWindow):
         self.panAct.setIcon(QIcon(":/viewer/images/pan.png"))
         self.panAct.setIconVisibleInMenu(True)
         self.connect(self.panAct, SIGNAL("toggled(bool)"), self.pan)
+        self.toolActions.append(self.panAct)
 
         self.zoomInAct = QAction(self)
         self.zoomInAct.setText("Zoom &In")
@@ -283,6 +307,7 @@ class ViewerWindow(QMainWindow):
         self.zoomInAct.setIcon(QIcon(":/viewer/images/zoomin.png"))
         self.zoomInAct.setIconVisibleInMenu(True)
         self.connect(self.zoomInAct, SIGNAL("toggled(bool)"), self.zoomIn)
+        self.toolActions.append(self.zoomInAct)
 
         self.zoomOutAct = QAction(self)
         self.zoomOutAct.setText("Zoom &Out")
@@ -292,6 +317,7 @@ class ViewerWindow(QMainWindow):
         self.zoomOutAct.setIcon(QIcon(":/viewer/images/zoomout.png"))
         self.zoomOutAct.setIconVisibleInMenu(True)
         self.connect(self.zoomOutAct, SIGNAL("toggled(bool)"), self.zoomOut)
+        self.toolActions.append(self.zoomOutAct)
 
         self.zoomNativeAct = QAction(self)
         self.zoomNativeAct.setText("Zoom to &Native")
@@ -376,6 +402,7 @@ class ViewerWindow(QMainWindow):
         self.profileAct.setIcon(QIcon(":/viewer/images/profileruler.png"))
         self.profileAct.setIconVisibleInMenu(True)
         self.connect(self.profileAct, SIGNAL("toggled(bool)"), self.profile)
+        self.toolActions.append(self.profileAct)
 
         self.newProfileAct = QAction(self)
         self.newProfileAct.setText("New P&rofile/Ruler Window")
@@ -660,9 +687,11 @@ class ViewerWindow(QMainWindow):
             self.zoomOutAct.setChecked(False)
             self.queryAct.setChecked(False)
             self.profileAct.setChecked(False)
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN)
-        else:
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN, 
+                        id(self))
+        elif not self.suppressToolReset:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
 
     def zoomOut(self, checked):
         """
@@ -675,9 +704,11 @@ class ViewerWindow(QMainWindow):
             self.zoomInAct.setChecked(False)
             self.queryAct.setChecked(False)
             self.profileAct.setChecked(False)
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT)
-        else:
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT, 
+                        id(self))
+        elif not self.suppressToolReset:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
 
     def pan(self, checked):
         """
@@ -690,9 +721,11 @@ class ViewerWindow(QMainWindow):
             self.zoomOutAct.setChecked(False)
             self.queryAct.setChecked(False)
             self.profileAct.setChecked(False)
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN)
-        else:
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN, 
+                        id(self))
+        elif not self.suppressToolReset:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
 
     def zoomNative(self):
         """
@@ -730,13 +763,15 @@ class ViewerWindow(QMainWindow):
             self.zoomOutAct.setChecked(False)
             self.panAct.setChecked(False)
             self.profileAct.setChecked(False)
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_QUERY)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_QUERY, 
+                    id(self))
 
             # if there is no query window currently open start one
             if self.queryWindowCount <= 0:
                 self.newQueryWindow()
         else:
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                    id(self))
 
     def queryClosed(self, queryDock):
         """
@@ -785,13 +820,15 @@ class ViewerWindow(QMainWindow):
             self.zoomOutAct.setChecked(False)
             self.panAct.setChecked(False)
             self.queryAct.setChecked(False)
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_POLYLINE)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_POLYLINE, 
+                        id(self))
 
             # if there is no query window currently open start one
             if self.profileWindowCount <= 0:
                 self.newProfile()
         else:
-            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
 
     def newProfile(self):
         from . import profilewindow

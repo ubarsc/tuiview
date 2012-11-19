@@ -413,6 +413,11 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.viewwidget, 
             SIGNAL("polylineCollected(PyQt_PyObject)"), self.newLineGeogSelect)
 
+        # connect to the signal we get when tool changed. We can update
+        # GUI if main window has selected tool etc
+        self.connect(self.viewwidget, 
+            SIGNAL("activeToolChanged(PyQt_PyObject)"), self.activeToolChanged)
+
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
 
@@ -531,6 +536,12 @@ class QueryDockWidget(QDockWidget):
         # Min, Max. None means 'auto'.
         self.plotScaling = (None, None)
         
+        # so if we are turning on a tool because another tool 
+        # in another window has been turned on, we don't undo 
+        # that tool being enabled. As oppossed to user unclicking
+        # the tool
+        self.suppressToolReset = False
+
     def storeLastSelection(self):
         "Take a copy of self.selectionArray and store it"
         if self.selectionArray is not None:
@@ -549,6 +560,8 @@ class QueryDockWidget(QDockWidget):
         """
         Create the actions to be shown on the toolbar
         """
+        self.toolActions = []
+
         self.followAction = QAction(self)
         self.followAction.setText("&Follow Query Tool")
         self.followAction.setStatusTip("Follow Query Tool")
@@ -671,6 +684,7 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectAction.setShortcut("ALT+G")
         self.connect(self.geogSelectAction, SIGNAL("toggled(bool)"),
                         self.geogSelect)
+        self.toolActions.append(self.geogSelectAction)
 
         self.geogSelectLineAction = QAction(self)
         self.geogSelectLineAction.setText(
@@ -683,6 +697,7 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectLineAction.setShortcut("ALT+L")
         self.connect(self.geogSelectLineAction, SIGNAL("toggled(bool)"),
                         self.geogLineSelect)
+        self.toolActions.append(self.geogSelectLineAction)
 
         self.geogSelectPointAction = QAction(self)
         self.geogSelectPointAction.setText(
@@ -695,6 +710,7 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectPointAction.setShortcut("ALT+P")
         self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
                         self.geogPointSelect)
+        self.toolActions.append(self.geogSelectPointAction)
 
         self.plotScalingAction = QAction(self)
         self.plotScalingAction.setText("Set Plot Scaling")
@@ -1168,6 +1184,18 @@ Use the special columns:
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
+    def activeToolChanged(self, obj):
+        """
+        Called in response to the activeToolChanged signal
+        from the widget. If it wasn't called by us, unset our
+        tools
+        """
+        if obj.senderid != id(self):
+            self.suppressToolReset = True
+            for tool in self.toolActions:
+                tool.setChecked(False)
+            self.suppressToolReset = False
+
     def newPolyGeogSelect(self, polyInfo):
         """
         New polygon just been selected as part of a 
@@ -1253,10 +1281,10 @@ Use the special columns:
         if checked:
             self.geogSelectLineAction.setChecked(False)
             self.geogSelectPointAction.setChecked(False)
-            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON)
-        else:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON, id(self))
+        elif not self.suppressToolReset:
             # reset tool
-            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY, id(self))
 
     def geogLineSelect(self, checked):
         """
@@ -1266,10 +1294,10 @@ Use the special columns:
         if checked:
             self.geogSelectAction.setChecked(False)
             self.geogSelectPointAction.setChecked(False)
-            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYLINE)
-        else:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYLINE, id(self))
+        elif not self.suppressToolReset:
             # reset tool
-            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY, id(self))
 
     def geogPointSelect(self, checked):
         """
@@ -1279,7 +1307,8 @@ Use the special columns:
         if checked:
             self.geogSelectAction.setChecked(False)
             self.geogSelectLineAction.setChecked(False)
-        self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+        if not self.suppressToolReset:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY, id(self))
 
     def updateToolTip(self):
         """
