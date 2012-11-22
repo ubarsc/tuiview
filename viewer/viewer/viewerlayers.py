@@ -171,6 +171,8 @@ class ViewerLayer(object):
         "Return the properties as a string we can show the user"
         raise NotImplementedError("Must implement in derived class")
 
+VIEWER_NONSQUARE_PIXEL_THRESHOLD = 0.001 # 0.1%
+
 class ViewerRasterLayer(ViewerLayer):
     """
     Represents a raster layer
@@ -220,10 +222,20 @@ class ViewerRasterLayer(ViewerLayer):
         # do some checks to see if we can deal with the data
         # currently only support square pixels and non rotated
         transform = self.gdalDataset.GetGeoTransform()
-        if (transform[2] != 0 or transform[4] != 0 or 
-                            transform[1] != -transform[5]):
-            msg = 'Only currently support square pixels and non-rotated images'
+        if transform[1] < 0 or transform[5] > 0:
+            msg = 'Only north-up images supported'
             raise viewererrors.InvalidDataset(msg)
+
+        if transform[2] != 0 or transform[4] != 0:
+            msg = 'Only non-rotated images supported'
+            raise viewererrors.InvalidDataset(msg)
+
+        # ideally transform[1] == -transform[5] but might not due to rounding
+        if (((transform[1] + transform[5]) / transform[1]) > 
+                VIEWER_NONSQUARE_PIXEL_THRESHOLD):
+            msg = 'Only square pixels supported'
+            raise viewererrors.InvalidDataset(msg)
+
         self.transform = transform
 
         # store the stretch
