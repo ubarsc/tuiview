@@ -401,6 +401,7 @@ class QueryDockWidget(QDockWidget):
         self.cursorColor = QUERYWIDGET_DEFAULT_CURSORCOLOR
         self.cursorSize = QUERYWIDGET_DEFAULT_CURSORSIZE
         self.highlightColor = QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR
+        self.displayPixelCoords = False # display pixel or map coordinates.
 
         # connect to the collected polygon signal - only respond when
         # self.geogSelectAction.isChecked() so don't interfere with
@@ -675,6 +676,17 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectPointAction.setCheckable(True)
         self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
                         self.geogPointSelect)
+                        
+        self.toggleCoordsAction = QAction(self)
+        self.toggleCoordsAction.setText("Switch between map and pi&xel coordinates")
+        self.toggleCoordsAction.setStatusTip(
+                "Switch display between map and pixel coordinates")
+        icon = QIcon(":/viewer/images/toggle.png")
+        self.toggleCoordsAction.setIcon(icon)
+        self.toggleCoordsAction.setCheckable(True)
+        self.connect(self.toggleCoordsAction, SIGNAL("toggled(bool)"),
+                     self.toggleCoordsSelect)
+        
 
     def setupToolbar(self):
         """
@@ -695,6 +707,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.geogSelectAction)
         self.toolBar.addAction(self.geogSelectLineAction)
         self.toolBar.addAction(self.geogSelectPointAction)
+        self.toolBar.addAction(self.toggleCoordsAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
@@ -857,9 +870,14 @@ Use the special columns:
         """
         # should have been validated by the time we got here so 
         # should be valid floats
-        easting = float(self.eastingEdit.text())
-        northing = float(self.northingEdit.text())
-        self.viewwidget.newQueryPoint(easting=easting, northing=northing)
+        if self.displayPixelCoords:
+            column = float(self.eastingEdit.text())
+            row = float(self.northingEdit.text())
+            self.viewwidget.newQueryPoint(column=column, row=row)
+        else:
+            easting = float(self.eastingEdit.text())
+            northing = float(self.northingEdit.text())
+            self.viewwidget.newQueryPoint(easting=easting, northing=northing)
 
     def newSelectUserExpression(self, expression):
         """
@@ -1175,6 +1193,23 @@ Use the special columns:
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
+    
+    def toggleCoordsSelect(self, checked):
+        """
+        toggle the displayPixelCoords flag.
+        """
+        self.displayPixelCoords = checked
+        if self.followAction.isChecked() and self.lastqi is not None:
+            # set the coords
+            if self.displayPixelCoords:
+                self.eastingEdit.setText("%.5f" % self.lastqi.column)
+                self.northingEdit.setText("%.5f" % self.lastqi.row)
+            else:
+                self.eastingEdit.setText("%.5f" % self.lastqi.easting)
+                self.northingEdit.setText("%.5f" % self.lastqi.northing)
+        self.tableView.viewport().update()
+    
+    
     def geogSelect(self, checked):
         """
         Turn on the polygon tool so we can select the area
@@ -1349,8 +1384,12 @@ Use the special columns:
         
         if self.followAction.isChecked():
             # set the coords
-            self.eastingEdit.setText("%.5f" % qi.easting)
-            self.northingEdit.setText("%.5f" % qi.northing)
+            if self.displayPixelCoords:
+                self.eastingEdit.setText("%.5f" % qi.column)
+                self.northingEdit.setText("%.5f" % qi.row)
+            else:
+                self.eastingEdit.setText("%.5f" % qi.easting)
+                self.northingEdit.setText("%.5f" % qi.northing)
             nbands = qi.data.shape[0]
 
             # do the attribute thing if there is only one band

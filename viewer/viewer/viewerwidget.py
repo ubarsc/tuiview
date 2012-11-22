@@ -724,29 +724,34 @@ class ViewerWidget(QAbstractScrollArea):
 
     # query point routines
     def newQueryPoint(self, easting=None, northing=None, 
-                                dspY=None, dspX=None, modifiers=None):
+                                dspY=None, dspX=None, 
+                                column=None, row=None, modifiers=None):
         """
         This viewer has recorded a new query point. Or
         user has entered new coords in querywindow.
 
         Calls updateQueryPoint and emits the geolinkQueryPoint signal
 
-        pass either [easting and northing] or [dspX,dspY]
+        pass either [easting and northing] or [dspX,dspY] or [column, row]
         """
         layer = self.layers.getTopRasterLayer()
         if layer is None:
             return
 
-        if (easting is None and northing is None and 
-                            dspX is None and dspY is None):
-            msg = "must provide one of [easting,northing] or [dspX,dspY]"
+        if ((easting is None or northing is None) and 
+            (dspX is None or dspY is None) and
+            (column is None or row is None)):
+            msg = ("must provide one of [easting,northing] or [dspX,dspY] " +
+                   "or [column, row]")
             raise ValueError(msg)
 
-        if easting is None or northing is None:
+        if dspX is not None and dspY is not None:
             (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
             (easting, northing) = layer.coordmgr.pixel2world(column, row)
-        elif dspX is None or dspY is None:
+        elif easting is not None and northing is not None:
             (column, row) = layer.coordmgr.world2pixel(easting, northing)
+        elif column is not None and row is not None:
+            (easting, northing) = layer.coordmgr.pixel2world(column, row)
 
         # update the point
         self.updateQueryPoint(easting, northing, column, row, modifiers)
