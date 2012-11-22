@@ -247,6 +247,8 @@ class ThematicSelectionModel(QItemSelectionModel):
             # QItemSelection
             for idx in index.indexes():
                 unique_rows[idx.row()] = 1
+                
+        self.parent.storeLastSelection()
 
         # if we are to clear first, do so
         if (command & QItemSelectionModel.Clear) == QItemSelectionModel.Clear:
@@ -412,6 +414,11 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.viewwidget, 
             SIGNAL("polylineCollected(PyQt_PyObject)"), self.newLineGeogSelect)
 
+        # connect to the signal we get when tool changed. We can update
+        # GUI if main window has selected tool etc
+        self.connect(self.viewwidget, 
+            SIGNAL("activeToolChanged(PyQt_PyObject)"), self.activeToolChanged)
+
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
 
@@ -457,6 +464,8 @@ class QueryDockWidget(QDockWidget):
         # our numpy array that contains the selections
         # None by default and for Continuous
         self.selectionArray = None
+        # backup of last selectionArray
+        self.lastSelectionArray = None
 
         # the id() of the last ViewerRAT class so we can 
         # update display only when needed
@@ -524,6 +533,21 @@ class QueryDockWidget(QDockWidget):
         # when the user changes color
         self.lastqi = None
 
+        # allow plot scaling to be changed by user
+        # Min, Max. None means 'auto'.
+        self.plotScaling = (None, None)
+        
+        # so if we are turning on a tool because another tool 
+        # in another window has been turned on, we don't undo 
+        # that tool being enabled. As oppossed to user unclicking
+        # the tool
+        self.suppressToolReset = False
+
+    def storeLastSelection(self):
+        "Take a copy of self.selectionArray and store it"
+        if self.selectionArray is not None:
+            self.lastSelectionArray = self.selectionArray.copy()
+
     def getColorIcon(self, color):
         """
         Returns the icon for the change color tool
@@ -537,6 +561,8 @@ class QueryDockWidget(QDockWidget):
         """
         Create the actions to be shown on the toolbar
         """
+        self.toolActions = []
+
         self.followAction = QAction(self)
         self.followAction.setText("&Follow Query Tool")
         self.followAction.setStatusTip("Follow Query Tool")
@@ -584,11 +610,12 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.savePlotAction, SIGNAL("triggered()"), self.savePlot)
 
         self.highlightAction = QAction(self)
-        self.highlightAction.setText("&Highlight Selection")
+        self.highlightAction.setText("&Highlight Selection (CTRL+H)")
         self.highlightAction.setStatusTip("Highlight Selection")
         self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
         self.highlightAction.setCheckable(True)
         self.highlightAction.setChecked(True)
+        self.highlightAction.setShortcut("CTRL+H")
         self.connect(self.highlightAction, SIGNAL("toggled(bool)"), 
                         self.highlight)
 
@@ -648,34 +675,51 @@ class QueryDockWidget(QDockWidget):
                         self.saveColOrder)
 
         self.geogSelectAction = QAction(self)
-        self.geogSelectAction.setText("&Geographic Selection")
+        self.geogSelectAction.setText(
+                            "&Geographic Selection by Polygon (ALT+G)")
         self.geogSelectAction.setStatusTip(
                                     "Select rows by geographic selection")
         icon = QIcon(":/viewer/images/geographicselect.png")
         self.geogSelectAction.setIcon(icon)
         self.geogSelectAction.setCheckable(True)
+        self.geogSelectAction.setShortcut("ALT+G")
         self.connect(self.geogSelectAction, SIGNAL("toggled(bool)"),
                         self.geogSelect)
+        self.toolActions.append(self.geogSelectAction)
 
         self.geogSelectLineAction = QAction(self)
-        self.geogSelectLineAction.setText("Geographic Selection with &Line")
+        self.geogSelectLineAction.setText(
+                                    "Geographic Selection by &Line (ALT+L)")
         self.geogSelectLineAction.setStatusTip(
                             "Select rows by geographic selection with Line")
         icon = QIcon(":/viewer/images/geographiclineselect.png")
         self.geogSelectLineAction.setIcon(icon)
         self.geogSelectLineAction.setCheckable(True)
+        self.geogSelectLineAction.setShortcut("ALT+L")
         self.connect(self.geogSelectLineAction, SIGNAL("toggled(bool)"),
                         self.geogLineSelect)
+        self.toolActions.append(self.geogSelectLineAction)
 
         self.geogSelectPointAction = QAction(self)
-        self.geogSelectPointAction.setText("Geographic Selection with &Point")
+        self.geogSelectPointAction.setText(
+                                    "Geographic Selection by &Point (ALT+P)")
         self.geogSelectPointAction.setStatusTip(
                             "Select rows by geographic selection with Point")
         icon = QIcon(":/viewer/images/geographicpointselect.png")
         self.geogSelectPointAction.setIcon(icon)
         self.geogSelectPointAction.setCheckable(True)
+        self.geogSelectPointAction.setShortcut("ALT+P")
         self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
                         self.geogPointSelect)
+        self.toolActions.append(self.geogSelectPointAction)
+
+        self.plotScalingAction = QAction(self)
+        self.plotScalingAction.setText("Set Plot Scaling")
+        self.plotScalingAction.setStatusTip("Set Plot Scaling")
+        icon = QIcon(":/viewer/images/setplotscale.png")
+        self.plotScalingAction.setIcon(icon)
+        self.connect(self.plotScalingAction, SIGNAL("triggered()"), 
+                        self.onPlotScaling)
                         
         self.toggleCoordsAction = QAction(self)
         self.toggleCoordsAction.setText("Switch between map and pi&xel coordinates")
@@ -686,7 +730,6 @@ class QueryDockWidget(QDockWidget):
         self.toggleCoordsAction.setCheckable(True)
         self.connect(self.toggleCoordsAction, SIGNAL("toggled(bool)"),
                      self.toggleCoordsSelect)
-        
 
     def setupToolbar(self):
         """
@@ -711,6 +754,7 @@ class QueryDockWidget(QDockWidget):
         if HAVE_QWT:
             self.toolBar.addAction(self.labelAction)
             self.toolBar.addAction(self.savePlotAction)
+            self.toolBar.addAction(self.plotScalingAction)
 
 
     def changeCursorColor(self):
@@ -793,6 +837,25 @@ class QueryDockWidget(QDockWidget):
                 printer.setResolution(96)
                 self.plotWidget.print_(printer)
 
+    def onPlotScaling(self):
+        """
+        Allows the user to change the Y axis scaling of the plot
+        """
+        from .plotscalingdialog import PlotScalingDialog
+        if HAVE_QWT:
+            if self.lastqi is not None:
+                data = self.lastqi.data
+            else:
+                # uint8 default if no data 
+                data = numpy.array([0, 1], dtype=numpy.uint8) 
+
+            dlg = PlotScalingDialog(self, self.plotScaling, data)
+
+            if dlg.exec_() == PlotScalingDialog.Accepted:
+                self.plotScaling = dlg.getScale()
+                if self.lastqi is not None:
+                    self.updatePlot(self.lastqi, self.cursorColor)
+
     def highlight(self, state):
         """
         Highlight the currently selected rows on the map
@@ -812,6 +875,7 @@ class QueryDockWidget(QDockWidget):
         """
         Remove the current selection from the table widget
         """
+        self.storeLastSelection()
         self.selectionArray.fill(False)
         self.updateToolTip()
         
@@ -826,8 +890,14 @@ class QueryDockWidget(QDockWidget):
         """
         Select all the rows in the table
         """
+        self.storeLastSelection()
         self.selectionArray.fill(True)
         self.updateToolTip()
+
+        if self.highlightAction.isChecked():
+            self.viewwidget.highlightValues(self.highlightColor,
+                                self.selectionArray)
+
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
@@ -844,7 +914,8 @@ numpy arrays.
 Use the special columns:
 'row' for the row number and 
 'isselected' for the currently selected rows
-'queryrow' is the currently queried row"""
+'queryrow' is the currently queried row and
+'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString)"), 
                         self.newSelectUserExpression)
@@ -885,11 +956,15 @@ Use the special columns:
         for selection
         """
         try:
+
             # get the numpy array with bools
             attributes = self.lastLayer.attributes
             queryRow = self.tableModel.highlightRow
             result = attributes.evaluateUserSelectExpression(str(expression),
-                                                self.selectionArray, queryRow)
+                                                self.selectionArray, queryRow,
+                                                self.lastSelectionArray)
+
+            self.storeLastSelection()
 
             # use it as our selection array
             self.selectionArray = result
@@ -1096,7 +1171,7 @@ Use the special columns:
         else:
             self.keyboardEditColumn = colName
             self.keyboardData = ''
-            # grab focus while we here
+            # seem to need to do this otherwise table keeps focus
             self.setFocus()
 
     def saveAttributes(self):
@@ -1126,6 +1201,18 @@ Use the special columns:
         except viewererrors.InvalidDataset, e:
             QMessageBox.critical(self, "Viewer", str(e))
 
+    def activeToolChanged(self, obj):
+        """
+        Called in response to the activeToolChanged signal
+        from the widget. If it wasn't called by us, unset our
+        tools
+        """
+        if obj.senderid != id(self):
+            self.suppressToolReset = True
+            for tool in self.toolActions:
+                tool.setChecked(False)
+            self.suppressToolReset = False
+
     def newPolyGeogSelect(self, polyInfo):
         """
         New polygon just been selected as part of a 
@@ -1147,6 +1234,8 @@ Use the special columns:
         # get data where mask==True
         idx = numpy.unique(data.compress(mask))
         
+        self.storeLastSelection()
+        
         # reset if they havent hit Ctrl
         if int(polyInfo.getInputModifiers() & Qt.ControlModifier) == 0:
             self.selectionArray.fill(False)
@@ -1163,6 +1252,9 @@ Use the special columns:
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
+        # so keyboard entry etc works
+        self.activateWindow()
+
     def newLineGeogSelect(self, lineInfo):
         """
         New polyline just been selected as part of a 
@@ -1176,6 +1268,8 @@ Use the special columns:
         data, mask, distance = lineInfo.getProfile()
         # we only interested where mask == True
         idx = numpy.unique(data.compress(mask))
+
+        self.storeLastSelection()
 
         # reset if they havent hit Ctrl
         if int(lineInfo.getInputModifiers() & Qt.ControlModifier) == 0:
@@ -1193,6 +1287,9 @@ Use the special columns:
         # so we repaint and our itemdelegate gets called
         self.tableView.viewport().update()
 
+        # so keyboard entry etc works
+        self.activateWindow()
+
     
     def toggleCoordsSelect(self, checked):
         """
@@ -1209,7 +1306,7 @@ Use the special columns:
                 self.northingEdit.setText("%.5f" % self.lastqi.northing)
         self.tableView.viewport().update()
     
-    
+
     def geogSelect(self, checked):
         """
         Turn on the polygon tool so we can select the area
@@ -1218,10 +1315,10 @@ Use the special columns:
         if checked:
             self.geogSelectLineAction.setChecked(False)
             self.geogSelectPointAction.setChecked(False)
-            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON)
-        else:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYGON, id(self))
+        elif not self.suppressToolReset:
             # reset tool
-            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY, id(self))
 
     def geogLineSelect(self, checked):
         """
@@ -1231,10 +1328,10 @@ Use the special columns:
         if checked:
             self.geogSelectAction.setChecked(False)
             self.geogSelectPointAction.setChecked(False)
-            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYLINE)
-        else:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_POLYLINE, id(self))
+        elif not self.suppressToolReset:
             # reset tool
-            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY, id(self))
 
     def geogPointSelect(self, checked):
         """
@@ -1244,7 +1341,8 @@ Use the special columns:
         if checked:
             self.geogSelectAction.setChecked(False)
             self.geogSelectLineAction.setChecked(False)
-        self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY)
+        if not self.suppressToolReset:
+            self.viewwidget.setActiveTool(VIEWER_TOOL_QUERY, id(self))
 
     def updateToolTip(self):
         """
@@ -1336,6 +1434,7 @@ Use the special columns:
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
                                     numpy.bool)
+            self.lastSelectionArray = None
             self.selectionArray.fill(False) # none selected by default
 
         # set the highlight row if there is data
@@ -1365,6 +1464,7 @@ Use the special columns:
         if self.geogSelectPointAction.isChecked():
             value = qi.data[0]
             
+            self.storeLastSelection()
             # reset if they havent hit Ctrl
             if (qi.modifiers is not None and 
                     int(qi.modifiers & Qt.ControlModifier) == 0):
@@ -1381,6 +1481,9 @@ Use the special columns:
             self.updateToolTip()
             # so we repaint and our itemdelegate gets called
             self.tableView.viewport().update()
+
+            # so keyboard entry etc works
+            self.activateWindow()
         
         if self.followAction.isChecked():
             # set the coords
@@ -1461,6 +1564,20 @@ Use the special columns:
             # set back to autoscale
             self.plotWidget.setAxisAutoScale(QwtPlot.xBottom)
 
+        # set scaling if needed
+        minScale, maxScale = self.plotScaling
+        if minScale is None and maxScale is None:
+            # set back to auto
+            self.plotWidget.setAxisAutoScale(QwtPlot.yLeft)
+        else:
+            # we need to provide both min and max so
+            # derive from data if needed
+            if minScale is None:
+                minScale = qi.data.min()
+            if maxScale is None:
+                maxScale = qi.data.max()
+            self.plotWidget.setAxisScale(QwtPlot.yLeft, minScale, maxScale)
+
         self.plotWidget.replot()
         
 
@@ -1476,6 +1593,7 @@ Use the special columns:
         User has pressed a key. See if we are recording keystrokes
         and updating attribute columns
         """
+        from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
         if self.keyboardData is not None:
             key = event.key()
             if key == Qt.Key_Enter or key == Qt.Key_Return:
@@ -1487,10 +1605,22 @@ Use the special columns:
 
                     # so we repaint and new values get shown
                     self.tableView.viewport().update()
+
+                    # is this a the lookup column?
+                    if colname == attributes.getLookupColName():
+                        # can't just use result because we need selectionArray applied
+                        col = attributes.getAttribute(colname)
+                        self.viewwidget.setColorTableLookup(col, colname)
                 except viewererrors.UserExpressionError, e:
                     QMessageBox.critical(self, "Viewer", str(e))
                 self.keyboardData = ''
             else:
-                text = event.text()
-                if text != "":
+                text = str(event.text())
+                attributes = self.lastLayer.attributes
+                dtype = attributes.getType(self.keyboardEditColumn)
+                if dtype == GFT_Real and (text.isdigit() or text == "."):
+                    self.keyboardData += text
+                elif dtype == GFT_Integer and text.isdigit():        
+                    self.keyboardData += text
+                elif dtype == GFT_String and text.isalnum():
                     self.keyboardData += text

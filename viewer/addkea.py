@@ -17,11 +17,37 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import os
 import shutil
+import glob
 
 keadir = 'c:\\kea\\gdal19'
 hdfdir = 'C:\\Program Files\\HDF Group\\HDF5\\1.8.9\\bin'
+gdaldir = 'c:\\GDAL'
+
+def adddata(distdir):
+    """
+    Copies the GDAL 'data' dir over. The custom boot
+    script sets the GDAL_DATA env variable to point here
+    """
+    distdata = os.path.join(distdir, 'data')
+    gdaldata = os.path.join(gdaldir, 'data')
+    shutil.copytree(gdaldata, distdata)
+
+def addplugins(distdir):
+    """
+    Copy any files in the GDAL plugin directory
+    """
+    distplugins = os.path.join(distdir, 'gdalplugins')
+    if not os.path.exists(distplugins):
+        os.mkdir(distplugins)
+        
+    sourcepath = os.path.join(gdaldir, 'bin', 'gdalplugins', '*.dll')
+    for fname in glob.glob(sourcepath):
+        shutil.copy(fname, distplugins)
 
 def addkea(distdir):
+    """
+    Copy the KEA plugin and dependencies
+    """
     distplugins = os.path.join(distdir, 'gdalplugins')
     if not os.path.exists(distplugins):
         os.mkdir(distplugins)

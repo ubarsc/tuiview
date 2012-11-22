@@ -76,6 +76,14 @@ class ProfileDockWidget(QDockWidget):
 
         self.resize(400, 200)
 
+        # allow plot scaling to be changed by user
+        # Min, Max. None means 'auto'.
+        self.plotScaling = (None, None)
+        # store the range of the data so we can init plot scale dlg
+        self.dataRange = None
+        # last polyLine so we can quickly resraw if plot scale changes
+        self.lastPolyLine = None
+
     def setupActions(self):
         """
         Create the actions to be shown on the toolbar
@@ -93,6 +101,14 @@ class ProfileDockWidget(QDockWidget):
         self.savePlotAction.setIcon(QIcon(":/viewer/images/saveplot.png"))
         self.connect(self.savePlotAction, SIGNAL("triggered()"), self.savePlot)
 
+        self.plotScalingAction = QAction(self)
+        self.plotScalingAction.setText("Set Plot Scaling")
+        self.plotScalingAction.setStatusTip("Set Plot Scaling")
+        icon = QIcon(":/viewer/images/setplotscale.png")
+        self.plotScalingAction.setIcon(icon)
+        self.connect(self.plotScalingAction, SIGNAL("triggered()"), 
+                        self.onPlotScaling)
+
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -100,6 +116,7 @@ class ProfileDockWidget(QDockWidget):
         self.toolBar.addAction(self.followAction)
         if HAVE_QWT:
             self.toolBar.addAction(self.savePlotAction)
+            self.toolBar.addAction(self.plotScalingAction)
 
     def savePlot(self):
         """
@@ -170,16 +187,72 @@ class ProfileDockWidget(QDockWidget):
             if isinstance(profiledata, list):
                 # RGB
                 penList = [self.redPen, self.greenPen, self.bluePen]
+                minValue = None
+                maxValue = None
                 for data, pen in zip(profiledata, penList):
                     self.plotProfile(distance, data, profilemask, pen)
+        
+                    # record the range of the data for scaling
+                    masked = numpy.compress(profilemask, data)
+                    bandMinValue = masked.min()
+                    bandMaxValue = masked.max()
+                    if minValue is None or bandMinValue < bandMinValue:
+                        minValue = bandMinValue
+                    if maxValue is None or bandMaxValue > maxValue:
+                        maxValue = bandMaxValue
             else:
                 # greyscale
                 pen = self.blackPen
                 self.plotProfile(distance, profiledata, profilemask, pen)
 
+                # find range of data for scaling
+                masked = numpy.compress(profilemask, profiledata)
+                minValue = masked.min()
+                maxValue = masked.max()
+
+            self.dataRange = (minValue, maxValue)
+
             # include total distance in case start or end off image
             self.plotWidget.setAxisScale(QwtPlot.xBottom, 0, distance[-1])
+
+            # set scaling if needed
+            minScale, maxScale = self.plotScaling
+            if minScale is None and maxScale is None:
+                # set back to auto
+                self.plotWidget.setAxisAutoScale(QwtPlot.yLeft)
+            else:
+                # we need to provide both min and max so
+                # derive from data if needed
+                if minScale is None:
+                    minScale = minValue
+                if maxScale is None:
+                    maxScale = maxValue
+                self.plotWidget.setAxisScale(QwtPlot.yLeft, minScale, maxScale)
+
             self.plotWidget.replot()
+            self.lastPolyLine = polyLine
+
+    def onPlotScaling(self):
+        """
+        Allows the user to change the Y axis scaling of the plot
+        """
+        from .plotscalingdialog import PlotScalingDialog
+        if HAVE_QWT:
+            if self.dataRange is not None:
+                minValue, maxValue = self.dataRange
+                # should inherit type of minValue etc
+                # which should be the same as the data array
+                data = numpy.array([minValue, maxValue])
+            else:
+                # uint8 default if no data 
+                data = numpy.array([0, 1], dtype=numpy.uint8) 
+
+            dlg = PlotScalingDialog(self, self.plotScaling, data)
+
+            if dlg.exec_() == PlotScalingDialog.Accepted:
+                self.plotScaling = dlg.getScale()
+                if self.lastPolyLine is not None:
+                    self.newLine(self.lastPolyLine)
 
     def closeEvent(self, event):
         """

@@ -109,6 +109,8 @@ class CmdArgs(object):
         self.parser.add_option('--hist', action="callback", 
                             callback=optionCallback, 
                             help="do a histogram stretch")
+        self.parser.add_option('--noplugins', action="store_false", 
+                            default=True, dest='loadplugins')
 
         (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
@@ -124,9 +126,11 @@ class ViewerApplication(QApplication):
         self.setApplicationName('viewer')
         self.setOrganizationName('Viewer')
 
-        self.viewers = geolinkedviewers.GeolinkedViewers()
-
         cmdargs = CmdArgs()
+
+        loadplugins = cmdargs.loadplugins
+        self.viewers = geolinkedviewers.GeolinkedViewers(loadplugins)
+
         stretch = None
         if (cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet 
                     and cmdargs.parser.bandsSet):

@@ -24,17 +24,29 @@ from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
+from . import pluginmanager
 
 class GeolinkedViewers(QObject):
     """
     Class that manages a collection of ViewerWindows
     that have their widgets geolinked.
     """
-    def __init__(self):
+    def __init__(self, loadPlugins=True):
         QObject.__init__(self)
         # need to keep a reference to keep the python objects alive
         # otherwise they are deleted before they are shown
         self.viewers = []
+
+        # load plugins if asked
+        if loadPlugins:
+            self.pluginmanager = pluginmanager.PluginManager()
+            self.pluginmanager.loadPlugins()
+            # do the init action
+            self.pluginmanager.callAction(pluginmanager.PLUGIN_ACTION_INIT, 
+                                            self)
+        else:
+            self.pluginmanager = None
+
         # set up a timer so we can periodically remove viewer
         # instances when they are no longer open to save memory
         # Usually, in PyQt you don't have such a 'dynamic' 
@@ -73,13 +85,13 @@ class GeolinkedViewers(QObject):
             viewer.close()
         self.viewers = []
 
-    def setActiveToolAll(self, tool):
+    def setActiveToolAll(self, tool, senderid):
         """
         sets the specified tool as active on 
         all the viewers
         """
         for viewer in self.viewers:
-            viewer.viewwidget.setActiveTool(tool)
+            viewer.viewwidget.setActiveTool(tool, senderid)
 
     def setQueryPointAll(self, senderid, easting, northing, color, 
                                     size=None, cursor=None):
@@ -106,6 +118,11 @@ class GeolinkedViewers(QObject):
 
         self.viewers.append(newviewer)
 
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWVIEWER, newviewer)
+
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
 
@@ -126,6 +143,9 @@ class GeolinkedViewers(QObject):
         # signal for request for windows to be tiled
         self.connect(newviewer, SIGNAL("tileWindows(int, int)"), 
                     self.onTileWindows)
+        # signal for new query window been opened
+        self.connect(newviewer, SIGNAL("newQueryWindow(PyQt_PyObject)"), 
+                    self.onNewQueryWindow)
 
     def onNewWindow(self):
         """
@@ -139,8 +159,22 @@ class GeolinkedViewers(QObject):
 
         self.viewers.append(newviewer)
 
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWVIEWER, newviewer)
+
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
+
+    def onNewQueryWindow(self, querywindow):
+        """
+        Called when the viewer starts a new query window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWQUERY, querywindow)
 
     def getDesktopSize(self):
         """
