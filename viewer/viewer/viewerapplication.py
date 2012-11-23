@@ -110,7 +110,11 @@ class CmdArgs(object):
                             callback=optionCallback, 
                             help="do a histogram stretch")
         self.parser.add_option('--noplugins', action="store_false", 
-                            default=True, dest='loadplugins')
+                            default=True, dest='loadplugins', 
+                            help="Don't load plugins")
+        self.parser.add_option('--separate', action="store_true", 
+                            default=False, dest='separate',
+                            help="load multiple files into separate windows")
 
         (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
@@ -145,6 +149,16 @@ class ViewerApplication(QApplication):
         if len(cmdargs.args) == 0:
             self.viewers.newViewer()
         else:
-            for filename in cmdargs.args:
-                self.viewers.newViewer(filename, stretch)
+            if cmdargs.separate:
+                # need to be in separate windows
+                for filename in cmdargs.args:
+                    self.viewers.newViewer(filename, stretch)
+            else:
+                # load into one viewer
+                viewer = None
+                for filename in cmdargs.args:
+                    if viewer is None:
+                        viewer = self.viewers.newViewer(filename, stretch)
+                    else:
+                        viewer.addRasterInternal(filename, stretch)
 

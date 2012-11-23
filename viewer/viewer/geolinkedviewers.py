@@ -104,7 +104,8 @@ class GeolinkedViewers(QObject):
 
     def newViewer(self, filename=None, stretch=None):
         """
-        Call this to create a new geolinked viewer
+        Call this to create a new geolinked viewer.
+        Returns the created ViewerWindow instance.
         """
         newviewer = viewerwindow.ViewerWindow()
         newviewer.show()
@@ -125,6 +126,9 @@ class GeolinkedViewers(QObject):
 
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
+
+        # return it
+        return newviewer
 
     def connectSignals(self, newviewer):
         """
