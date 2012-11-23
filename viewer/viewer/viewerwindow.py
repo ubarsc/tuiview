@@ -911,7 +911,7 @@ class ViewerWindow(QMainWindow):
         from numpy import version as numpyVersion
 
         msg = """ Viewer
-By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd and Pierre Roudier.
+By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and Tony Gill.
 
 Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.
 
