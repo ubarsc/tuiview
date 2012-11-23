@@ -407,6 +407,23 @@ class ViewerWidget(QAbstractScrollArea):
             layer.setNewStretch(newstretch, local)
             self.viewport().update()
 
+    def timeseriesBackward(self):
+        """
+        Assume images are a stacked timeseries oldest
+        to newest. Turn on the previous one to the current
+        topmost displayed
+        """
+        self.layers.timeseriesBackward()
+        self.viewport().update()
+
+    def timeseriesForward(self):
+        """
+        Assume images are a stacked timeseries oldest
+        to newest. Turn off the current topmost displayed
+        """
+        self.layers.timeseriesForward()
+        self.viewport().update()
+
     def setMouseScrollWheelAction(self, scrollZoom):
         "Set the action for a mouse wheen event (scroll/zoom)"
         self.mouseWheelZoom = scrollZoom

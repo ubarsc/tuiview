@@ -427,6 +427,22 @@ class ViewerWindow(QMainWindow):
         self.connect(self.newProfileAct, SIGNAL("triggered()"), 
                                                     self.newProfile)
 
+        self.timeseriesForwardAct = QAction(self)
+        self.timeseriesForwardAct.setShortcut(".")
+        self.timeseriesForwardAct.setText("Timeseries Forward")
+        self.timeseriesForwardAct.setStatusTip(
+                                "Go forward through timeseries of images")
+        self.connect(self.timeseriesForwardAct, SIGNAL("triggered()"),
+                                self.viewwidget.timeseriesForward)
+
+        self.timeseriesBackwardAct = QAction(self)
+        self.timeseriesBackwardAct.setShortcut(",")
+        self.timeseriesBackwardAct.setText("Timeseries Backward")
+        self.timeseriesBackwardAct.setStatusTip(
+                                "Go backward through timeseries of images")
+        self.connect(self.timeseriesBackwardAct, SIGNAL("triggered()"),
+                                self.viewwidget.timeseriesBackward)
+
         self.aboutAct = QAction(self)
         self.aboutAct.setText("&About")
         self.aboutAct.setStatusTip("Show author and version information")
@@ -458,6 +474,8 @@ class ViewerWindow(QMainWindow):
         viewMenu.addAction(self.zoomNativeAct)
         viewMenu.addAction(self.zoomFullExtAct)
         viewMenu.addAction(self.followExtentAct)
+        viewMenu.addAction(self.timeseriesForwardAct)
+        viewMenu.addAction(self.timeseriesBackwardAct)
 
         toolMenu = self.menuBar().addMenu("&Tools")
         toolMenu.addAction(self.queryAct)

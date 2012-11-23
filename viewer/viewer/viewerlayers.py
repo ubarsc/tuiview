@@ -1096,6 +1096,32 @@ class LayerManager(QObject):
         layer.displayed = state
         self.updateTopFilename()
 
+    def timeseriesForward(self):
+        """
+        Assume images are a stacked timeseries oldest
+        to newest. Turn off the current topmost displayed
+        """
+        for layer in reversed(self.layers):
+            if layer.displayed:
+                self.setDisplayedState(layer, False)
+                self.emit(SIGNAL("layersChanged()"))
+                break
+
+    def timeseriesBackward(self):
+        """
+        Assume images are a stacked timeseries oldest
+        to newest. Turn on the previous one to the current
+        topmost displayed
+        """
+        prevLayer = None
+        for layer in reversed(self.layers):
+            if layer.displayed:
+                break
+            prevLayer = layer
+        if prevLayer is not None:
+            self.setDisplayedState(prevLayer, True)
+            self.emit(SIGNAL("layersChanged()"))
+                    
     def getTopLayer(self):
         "Returns the very top layer which may be raster or vector"
         layer = None
