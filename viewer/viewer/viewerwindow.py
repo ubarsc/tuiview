@@ -530,10 +530,10 @@ class ViewerWindow(QMainWindow):
         populateFilters()
         dlg = QFileDialog(self)
         dlg.setNameFilters(GDAL_FILTERS)
-        dlg.setFileMode(QFileDialog.ExistingFile)
+        dlg.setFileMode(QFileDialog.ExistingFiles)
         if dlg.exec_() == QDialog.Accepted:
-            fname = dlg.selectedFiles()[0]
-            self.addRasterInternal(fname)
+            for fname in dlg.selectedFiles():
+                self.addRasterInternal(fname)
 
     def addVectorFile(self):
         """
