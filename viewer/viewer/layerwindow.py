@@ -91,7 +91,8 @@ class LayerItemModel(QAbstractListModel):
         if role == Qt.CheckStateRole:
             state = value.toInt()[0]
             layer = self.getLayer(index)
-            layer.displayed = state == Qt.Checked
+            state = state == Qt.Checked
+            self.viewwidget.layers.setDisplayedState(layer, state)
 
             # redraw
             self.viewwidget.viewport().update()

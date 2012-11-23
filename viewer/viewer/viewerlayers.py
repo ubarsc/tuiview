@@ -161,7 +161,7 @@ class ViewerLayer(object):
     def __init__(self):
         self.image = None
         self.filename = None
-        self.displayed = True
+        self.displayed = True # use LayerManager.setDisplayedState
 
     def getImage(self):
         "return a QImage with the data in it"
@@ -920,6 +920,25 @@ class LayerManager(QObject):
         self.layers = []
         self.fullextent = None
         self.queryPointLayer = ViewerQueryPointLayer()
+        self.topFilename = None
+
+    def updateTopFilename(self):
+        """
+        Call this when the top displayed layer may 
+        have changed and the correct signal will be emitted
+        """
+        newTopFilename = None
+        for layer in self.layers:
+            if layer.displayed:
+                newTopFilename = layer.filename
+
+        if newTopFilename != self.topFilename:
+            self.topFilename = newTopFilename
+            if self.topFilename is None:
+                # Qt doesn't like None
+                self.emit(SIGNAL("topLayerChanged(QString)"), '')
+            else:
+                self.emit(SIGNAL("topLayerChanged(QString)"), self.topFilename)
 
     def getFullExtent(self):
         """
@@ -1002,6 +1021,7 @@ class LayerManager(QObject):
         self.layers.append(layer)
         self.recalcFullExtent()
         self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
                                 color=DEFAULT_VECTOR_COLOR):
@@ -1022,6 +1042,7 @@ class LayerManager(QObject):
 
         self.recalcFullExtent()
         self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
 
     def removeTopLayer(self):
         """
@@ -1031,6 +1052,7 @@ class LayerManager(QObject):
             self.layers.pop()
             self.recalcFullExtent()
             self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
 
     def removeLayer(self, layer):
         """
@@ -1039,6 +1061,7 @@ class LayerManager(QObject):
         self.layers.remove(layer)
         self.recalcFullExtent()
         self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
 
     def moveLayerUp(self, layer):
         """
@@ -1050,6 +1073,7 @@ class LayerManager(QObject):
             self.layers.pop(index)
             self.layers.insert(index + 1, layer)
             self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
 
     def moveLayerDown(self, layer):
         """
@@ -1061,6 +1085,16 @@ class LayerManager(QObject):
             self.layers.pop(index)
             self.layers.insert(index - 1, layer)
             self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
+
+    def setDisplayedState(self, layer, state):
+        """
+        Sets the displayed state for a layer
+        use this rather than setting layer.displayed
+        directly as title bar will be updated this way
+        """
+        layer.displayed = state
+        self.updateTopFilename()
 
     def getTopLayer(self):
         "Returns the very top layer which may be raster or vector"

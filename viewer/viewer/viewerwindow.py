@@ -107,6 +107,9 @@ class ViewerWindow(QMainWindow):
                                                 self.endProgress)
         self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
                                                 self.newPercent)
+        # so we can update the window title
+        self.connect(self.viewwidget.layers, SIGNAL("topLayerChanged(QString)"),
+                                                self.updateWindowTitle)
         # general messages from the widget
         self.connect(self.viewwidget, SIGNAL("showStatusMessage(QString)"),
                                                 self.showStatusMessage)
@@ -146,6 +149,19 @@ class ViewerWindow(QMainWindow):
         # that tool being enabled. As oppossed to user unclicking
         # the tool
         self.suppressToolReset = False
+
+    def updateWindowTitle(self, fname):
+        """
+        called in response to the topLayerChanged(QString) signal
+        from the layers to say the top displayed layer has changed
+        """
+        if not fname.isEmpty():
+            # just display the basename
+            title = os.path.basename(str(fname))
+            self.setWindowTitle(title)
+        else:
+            # nothing loaded
+            self.setWindowTitle('Viewer')
 
     def newProgress(self, string):
         """
