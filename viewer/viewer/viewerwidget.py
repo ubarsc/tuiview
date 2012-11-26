@@ -440,8 +440,8 @@ class ViewerWidget(QAbstractScrollArea):
         state = False
         layer = self.layers.getTopLayer()
         if layer is not None:
-            layer.displayed = not layer.displayed
-            state = layer.displayed
+            state = not layer.displayed
+            self.layers.setDisplayedState(layer, state)
             self.viewport().update()
         return state
 
