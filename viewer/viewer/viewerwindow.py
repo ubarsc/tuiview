@@ -712,8 +712,14 @@ class ViewerWindow(QMainWindow):
         Show the edit stretch dock window
         """
         from . import stretchdialog
-        stretchDock = stretchdialog.StretchDockWidget(self, self.viewwidget)
-        self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
+        # should it just be visible layers?
+        layer = self.viewwidget.layers.getTopRasterLayer()
+        if layer is None:
+            QMessageBox.critical(self, "Viewer", "No raster layer available" )
+        else:
+            stretchDock = stretchdialog.StretchDockWidget(self, 
+                                self.viewwidget, layer)
+            self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
 
     def zoomIn(self, checked):
         """

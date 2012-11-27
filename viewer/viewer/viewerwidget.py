@@ -395,14 +395,12 @@ class ViewerWidget(QAbstractScrollArea):
         obj = ActiveToolChangedInfo(self.activeTool, senderid)
         self.emit(SIGNAL("activeToolChanged(PyQt_PyObject)"), obj)
 
-    def setNewStretch(self, newstretch, local=False):
+    def setNewStretch(self, newstretch, layer, local=False):
         """
         Change the stretch being applied to the current data
         """
-        layer = self.layers.getTopRasterLayer()
-        if layer is not None:
-            layer.setNewStretch(newstretch, local)
-            self.viewport().update()
+        layer.setNewStretch(newstretch, local)
+        self.viewport().update()
 
     def timeseriesBackward(self):
         """

@@ -788,10 +788,11 @@ class StretchDockWidget(QDockWidget):
     Class that has a StretchLayout as a dockable window
     with apply and save buttons
     """
-    def __init__(self, parent, viewwidget):
+    def __init__(self, parent, viewwidget, layer):
         QDockWidget.__init__(self, "Stretch", parent)
         # save the view widget
         self.viewwidget = viewwidget
+        self.layer = layer
         self.parent = parent
 
         # create a new widget that lives in the dock window
@@ -803,13 +804,7 @@ class StretchDockWidget(QDockWidget):
         self.setupToolbar()
 
         # our stretch layout
-        self.layer = viewwidget.layers.getTopRasterLayer()
-        if self.layer is None:
-            QMessageBox.critical(self, "Viewer", "No raster layer available" )
-            self.close()
-            return
-        else:
-            self.stretchLayout = StretchLayout(self.dockWidget, 
+        self.stretchLayout = StretchLayout(self.dockWidget, 
                     self.layer.stretch, self.layer.gdalDataset)
 
         # layout for stretch and buttons
@@ -868,7 +863,7 @@ class StretchDockWidget(QDockWidget):
         stretch = self.stretchLayout.getStretch()
         local = self.localAction.isChecked()
         try:
-            self.viewwidget.setNewStretch(stretch, local)
+            self.viewwidget.setNewStretch(stretch, self.layer, local)
         except Exception as e:
             QMessageBox.critical(self, "Viewer", str(e) )
 

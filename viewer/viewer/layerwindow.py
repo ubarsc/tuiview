@@ -30,9 +30,10 @@ class LayerItemModel(QAbstractListModel):
     This class provides the data to the list view by 
     reading the list of layers provided by the LayerManager
     """
-    def __init__(self, viewwidget, parent):
+    def __init__(self, viewwidget, viewwindow, parent):
         QAbstractListModel.__init__(self, parent)
         self.viewwidget = viewwidget
+        self.viewwindow = viewwindow
         self.rasterIcon = QIcon(":/viewer/images/rasterlayer.png")
         self.vectorIcon = QIcon(":/viewer/images/vectorlayer.png")
 
@@ -151,6 +152,12 @@ class LayerListView(QListView):
         self.setSQLAct.setStatusTip("Set attribute filter via SQL")
         self.connect(self.setSQLAct, SIGNAL("triggered()"), self.setSQL)
 
+        self.editStretchAct = QAction(self)
+        self.editStretchAct.setText("&Edit Stretch")
+        self.editStretchAct.setStatusTip("Edit Stretch of raster layer")
+        self.connect(self.editStretchAct, SIGNAL("triggered()"), 
+                                                    self.editStretch)
+
         self.propertiesAct = QAction(self)
         self.propertiesAct.setText("&Properties")
         self.propertiesAct.setStatusTip("Show properties of file")
@@ -164,6 +171,7 @@ class LayerListView(QListView):
         self.rasterPopupMenu.addAction(self.moveUpAct)
         self.rasterPopupMenu.addAction(self.moveDownAct)
         self.rasterPopupMenu.addSeparator()
+        self.rasterPopupMenu.addAction(self.editStretchAct)
         self.rasterPopupMenu.addAction(self.propertiesAct)
         
         self.vectorPopupMenu = QMenu(self)
@@ -282,6 +290,20 @@ class LayerListView(QListView):
                 layer.getImage()
                 model.viewwidget.viewport().update()
 
+    def editStretch(self):
+        "Edit the stretch for the layer"
+        from . import stretchdialog
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+
+            stretchDock = stretchdialog.StretchDockWidget(self, 
+                                model.viewwidget, layer)
+            model.viewwindow.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
+
     def properties(self):
         "Show the properties for the layer"
         selected = self.selectedIndexes()
@@ -306,7 +328,7 @@ class LayerWindow(QDockWidget):
         self.listView = LayerListView()
 
         # set our item model
-        model = LayerItemModel(viewwidget, self)
+        model = LayerItemModel(viewwidget, parent, self)
         self.listView.setModel(model)
 
         self.setWidget(self.listView)
