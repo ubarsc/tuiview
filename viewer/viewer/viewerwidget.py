@@ -98,10 +98,7 @@ class ViewerWidget(QAbstractScrollArea):
         # set the background color to black so window
         # is black when nothing loaded and when panning
         # new areas are initially black.
-        widget = self.viewport()
-        palette = widget.palette()
-        palette.setColor(widget.backgroundRole(), Qt.black)
-        widget.setPalette(palette)
+        self.setBackgroundColor(Qt.black)
 
         # to do with tools
         self.rubberBand = None
@@ -427,6 +424,13 @@ class ViewerWidget(QAbstractScrollArea):
     def setMouseScrollWheelAction(self, scrollZoom):
         "Set the action for a mouse wheen event (scroll/zoom)"
         self.mouseWheelZoom = scrollZoom
+
+    def setBackgroundColor(self, color):
+        "Sets the background color for the widget"
+        widget = self.viewport()
+        palette = widget.palette()
+        palette.setColor(widget.backgroundRole(), color)
+        widget.setPalette(palette)
 
     def setGeolinkFollowExtentAction(self, followExtent):
         "Set whether we are following geolink extent of just center"

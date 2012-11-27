@@ -20,8 +20,10 @@ Module that contains the ViewerPreferences class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
-from PyQt4.QtGui import QPushButton, QGroupBox, QButtonGroup
-from PyQt4.QtCore import QSettings, SIGNAL
+from PyQt4.QtGui import QPushButton, QGroupBox, QButtonGroup, QLabel, QColor
+from PyQt4.QtCore import QSettings, SIGNAL, Qt
+
+from .stretchdialog import ColorButton
 
 class ViewerPreferencesDialog(QDialog):
     """
@@ -58,6 +60,25 @@ class ViewerPreferencesDialog(QDialog):
         else:
             self.mousePan.setChecked(True)
 
+        # background color
+        self.backgroundColorGroup = QGroupBox("Background")
+        self.backgroundColorLayout = QHBoxLayout()
+        self.backgroundColorLabel = QLabel()
+        self.backgroundColorLabel.setText("Background Canvas Color")
+
+        # this seems a bit backward...
+        rgbatuple = (self.settingBackgroundColor.red(), 
+                self.settingBackgroundColor.blue(),
+                self.settingBackgroundColor.green(),
+                self.settingBackgroundColor.alpha())
+        self.backgroundColorButton = ColorButton(self, rgbatuple)
+
+        self.backgroundColorLayout.addWidget(self.backgroundColorLabel)
+        self.backgroundColorLayout.addWidget(self.backgroundColorButton)
+        self.backgroundColorGroup.setLayout(self.backgroundColorLayout)
+
+        self.mainLayout.addWidget(self.backgroundColorGroup)
+
         # ok and cancel buttons
         self.okButton = QPushButton(self)
         self.okButton.setText("OK")
@@ -79,6 +100,10 @@ class ViewerPreferencesDialog(QDialog):
     def restoreFromSettings(self):
         """
         Restore any settings from last time
+        n.b. need to rationalize with viewerwindow.
+        I've kept this in here for now since there is a slight
+        advantage in having the setttings re-read in case another
+        window has changed them.
         """
         settings = QSettings()
 
@@ -87,16 +112,25 @@ class ViewerPreferencesDialog(QDialog):
         self.settingMouseWheelZoom = value.toBool()
         settings.endGroup()
 
+        settings.beginGroup('ViewerBackground')
+        value = settings.value("color", QColor(Qt.black), QColor)
+        self.settingBackgroundColor = value
+        settings.endGroup()
+
     def onOK(self):
         """
         Selected OK so save preferences
         """
 
         self.settingMouseWheelZoom = self.mouseZoom.isChecked()
+        self.settingBackgroundColor = self.backgroundColorButton.color
 
         settings = QSettings()
         settings.beginGroup('ViewerMouse')
         settings.setValue("mousescroll", self.settingMouseWheelZoom)
+        settings.endGroup()
+        settings.beginGroup('ViewerBackground')
+        settings.setValue("color", self.settingBackgroundColor)
         settings.endGroup()
 
         QDialog.accept(self)

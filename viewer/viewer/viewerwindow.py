@@ -23,7 +23,7 @@ the ViewerWidget, menus, toolbars and status bars.
 import os
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
 from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox, QToolButton
-from PyQt4.QtGui import QMenu
+from PyQt4.QtGui import QMenu, QColor
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
 from PyQt4.QtCore import QCoreApplication, QEventLoop
 
@@ -126,6 +126,8 @@ class ViewerWindow(QMainWindow):
         self.setupStatusBar()
 
         self.restoreFromSettings()
+        # set this value, just read from settings
+        self.viewwidget.setBackgroundColor(self.backgroundColor)
 
         self.showStatusMessage("Ready")
 
@@ -141,8 +143,6 @@ class ViewerWindow(QMainWindow):
 
         # our layer window so we can toggle it
         self.layerWindow = None
-
-        self.mouseWheelZoom = True
 
         # so if we are turning on a tool because another tool 
         # in another window has been turned on, we don't undo 
@@ -212,6 +212,7 @@ class ViewerWindow(QMainWindow):
     def restoreFromSettings(self):
         """
         Restore any settings from last time
+        n.b. need to rationalize with preferences window
         """
         settings = QSettings()
         settings.beginGroup('ViewerWindow')
@@ -224,9 +225,13 @@ class ViewerWindow(QMainWindow):
         settings.endGroup()
 
         settings.beginGroup('ViewerMouse')
-        self.mouseWheelZoom = True
-        value = settings.value("mousescroll", self.mouseWheelZoom)
+        value = settings.value("mousescroll", True)
         self.mouseWheelZoom = value.toBool()
+        settings.endGroup()
+
+        settings.beginGroup('ViewerBackground')
+        value = settings.value("color", QColor(Qt.black), QColor)
+        self.backgroundColor = value
         settings.endGroup()
 
     def setupActions(self):
@@ -951,10 +956,6 @@ Numpy Version: %s
         settings.setValue("pos", self.pos())
         settings.endGroup()
 
-        settings.beginGroup('ViewerMouse')
-        settings.setValue("mousescroll", self.mouseWheelZoom)
-        settings.endGroup()
-
         event.accept()
 
     def dragEnterEvent(self, event):
@@ -984,16 +985,13 @@ Numpy Version: %s
         """
         from . import viewerpreferences
         viewPref = viewerpreferences.ViewerPreferencesDialog(self)
-        viewPref.exec_()
+        if viewPref.exec_() == QDialog.Accepted:
 
-        # extract the mouse wheel setting
-        settings = QSettings()
-        settings.beginGroup('ViewerMouse')
-        self.mouseWheelZoom = True
-        value = settings.value("mousescroll", self.mouseWheelZoom)
-        self.mouseWheelZoom = value.toBool()
-        settings.endGroup()
-
-        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
-
+            # extract the mouse wheel setting
+            self.mouseWheelZoom = viewPref.settingMouseWheelZoom
+            self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
+            # the color
+            self.backgroundColor = viewPref.settingBackgroundColor
+            self.viewwidget.setBackgroundColor(self.backgroundColor)
+            # setting have already been set back to disc
 
