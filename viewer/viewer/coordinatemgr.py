@@ -241,10 +241,10 @@ class RasterCoordManager(CoordManager):
         rastAspectRatio = rastWidth / rastHeight
         
         if rastAspectRatio < displayAspectRatio:
-            rastWidth = int(math.ceil(displayAspectRatio * rastHeight))
+            rastWidth = displayAspectRatio * rastHeight
             right = self.pixLeft + rastWidth
         elif rastAspectRatio > displayAspectRatio:
-            rastHeight = int(math.ceil(rastWidth / displayAspectRatio))
+            rastHeight = rastWidth / displayAspectRatio
             bottom = self.pixTop + rastHeight
         
         self.imgPixPerWinPix = (right - self.pixLeft) / self.dspWidth
