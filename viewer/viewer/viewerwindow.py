@@ -132,6 +132,7 @@ class ViewerWindow(QMainWindow):
 
         self.restoreFromSettings()
         # set this value, just read from settings
+        self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
         self.viewwidget.setBackgroundColor(self.backgroundColor)
 
         self.showStatusMessage("Ready")
@@ -237,9 +238,9 @@ class ViewerWindow(QMainWindow):
         settings.endGroup()
 
         settings.beginGroup('ViewerMouse')
-        value = settings.value("mousescroll", True)
+        value = settings.value("mousescroll", True, bool)
         if sys.version_info[0] == 3:
-            self.mouseWheelZoom = value
+            self.mouseWheelZoom = bool(value)
         else:
             self.mouseWheelZoom = value.toBool()
         settings.endGroup()
@@ -658,7 +659,6 @@ class ViewerWindow(QMainWindow):
         # now open it for real
         try:
             self.viewwidget.addRasterLayer(gdaldataset, stretch, lut)
-            self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
         except Exception as e:
             QMessageBox.critical(self, "Viewer", str(e) )
 
