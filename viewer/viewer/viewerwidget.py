@@ -461,6 +461,9 @@ class ViewerWidget(QAbstractScrollArea):
                 yamount = (float(dy) / vpagestep) * (top - bottom)
                 wldX, wldY = layer.coordmgr.getWorldCenter()
                 layer.coordmgr.setWorldCenter(wldX + xamount, wldY + yamount)
+                # not sure why we need this but get black strips 
+                # around otherwise
+                layer.coordmgr.recalcBottomRight() 
                 self.layers.makeLayersConsistent(layer)
                 self.layers.updateImages()
                 self.viewport().update()
