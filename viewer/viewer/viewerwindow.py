@@ -239,10 +239,7 @@ class ViewerWindow(QMainWindow):
 
         settings.beginGroup('ViewerMouse')
         value = settings.value("mousescroll", True, bool)
-        if sys.version_info[0] == 3:
-            self.mouseWheelZoom = bool(value)
-        else:
-            self.mouseWheelZoom = value.toBool()
+        self.mouseWheelZoom = value
         settings.endGroup()
 
         settings.beginGroup('ViewerBackground')
