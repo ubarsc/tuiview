@@ -583,6 +583,12 @@ class ViewerWindow(QMainWindow):
         dlg = QFileDialog(self)
         dlg.setNameFilters(GDAL_FILTERS)
         dlg.setFileMode(QFileDialog.ExistingFiles)
+        # set last dir
+        layer = self.viewwidget.layers.getTopRasterLayer()
+        if layer is not None:
+            dir = os.path.dirname(layer.filename)
+            dlg.setDirectory(dir)
+
         if dlg.exec_() == QDialog.Accepted:
             for fname in dlg.selectedFiles():
                 self.addRasterInternal(fname)
@@ -596,6 +602,12 @@ class ViewerWindow(QMainWindow):
         dlg = QFileDialog(self)
         dlg.setNameFilter("OGR Files (*)")
         dlg.setFileMode(QFileDialog.ExistingFile)
+        # set last dir
+        layer = self.viewwidget.layers.getTopVectorLayer()
+        if layer is not None:
+            dir = os.path.dirname(layer.filename)
+            dlg.setDirectory(dir)
+
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
             self.addVectorInternal(fname)
@@ -604,7 +616,14 @@ class ViewerWindow(QMainWindow):
         """
         Add a vector from a directory (filegdb/covereage)
         """
+        # set last dir
+        layer = self.viewwidget.layers.getTopVectorLayer()
+        olddir = None
+        if layer is not None:
+            olddir = os.path.dirname(layer.filename)
+
         dir = QFileDialog.getExistingDirectory(self, "Choose vector directory",
+            directory=olddir,
             options=QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks)
         if dir != "":
             self.addVectorInternal(dir)
