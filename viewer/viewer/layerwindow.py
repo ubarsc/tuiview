@@ -19,9 +19,10 @@ Module that contains the LayerWindow class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import os
+import sys
 from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction
 from PyQt4.QtGui import QMessageBox
-from PyQt4.QtCore import QAbstractListModel, QVariant, Qt, SIGNAL
+from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
 
 from . import viewerlayers
 
@@ -61,36 +62,39 @@ class LayerItemModel(QAbstractListModel):
         Get the data associated with an item
         """
         if not index.isValid():
-            return QVariant()
+            return None
 
         layer = self.getLayer(index)
 
         if role == Qt.DisplayRole:
             # name 
             fname = os.path.basename(layer.filename)
-            return QVariant(fname)
+            return fname
         elif role == Qt.DecorationRole:
             # icon
             layer = self.getLayer(index)
             if isinstance(layer, viewerlayers.ViewerRasterLayer):
-                return QVariant(self.rasterIcon)
+                return self.rasterIcon
             else:
-                return QVariant(self.vectorIcon)
+                return self.vectorIcon
         elif role == Qt.CheckStateRole:
             # whether displayed or not
             if layer.displayed:
-                return QVariant(Qt.Checked)
+                return Qt.Checked
             else:
-                return QVariant(Qt.Unchecked)
+                return Qt.Unchecked
         else:
-            return QVariant()
+            return None
 
     def setData(self, index, value, role):
         """
         Set the data back. Only bother with CheckStateRole
         """
         if role == Qt.CheckStateRole:
-            state = value.toInt()[0]
+            if sys.version_info[0] >= 3:
+                state = value
+            else:
+                state = value.toInt()[0]
             layer = self.getLayer(index)
             state = state == Qt.Checked
             self.viewwidget.layers.setDisplayedState(layer, state)
@@ -323,6 +327,7 @@ class LayerWindow(QDockWidget):
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Layers", parent)
         self.viewwidget = viewwidget
+        self.parent = parent
 
         # create the list view
         self.listView = LayerListView()
@@ -343,7 +348,7 @@ class LayerWindow(QDockWidget):
         """
         # the only way I can get the whole thing redrawn
         # is to pretend I have a new model. Any suggestions?
-        model = LayerItemModel(self.viewwidget, self)
+        model = LayerItemModel(self.viewwidget, self.parent, self)
         self.listView.setModel(model)
 
 

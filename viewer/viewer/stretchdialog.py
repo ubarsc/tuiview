@@ -25,8 +25,9 @@ from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
 from PyQt4.QtGui import QPushButton, QGroupBox, QDockWidget
 from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox
 from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor, QMessageBox
-from PyQt4.QtCore import QVariant, QSettings, SIGNAL, Qt
+from PyQt4.QtCore import QSettings, SIGNAL, Qt
 import json
+import sys
 
 from . import viewerstretch
 from . import pseudocolor
@@ -45,6 +46,15 @@ STRETCH_DATA = (("None", viewerstretch.VIEWER_STRETCHMODE_NONE),
 DEFAULT_STRETCH_KEY = 'DefaultStretch'
 
 MAX_BAND_NUMBER = 100 # for spin boxes
+
+def VariantToInt(variant):
+    """
+    Action depends on which version of Python we are running
+    """
+    if sys.version_info[0] >= 3:
+        return variant # already is an int
+    else:
+        return variant.toInt()[0]
 
 class ColorButton(QToolButton):
     """
@@ -104,7 +114,7 @@ class StretchLayout(QFormLayout):
         self.modeCombo = QComboBox(parent)
         index = 0
         for text, code in MODE_DATA:
-            self.modeCombo.addItem(text, QVariant(code))
+            self.modeCombo.addItem(text, code)
             if code == stretch.mode:
                 self.modeCombo.setCurrentIndex(index)
             index += 1
@@ -118,14 +128,13 @@ class StretchLayout(QFormLayout):
         # make sure the pseudocolor has the extra ramps loaded
         try:
             pseudocolor.loadExtraRamps()
-        except Exception, e:
+        except Exception as e:
             QMessageBox.critical(parent, "Viewer", str(e))
 
         # populate combo - sort by type
         index = 0
         for (name, display) in pseudocolor.getRampsForDisplay():
-            userdata = QVariant(name)
-            self.rampCombo.addItem(display, userdata)
+            self.rampCombo.addItem(display, name)
             if stretch.rampName is not None and stretch.rampName == name:
                 self.rampCombo.setCurrentIndex(index)
             index += 1
@@ -166,7 +175,7 @@ class StretchLayout(QFormLayout):
         self.stretchCombo = QComboBox(parent)
         index = 0
         for text, code in STRETCH_DATA:
-            self.stretchCombo.addItem(text, QVariant(code))
+            self.stretchCombo.addItem(text, code)
             if code == stretch.stretchmode:
                 self.stretchCombo.setCurrentIndex(index)
             index += 1
@@ -312,7 +321,7 @@ class StretchLayout(QFormLayout):
             bandnum = count + 1
             gdalband = gdaldataset.GetRasterBand(bandnum)
             name = gdalband.GetDescription()
-            combo.addItem(name, QVariant(bandnum))
+            combo.addItem(name, bandnum)
 
         combo.setCurrentIndex(currentBand - 1)
 
@@ -327,7 +336,7 @@ class StretchLayout(QFormLayout):
         else:
             index = widget.currentIndex()
             var = widget.itemData(index)
-            value = var.toInt()[0]
+            value = VariantToInt(var)
         return value
 
     def getStretch(self):
@@ -337,7 +346,7 @@ class StretchLayout(QFormLayout):
         """
         obj = viewerstretch.ViewerStretch()
         index = self.modeCombo.currentIndex()
-        obj.mode = self.modeCombo.itemData(index).toInt()[0]
+        obj.mode = VariantToInt(self.modeCombo.itemData(index))
 
         bands = []
         value = self.getBandValue(self.redWidget)
@@ -356,7 +365,7 @@ class StretchLayout(QFormLayout):
             obj.setPseudoColor(str(rampName))
 
         index = self.stretchCombo.currentIndex()
-        obj.stretchmode = self.stretchCombo.itemData(index).toInt()[0]
+        obj.stretchmode = VariantToInt(self.stretchCombo.itemData(index))
         if obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             value = self.stretchParam1.value()
             obj.setStdDevStretch(value)
@@ -385,7 +394,7 @@ class StretchLayout(QFormLayout):
         Called when user changed the mode. 
         Updates other GUI elements as needed
         """
-        mode = self.modeCombo.itemData(index).toInt()[0]
+        mode = VariantToInt(self.modeCombo.itemData(index))
         greenredEnabled = (mode == viewerstretch.VIEWER_MODE_RGB)
         self.greenWidget.setEnabled(greenredEnabled)
         self.blueWidget.setEnabled(greenredEnabled)
@@ -412,7 +421,7 @@ class StretchLayout(QFormLayout):
         Called when user changed the stretch. 
         Updates other GUI elements as needed
         """
-        stretchmode = self.stretchCombo.itemData(index).toInt()[0]
+        stretchmode = VariantToInt(self.stretchCombo.itemData(index))
         if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(False)
@@ -476,8 +485,7 @@ class RuleLayout(QGridLayout):
         self.compCombo = QComboBox(parent)
         index = 0
         for text, code in RULE_DATA:
-            variant = QVariant(code)
-            self.compCombo.addItem(text, variant)
+            self.compCombo.addItem(text, code)
             if code == rule.comp:
                 self.compCombo.setCurrentIndex(index)
             index += 1
@@ -511,7 +519,7 @@ class RuleLayout(QGridLayout):
         Note: the stretch field will be None
         """
         index = self.compCombo.currentIndex()
-        comp = self.compCombo.itemData(index).toInt()[0]
+        comp = VariantToInt(self.compCombo.itemData(index))
         value = self.numberBox.value()
         ctband = self.colorTableBox.value()
         if ctband == 0:
@@ -630,7 +638,7 @@ class StretchDefaultsDialog(QDialog):
         ruleList = []
 
         defaultRulesJSON = settings.value(DEFAULT_STRETCH_KEY)
-        if defaultRulesJSON.isNull():
+        if defaultRulesJSON is None or defaultRulesJSON.isNull():
             # there isn't one, construct some defaults
             stretch = viewerstretch.ViewerStretch()
 

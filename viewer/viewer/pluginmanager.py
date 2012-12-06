@@ -19,6 +19,7 @@ Contains the PluginManager class.
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from __future__ import print_function
 import os
 import sys
 import imp
@@ -52,17 +53,17 @@ class PluginManager(object):
             try:
                 action = getattr(mod, PLUGIN_ACTION_FN)
                 action(actioncode, param)
-            except Exception, e:
+            except Exception as e:
                 self.printTraceback(mod)
 
     @staticmethod
     def printTraceback(name):
         import traceback
-        print 'Exception raised when calling plugin %s:' % name
+        print('Exception raised when calling plugin %s:' % name)
         (ttype, value, tb) = sys.exc_info()
         stack = traceback.extract_tb(tb)
         trace = '\n'.join(traceback.format_list(stack))
-        print trace, ttype.__name__, ':', value
+        print(trace, ttype.__name__, ':', value)
 
     @staticmethod
     def getSuffixes():
@@ -132,25 +133,25 @@ class PluginManager(object):
                 for fn in PLUGIN_REQUIRED_FNS:
                     if not hasattr(mod, fn):
                         msg = 'Plugin %s does not have required functions'
-                        print msg % path
+                        print(msg % path)
                         return
 
                 # must be ok. Get name and save it
                 try:
                     name = getattr(mod, PLUGIN_NAME_FN)
                     modname = name()
-                except Exception, e:
+                except Exception as e:
                     self.printTraceback(modname)
                     return
                 self.plugins[modname] = mod
-                print 'loaded plugin %s' % modname
+                print('loaded plugin %s' % modname)
             except ImportError:
-                print 'Unable to import %s' % path
+                print('Unable to import %s' % path)
             finally:
                 fileobj.close()
 
         except IOError:
-            print 'Unable to read %s' % path
+            print('Unable to read %s' % path)
 
 
 

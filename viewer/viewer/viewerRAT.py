@@ -263,7 +263,7 @@ class ViewerRAT(QObject):
                     # this converts to a string array
                     # of the right dtype to handle values
                     values = numpy.array(values, dtype=str)
-        except ValueError, e:
+        except ValueError as e:
             msg = str(e)
             raise viewererrors.UserExpressionTypeError(msg)
 

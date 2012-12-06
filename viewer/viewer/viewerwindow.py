@@ -21,13 +21,18 @@ the ViewerWidget, menus, toolbars and status bars.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import os
+import sys
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
 from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox, QToolButton
 from PyQt4.QtGui import QMenu, QColor
-from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, QStringList, Qt
+from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, Qt
 from PyQt4.QtCore import QCoreApplication, QEventLoop
 
-from . import viewerresources
+# different resource file needed on Python3
+if sys.version_info[0] == 3:
+    from . import viewerresources3
+else:
+    from . import viewerresources2
 from . import viewerwidget
 
 DEFAULT_XSIZE = 400
@@ -39,7 +44,7 @@ MESSAGE_TIMEOUT = 2000
 DEFAULT_DRIVER = 'HFA'
 MESSAGE_TITLE = 'Viewer'
 
-# Populate this QStringList the first time the
+# Populate this list the first time the
 # file open dialog shown.
 GDAL_FILTERS = None
 
@@ -51,7 +56,7 @@ def createFilter(driver):
     from osgeo.gdal import DMD_LONGNAME, DMD_EXTENSION
     drivermeta = driver.GetMetadata()
     name = 'Image Files'
-    if drivermeta.has_key(DMD_LONGNAME):
+    if DMD_LONGNAME in drivermeta:
         name = drivermeta[DMD_LONGNAME]
         # get rid of any stuff in brackets - seems to
         # confuse Qt 4.x
@@ -59,7 +64,7 @@ def createFilter(driver):
         if firstbracket != -1:
             name = name[:firstbracket]
     qfilter = '*'
-    if drivermeta.has_key(DMD_EXTENSION):
+    if DMD_EXTENSION in drivermeta:
         qfilter = drivermeta[DMD_EXTENSION]
     return "%s (*.%s)" % (name, qfilter)
 
@@ -73,7 +78,7 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
     global GDAL_FILTERS
     # only bother if it hasn't been populated already
     if GDAL_FILTERS is None:
-        GDAL_FILTERS = QStringList()
+        GDAL_FILTERS = []
         # add all files first
         GDAL_FILTERS.append("All files (*)")
 
@@ -155,7 +160,7 @@ class ViewerWindow(QMainWindow):
         called in response to the topLayerChanged(QString) signal
         from the layers to say the top displayed layer has changed
         """
-        if not fname.isEmpty():
+        if fname != '':
             # just display the basename
             title = os.path.basename(str(fname))
             self.setWindowTitle(title)
@@ -217,16 +222,26 @@ class ViewerWindow(QMainWindow):
         settings = QSettings()
         settings.beginGroup('ViewerWindow')
 
+        # qvariant behaviour is different in Python3 so be careful
         defaultsize = QSize(DEFAULT_XSIZE, DEFAULT_YSIZE)
-        self.resize(settings.value("size", defaultsize).toSize())
+        if sys.version_info[0] == 3:
+            self.resize(settings.value("size", defaultsize))
+        else:
+            self.resize(settings.value("size", defaultsize).toSize())
         defaultpos = QPoint(DEFAULT_XPOS, DEFAULT_YPOS)
-        self.move(settings.value("pos", defaultpos).toPoint())
+        if sys.version_info[0] == 3:
+            self.move(settings.value("pos", defaultpos))
+        else:
+            self.move(settings.value("pos", defaultpos).toPoint())
 
         settings.endGroup()
 
         settings.beginGroup('ViewerMouse')
         value = settings.value("mousescroll", True)
-        self.mouseWheelZoom = value.toBool()
+        if sys.version_info[0] == 3:
+            self.mouseWheelZoom = value
+        else:
+            self.mouseWheelZoom = value.toBool()
         settings.endGroup()
 
         settings.beginGroup('ViewerBackground')

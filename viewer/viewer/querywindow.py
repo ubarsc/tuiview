@@ -24,7 +24,7 @@ from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction, QPrinter
 from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QHeaderView
 from PyQt4.QtGui import QStyledItemDelegate, QStyle, QItemSelectionModel
-from PyQt4.QtCore import SIGNAL, Qt, QVariant, QAbstractTableModel 
+from PyQt4.QtCore import SIGNAL, Qt, QAbstractTableModel 
 from PyQt4.QtCore import QModelIndex
 import numpy
 
@@ -100,25 +100,25 @@ class ThematicTableModel(QAbstractTableModel):
         if orientation == Qt.Horizontal:
             if role == Qt.DisplayRole:
                 name = self.saneColNames[section]
-                return QVariant(name)
+                return name
             elif role == Qt.DecorationRole:
                 name = self.colNames[section]
                 if name == self.attributes.getLookupColName():
-                    return QVariant(self.lookupColIcon)
+                    return self.lookupColIcon
                 else:
-                    return QVariant()
+                    return None
             else:
-                return QVariant()
+                return None
                 
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             # rows just a number
-            return QVariant("%s" % section)
+            return "%s" % section
         elif (orientation == Qt.Vertical and role == Qt.BackgroundRole and
                 section == self.highlightRow):
             # highlight the header also
             return self.highlightBrush
         else:
-            return QVariant()
+            return None
 
     def data(self, index, role):
         """
@@ -127,7 +127,7 @@ class ThematicTableModel(QAbstractTableModel):
         and Qt.BackgroundRole for the highlight role
         """
         if not index.isValid():
-            return QVariant()
+            return None
 
         row = index.row()
         if role == Qt.BackgroundRole and row == self.highlightRow:
@@ -138,9 +138,9 @@ class ThematicTableModel(QAbstractTableModel):
             name = self.attributes.getColumnNames()[column]
             attr = self.attributes.getAttribute(name)
             fmt = self.attributes.getFormat(name)
-            return QVariant(fmt % attr[row]) 
+            return fmt % attr[row]
         else:
-            QVariant()
+            return None
 
 class ContinuousTableModel(QAbstractTableModel):
     """
@@ -169,12 +169,12 @@ class ContinuousTableModel(QAbstractTableModel):
         """
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             name = self.colNames[section]
-            return QVariant(name)
+            return name
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             # rows just a number
-            return QVariant("%s" % (section + 1))
+            return "%s" % (section + 1)
         else:
-            return QVariant()
+            return None
 
     def data(self, index, role):
         """
@@ -183,7 +183,7 @@ class ContinuousTableModel(QAbstractTableModel):
         and Qt.BackgroundRole for the highlight role
         """
         if not index.isValid():
-            return QVariant()
+            return None
 
         column = index.column()
         row = index.row()
@@ -193,31 +193,31 @@ class ContinuousTableModel(QAbstractTableModel):
             if (self.stretch.mode == VIEWER_MODE_RGB and 
                             band in self.stretch.bands):
                 if band == self.stretch.bands[0]:
-                    return QVariant(RED_ICON)
+                    return RED_ICON
                 elif band == self.stretch.bands[1]:
-                    return QVariant(GREEN_ICON)
+                    return GREEN_ICON
                 elif band == self.stretch.bands[2]:
-                    return QVariant(BLUE_ICON)
+                    return BLUE_ICON
                 else:
-                    return QVariant()
+                    return None
             elif (self.stretch.mode == VIEWER_MODE_GREYSCALE 
                     and band == self.stretch.bands[0]):
-                return QVariant(GREY_ICON)
+                return GREY_ICON
 
             else:
-                return QVariant()
+                return None
 
         elif column == 1 and role == Qt.DisplayRole: 
             # band names column
-            return QVariant(self.bandNames[row])
+            return self.bandNames[row]
 
         elif (column == 2 and role == Qt.DisplayRole and 
                             self.banddata is not None):
             # band values column
-            return QVariant("%s" % self.banddata[row])
+            return "%s" % self.banddata[row]
 
         else:
-            QVariant()
+            return None
 
 class ThematicSelectionModel(QItemSelectionModel):
     """
@@ -980,7 +980,7 @@ Use the special columns:
             # so we repaint and our itemdelegate gets called
             self.tableView.viewport().update()
 
-        except viewererrors.UserExpressionError, e:
+        except viewererrors.UserExpressionError as e:
             QMessageBox.critical(self, "Viewer", str(e))
 
     def addColumn(self):
@@ -996,7 +996,7 @@ Use the special columns:
             colname = dlg.getColumnName()
             try:
                 attributes.addColumn(colname, dtype)
-            except Exception, e:
+            except Exception as e:
                 QMessageBox.critical(self, "Viewer", str(e))
 
             self.updateThematicTableModel(attributes)
@@ -1061,7 +1061,7 @@ Use the special columns:
                 col = attributes.getAttribute(colname)
                 self.viewwidget.setColorTableLookup(col, colname)
 
-        except viewererrors.UserExpressionError, e:
+        except viewererrors.UserExpressionError as e:
             QMessageBox.critical(self, "Viewer", str(e))
 
     def undoEditUserExpression(self, undoObject, col):
@@ -1143,7 +1143,7 @@ Use the special columns:
 
             if len(tables) == 1:
                 # only one - we can assume they want that
-                tablename = tables.keys()[0]
+                tablename = list(tables.keys())[0]
             else:
                 # need to ask them which one
                 from PyQt4.QtGui import QInputDialog
@@ -1184,7 +1184,7 @@ Use the special columns:
 
             self.lastLayer.writeDirtyRATColumns()
 
-        except viewererrors.InvalidDataset, e:
+        except viewererrors.InvalidDataset as e:
             QMessageBox.critical(self, "Viewer", str(e))
         finally:
             self.setCursor(Qt.ArrowCursor)  # look like we are finished
@@ -1198,7 +1198,7 @@ Use the special columns:
 
             self.lastLayer.writeRATColumnOrder()
 
-        except viewererrors.InvalidDataset, e:
+        except viewererrors.InvalidDataset as e:
             QMessageBox.critical(self, "Viewer", str(e))
 
     def activeToolChanged(self, obj):
@@ -1611,7 +1611,7 @@ Use the special columns:
                         # can't just use result because we need selectionArray applied
                         col = attributes.getAttribute(colname)
                         self.viewwidget.setColorTableLookup(col, colname)
-                except viewererrors.UserExpressionError, e:
+                except viewererrors.UserExpressionError as e:
                     QMessageBox.critical(self, "Viewer", str(e))
                 self.keyboardData = ''
             else:

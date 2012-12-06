@@ -364,9 +364,9 @@ class ViewerWidget(QAbstractScrollArea):
         elif tool == VIEWER_TOOL_POLYGON or tool == VIEWER_TOOL_POLYLINE:
             if self.polygonCursor is None:
                 self.polygonCursor = QCursor(QPixmap(["16 16 3 1",
-                                  " \xc2     c None",
-                                  ".\xc2     c #000000",
-                                  "+\xc2     c #FFFFFF",
+                                  "      c None",
+                                  ".     c #000000",
+                                  "+     c #FFFFFF",
                                   "                ",
                                   "       +.+      ",
                                   "      ++.++     ",
@@ -588,7 +588,7 @@ class ViewerWidget(QAbstractScrollArea):
             elif button == Qt.RightButton and self.toolPoints is not None:
                 # finished
                 # create object for signal
-                from viewertoolclasses import PolygonToolInfo
+                from .viewertoolclasses import PolygonToolInfo
                 layer = self.layers.getTopRasterLayer()
                 modifiers = event.modifiers()
                 obj = PolygonToolInfo(self.toolPoints, layer, modifiers)
@@ -619,7 +619,7 @@ class ViewerWidget(QAbstractScrollArea):
             elif button == Qt.RightButton and self.toolPoints is not None:
                 # finished
                 # create object for signal
-                from viewertoolclasses import PolylineToolInfo
+                from .viewertoolclasses import PolylineToolInfo
                 layer = self.layers.getTopRasterLayer()
                 modifiers = event.modifiers()
                 obj = PolylineToolInfo(self.toolPoints, layer, modifiers)

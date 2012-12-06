@@ -20,7 +20,8 @@ Contains the AddColumnDialog class
 
 from PyQt4.QtGui import QDialog, QFormLayout, QComboBox, QLineEdit
 from PyQt4.QtGui import QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox
-from PyQt4.QtCore import QVariant, SIGNAL
+from PyQt4.QtCore import SIGNAL
+import sys
 
 from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
 
@@ -33,11 +34,11 @@ class AddColumnDialog(QDialog):
         QDialog.__init__(self, parent)
 
         self.typeCombo = QComboBox()
-        userdata = QVariant(NEWCOL_INT)
+        userdata = NEWCOL_INT
         self.typeCombo.addItem("Integer", userdata)
-        userdata = QVariant(NEWCOL_FLOAT)
+        userdata = NEWCOL_FLOAT
         self.typeCombo.addItem("Floating Point", userdata)
-        userdata = QVariant(NEWCOL_STRING)
+        userdata = NEWCOL_STRING
         self.typeCombo.addItem("String", userdata)
 
         self.nameEdit = QLineEdit()
@@ -64,7 +65,7 @@ class AddColumnDialog(QDialog):
         self.nameEdit.setFocus()
 
     def onOK(self):
-        if self.nameEdit.text().size() == 0:
+        if len(self.nameEdit.text()) == 0:
             QMessageBox.critical(self, "Viewer", "Must enter column name")
             self.nameEdit.setFocus()
         else:
@@ -73,7 +74,10 @@ class AddColumnDialog(QDialog):
     def getColumnType(self):
         index = self.typeCombo.currentIndex()
         userdata = self.typeCombo.itemData(index)
-        return userdata.toInt()[0]
+        if sys.version_info[0] >= 3:
+            return int(userdata)
+        else:
+            return userdata.toInt()[0]
 
     def getColumnName(self):
         return str(self.nameEdit.text())

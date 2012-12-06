@@ -19,6 +19,7 @@ this module contains the LayerManager and related classes
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from __future__ import print_function
 import numpy
 from osgeo import gdal
 from osgeo import osr
@@ -495,7 +496,7 @@ class ViewerRasterLayer(ViewerLayer):
         # find the best overview based on imgpixperwinpix
         imgpix = self.coordmgr.imgPixPerWinPix
         selectedovi = self.overviews.findBestOverview(imgpix)
-        print selectedovi.index
+        print(selectedovi.index)
 
         # if this layer isn't anywhere near where we currently are
         # don't even bother reading - just create a empty QImage

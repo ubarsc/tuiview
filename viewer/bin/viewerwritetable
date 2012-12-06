@@ -24,7 +24,7 @@ and delete specified tables.
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
+from __future__ import print_function
 import sys
 import optparse
 from osgeo import gdal
@@ -68,9 +68,9 @@ class CmdArgs(object):
             msg = "can't specify --name, --source or --dest with --print"
             raise SystemExit(msg)
 
-	if not options.printct and not any(writeValid):
-		self.parser.print_help()
-		sys.exit(0)
+        if not options.printct and not any(writeValid):
+                self.parser.print_help()
+                sys.exit(0)
 
         self.__dict__.update(options.__dict__)
 
@@ -85,14 +85,14 @@ def printTables(fname):
 
     tables = ViewerLUT.readSurrogateColorTables(ds)
     if len(tables) == 0:
-        print "No tables found"
+        print("No tables found")
     else:
-        print "Name\tSize"
-        print "------------------------"
+        print("Name\tSize")
+        print("------------------------")
 
         for name in tables:
             (size, bands) = tables[name].shape
-            print "%s\t%s" % (name, size)
+            print("%s\t%s" % (name, size))
 
     del ds
 
