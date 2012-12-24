@@ -20,16 +20,16 @@ Module that contains the ProfileDockWidget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PyQt4.QtGui import QDockWidget, QWidget, QToolBar, QVBoxLayout
-from PyQt4.QtGui import QPen, QLabel, QAction, QIcon, QFileDialog, QPrinter
+from PyQt4.QtGui import QPen, QLabel, QAction, QIcon
 from PyQt4.QtCore import Qt, SIGNAL, QLocale
 import numpy
 
-# See if we have access to Qwt
-HAVE_QWT = True
+# See if we have access to PyQtGraph
+HAVE_PYQTGRAPH = True
 try:
-    from PyQt4.Qwt5 import QwtPlot, QwtPlotCurve
+    import pyqtgraph
 except ImportError:
-    HAVE_QWT = False
+    HAVE_PYQTGRAPH = False
 
 class ProfileDockWidget(QDockWidget):
     """
@@ -48,23 +48,20 @@ class ProfileDockWidget(QDockWidget):
         self.setupToolbar()
         self.mainLayout.addWidget(self.toolBar)
 
-        if HAVE_QWT:
-            self.plotWidget = QwtPlot()
-            self.plotWidget.setMinimumSize(100, 100)
+        if HAVE_PYQTGRAPH:
+            self.plotWidget = pyqtgraph.PlotWidget()
             self.mainLayout.addWidget(self.plotWidget)
 
-            self.blackPen = QPen(Qt.black)
+            self.whitePen = QPen(Qt.white)
             self.redPen = QPen(Qt.red)
             self.greenPen = QPen(Qt.green)
             self.bluePen = QPen(Qt.blue)
 
-            self.oldCurves = [] # so we can detach them for replot
-
         else:
-            self.noQWTLabel = QLabel()
-            self.noQWTLabel.setText("PyQwt needs to be installed for plot")
-            self.noQWTLabel.setAlignment(Qt.AlignCenter)
-            self.mainLayout.addWidget(self.noQWTLabel)
+            self.noPyQtGraphLabel = QLabel()
+            self.noPyQtGraphLabel.setText("PyQtGraph needs to be installed for plot")
+            self.noPyQtGraphLabel.setAlignment(Qt.AlignCenter)
+            self.mainLayout.addWidget(self.noPyQtGraphLabel)
 
         self.distanceLabel = QLabel()
         self.mainLayout.addWidget(self.distanceLabel)
@@ -114,7 +111,7 @@ class ProfileDockWidget(QDockWidget):
         Add the actions to the toolbar
         """
         self.toolBar.addAction(self.followAction)
-        if HAVE_QWT:
+        if HAVE_PYQTGRAPH:
             self.toolBar.addAction(self.savePlotAction)
             self.toolBar.addAction(self.plotScalingAction)
 
@@ -123,16 +120,20 @@ class ProfileDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        if HAVE_QWT:
+        from PyQt4.QtGui import QPrinter, QPainter, QFileDialog
+        if HAVE_PYQTGRAPH:
             fname = QFileDialog.getSaveFileName(self, "Plot File", 
                         filter="PDF (*.pdf);;Postscript (*.ps)")
-            if not fname.isEmpty():
+            if fname != '':
                 printer = QPrinter()
                 printer.setOrientation(QPrinter.Landscape)
                 printer.setColorMode(QPrinter.Color)
                 printer.setOutputFileName(fname)
                 printer.setResolution(96)
-                self.plotWidget.print_(printer)
+                painter = QPainter()
+                painter.begin(printer)
+                self.plotWidget.render(painter)
+                painter.end()
 
     def plotProfile(self, xdata, ydata, mask, pen):
         """
@@ -155,11 +156,10 @@ class ProfileDockWidget(QDockWidget):
                 # we are in a run of True's
                 xdatasub = xdata[lastidx:idx]
                 ydatasub = ydata[lastidx:idx]
-                curve = QwtPlotCurve()
-                curve.setData(xdatasub, ydatasub)
+                
+                curve = self.plotWidget.plot()
+                curve.setData(x=xdatasub, y=ydatasub)
                 curve.setPen(pen)
-                curve.attach(self.plotWidget)
-                self.oldCurves.append(curve)
             lastidx = idx
 
     def newLine(self, polyLine):
@@ -177,12 +177,10 @@ class ProfileDockWidget(QDockWidget):
         fmt = "Total Distance: %s" % txt
         self.distanceLabel.setText(fmt)
 
-        if HAVE_QWT:
+        if HAVE_PYQTGRAPH:
 
             # get rid of curves from last time
-            for curve in self.oldCurves:
-                curve.detach()
-            self.oldCurves = []
+            self.plotWidget.clear()
 
             if isinstance(profiledata, list):
                 # RGB
@@ -202,7 +200,7 @@ class ProfileDockWidget(QDockWidget):
                         maxValue = bandMaxValue
             else:
                 # greyscale
-                pen = self.blackPen
+                pen = self.whitePen
                 self.plotProfile(distance, profiledata, profilemask, pen)
 
                 # find range of data for scaling
@@ -213,13 +211,13 @@ class ProfileDockWidget(QDockWidget):
             self.dataRange = (minValue, maxValue)
 
             # include total distance in case start or end off image
-            self.plotWidget.setAxisScale(QwtPlot.xBottom, 0, distance[-1])
+            self.plotWidget.setXRange(0, distance[-1])
 
             # set scaling if needed
             minScale, maxScale = self.plotScaling
             if minScale is None and maxScale is None:
                 # set back to auto
-                self.plotWidget.setAxisAutoScale(QwtPlot.yLeft)
+                self.plotWidget.enableAutoRange(pyqtgraph.ViewBox.YAxis)
             else:
                 # we need to provide both min and max so
                 # derive from data if needed
@@ -227,9 +225,8 @@ class ProfileDockWidget(QDockWidget):
                     minScale = minValue
                 if maxScale is None:
                     maxScale = maxValue
-                self.plotWidget.setAxisScale(QwtPlot.yLeft, minScale, maxScale)
+                self.plotWidget.setYRange(minScale, maxScale)
 
-            self.plotWidget.replot()
             self.lastPolyLine = polyLine
 
     def onPlotScaling(self):
@@ -237,7 +234,7 @@ class ProfileDockWidget(QDockWidget):
         Allows the user to change the Y axis scaling of the plot
         """
         from .plotscalingdialog import PlotScalingDialog
-        if HAVE_QWT:
+        if HAVE_PYQTGRAPH:
             if self.dataRange is not None:
                 minValue, maxValue = self.dataRange
                 # should inherit type of minValue etc
