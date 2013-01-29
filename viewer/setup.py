@@ -63,7 +63,7 @@ class Win32SpecificOps(OSSpecificOps):
             kwargs['console'] = ['bin/viewerwritetable']
             # see http://www.py2exe.org/index.cgi/TkInter, http://www.py2exe.org/index.cgi/Py2exeAndPyQt
             # gone all out on the optimisations - don't need docstrings etc
-            options = {'py2exe':{'bundle_files' : 3, 'includes':["sip"],
+            options = {'py2exe':{'bundle_files' : 3, 'includes':["sip", "scipy.sparse.csgraph._validation"],
                         'excludes':["pywin", "pywin.debugger", "pywin.debugger.dbgcon", "pywin.dialogs", "pywin.dialogs.list",
                         "Tkconstants","Tkinter","tcl"], 'optimize':2, 'dist_dir' : self.distdir}}
             kwargs['options'] = options

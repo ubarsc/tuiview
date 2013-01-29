@@ -32,6 +32,8 @@ import numpy
 HAVE_PYQTGRAPH = True
 try:
     import pyqtgraph
+    # following needed for py2exe for some reason
+    from pyqtgraph.graphicsItems import TextItem 
 except ImportError:
     HAVE_PYQTGRAPH = False
 
@@ -1545,7 +1547,12 @@ Use the special columns:
                 else:
                     anchor = (1, 0.5)
 
-                textItem = pyqtgraph.TextItem(text=text, anchor=anchor)
+                try:
+                    textItem = pyqtgraph.TextItem(text=text, anchor=anchor)
+                except AttributeError:
+                    # py2exe seems to have trouble 
+                    textItem = pyqtgraph.graphicsItems.TextItem.TextItem(
+                                        text=text, anchor=anchor)
                 textItem.setPos(x, y)
                 self.plotWidget.addItem(textItem)
             
