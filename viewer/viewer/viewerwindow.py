@@ -262,7 +262,7 @@ class ViewerWindow(QMainWindow):
         self.connect(self.addRasterAct, SIGNAL("triggered()"), self.addRaster)
 
         self.addVectorFileAct = QAction(self)
-        self.addVectorFileAct.setText("Add &Vector File")
+        self.addVectorFileAct.setText("Add Vector &File")
         self.addVectorFileAct.setStatusTip("Open an OGR supported vector file")
         self.addVectorFileAct.setShortcut("CTRL+V")
         self.addVectorFileAct.setIcon(QIcon(":/viewer/images/addvector.png"))
@@ -272,7 +272,7 @@ class ViewerWindow(QMainWindow):
                                                             self.addVectorFile)
 
         self.addVectorDirAct = QAction(self)
-        self.addVectorDirAct.setText("Add &Vector Directory")
+        self.addVectorDirAct.setText("Add Vector &Directory")
         self.addVectorDirAct.setStatusTip("Open an OGR supported vector directory")
         self.addVectorDirAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorDirAct.setIconVisibleInMenu(True)
@@ -280,10 +280,21 @@ class ViewerWindow(QMainWindow):
         self.connect(self.addVectorDirAct, SIGNAL("triggered()"), 
                                                             self.addVectorDir)
 
+        self.addVectorDBAct = QAction(self)
+        self.addVectorDBAct.setText("Add Vector Data&base")
+        self.addVectorDBAct.setStatusTip(
+                                "Open a layer from an OGR supported database")
+        self.addVectorDBAct.setIcon(QIcon(":/viewer/images/addvector.png"))
+        self.addVectorDBAct.setIconVisibleInMenu(True)
+        self.addVectorDBAct.setEnabled(viewerwidget.haveVector())
+        self.connect(self.addVectorDBAct, SIGNAL("triggered()"), 
+                                                            self.addVectorDB)
+
         self.vectorMenu = QMenu()
         self.vectorMenu.setTitle("Add Vector")
         self.vectorMenu.addAction(self.addVectorFileAct)
         self.vectorMenu.addAction(self.addVectorDirAct)
+        self.vectorMenu.addAction(self.addVectorDBAct)
 
         self.removeLayerAct = QAction(self)
         self.removeLayerAct.setText("&Remove Layer")
@@ -627,6 +638,16 @@ class ViewerWindow(QMainWindow):
             options=QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks)
         if dir != "":
             self.addVectorInternal(dir)
+
+    def addVectorDB(self):
+        """
+        Add a vector from a database - ask user for connection string
+        """
+        from PyQt4.QtGui import QInputDialog
+        (con, ok) = QInputDialog.getText(self, "Viewer", 
+                                "Enter OGR connection string")
+        if ok and con != "":
+            self.addVectorInternal(con)
 
     def addRasterInternal(self, fname, stretch=None):
         """
