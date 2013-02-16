@@ -638,7 +638,7 @@ class StretchDefaultsDialog(QDialog):
         ruleList = []
 
         defaultRulesJSON = settings.value(DEFAULT_STRETCH_KEY)
-        if defaultRulesJSON is None or defaultRulesJSON.isNull():
+        if defaultRulesJSON is None or defaultRulesJSON == '':
             # there isn't one, construct some defaults
             stretch = viewerstretch.ViewerStretch()
 
@@ -683,8 +683,9 @@ class StretchDefaultsDialog(QDialog):
             ruleList.append(rule)
 
         else:
+            if sys.version_info[0] < 3:
+                defaultRulesJSON = str(defaultRulesJSON.toString())
             # is a list of json strings
-            defaultRulesJSON = str(defaultRulesJSON.toString())
             for string in json.loads(defaultRulesJSON):
                 # go through each one (which is itself a json string)
                 # and decode into a StretchRule
