@@ -8,8 +8,8 @@ Based on JSON.minify.js:
 https://github.com/getify/JSON.minify
 '''
 
-import re
 from __future__ import print_function
+import re
 
 def json_minify(json,strip_space=True):
     tokenizer=re.compile('"|(/\*)|(\*/)|(//)|\n|\r')
