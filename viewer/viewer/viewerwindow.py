@@ -645,7 +645,7 @@ class ViewerWindow(QMainWindow):
         """
         from PyQt4.QtGui import QInputDialog
         (con, ok) = QInputDialog.getText(self, "Viewer", 
-                                "Enter OGR connection string")
+                                "Enter OGR connection string (without quotes)")
         if ok and con != "":
             self.addVectorInternal(con)
 
