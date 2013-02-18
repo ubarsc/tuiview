@@ -972,6 +972,15 @@ class ViewerWindow(QMainWindow):
         from osgeo.gdal import __version__ as gdalVersion
         import sys
         from numpy import version as numpyVersion
+        scipyVersionString = 'Not Available'
+        pyqtgraphVersionString = 'Not Available'
+        try:
+            from scipy import version as scipyVersion
+            scipyVersionString = scipyVersion.version
+            from pyqtgraph import __version__ as pyqtgraphVersion
+            pyqtgraphVersionString = pyqtgraphVersion
+        except ImportError:
+            pass
 
         msg = """ Viewer
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and Tony Gill.
@@ -984,12 +993,15 @@ PyQt Version: %s
 Qt Version: %s
 Python Version: %s
 Numpy Version: %s
+Scipy Version: %s
+PyQtGraph Version: %s
 """
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
                     sys.version_info.micro)
         msg = msg % (appDir, gdalVersion, PYQT_VERSION_STR, QT_VERSION_STR, 
-                pyVer, numpyVersion.version)
+                pyVer, numpyVersion.version, scipyVersionString, 
+                pyqtgraphVersionString)
 
         # centre each line - doesn't work very well due to font
         msgLines = msg.split('\n')
