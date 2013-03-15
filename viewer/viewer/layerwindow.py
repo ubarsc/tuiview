@@ -144,6 +144,11 @@ class LayerListView(QListView):
         self.moveDownAct.setIcon(QIcon(":/viewer/images/arrowdown.png"))
         self.moveDownAct.setIconVisibleInMenu(True)
         self.connect(self.moveDownAct, SIGNAL("triggered()"), self.moveDown)
+
+        self.moveToTopAct = QAction(self)
+        self.moveToTopAct.setText("Move To &Top")
+        self.moveToTopAct.setStatusTip("Move selected layer top top")
+        self.connect(self.moveToTopAct, SIGNAL("triggered()"), self.moveToTop)
         
         self.changeColorAct = QAction(self)
         self.changeColorAct.setText("Change &Color")
@@ -174,6 +179,7 @@ class LayerListView(QListView):
         self.rasterPopupMenu.addAction(self.removeLayerAct)
         self.rasterPopupMenu.addAction(self.moveUpAct)
         self.rasterPopupMenu.addAction(self.moveDownAct)
+        self.rasterPopupMenu.addAction(self.moveToTopAct)
         self.rasterPopupMenu.addSeparator()
         self.rasterPopupMenu.addAction(self.editStretchAct)
         self.rasterPopupMenu.addAction(self.propertiesAct)
@@ -183,6 +189,7 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addAction(self.removeLayerAct)
         self.vectorPopupMenu.addAction(self.moveUpAct)
         self.vectorPopupMenu.addAction(self.moveDownAct)
+        self.vectorPopupMenu.addAction(self.moveToTopAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.changeColorAct)
         self.vectorPopupMenu.addAction(self.setSQLAct)
@@ -247,6 +254,17 @@ class LayerListView(QListView):
             model = self.model()
             layer = model.getLayer(index)
             model.viewwidget.layers.moveLayerDown(layer)
+            model.viewwidget.viewport().update()
+
+    def moveToTop(self):
+        "Move the selected layer to the top"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            model.viewwidget.layers.moveLayerToTop(layer)
             model.viewwidget.viewport().update()
             
     def changeColor(self):

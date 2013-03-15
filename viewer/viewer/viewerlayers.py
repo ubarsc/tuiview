@@ -1088,6 +1088,18 @@ class LayerManager(QObject):
             self.emit(SIGNAL("layersChanged()"))
         self.updateTopFilename()
 
+    def moveLayerToTop(self, layer):
+        """
+        Move layer to the end of the list so it is
+        rendererd last.
+        """
+        index = self.layers.index(layer)
+        if index < len(self.layers) - 1:
+            self.layers.pop(index)
+            self.layers.append(layer)
+            self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
+
     def setDisplayedState(self, layer, state):
         """
         Sets the displayed state for a layer
