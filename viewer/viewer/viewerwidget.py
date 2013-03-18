@@ -179,6 +179,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.viewport().update()
         self.updateScrollBars()
 
+        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+
     def addVectorLayer(self, ogrDataSource, ogrLayer, color=None):
         """
         Add the vector given by the ogrDataSource and its dependent 
@@ -192,6 +194,8 @@ class ViewerWidget(QAbstractScrollArea):
                     size.height(), color)
         self.viewport().update()
         self.updateScrollBars()
+
+        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
 
     def removeLayer(self):
         """
