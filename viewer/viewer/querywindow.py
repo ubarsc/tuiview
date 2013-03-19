@@ -31,6 +31,8 @@ import numpy
 # See if we have access to PyQtGraph
 HAVE_PYQTGRAPH = True
 try:
+    # following needed for cx_freeze
+    from scipy.stats import futil
     import pyqtgraph
     # following needed for py2exe for some reason
     from pyqtgraph.graphicsItems import TextItem 

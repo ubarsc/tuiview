@@ -30,6 +30,9 @@ import os
 import sys
 from datetime import date
 
+# to make a unique name encode todays date
+appName = 'Viewer_%s' % date.today().strftime('%Y%m%d')
+
 # NB. Had to hack python scripts in C:\Python32\Lib\site-packages\osgeo
 # to 'from . import <blah>' in exception handler, and all over
 # also under scipy.sparse.sparsetools...
@@ -37,26 +40,42 @@ from datetime import date
 base = None
 include_msvcr = False
 initScript = None
+include_files = None
 if sys.platform == "win32":
     base = "Win32GUI"
     include_msvcr = True
     curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    initScript = os.path.join(curDir, 'cxfreeze_init.py')
+    initScript = os.path.join(curDir, 'cxfreeze_init.py') # sets the GDAL_DATA path
+    keadir = 'c:\\kea\\gdal19'
+    hdfdir = 'C:\\Program Files\\HDF Group\\HDF5\\1.8.9\\bin'
+    gdaldir = 'c:\\GDAL'
+    gdaldatadir = os.path.join(gdaldir, "data")
+    gdalpluginsdir = os.path.join(gdaldir, "bin", "gdalplugins")
+    keaplugindir = os.path.join(keadir, "gdalplugins")
+    hdfcpp = os.path.join(hdfdir, "HDF5_CPPDLL.DLL")
+    include_files = [(gdaldatadir, "data"), (keaplugindir, "gdalplugins"), (gdalpluginsdir, "gdalplugins"),
+                    ("C:\\kea\\gdal19\\lib\\libkea.dll", ""), (hdfcpp, '')]
 
+# I had to hardcode a lot of scipy stuff for PyQtGraph - dunno why
+# also had to import scipy.stats.futil in the main app to get PyQtGraph working
 build_exe_options = {'excludes':["pywin", "pywin.debugger", "pydoc",
                     "pywin.debugger.dbgcon", "pywin.dialogs", "pywin.dialogs.list",
-                    "Tkconstants","Tkinter","tcl","tk"], "includes" : ["atexit",                    
+                    "Tkconstants","Tkinter","tcl","tk"], "includes" : ["atexit",
                     "osgeo._gdal", "osgeo._osr", "osgeo._gdal_array", "osgeo._ogr",
                     "scipy.sparse.sparsetools._csr", "scipy.sparse.sparsetools._csc",
                     "scipy.sparse.sparsetools._coo", "scipy.sparse.sparsetools._dia",
-                    "scipy.sparse.sparsetools._bsr", "scipy.sparse.sparsetools._csgraph"],
-                    'include_msvcr':include_msvcr}
+                    "scipy.sparse.sparsetools._bsr", "scipy.sparse.sparsetools._csgraph",
+                    "scipy.stats.futil", "scipy.sparse.csgraph._validation",
+                    "scipy.sparse.linalg.dsolve.umfpack", "scipy.integrate.vode",
+                    "scipy.integrate.lsoda"],
+                    'include_msvcr':include_msvcr, 'include_files':include_files, "init_script":initScript}
 
-viewerexe = Executable("bin/viewer", base=base, shortcutName='Viewer', initScript=initScript)
-viewerwritetableexe = Executable("bin/viewerwritetable", initScript=initScript) # console is default
+viewerexe = Executable("bin/viewer", base=base, shortcutName=appName, 
+            shortcutDir="ProgramMenuFolder")
+viewerwritetableexe = Executable("bin/viewerwritetable") # console is default
 
 #
-setup(name='Viewer_%s' % date.today().strftime('%Y%m%d'),
+setup(name=appName,
       version='1.0',
       description='Simple Raster Viewer',
       author='Sam Gillingham',
