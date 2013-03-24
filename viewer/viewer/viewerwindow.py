@@ -704,7 +704,7 @@ class ViewerWindow(QMainWindow):
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
 
-    def addVectorInternal(self, path):
+    def addVectorInternal(self, path, layername=None):
         """
         Open OGR dataset and layer and tell widget to add it 
         to the list of layers
@@ -717,23 +717,27 @@ class ViewerWindow(QMainWindow):
                 QMessageBox.critical(self, "Viewer", msg)
                 return
                 
-            numLayers = ds.GetLayerCount()
-            if numLayers == 0:
-                raise IOError("no valid layers")
-            elif numLayers == 1:
-                lyr = ds.GetLayer(0)
-            else:
-                from PyQt4.QtGui import QInputDialog
-                layerNames = []
-                for n in range(ds.GetLayerCount()):
-                    name = ds.GetLayer(n).GetName()
-                    layerNames.append(name)
-                (name, ok) = QInputDialog.getItem(self, "Viewer", 
-                    "select layer to open", layerNames, editable=False)
-                if ok:
-                    lyr = ds.GetLayerByName(str(name))
+            if layername is None:
+                # ask them
+                numLayers = ds.GetLayerCount()
+                if numLayers == 0:
+                    raise IOError("no valid layers")
+                elif numLayers == 1:
+                    lyr = ds.GetLayer(0)
                 else:
-                    return
+                    from PyQt4.QtGui import QInputDialog
+                    layerNames = []
+                    for n in range(ds.GetLayerCount()):
+                        name = ds.GetLayer(n).GetName()
+                        layerNames.append(name)
+                    (name, ok) = QInputDialog.getItem(self, "Viewer", 
+                        "select layer to open", layerNames, editable=False)
+                    if ok:
+                        lyr = ds.GetLayerByName(str(name))
+                    else:
+                        return
+            else:
+                lyr = ds.GetLayerByName(layername)
                 
             self.viewwidget.addVectorLayer(ds, lyr)
 
