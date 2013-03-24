@@ -629,7 +629,7 @@ class ViewerWindow(QMainWindow):
         """
         # set last dir
         layer = self.viewwidget.layers.getTopVectorLayer()
-        olddir = None
+        olddir = ""
         if layer is not None:
             olddir = os.path.dirname(layer.filename)
 
