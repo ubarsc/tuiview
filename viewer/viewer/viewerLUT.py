@@ -629,6 +629,10 @@ class ViewerLUT(QObject):
             # default behaviour - a LUT for the range of the data
             lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
 
+            if stretchMin == stretchMax:
+                # hack for invalid data
+                stretchMax = stretchMin + 1
+
             # make it lutsize-1 so we keep the indices less than lutsize
             scale = float(stretchMax - stretchMin) / (lutsize-1)
             offset = -stretchMin
@@ -639,6 +643,9 @@ class ViewerLUT(QObject):
             # assume ints - we just create ramp 0-255 in data range
             stretchMin = int(stretchMin)
             stretchMax = int(stretchMax)
+            if stretchMin == stretchMax:
+                # hack for invalid data
+                stretchMax = stretchMin + 1
             stretchRange = stretchMax - stretchMin
             lut[stretchMin:stretchMax] = numpy.linspace(0, 255, 
                                                 num=stretchRange)
