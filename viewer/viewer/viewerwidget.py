@@ -197,6 +197,21 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
 
+    def addVectorFeatureLayer(self, ogrFeature, color=None):
+        """
+        Just a single feature vector
+        """
+        size = self.viewport().size()
+        if color is None:
+            color = viewerlayers.DEFAULT_VECTOR_COLOR
+
+        self.layers.addVectorFeatureLayer(ogrFeature, size.width(),
+                    size.height(), color)
+        self.viewport().update()
+        self.updateScrollBars()
+
+        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+
     def removeLayer(self):
         """
         Removes the top later

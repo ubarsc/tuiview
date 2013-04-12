@@ -204,7 +204,12 @@ class LayerListView(QListView):
 
             model = self.model()
             layer = model.getLayer(index)
-            if isinstance(layer, viewerlayers.ViewerVectorLayer):
+            if (isinstance(layer, viewerlayers.ViewerVectorLayer) or
+                    isinstance(layer, viewerlayers.ViewerFeatureVectorLayer)):
+                # sql gets enabled only if it is a full vector layer
+                # - not a single feature layer
+                allowSQL = isinstance(layer, viewerlayers.ViewerVectorLayer)
+                self.setSQLAct.setEnabled(allowSQL)
                 self.vectorPopupMenu.popup(e.globalPos())
             else:
                 self.rasterPopupMenu.popup(e.globalPos())
