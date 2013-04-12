@@ -361,7 +361,8 @@ class StretchLayout(QFormLayout):
         if obj.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR:
             idx = self.rampCombo.currentIndex()
             rampName = self.rampCombo.itemData(idx)
-            rampName = rampName.toString()
+            if sys.version_info[0] < 3:
+                rampName = rampName.toString()
             obj.setPseudoColor(str(rampName))
 
         index = self.stretchCombo.currentIndex()
