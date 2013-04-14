@@ -911,69 +911,25 @@ Coordinate System is:\n%s"""
             coordString = "None defined"
         return fmt % (driver, self.filename, geomType, coordString)
 
-class ViewerFeatureVectorLayer(ViewerLayer):
+class ViewerFeatureVectorLayer(ViewerVectorLayer):
     """
     A vector Feature layer. Same as ViewerVectorLayer but
     works with a single feature provided by the driving program.
     """
     def __init__(self):
-        ViewerLayer.__init__(self)
+        ViewerVectorLayer.__init__(self)
         self.ogrFeature = None
-        self.coordmgr = coordinatemgr.VectorCoordManager()
-        # we use a mini LUT to convert the 1's and zeros to colours
-        # we leave the first index blank to it is black/invisible
-        self.lut = numpy.zeros((2, 4), numpy.uint8)
-        self.filename = "Application Supplied Feature"
 
     def setFeature(self, ogrFeature):
         "Update feature to draw"
         self.ogrFeature = ogrFeature
 
-    def open(self, ogrFeature, width, height, extent=None,
-                    color=DEFAULT_VECTOR_COLOR):
-        "Set feature to rasterize"
+    def open(self, ogrDataSource, ogrLayer, ogrFeature, width, height, 
+                    extent=None, color=DEFAULT_VECTOR_COLOR):
+        "Set Data source, plus first feature to rasterize"
+        ViewerVectorLayer.open(self, ogrDataSource, ogrLayer, width, height, 
+                                extent, color)
         self.ogrFeature = ogrFeature
-        self.setColor(color)
-
-        self.coordmgr.setDisplaySize(width, height)
-        bbox = ogrFeature.GetGeometryRef().GetEnvelope()
-        fullExtent = (bbox[0], bbox[3], bbox[1], bbox[2])
-        self.coordmgr.setFullWorldExtent(fullExtent)
-
-        if extent is None:
-            # if not given, get full extent of layer
-            extent = fullExtent
-
-        self.coordmgr.setWorldExtent(extent)
-
-    def getColorAsRGBATuple(self):
-        rgba = []
-        for code in viewerLUT.RGBA_CODES:
-            lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
-            value = self.lut[1,lutindex]
-            rgba.append(value)
-        return tuple(rgba)
-
-    def setColor(self, color):
-        """
-        Sets up the LUT to use the specified color
-        """
-        for value, code in zip(color, viewerLUT.RGBA_CODES):
-            lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
-            self.lut[1,lutindex] = value
-
-    def updateColor(self, color):
-        """
-        Like setColor, but also updates the stored self.image
-        to be in the new color
-        """
-        self.setColor(color)
-        if self.image is not None:
-            data = self.image.viewerdata
-            bgra = self.lut[data]
-            (ysize, xsize) = data.shape
-            self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
-            self.image.viewerdata = data
 
     def getImage(self):
         """
@@ -983,7 +939,7 @@ class ViewerFeatureVectorLayer(ViewerLayer):
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
-        # rasterizeOutlines burns in 1 for outline, 0 otherwise
+        # rasterizeOutlinesFeature burns in 1 for outline, 0 otherwise
         data = turbovector.rasterizeOutlinesFeature(self.ogrFeature, extent, 
                     xsize, ysize)
 
@@ -992,10 +948,19 @@ class ViewerFeatureVectorLayer(ViewerLayer):
         self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
         self.image.viewerdata = data
 
-    def getPropertiesString(self):
-        "Return the properties as a string we can show the user"
-        msg = "OGR Feature provided by application"
-        return msg
+    def setSQL(self, sql=None):
+        "unlike the base class we don't support SQL"
+        msg = "ViewerFeatureVectorLayer doesn't support SQL"
+        raise NotImplementedError(msg)
+        
+    def getSQL(self):
+        msg = "ViewerFeatureVectorLayer doesn't support SQL"
+        raise NotImplementedError(msg)
+        
+    def hasSQL(self):
+        msg = "ViewerFeatureVectorLayer doesn't support SQL"
+        raise NotImplementedError(msg)
+        
 
 class LayerManager(QObject):
     """
@@ -1130,8 +1095,8 @@ class LayerManager(QObject):
         self.emit(SIGNAL("layersChanged()"))
         self.updateTopFilename()
 
-    def addVectorFeatureLayer(self, ogrFeature, width, height, 
-                                color=DEFAULT_VECTOR_COLOR):
+    def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
+                                width, height, color=DEFAULT_VECTOR_COLOR):
         """
         Add a vector feature layer
         """
@@ -1141,7 +1106,8 @@ class LayerManager(QObject):
             extent = topLayer.coordmgr.getWorldExtent()
 
         layer = ViewerFeatureVectorLayer()
-        layer.open(ogrFeature, width, height, extent, color)
+        layer.open(ogrDataSource, ogrLayer, ogrFeature, width, 
+                            height, extent, color)
 
         layer.getImage()
         self.layers.append(layer)

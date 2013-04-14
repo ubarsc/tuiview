@@ -197,7 +197,8 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
 
-    def addVectorFeatureLayer(self, ogrFeature, color=None):
+    def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
+                                    color=None):
         """
         Just a single feature vector
         """
@@ -205,8 +206,8 @@ class ViewerWidget(QAbstractScrollArea):
         if color is None:
             color = viewerlayers.DEFAULT_VECTOR_COLOR
 
-        self.layers.addVectorFeatureLayer(ogrFeature, size.width(),
-                    size.height(), color)
+        self.layers.addVectorFeatureLayer(ogrDataSource, ogrLayer, ogrFeature, 
+                    size.width(), size.height(), color)
         self.viewport().update()
         self.updateScrollBars()
 

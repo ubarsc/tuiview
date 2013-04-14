@@ -699,8 +699,6 @@ class ViewerWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Viewer", str(e) )
 
-        # set the window title
-        self.setWindowTitle(os.path.basename(fname))
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
 
