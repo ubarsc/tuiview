@@ -30,6 +30,16 @@ import os
 import sys
 from datetime import date
 
+# my own command - 'rebase' Rebases all dll's to a unqiue address
+# so it loads faster. Uses the editbin utility.
+# Needs to have the Visual Studio (vcvars.bat) sourced first.
+if len(sys.argv) > 1 and sys.argv[1] == 'rebase':
+    # guess at the build dir - can't seem to ask cx_freeze what it should be
+    builddir = 'build\exe.%s-%d.%d' % (sys.platform, sys.version_info[0], sys.version_info[1])
+    cmd = 'editbin.exe /REBASE %s\*.dll %s\*.pyd' % (builddir, builddir)
+    os.system(cmd)
+    sys.exit()
+
 # to make a unique name encode todays date
 appName = 'Viewer_%s' % date.today().strftime('%Y%m%d')
 
