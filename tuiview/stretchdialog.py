@@ -3,7 +3,7 @@
 Module that contains the StretchLayout, RuleLayout
 and StretchDefaultsDialog classes
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ import sys
 
 from . import viewerstretch
 from . import pseudocolor
+from .viewerwindow import MESSAGE_TITLE
 
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),
@@ -129,7 +130,7 @@ class StretchLayout(QFormLayout):
         try:
             pseudocolor.loadExtraRamps()
         except Exception as e:
-            QMessageBox.critical(parent, "Viewer", str(e))
+            QMessageBox.critical(parent, MESSAGE_TITLE, str(e))
 
         # populate combo - sort by type
         index = 0
@@ -876,7 +877,7 @@ class StretchDockWidget(QDockWidget):
         try:
             self.viewwidget.setNewStretch(stretch, self.layer, local)
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def onSave(self):
         """
@@ -889,7 +890,7 @@ class StretchDockWidget(QDockWidget):
             self.layer.saveStretchToFile(stretch)
             self.parent.showStatusMessage("Stretch written to file")
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e))
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onDelete(self):
         """
@@ -899,5 +900,5 @@ class StretchDockWidget(QDockWidget):
             self.layer.deleteStretchFromFile()
             self.parent.showStatusMessage("Stretch deleted from file")
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e))
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 

@@ -1,9 +1,9 @@
 
 """
-Main Window of the Viewer application. Contains
+Main Window of the TuiView application. Contains
 the ViewerWidget, menus, toolbars and status bars.
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@ the ViewerWidget, menus, toolbars and status bars.
 import os
 import sys
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
-from PyQt4.QtGui import QMessageBox, QProgressBar, QMessageBox, QToolButton
+from PyQt4.QtGui import QMessageBox, QProgressBar, QToolButton
 from PyQt4.QtGui import QMenu, QColor
 from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, Qt
 from PyQt4.QtCore import QCoreApplication, QEventLoop
@@ -42,7 +42,7 @@ DEFAULT_YPOS = 200
 
 MESSAGE_TIMEOUT = 2000
 DEFAULT_DRIVER = 'HFA'
-MESSAGE_TITLE = 'Viewer'
+MESSAGE_TITLE = 'TuiView'
 
 # Populate this list the first time the
 # file open dialog shown.
@@ -101,7 +101,7 @@ class ViewerWindow(QMainWindow):
     """
     def __init__(self):
         QMainWindow.__init__(self)
-        self.setWindowTitle('Viewer')
+        self.setWindowTitle(MESSAGE_TITLE)
         self.viewwidget = viewerwidget.ViewerWidget(self)
 
         # connect to the signals emmitted by the LUT/RAT via the LayerManager
@@ -167,7 +167,7 @@ class ViewerWindow(QMainWindow):
             self.setWindowTitle(title)
         else:
             # nothing loaded
-            self.setWindowTitle('Viewer')
+            self.setWindowTitle(MESSAGE_TITLE)
 
     def newProgress(self, string):
         """
@@ -644,7 +644,7 @@ class ViewerWindow(QMainWindow):
         Add a vector from a database - ask user for connection string
         """
         from PyQt4.QtGui import QInputDialog
-        (con, ok) = QInputDialog.getText(self, "Viewer", 
+        (con, ok) = QInputDialog.getText(self, MESSAGE_TITLE, 
                                 "Enter OGR connection string (without quotes)")
         if ok and con != "":
             self.addVectorInternal(con)
@@ -697,7 +697,7 @@ class ViewerWindow(QMainWindow):
         try:
             self.viewwidget.addRasterLayer(gdaldataset, stretch, lut)
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
@@ -712,7 +712,7 @@ class ViewerWindow(QMainWindow):
             ds = ogr.Open(str(path))
             if ds is None:
                 msg = 'Unable to open %s' % path
-                QMessageBox.critical(self, "Viewer", msg)
+                QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return
                 
             if layername is None:
@@ -728,7 +728,7 @@ class ViewerWindow(QMainWindow):
                     for n in range(ds.GetLayerCount()):
                         name = ds.GetLayer(n).GetName()
                         layerNames.append(name)
-                    (name, ok) = QInputDialog.getItem(self, "Viewer", 
+                    (name, ok) = QInputDialog.getItem(self, MESSAGE_TITLE, 
                         "select layer to open", layerNames, editable=False)
                     if ok:
                         lyr = ds.GetLayerByName(str(name))
@@ -740,7 +740,7 @@ class ViewerWindow(QMainWindow):
             self.viewwidget.addVectorLayer(ds, lyr)
 
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def removeLayer(self):
         """
@@ -769,7 +769,7 @@ class ViewerWindow(QMainWindow):
         # should it just be visible layers?
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is None:
-            QMessageBox.critical(self, "Viewer", "No raster layer available" )
+            QMessageBox.critical(self, MESSAGE_TITLE, "No raster layer available" )
         else:
             stretchDock = stretchdialog.StretchDockWidget(self, 
                                 self.viewwidget, layer)
@@ -833,7 +833,7 @@ class ViewerWindow(QMainWindow):
         try:
             self.viewwidget.zoomNativeResolution()
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def zoomFullExtent(self):
         """
@@ -842,7 +842,7 @@ class ViewerWindow(QMainWindow):
         try:
             self.viewwidget.zoomFullExtent()
         except Exception as e:
-            QMessageBox.critical(self, "Viewer", str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def followExtent(self, state):
         """
@@ -984,7 +984,7 @@ class ViewerWindow(QMainWindow):
         except ImportError:
             pass
 
-        msg = """ Viewer
+        msg = """ TuiView
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and Tony Gill.
 
 Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.
@@ -1014,7 +1014,7 @@ PyQtGraph Version: %s
             centred = (' ' * leftSpaces) + line
             centredMsgs.append(centred)
 
-        QMessageBox.about(self, "Viewer", "\n".join(centredMsgs))
+        QMessageBox.about(self, MESSAGE_TITLE, "\n".join(centredMsgs))
 
 
     def closeEvent(self, event):

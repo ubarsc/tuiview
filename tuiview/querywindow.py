@@ -1,7 +1,7 @@
 """
 Module that contains the QueryDockWidget
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -44,6 +44,7 @@ from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
 from .viewerwidget import  VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
+from .viewerwindow import MESSAGE_TITLE
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
@@ -988,7 +989,7 @@ Use the special columns:
             self.tableView.viewport().update()
 
         except viewererrors.UserExpressionError as e:
-            QMessageBox.critical(self, "Viewer", str(e))
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def addColumn(self):
         """
@@ -1004,7 +1005,7 @@ Use the special columns:
             try:
                 attributes.addColumn(colname, dtype)
             except Exception as e:
-                QMessageBox.critical(self, "Viewer", str(e))
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
             self.updateThematicTableModel(attributes)
 
@@ -1069,7 +1070,7 @@ Use the special columns:
                 self.viewwidget.setColorTableLookup(col, colname)
 
         except viewererrors.UserExpressionError as e:
-            QMessageBox.critical(self, "Viewer", str(e))
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def undoEditUserExpression(self, undoObject, col):
         """
@@ -1119,7 +1120,7 @@ Use the special columns:
         attributes = self.lastLayer.attributes
         currFormat = attributes.getFormat(colName)
         currDP = int(currFormat[2:-1]) # dodgy but should be ok
-        (newDP, ok) = QInputDialog.getInt(self, "Viewer", 
+        (newDP, ok) = QInputDialog.getInt(self, MESSAGE_TITLE,
                     "Number of Decimal Places", currDP, 0, 100)
         if ok:
             newFormat = "%%.%df" % newDP
@@ -1145,7 +1146,7 @@ Use the special columns:
             if len(tables) == 0:
                 msg = "File has no surrogate color tables\n"
                 msg = msg + "Use viewerwritetable to insert some"
-                QMessageBox.critical(self, "Viewer", msg)
+                QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return
 
             if len(tables) == 1:
@@ -1154,7 +1155,7 @@ Use the special columns:
             else:
                 # need to ask them which one
                 from PyQt4.QtGui import QInputDialog
-                (tablename, ok) = QInputDialog.getItem(self, "Viewer", 
+                (tablename, ok) = QInputDialog.getItem(self, MESSAGE_TITLE,
                     "Select color table", tables.keys(), editable=False)
                 if not ok:
                     return
@@ -1192,7 +1193,7 @@ Use the special columns:
             self.lastLayer.writeDirtyRATColumns()
 
         except viewererrors.InvalidDataset as e:
-            QMessageBox.critical(self, "Viewer", str(e))
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
         finally:
             self.setCursor(Qt.ArrowCursor)  # look like we are finished
 
@@ -1206,7 +1207,7 @@ Use the special columns:
             self.lastLayer.writeRATColumnOrder()
 
         except viewererrors.InvalidDataset as e:
-            QMessageBox.critical(self, "Viewer", str(e))
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def activeToolChanged(self, obj):
         """
@@ -1610,7 +1611,7 @@ Use the special columns:
                         col = attributes.getAttribute(colname)
                         self.viewwidget.setColorTableLookup(col, colname)
                 except viewererrors.UserExpressionError as e:
-                    QMessageBox.critical(self, "Viewer", str(e))
+                    QMessageBox.critical(self, MESSAGE_TITLE, str(e))
                 self.keyboardData = ''
             else:
                 text = str(event.text())

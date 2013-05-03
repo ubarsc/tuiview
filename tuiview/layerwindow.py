@@ -1,7 +1,7 @@
 """
 Module that contains the LayerWindow class
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ from PyQt4.QtGui import QMessageBox
 from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
 
 from . import viewerlayers
+from .viewerwindow import MESSAGE_TITLE
 
 class LayerItemModel(QAbstractListModel):
     """
@@ -306,7 +307,7 @@ class LayerListView(QListView):
             if layer.hasSQL():
                 oldsql = layer.getSQL()
                 
-            sql, ok = QInputDialog.getText(self, "Viewer", 
+            sql, ok = QInputDialog.getText(self, MESSAGE_TITLE, 
                 "Enter SQL attribute filter", text=oldsql)
             if ok:
                 if sql == "":
@@ -340,7 +341,7 @@ class LayerListView(QListView):
             model = self.model()
             layer = model.getLayer(index)
             propstring = layer.getPropertiesString()
-            QMessageBox.information(self, "Viewer", propstring)
+            QMessageBox.information(self, MESSAGE_TITLE, propstring)
 
 class LayerWindow(QDockWidget):
     """

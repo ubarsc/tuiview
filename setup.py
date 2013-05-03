@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Setup script for viewer. Use like this for Unix:
+Setup script for TuiView. Use like this for Unix:
 
 $ python setup.py install
 
@@ -10,7 +10,7 @@ For creation of cx freeze installer on Windows
 > /c/Python32/python.exe setup_cxfreeze.py bdist_msi
 
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -28,15 +28,15 @@ For creation of cx freeze installer on Windows
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from distutils.core import setup
 
-setup(name='Viewer', 
+setup(name='TuiView', 
     version='0.9', 
     description='Simple Raster Viewer',
     author='Sam Gillingham',
     author_email='gillingham.sam@gmail.com',
-    scripts=['bin/viewer', 'bin/viewerwritetable'],
-    packages=['viewer'],
+    scripts=['bin/tuiview', 'bin/tuiviewwritetable'],
+    packages=['tuiview'],
     license='LICENSE.txt',
-    url='https://bitbucket.org/chchrsc/viewer',
+    url='https://bitbucket.org/chchrsc/tuiview',
     classifiers=['Intended Audience :: Developers',
           'Operating System :: OS Independent',
           'Programming Language :: Python :: 2',

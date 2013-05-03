@@ -2,7 +2,7 @@
 """
 Module that contains the ViewerPreferences class
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ class ViewerPreferencesDialog(QDialog):
     """
     def __init__(self, parent):
         QDialog.__init__(self, parent)
-        self.setWindowTitle('Viewer Preferences')
+        self.setWindowTitle('TuiView Preferences')
 
         # get the settings
         self.restoreFromSettings()

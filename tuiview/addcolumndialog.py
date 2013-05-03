@@ -1,7 +1,7 @@
 """
 Contains the AddColumnDialog class
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ from PyQt4.QtCore import SIGNAL
 import sys
 
 from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
+from .viewerwindow import MESSAGE_TITLE
 
 class AddColumnDialog(QDialog):
     """
@@ -66,7 +67,7 @@ class AddColumnDialog(QDialog):
 
     def onOK(self):
         if len(self.nameEdit.text()) == 0:
-            QMessageBox.critical(self, "Viewer", "Must enter column name")
+            QMessageBox.critical(self, MESSAGE_TITLE, "Must enter column name")
             self.nameEdit.setFocus()
         else:
             self.accept()

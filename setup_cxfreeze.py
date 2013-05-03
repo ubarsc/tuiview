@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Setup script for viewer. Use like this for Unix:
+Setup script for TuiView. Use like this for Unix:
 
 $ python setup.py install
 
@@ -9,7 +9,7 @@ For creation of cxfreeze bundle on Windows:
 > /c/Python32/python.exe setup.py bdist_msi
 
 """
-# This file is part of 'Viewer' - a simple Raster viewer
+# This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
 #
 # This program is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@ if len(sys.argv) > 1 and sys.argv[1] == 'rebase':
     sys.exit()
 
 # to make a unique name encode todays date
-appName = 'Viewer_%s' % date.today().strftime('%Y%m%d')
+appName = 'TuiView_%s' % date.today().strftime('%Y%m%d')
 
 # NB. Had to hack python scripts in C:\Python32\Lib\site-packages\osgeo
 # to 'from . import <blah>' in exception handler, and all over
@@ -80,9 +80,9 @@ build_exe_options = {'excludes':["pywin", "pywin.debugger", "pydoc",
                     "scipy.integrate.lsoda"],
                     'include_msvcr':include_msvcr, 'include_files':include_files, "init_script":initScript}
 
-viewerexe = Executable("bin/viewer", base=base, shortcutName=appName, 
+viewerexe = Executable("bin/tuiview", base=base, shortcutName=appName, 
             shortcutDir="ProgramMenuFolder")
-viewerwritetableexe = Executable("bin/viewerwritetable") # console is default
+viewerwritetableexe = Executable("bin/tuiviewwritetable") # console is default
 
 #
 setup(name=appName,
