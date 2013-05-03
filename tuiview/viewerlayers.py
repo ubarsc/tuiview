@@ -1042,7 +1042,8 @@ class LayerManager(QObject):
         sr2 = osr.SpatialReference(proj2)
         return bool(sr1.IsSame(sr2))
 
-    def addRasterLayer(self, gdalDataset, width, height, stretch, lut=None):
+    def addRasterLayer(self, gdalDataset, width, height, stretch, lut=None,
+                        ignoreProjectionMismatch=False):
         """
         Add a new raster layer with given display width and height, stretch
         and optional lut.
@@ -1061,8 +1062,9 @@ class LayerManager(QObject):
         # Not sure.
         existinglayer = self.getTopRasterLayer()
         if existinglayer is not None:
-            if not self.isSameRasterProjection(layer, existinglayer):
-                raise viewererrors.InvalidDataset('projections do not match')
+            if (not ignoreProjectionMismatch and 
+                    not self.isSameRasterProjection(layer, existinglayer)):
+                raise viewererrors.ProjectionMismatch('projections do not match')
         
         # ensure the query points have the correct extent
         extent = layer.coordmgr.getWorldExtent()

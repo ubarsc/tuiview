@@ -34,6 +34,7 @@ if sys.version_info[0] == 3:
 else:
     from . import viewerresources2
 from . import viewerwidget
+from . import viewererrors
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -706,6 +707,20 @@ class ViewerWindow(QMainWindow):
         # now open it for real
         try:
             self.viewwidget.addRasterLayer(gdaldataset, stretch, lut)
+        except viewererrors.ProjectionMismatch as e:
+            # as the user if they really want to go ahead
+            btn = QMessageBox.question(self, MESSAGE_TITLE, 
+                """Projection is different to existing file(s). 
+Results may be incorrect. Do you wish to go ahead anyway?""", 
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if btn == QMessageBox.Yes:
+                # try again with the flag
+                try:
+                    self.viewwidget.addRasterLayer(gdaldataset, stretch, lut,
+                            ignoreProjectionMismatch=True)
+                except Exception as e:
+                    QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 

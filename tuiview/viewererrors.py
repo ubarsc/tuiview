@@ -23,6 +23,9 @@ class ViewerException(Exception):
 class InvalidDataset(ViewerException):
     "Dataset was invalid for some reason"
 
+class ProjectionMismatch(ViewerException):
+    "Projection for the dataset does not match that of the current viewer"
+
 class InvalidParameters(ViewerException):
     "Invalid parameters passed to function"
 
