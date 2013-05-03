@@ -598,7 +598,11 @@ class ViewerWindow(QMainWindow):
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is not None:
             dir = os.path.dirname(layer.filename)
-            dlg.setDirectory(dir)
+        else:
+            # or cwd
+            dir = os.getcwd()
+
+        dlg.setDirectory(dir)
 
         if dlg.exec_() == QDialog.Accepted:
             for fname in dlg.selectedFiles():
@@ -617,7 +621,11 @@ class ViewerWindow(QMainWindow):
         layer = self.viewwidget.layers.getTopVectorLayer()
         if layer is not None:
             dir = os.path.dirname(layer.filename)
-            dlg.setDirectory(dir)
+        else:
+            # or cwd
+            dir = os.getcwd()
+
+        dlg.setDirectory(dir)
 
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
@@ -629,9 +637,11 @@ class ViewerWindow(QMainWindow):
         """
         # set last dir
         layer = self.viewwidget.layers.getTopVectorLayer()
-        olddir = ""
         if layer is not None:
             olddir = os.path.dirname(layer.filename)
+        else:
+            # or cwd
+            olddir = os.getcwd()
 
         dir = QFileDialog.getExistingDirectory(self, "Choose vector directory",
             directory=olddir,
