@@ -225,7 +225,23 @@ class GeolinkedViewers(QObject):
         # now resize and move the viewers
         xcount = 0
         ycount = 0
-        for viewer in self.getViewerList():
+        # getViewerList returns a temporary list so we can stuff around with it
+        viewerList = self.getViewerList()
+        while len(viewerList) > 0:
+            # work out the location we will use and find the viewer closest
+            xloc = desktop.x() + viewerwidth * xcount
+            yloc = desktop.y() + viewerheight * ycount
+
+            def viewerKey(a):
+                xdist = abs(a.x() - xloc)
+                ydist = abs(a.y() - yloc)
+                return math.sqrt(xdist * xdist + ydist * ydist)
+
+            # sort by distance from this location
+            viewerList = sorted(viewerList, key=viewerKey)
+            # closest
+            viewer = viewerList.pop(0)
+
             # remove any maximised states - window manager will not let
             # use resize
             state = viewer.windowState()
@@ -235,8 +251,7 @@ class GeolinkedViewers(QObject):
             viewer.resize(viewerwidth - framewidth, viewerheight - frameheight)
             # remember that taskbar etc mean that we might not want 
             # to start at 0,0
-            viewer.move(desktop.x() + viewerwidth * xcount, 
-                            desktop.y() + viewerheight * ycount)
+            viewer.move(xloc, yloc)
 
             xcount += 1
             if xcount >= nxside:
