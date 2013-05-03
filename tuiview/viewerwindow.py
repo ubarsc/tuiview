@@ -473,6 +473,13 @@ class ViewerWindow(QMainWindow):
         self.connect(self.timeseriesBackwardAct, SIGNAL("triggered()"),
                                 self.viewwidget.timeseriesBackward)
 
+        self.saveCurrentViewAct = QAction(self)
+        self.saveCurrentViewAct.setText("Save Current Display")
+        self.saveCurrentViewAct.setStatusTip(
+                    "Save the contents of the current display as an image file")
+        self.connect(self.saveCurrentViewAct, SIGNAL("triggered()"),
+                                self.saveCurrentView)
+
         self.aboutAct = QAction(self)
         self.aboutAct.setText("&About")
         self.aboutAct.setStatusTip("Show author and version information")
@@ -490,6 +497,7 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.newWindowAct)
         fileMenu.addAction(self.tileWindowsAct)
         fileMenu.addAction(self.defaultStretchAct)
+        fileMenu.addAction(self.saveCurrentViewAct)
         fileMenu.addAction(self.exitAct)
         fileMenu.insertSeparator(self.exitAct)
 
@@ -990,6 +998,23 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
             self.flickerAct.setIcon(self.flickerAct.iconOn)
         else:
             self.flickerAct.setIcon(self.flickerAct.iconOff)
+
+    def saveCurrentView(self):
+        """
+        Saves the current view as an image file
+        """
+        # first grab it out of the widget
+        from PyQt4.QtGui import QImage
+        img = QImage(self.viewwidget.viewport().size(), QImage.Format_RGB32)
+        self.viewwidget.viewport().render(img)
+
+        # now get a filename
+        fname = QFileDialog.getSaveFileName(self, "Image File", 
+                        filter="Images (*.png *.xpm *.jpg *.tif)")
+        if fname != '':
+            if not img.save(fname):
+                QMessageBox.critical(self, MESSAGE_TITLE, 
+                    "Unable to save file")
 
     def about(self):
         """
