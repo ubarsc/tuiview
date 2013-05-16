@@ -46,7 +46,7 @@ if sys.platform == "win32":
     include_msvcr = True
     curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
     initScript = os.path.join(curDir, 'cxfreeze_init.py') # sets the GDAL_DATA path
-    keadir = 'c:\\kea\\gdal19'
+    keadir = 'c:\\kea\\gdal110'
     hdfdir = 'C:\\Program Files\\HDF Group\\HDF5\\1.8.9\\bin'
     gdaldir = 'c:\\GDAL'
     gdaldatadir = os.path.join(gdaldir, "data")
@@ -54,7 +54,7 @@ if sys.platform == "win32":
     keaplugindir = os.path.join(keadir, "gdalplugins")
     hdfcpp = os.path.join(hdfdir, "HDF5_CPPDLL.DLL")
     include_files = [(gdaldatadir, "data"), (keaplugindir, "gdalplugins"), (gdalpluginsdir, "gdalplugins"),
-                    ("C:\\kea\\gdal19\\lib\\libkea.dll", ""), (hdfcpp, '')]
+                    ("C:\\kea\\gdal110\\lib\\libkea.dll", ""), (hdfcpp, '')]
 
 # I had to hardcode a lot of scipy stuff for PyQtGraph - dunno why
 # also had to import scipy.stats.futil in the main app to get PyQtGraph working
