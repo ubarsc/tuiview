@@ -1015,6 +1015,32 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
             if not img.save(fname):
                 QMessageBox.critical(self, MESSAGE_TITLE, 
                     "Unable to save file")
+            else:
+                # save a world file while we are at it
+                # see http://en.wikipedia.org/wiki/World_file
+                worldfname = fname + 'w'
+                worldfObj = None
+                try:
+                    layer = self.viewwidget.layers.getTopRasterLayer()
+                    if layer is not None:
+                        metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
+                                        layer.coordmgr.geotransform[1])
+                        (left, top, right, bottom) = (
+                                         layer.coordmgr.getWorldExtent())
+
+                        worldfObj = open(worldfname, 'w')
+                        worldfObj.write("%f\n" % metresperwinpix)
+                        worldfObj.write("0.0\n0.0\n")
+                        worldfObj.write("%f\n" % -metresperwinpix)
+                        worldfObj.write("%f\n" % (left + (metresperwinpix / 2.0)))
+                        worldfObj.write("%f\n" % (top + (metresperwinpix / 2.0)))
+                except IOError as e:
+                    QMessageBox.critical(self, MESSAGE_TITLE,
+                        "Unable to save world file: %s" % s)
+                finally:
+                    if worldfObj is not None:
+                        worldfObj.close()
+
 
     def about(self):
         """
