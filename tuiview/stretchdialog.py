@@ -840,14 +840,14 @@ class StretchDockWidget(QDockWidget):
         self.connect(self.applyAction, SIGNAL("triggered()"), self.onApply)
 
         self.saveAction = QAction(self)
-        self.saveAction.setText("&Save Stretch")
-        self.saveAction.setStatusTip("Save Stretch to File")
+        self.saveAction.setText("&Save Lookup Table")
+        self.saveAction.setStatusTip("Save Lookup Table to current File")
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
         self.connect(self.saveAction, SIGNAL("triggered()"), self.onSave)
 
         self.deleteAction = QAction(self)
-        self.deleteAction.setText("&Delete Stretch")
-        self.deleteAction.setStatusTip("Delete Stretch from File")
+        self.deleteAction.setText("&Delete Lookup Table")
+        self.deleteAction.setStatusTip("Delete Lookup Table from current File")
         self.deleteAction.setIcon(QIcon(":/viewer/images/deletesaved.png"))
         self.connect(self.deleteAction, SIGNAL("triggered()"), self.onDelete)
 
@@ -864,9 +864,10 @@ class StretchDockWidget(QDockWidget):
         Add the actions to the toolbar
         """
         self.toolBar.addAction(self.applyAction)
+        self.toolBar.addAction(self.localAction)
+        self.toolBar.addSeparator()
         self.toolBar.addAction(self.saveAction)
         self.toolBar.addAction(self.deleteAction)
-        self.toolBar.addAction(self.localAction)
 
     def onApply(self):
         """
