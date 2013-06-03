@@ -68,6 +68,10 @@ class ViewerStretch(object):
         self.attributeTableSize = None # override with size of attribute table 
                                     # if one exists
                                     # LUT will then be created with this size
+        self.readLUTFromText = None # if not None, path to text 
+                                    # file to read LUT out of
+        self.readLUTFromGDAL = None # if not None, path to GDAL dataset 
+                                    # to read LUT out of
 
     def setBands(self, bands):
         "Set the bands to use. bands should be a tuple of 1-based ints"
@@ -133,6 +137,14 @@ class ViewerStretch(object):
         set to None for default behaviour
         """
         self.attributeTableSize = size
+
+    def setLUTFromText(self, fname):
+        "Read in the LUT from specified text file"
+        self.readLUTFromText = fname
+
+    def setLUTFromGDAL(self, fname):
+        "Read LUT from specified GDAL dataset"
+        self.readLUTFromGDAL = fname
 
     def toString(self):
         """

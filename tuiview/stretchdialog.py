@@ -22,12 +22,13 @@ and StretchDefaultsDialog classes
 
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
 from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
-from PyQt4.QtGui import QPushButton, QGroupBox, QDockWidget
+from PyQt4.QtGui import QPushButton, QGroupBox, QDockWidget, QFileDialog
 from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox
 from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor, QMessageBox
 from PyQt4.QtCore import QSettings, SIGNAL, Qt
 import json
 import sys
+import os
 
 from . import viewerstretch
 from . import pseudocolor
@@ -48,6 +49,8 @@ DEFAULT_STRETCH_KEY = 'DefaultStretch'
 
 MAX_BAND_NUMBER = 100 # for spin boxes
 
+STRETCH_FILTER = ".stretch Files (*.stretch)"
+
 def VariantToInt(variant):
     """
     Action depends on which version of Python we are running
@@ -62,10 +65,13 @@ class ColorButton(QToolButton):
     Class that is a button with a icon that displays
     the current color. Clicking the button allows user to change color
     """
-    def __init__(self, parent, rgbatuple):
+    def __init__(self, parent, rgbatuple=None):
         QToolButton.__init__(self, parent)
-        color = QColor(rgbatuple[0], rgbatuple[1], 
-                        rgbatuple[2], rgbatuple[3])
+        if rgbatuple is not None:
+            color = QColor(rgbatuple[0], rgbatuple[1], 
+                            rgbatuple[2], rgbatuple[3])
+        else:
+            color = QColor(0, 0, 0, 0)
         self.setColor(color)
         self.setToolTip("Change Color")
 
@@ -84,6 +90,12 @@ class ColorButton(QToolButton):
         icon = QIcon(pixmap)
         self.setIcon(icon)
         self.color = color
+
+    def setColorAsRGBATuple(self, rgbatuple):
+        "set the color as RGBA"
+        color = QColor(rgbatuple[0], rgbatuple[1], 
+                        rgbatuple[2], rgbatuple[3])
+        self.setColor(color)
 
     def getColorAsRGBATuple(self):
         "return the current color"
@@ -113,12 +125,8 @@ class StretchLayout(QFormLayout):
 
         # the mode
         self.modeCombo = QComboBox(parent)
-        index = 0
         for text, code in MODE_DATA:
             self.modeCombo.addItem(text, code)
-            if code == stretch.mode:
-                self.modeCombo.setCurrentIndex(index)
-            index += 1
 
         # callback so we can set the state of other items when changed
         self.connect(self.modeCombo, SIGNAL("currentIndexChanged(int)"), 
@@ -133,16 +141,8 @@ class StretchLayout(QFormLayout):
             QMessageBox.critical(parent, MESSAGE_TITLE, str(e))
 
         # populate combo - sort by type
-        index = 0
         for (name, display) in pseudocolor.getRampsForDisplay():
             self.rampCombo.addItem(display, name)
-            if stretch.rampName is not None and stretch.rampName == name:
-                self.rampCombo.setCurrentIndex(index)
-            index += 1
-
-        # set ramp state depending on if we are pseudo color or not
-        state = stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
-        self.rampCombo.setEnabled(state)
 
         self.modeLayout = QHBoxLayout()
         self.modeLayout.addWidget(self.modeCombo)
@@ -153,33 +153,19 @@ class StretchLayout(QFormLayout):
         if gdaldataset is None:
             # we don't have a dateset - is a rule
             # create spin boxes for the bands
-            self.createSpinBands(stretch.bands, parent)
+            self.createSpinBands(parent)
         else:
             # we have a dataset. create combo
             # boxes with the band names
-            self.createComboBands(stretch.bands, gdaldataset, parent)
-
-        # set the bands depending on if we are RGB or not
-        if stretch.mode == viewerstretch.VIEWER_MODE_RGB:
-            self.redWidget.setToolTip("Red")
-            self.greenWidget.setToolTip("Green")
-            self.blueWidget.setToolTip("Blue")
-        else:
-            self.redWidget.setToolTip("Displayed Band")
-            self.greenWidget.setEnabled(False)
-            self.blueWidget.setEnabled(False)
+            self.createComboBands(gdaldataset, parent)
 
         self.addRow("Bands", self.bandLayout)
 
         # create the combo for the type of stretch
         self.stretchLayout = QHBoxLayout()
         self.stretchCombo = QComboBox(parent)
-        index = 0
         for text, code in STRETCH_DATA:
             self.stretchCombo.addItem(text, code)
-            if code == stretch.stretchmode:
-                self.stretchCombo.setCurrentIndex(index)
-            index += 1
         # callback so we can set the state of other items when changed
         self.connect(self.stretchCombo, SIGNAL("currentIndexChanged(int)"), 
                         self.stretchChanged)
@@ -193,6 +179,88 @@ class StretchLayout(QFormLayout):
         self.stretchParam2.setDecimals(3)
         self.stretchLayout.addWidget(self.stretchParam1)
         self.stretchLayout.addWidget(self.stretchParam2)
+
+        self.addRow("Stretch", self.stretchLayout)
+
+        # now for no data, background and NaN
+        self.fixedColorLayout = QHBoxLayout()
+        self.nodataLabel = QLabel(parent)
+        self.nodataLabel.setText("No Data")
+        self.fixedColorLayout.addWidget(self.nodataLabel)
+        self.fixedColorLayout.setAlignment(self.nodataLabel, Qt.AlignRight)
+        self.nodataButton = ColorButton(parent)
+        self.fixedColorLayout.addWidget(self.nodataButton)
+
+        self.backgroundLabel = QLabel(parent)
+        self.backgroundLabel.setText("Background")
+        self.fixedColorLayout.addWidget(self.backgroundLabel)
+        self.fixedColorLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
+        self.backgroundButton = ColorButton(parent)
+        self.fixedColorLayout.addWidget(self.backgroundButton)
+
+        self.NaNLabel = QLabel(parent)
+        self.NaNLabel.setText("NaN")
+        self.fixedColorLayout.addWidget(self.NaNLabel)
+        self.fixedColorLayout.setAlignment(self.NaNLabel, Qt.AlignRight)
+        self.NaNButton = ColorButton(parent)
+        self.fixedColorLayout.addWidget(self.NaNButton)
+
+        self.addRow("Fixed Colors", self.fixedColorLayout)
+
+        # set state of GUI for this stretch
+        self.updateStretch(stretch)
+
+    def updateStretch(self, stretch):
+        """
+        Change the state of the GUI to match the given stretch
+        """
+        # the mode
+        idx = self.modeCombo.findData(stretch.mode)
+        if idx != -1:
+            self.modeCombo.setCurrentIndex(idx)
+
+        # ramp
+        if stretch.rampName is not None:
+            idx = self.rampCombo.findData(stretch.rampName)
+            if idx != -1:
+                stretch.rampName.setCurrentIndex(idx)
+
+        # set ramp state depending on if we are pseudo color or not
+        state = stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
+        self.rampCombo.setEnabled(state)
+
+        # set the bands depending on if we are RGB or not
+        if stretch.mode == viewerstretch.VIEWER_MODE_RGB:
+            self.redWidget.setToolTip("Red")
+            self.greenWidget.setToolTip("Green")
+            self.blueWidget.setToolTip("Blue")
+            (r, g, b) = stretch.bands
+            if isinstance(self.redWidget, QSpinBox):
+                self.redWidget.setValue(r)
+                self.greenWidget.setValue(g)
+                self.blueWidget.setValue(b)
+            else:
+                self.redWidget.setCurrentIndex(r - 1)
+                self.greenWidget.setCurrentIndex(g - 1)
+                self.blueWidget.setCurrentIndex(b - 1)
+
+        else:
+            self.redWidget.setToolTip("Displayed Band")
+            self.greenWidget.setEnabled(False)
+            self.blueWidget.setEnabled(False)
+
+            if isinstance(self.redWidget, QSpinBox):
+                self.redWidget.setValue(stretch.bands[0])
+            else:
+                self.redWidget.setCurrentIndex(stretch.bands[0] - 1)
+
+        # stretch mode
+        idx = self.stretchCombo.findData(stretch.stretchmode)
+        if idx != -1:
+            self.stretchCombo.setCurrentIndex(idx)
+
+        state = stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE
+        self.stretchCombo.setEnabled(state)
 
         if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             self.stretchParam2.setEnabled(False)
@@ -232,36 +300,12 @@ class StretchLayout(QFormLayout):
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)
 
-        self.addRow("Stretch", self.stretchLayout)
-        state = stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE
-        self.stretchCombo.setEnabled(state)
+        # nodata etc
+        self.nodataButton.setColorAsRGBATuple(stretch.nodata_rgba)
+        self.backgroundButton.setColorAsRGBATuple(stretch.background_rgba)
+        self.NaNButton.setColorAsRGBATuple(stretch.nan_rgba)
 
-        # now for no data, background and NaN
-        self.fixedColorLayout = QHBoxLayout()
-        self.nodataLabel = QLabel(parent)
-        self.nodataLabel.setText("No Data")
-        self.fixedColorLayout.addWidget(self.nodataLabel)
-        self.fixedColorLayout.setAlignment(self.nodataLabel, Qt.AlignRight)
-        self.nodataButton = ColorButton(parent, stretch.nodata_rgba)
-        self.fixedColorLayout.addWidget(self.nodataButton)
-
-        self.backgroundLabel = QLabel(parent)
-        self.backgroundLabel.setText("Background")
-        self.fixedColorLayout.addWidget(self.backgroundLabel)
-        self.fixedColorLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
-        self.backgroundButton = ColorButton(parent, stretch.background_rgba)
-        self.fixedColorLayout.addWidget(self.backgroundButton)
-
-        self.NaNLabel = QLabel(parent)
-        self.NaNLabel.setText("NaN")
-        self.fixedColorLayout.addWidget(self.NaNLabel)
-        self.fixedColorLayout.setAlignment(self.NaNLabel, Qt.AlignRight)
-        self.NaNButton = ColorButton(parent, stretch.nan_rgba)
-        self.fixedColorLayout.addWidget(self.NaNButton)
-
-        self.addRow("Fixed Colors", self.fixedColorLayout)
-
-    def createSpinBands(self, bands, parent):
+    def createSpinBands(self, parent):
         """
         For the case where we are creating a rule
         we have no band names so create spin boxes
@@ -280,16 +324,7 @@ class StretchLayout(QFormLayout):
         self.blueWidget.setRange(1, MAX_BAND_NUMBER)
         self.bandLayout.addWidget(self.blueWidget)
 
-        # set them depending on if we are RGB or not
-        if len(bands) == 3:
-            (r, g, b) = bands
-            self.redWidget.setValue(r)
-            self.greenWidget.setValue(g)
-            self.blueWidget.setValue(b)
-        else:
-            self.redWidget.setValue(bands[0])
-
-    def createComboBands(self, bands, gdaldataset, parent):
+    def createComboBands(self, gdaldataset, parent):
         """
         We have a dataset - create combo boxes with the band names
         """
@@ -303,17 +338,11 @@ class StretchLayout(QFormLayout):
         self.blueWidget = QComboBox(parent)
         self.bandLayout.addWidget(self.blueWidget)
 
-        # set them depending on if we are RGB or not
-        if len(bands) == 3:
-            (r, g, b) = bands
-        else:
-            (r, g, b) = (bands[0], 1, 1)
+        self.populateComboFromDataset(self.redWidget, gdaldataset)
+        self.populateComboFromDataset(self.greenWidget, gdaldataset)
+        self.populateComboFromDataset(self.blueWidget, gdaldataset)
 
-        self.populateComboFromDataset(self.redWidget, gdaldataset, r)
-        self.populateComboFromDataset(self.greenWidget, gdaldataset, g)
-        self.populateComboFromDataset(self.blueWidget, gdaldataset, b)
-
-    def populateComboFromDataset(self, combo, gdaldataset, currentBand=1):
+    def populateComboFromDataset(self, combo, gdaldataset):
         """
         Go through all the bands in the dataset and add a combo
         item for each one. Set the current index to the currentBand
@@ -323,8 +352,6 @@ class StretchLayout(QFormLayout):
             gdalband = gdaldataset.GetRasterBand(bandnum)
             name = gdalband.GetDescription()
             combo.addItem(name, bandnum)
-
-        combo.setCurrentIndex(currentBand - 1)
 
     @staticmethod
     def getBandValue(widget):
@@ -839,25 +866,53 @@ class StretchDockWidget(QDockWidget):
         self.applyAction.setIcon(QIcon(":/viewer/images/apply.png"))
         self.connect(self.applyAction, SIGNAL("triggered()"), self.onApply)
 
+        self.localAction = QAction(self)
+        self.localAction.setText("&Local Stretch")
+        self.localAction.setStatusTip(
+                    "Calculate approximate local stretch on Apply")
+        self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
+        self.localAction.setCheckable(True)
+
         self.saveAction = QAction(self)
-        self.saveAction.setText("&Save Lookup Table")
-        self.saveAction.setStatusTip("Save Lookup Table to current File")
+        self.saveAction.setText("&Save Stretch and Lookup Table")
+        self.saveAction.setStatusTip(
+                    "Save Stretch and Lookup Table to current File")
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
         self.connect(self.saveAction, SIGNAL("triggered()"), self.onSave)
 
         self.deleteAction = QAction(self)
-        self.deleteAction.setText("&Delete Lookup Table")
-        self.deleteAction.setStatusTip("Delete Lookup Table from current File")
+        self.deleteAction.setText("&Delete Stretch and Lookup Table")
+        self.deleteAction.setStatusTip(
+                    "Delete Stretch and Lookup Table from current File")
         self.deleteAction.setIcon(QIcon(":/viewer/images/deletesaved.png"))
         self.connect(self.deleteAction, SIGNAL("triggered()"), self.onDelete)
 
-        self.localAction = QAction(self)
-        self.localAction.setText("&Local Stretch")
-        tip = "Calculate approximate local stretch on Apply"
-        self.localAction.setStatusTip(tip)
-        self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
-        self.localAction.setCheckable(True)
-        
+        self.exportToTextAction = QAction(self)
+        self.exportToTextAction.setText(
+                    "&Export Stretch and Lookup Table to Text file")    
+        self.exportToTextAction.setStatusTip(
+                    "Export current Stretch and Lookup Table to Text file")
+        self.exportToTextAction.setIcon(QIcon(":/viewer/images/savetext.png"))
+        self.connect(self.exportToTextAction, SIGNAL("triggered()"), 
+                                self.exportToText)
+
+        self.importFromGDALAction = QAction(self)
+        self.importFromGDALAction.setText(
+                    "&Import Stretch and Lookup Table from GDAL file and apply")
+        self.importFromGDALAction.setStatusTip(
+            "Import Stretch and Lookup Table saved in GDAL file and apply")
+        self.importFromGDALAction.setIcon(QIcon(":/viewer/images/open.png"))
+        self.connect(self.importFromGDALAction, SIGNAL("triggered()"),
+                                self.importFromGDAL)
+
+        self.importFromTextAction = QAction(self)
+        self.importFromTextAction.setText(
+                    "I&mport Stretch and Lookup Table from Text file")
+        self.importFromTextAction.setStatusTip(
+                "Import Stretch and Lookup Table saved in text file and apply")
+        self.importFromTextAction.setIcon(QIcon(":/viewer/images/opentext.png"))
+        self.connect(self.importFromTextAction,  SIGNAL("triggered()"),
+                                self.importFromText)
 
     def setupToolbar(self):
         """
@@ -868,6 +923,9 @@ class StretchDockWidget(QDockWidget):
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.saveAction)
         self.toolBar.addAction(self.deleteAction)
+        self.toolBar.addAction(self.exportToTextAction)
+        self.toolBar.addAction(self.importFromGDALAction)
+        self.toolBar.addAction(self.importFromTextAction)
 
     def onApply(self):
         """
@@ -902,4 +960,74 @@ class StretchDockWidget(QDockWidget):
             self.parent.showStatusMessage("Stretch deleted from file")
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+
+    def exportToText(self):
+        """
+        Export stretch and Lookup Table to JSON text
+        """
+        fname = QFileDialog.getSaveFileName(self, 
+                    "Select file to save stretch and lookup table into",
+                    os.getcwd(), STRETCH_FILTER)
+        if fname != "":
+            try:
+                self.layer.exportStretchandLUTToText(fname)
+            except Exception as e:
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+
+    def importFromGDAL(self):
+        """
+        Import stretch and lookup table from file where these have already 
+        been saved
+        """
+        from . import viewerwindow
+        from osgeo import gdal
+
+        viewerwindow.populateFilters()       
+        dlg = QFileDialog(self)
+        dlg.setNameFilters(viewerwindow.GDAL_FILTERS)
+        dlg.setFileMode(QFileDialog.ExistingFile)
+        # set last dir
+        dir = os.path.dirname(self.layer.filename)
+        dlg.setDirectory(dir)
+
+        if dlg.exec_() == QDialog.Accepted:
+            fname = dlg.selectedFiles()[0]
+            try:
+                gdaldataset = gdal.Open(fname)
+
+                stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
+                del gdaldataset
+                if stretch is None:
+                    QMessageBox.critical(self, MESSAGE_TITLE, 
+                                                "Unable to find stretch")
+                else:
+                    stretch.setLUTFromGDAL(fname)
+                    self.viewwidget.setNewStretch(stretch, self.layer)
+
+                    self.stretchLayout.updateStretch(stretch)
+
+            except Exception as e:
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+
+    def importFromText(self):
+        """
+        Import stretch and lookup table from text file saved by exportToText()
+        """
+        fname = QFileDialog.getOpenFileName(self, 
+                    "Select file containing stretch and lookup table",
+                    os.getcwd(), STRETCH_FILTER)
+        if fname != "":
+            try:
+                fileobj = open(fname)
+                s = fileobj.readline()
+                fileobj.close()
+                stretch = viewerstretch.ViewerStretch.fromString(s)
+
+                stretch.setLUTFromText(fname)
+                self.viewwidget.setNewStretch(stretch, self.layer)
+
+                self.stretchLayout.updateStretch(stretch)
+
+            except Exception as e:
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 

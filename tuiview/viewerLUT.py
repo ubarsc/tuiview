@@ -197,13 +197,11 @@ class ViewerLUT(QObject):
             self.surrogateLUT = surrogateLUT
             self.surrogateLUTName = surrogateName
 
-    def saveToFile(self, fname):
+    def saveToFile(self, fileobj):
         """
         Save current stretch to a text file
         so it can be stored and manipulated
         """
-        fileobj = open(fname, 'w')
-
         if self.lut.shape[1] == 4:
             rep = {'nbands' : 1}
             fileobj.write('%s\n' % json.dumps(rep))
@@ -227,9 +225,8 @@ class ViewerLUT(QObject):
                 fileobj.write('%s\n' % bi.toString())
 
                 lut = self.lut[lutindex]
-                fileobj.write('%s\n' % json.dumps(lut.tolist()))
-
-        fileobj.close()
+                rep = {'code' : code, 'data' : lut.tolist()}
+                fileobj.write('%s\n' % json.dumps(rep))
 
     def writeToGDAL(self, gdaldataset):
         """
@@ -301,13 +298,12 @@ class ViewerLUT(QObject):
                 gdaldataset.SetMetadataItem(key, '')
     
     @staticmethod
-    def createFromFile(fname):
+    def createFromFile(fileobj):
         """
         Read a text file created by saveToFile and 
         create an instance of this class
         """
         lutobj = ViewerLUT()
-        fileobj = open(fname)
         s = fileobj.readline()
         rep = json.loads(s)
         nbands = rep['nbands']
@@ -331,6 +327,8 @@ class ViewerLUT(QObject):
             for n in range(len(RGB_CODES)):
                 s = fileobj.readline()
                 bi = BandLUTInfo.fromString(s)
+                s = fileobj.readline()
+                rep = json.loads(s)
                 code = rep['code']
                 lutobj.bandinfo[code] = bi
                 lutindex = CODE_TO_LUTINDEX[code]
@@ -340,12 +338,9 @@ class ViewerLUT(QObject):
                         numpy.empty((4, bi.lutsize+VIEWER_LUT_EXTRA), 
                                 numpy.uint8, 'C'))
         
-                s = fileobj.readline()
-                rep = json.loads(s)
-                lut = numpy.fromiter(rep, numpy.uint8)
+                lut = numpy.fromiter(rep['data'], numpy.uint8)
                 lutobj.lut[lutindex] = lut
 
-        fileobj.close()
         return lutobj
 
     @staticmethod
@@ -761,8 +756,8 @@ class ViewerLUT(QObject):
         # clobber the backup lut - any hightlights happen afresh
         self.backuplut = None
 
-        if stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or \
-            stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT:
+        if (stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or 
+            stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT):
             msg = 'must set mode and stretchmode'
             raise viewererrors.InvalidStretch(msg)
 
@@ -784,6 +779,30 @@ class ViewerLUT(QObject):
             # global stretch
             localdata = None
             localdatalist = (None, None, None)
+
+        # are we loading the LUT from an external file instead?
+        if stretch.readLUTFromText is not None:
+            # first line describes the stretch - ignore
+            fileobj = open(stretch.readLUTFromText)
+            fileobj.readline()
+            lut = self.createFromFile(fileobj)
+            fileobj.close()
+            if lut is None:
+                msg = 'No stretch and lookup table in this file'
+                raise viewererrors.InvalidDataset(msg)
+            self.lut = lut.lut
+            self.bandinfo = lut.bandinfo
+            return
+        elif stretch.readLUTFromGDAL is not None:
+            gdaldataset = gdal.Open(stretch.readLUTFromGDAL)
+            lut = self.createFromGDAL(gdaldataset, stretch)
+            del gdaldataset
+            if lut is None:
+                msg = 'No stretch and lookup table in this file'
+                raise viewererrors.InvalidDataset(msg)
+            self.lut = lut.lut
+            self.bandinfo = lut.bandinfo
+            return
 
         # decide what to do based on the code
         if stretch.mode == viewerstretch.VIEWER_MODE_COLORTABLE:

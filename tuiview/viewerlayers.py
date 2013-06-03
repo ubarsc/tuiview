@@ -443,6 +443,20 @@ class ViewerRasterLayer(ViewerLayer):
             # attempt to open the file readonly again
             self.gdalDataset = gdal.Open(self.filename)
 
+    def exportStretchandLUTToText(self, fname):
+        """
+        Exports the current stretch and lookup table to a 
+        JSON formatted text file
+        """
+        fileobj = open(fname, 'w')
+
+        stretchstr = self.stretch.toString()
+        fileobj.write("%s\n" % stretchstr)
+
+        self.lut.saveToFile(fileobj)
+
+        fileobj.close()
+
     def writeDirtyRATColumns(self):
         """
         calls self.attributes.writeDirtyColumns on the band opening
