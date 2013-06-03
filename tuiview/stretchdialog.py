@@ -856,6 +856,19 @@ class StretchDockWidget(QDockWidget):
         # tell the dock window this is the widget to display
         self.setWidget(self.dockWidget)
 
+        # make sure we get notified if the layers change so
+        # we can close if needed
+        self.connect(viewwidget.layers, SIGNAL("layersChanged()"), 
+                                    self.onLayersChanged)
+
+    def onLayersChanged(self):
+        """
+        Called when the layers have changed. If the one we 'belong' to
+        no longer exists then close this window
+        """
+        if self.layer not in self.viewwidget.layers.layers:
+            self.close()
+
     def setupActions(self):
         """
         Create the actions to be shown on the toolbar
