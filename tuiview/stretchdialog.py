@@ -1005,6 +1005,7 @@ class StretchDockWidget(QDockWidget):
 
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
+            fname = str(fname)
             try:
                 gdaldataset = gdal.Open(fname)
 
