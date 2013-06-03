@@ -67,6 +67,24 @@ def optionCallback(option, opt_str, value, parser):
         bandlist = [int(x) for x in value.split(',')]
         parser.stretch.setBands(bandlist)
         parser.bandsSet = True
+    elif opt_str == '--stretchfromtext':
+        fileobj = open(value)
+        s = fileobj.readline()
+        fileobj.close()
+        parser.stretch = viewerstretch.ViewerStretch.fromString(s)
+        parser.stretch.setLUTFromText(value)
+        parser.modeSet = True
+        parser.stretchModeSet = True
+        parser.bandsSet = True
+    elif opt_str == '--stretchfromgdal':
+        from osgeo import gdal
+        ds = gdal.Open(value)
+        parser.stretch = viewerstretch.ViewerStretch.readFromGDAL(ds)
+        del ds
+        parser.stretch.setLUTFromGDAL(value)
+        parser.modeSet = True
+        parser.stretchModeSet = True
+        parser.bandsSet = True
     else:
         raise ValueError("Unknown option %s" % opt_str)
 
@@ -109,6 +127,13 @@ class CmdArgs(object):
         self.parser.add_option('--hist', action="callback", 
                             callback=optionCallback, 
                             help="do a histogram stretch")
+        self.parser.add_option('--stretchfromtext', action="callback", 
+                            callback=optionCallback, nargs=1, type="string", 
+                        help="Load stretch and lookup table from text file")
+        self.parser.add_option('--stretchfromgdal', action="callback", 
+                            callback=optionCallback, nargs=1, type="string", 
+                        help="Load stretch and lookup table from GDAL file" + 
+                            " that contains saved stretch and lookup table")
         self.parser.add_option('--noplugins', action="store_false", 
                             default=True, dest='loadplugins', 
                             help="Don't load plugins")
