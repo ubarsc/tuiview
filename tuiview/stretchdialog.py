@@ -223,7 +223,7 @@ class StretchLayout(QFormLayout):
         if stretch.rampName is not None:
             idx = self.rampCombo.findData(stretch.rampName)
             if idx != -1:
-                stretch.rampName.setCurrentIndex(idx)
+                self.rampCombo.setCurrentIndex(idx)
 
         # set ramp state depending on if we are pseudo color or not
         state = stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
