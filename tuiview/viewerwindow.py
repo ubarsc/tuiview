@@ -1003,44 +1003,49 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         Saves the current view as an image file
         """
+        # now get a filename
+        fname = QFileDialog.getSaveFileName(self, "Image File", 
+                        filter="Images (*.png *.xpm *.jpg *.tif)")
+        if fname != '':
+            self.saveCurrentViewInternal(fname)
+
+    def saveCurrentViewInternal(self, fname):
+        """
+        Saves the current view as an image file as the file given
+        """
         # first grab it out of the widget
         from PyQt4.QtGui import QImage
         img = QImage(self.viewwidget.viewport().size(), QImage.Format_RGB32)
         self.viewwidget.viewport().render(img)
 
-        # now get a filename
-        fname = QFileDialog.getSaveFileName(self, "Image File", 
-                        filter="Images (*.png *.xpm *.jpg *.tif)")
-        if fname != '':
-            if not img.save(fname):
-                QMessageBox.critical(self, MESSAGE_TITLE, 
-                    "Unable to save file")
-            else:
-                # save a world file while we are at it
-                # see http://en.wikipedia.org/wiki/World_file
-                worldfname = fname + 'w'
-                worldfObj = None
-                try:
-                    layer = self.viewwidget.layers.getTopRasterLayer()
-                    if layer is not None:
-                        metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
-                                        layer.coordmgr.geotransform[1])
-                        (left, top, right, bottom) = (
-                                         layer.coordmgr.getWorldExtent())
+        if not img.save(fname):
+            QMessageBox.critical(self, MESSAGE_TITLE, 
+                "Unable to save file")
+        else:
+            # save a world file while we are at it
+            # see http://en.wikipedia.org/wiki/World_file
+            worldfname = fname + 'w'
+            worldfObj = None
+            try:
+                layer = self.viewwidget.layers.getTopRasterLayer()
+                if layer is not None:
+                    metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
+                                    layer.coordmgr.geotransform[1])
+                    (left, top, right, bottom) = (
+                                     layer.coordmgr.getWorldExtent())
 
-                        worldfObj = open(worldfname, 'w')
-                        worldfObj.write("%f\n" % metresperwinpix)
-                        worldfObj.write("0.0\n0.0\n")
-                        worldfObj.write("%f\n" % -metresperwinpix)
-                        worldfObj.write("%f\n" % (left + (metresperwinpix / 2.0)))
-                        worldfObj.write("%f\n" % (top + (metresperwinpix / 2.0)))
-                except IOError as e:
-                    QMessageBox.critical(self, MESSAGE_TITLE,
-                        "Unable to save world file: %s" % s)
-                finally:
-                    if worldfObj is not None:
-                        worldfObj.close()
-
+                    worldfObj = open(worldfname, 'w')
+                    worldfObj.write("%f\n" % metresperwinpix)
+                    worldfObj.write("0.0\n0.0\n")
+                    worldfObj.write("%f\n" % -metresperwinpix)
+                    worldfObj.write("%f\n" % (left + (metresperwinpix / 2.0)))
+                    worldfObj.write("%f\n" % (top + (metresperwinpix / 2.0)))
+            except IOError as e:
+                QMessageBox.critical(self, MESSAGE_TITLE,
+                    "Unable to save world file: %s" % s)
+            finally:
+                if worldfObj is not None:
+                    worldfObj.close()
 
     def about(self):
         """
