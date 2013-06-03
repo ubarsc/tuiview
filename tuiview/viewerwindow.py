@@ -1064,6 +1064,12 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
             pyqtgraphVersionString = pyqtgraphVersion
         except ImportError:
             pass
+        turbogdalString = 'Not Available'
+        try:
+            from turbogdal import turborat, turbovector
+            turbogdalString = 'Available'
+        except ImportError:
+            pass
 
         msg = """ TuiView
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and Tony Gill.
@@ -1078,13 +1084,14 @@ Python Version: %s
 Numpy Version: %s
 Scipy Version: %s
 PyQtGraph Version: %s
+TurboGDAL: %s
 """
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
                     sys.version_info.micro)
         msg = msg % (appDir, gdalVersion, PYQT_VERSION_STR, QT_VERSION_STR, 
                 pyVer, numpyVersion.version, scipyVersionString, 
-                pyqtgraphVersionString)
+                pyqtgraphVersionString, turbogdalString)
 
         # centre each line - doesn't work very well due to font
         msgLines = msg.split('\n')
