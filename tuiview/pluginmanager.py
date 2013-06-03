@@ -24,7 +24,7 @@ import os
 import sys
 import imp
 
-PLUGINS_ENV = 'VIEWER_PLUGINS_PATH'
+PLUGINS_ENV = 'TUIVIEW_PLUGINS_PATH'
 PLUGINS_SUBDIR = 'plugins'
 
 PLUGIN_NAME_FN = 'name'
