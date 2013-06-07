@@ -257,3 +257,21 @@ class ProfileDockWidget(QDockWidget):
         """
         self.emit(SIGNAL("profileClosed(PyQt_PyObject)"), self)
 
+    def __del__(self):
+        """
+        HACK ALERT!
+        From the PyQtGraph doco:
+        exit()
+            Causes python to exit without garbage-collecting any objects, and thus avoids
+            calling object destructor methods. This is a sledgehammer workaround for 
+            a variety of bugs in PyQt and Pyside that cause crashes on exit.
+
+        For some reason this window does seem to cause a crash on Python 3.3 
+            so this seems the best option. 
+        Note: __del__ seems only to be called once on application exit, not on window close
+        """
+        try:
+            pyqtgraph.exit()
+        except AttributeError:
+            # older verisions don't have it
+            pass
