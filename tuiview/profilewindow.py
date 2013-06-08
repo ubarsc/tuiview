@@ -24,12 +24,7 @@ from PyQt4.QtGui import QPen, QLabel, QAction, QIcon
 from PyQt4.QtCore import Qt, SIGNAL, QLocale
 import numpy
 
-# See if we have access to PyQtGraph
-HAVE_PYQTGRAPH = True
-try:
-    import pyqtgraph
-except ImportError:
-    HAVE_PYQTGRAPH = False
+from . import plotwidget
 
 class ProfileDockWidget(QDockWidget):
     """
@@ -48,20 +43,17 @@ class ProfileDockWidget(QDockWidget):
         self.setupToolbar()
         self.mainLayout.addWidget(self.toolBar)
 
-        if HAVE_PYQTGRAPH:
-            self.plotWidget = pyqtgraph.PlotWidget()
-            self.mainLayout.addWidget(self.plotWidget)
+        self.plotWidget = plotwidget.PlotWidget(self)
+        self.mainLayout.addWidget(self.plotWidget)
 
-            self.whitePen = QPen(Qt.white)
-            self.redPen = QPen(Qt.red)
-            self.greenPen = QPen(Qt.green)
-            self.bluePen = QPen(Qt.blue)
-
-        else:
-            self.noPyQtGraphLabel = QLabel()
-            self.noPyQtGraphLabel.setText("PyQtGraph needs to be installed for plot")
-            self.noPyQtGraphLabel.setAlignment(Qt.AlignCenter)
-            self.mainLayout.addWidget(self.noPyQtGraphLabel)
+        self.whitePen = QPen(Qt.white)
+        self.whitePen.setWidth(1)
+        self.redPen = QPen(Qt.red)
+        self.redPen.setWidth(1)
+        self.greenPen = QPen(Qt.green)
+        self.greenPen.setWidth(1)
+        self.bluePen = QPen(Qt.blue)
+        self.bluePen.setWidth(1)
 
         self.distanceLabel = QLabel()
         self.mainLayout.addWidget(self.distanceLabel)
@@ -111,9 +103,8 @@ class ProfileDockWidget(QDockWidget):
         Add the actions to the toolbar
         """
         self.toolBar.addAction(self.followAction)
-        if HAVE_PYQTGRAPH:
-            self.toolBar.addAction(self.savePlotAction)
-            self.toolBar.addAction(self.plotScalingAction)
+        self.toolBar.addAction(self.savePlotAction)
+        self.toolBar.addAction(self.plotScalingAction)
 
     def savePlot(self):
         """
@@ -121,19 +112,18 @@ class ProfileDockWidget(QDockWidget):
         chooses format based on extension.
         """
         from PyQt4.QtGui import QPrinter, QPainter, QFileDialog
-        if HAVE_PYQTGRAPH:
-            fname = QFileDialog.getSaveFileName(self, "Plot File", 
-                        filter="PDF (*.pdf);;Postscript (*.ps)")
-            if fname != '':
-                printer = QPrinter()
-                printer.setOrientation(QPrinter.Landscape)
-                printer.setColorMode(QPrinter.Color)
-                printer.setOutputFileName(fname)
-                printer.setResolution(96)
-                painter = QPainter()
-                painter.begin(printer)
-                self.plotWidget.render(painter)
-                painter.end()
+        fname = QFileDialog.getSaveFileName(self, "Plot File", 
+                    filter="PDF (*.pdf);;Postscript (*.ps)")
+        if fname != '':
+            printer = QPrinter()
+            printer.setOrientation(QPrinter.Landscape)
+            printer.setColorMode(QPrinter.Color)
+            printer.setOutputFileName(fname)
+            printer.setResolution(96)
+            painter = QPainter()
+            painter.begin(printer)
+            self.plotWidget.render(painter)
+            painter.end()
 
     def plotProfile(self, xdata, ydata, mask, pen):
         """
@@ -157,9 +147,8 @@ class ProfileDockWidget(QDockWidget):
                 xdatasub = xdata[lastidx:idx]
                 ydatasub = ydata[lastidx:idx]
                 
-                curve = self.plotWidget.plot()
-                curve.setData(x=xdatasub, y=ydatasub)
-                curve.setPen(pen)
+                curve = plotwidget.PlotCurve(xdatasub, ydatasub, pen)
+                self.plotWidget.addCurve(curve)
             lastidx = idx
 
     def newLine(self, polyLine):
@@ -177,79 +166,75 @@ class ProfileDockWidget(QDockWidget):
         fmt = "Total Distance: %s" % txt
         self.distanceLabel.setText(fmt)
 
-        if HAVE_PYQTGRAPH:
+        # get rid of curves from last time
+        self.plotWidget.removeCurves()
 
-            # get rid of curves from last time
-            self.plotWidget.clear()
-
-            if isinstance(profiledata, list):
-                # RGB
-                penList = [self.redPen, self.greenPen, self.bluePen]
-                minValue = None
-                maxValue = None
-                for data, pen in zip(profiledata, penList):
-                    self.plotProfile(distance, data, profilemask, pen)
+        if isinstance(profiledata, list):
+            # RGB
+            penList = [self.redPen, self.greenPen, self.bluePen]
+            minValue = None
+            maxValue = None
+            for data, pen in zip(profiledata, penList):
+                self.plotProfile(distance, data, profilemask, pen)
         
-                    # record the range of the data for scaling
-                    masked = numpy.compress(profilemask, data)
-                    bandMinValue = masked.min()
-                    bandMaxValue = masked.max()
-                    if minValue is None or bandMinValue < bandMinValue:
-                        minValue = bandMinValue
-                    if maxValue is None or bandMaxValue > maxValue:
-                        maxValue = bandMaxValue
-            else:
-                # greyscale
-                pen = self.whitePen
-                self.plotProfile(distance, profiledata, profilemask, pen)
+                # record the range of the data for scaling
+                masked = numpy.compress(profilemask, data)
+                bandMinValue = masked.min()
+                bandMaxValue = masked.max()
+                if minValue is None or bandMinValue < bandMinValue:
+                    minValue = bandMinValue
+                if maxValue is None or bandMaxValue > maxValue:
+                    maxValue = bandMaxValue
+        else:
+            # greyscale
+            pen = self.whitePen
+            self.plotProfile(distance, profiledata, profilemask, pen)
+            # find range of data for scaling
+            masked = numpy.compress(profilemask, profiledata)
+            minValue = masked.min()
+            maxValue = masked.max()
 
-                # find range of data for scaling
-                masked = numpy.compress(profilemask, profiledata)
-                minValue = masked.min()
-                maxValue = masked.max()
+        self.dataRange = (minValue, maxValue)
 
-            self.dataRange = (minValue, maxValue)
+        # include total distance in case start or end off image
+        self.plotWidget.setXRange(0, distance[-1])
 
-            # include total distance in case start or end off image
-            self.plotWidget.setXRange(0, distance[-1])
+        # set scaling if needed
+        minScale, maxScale = self.plotScaling
+        if minScale is None and maxScale is None:
+            # set back to auto
+            self.plotWidget.setYRange()
+        else:
+            # we need to provide both min and max so
+            # derive from data if needed
+            if minScale is None:
+                minScale = minValue
+            if maxScale is None:
+                maxScale = maxValue
+            self.plotWidget.setYRange(minScale, maxScale)
 
-            # set scaling if needed
-            minScale, maxScale = self.plotScaling
-            if minScale is None and maxScale is None:
-                # set back to auto
-                self.plotWidget.enableAutoRange(pyqtgraph.ViewBox.YAxis)
-            else:
-                # we need to provide both min and max so
-                # derive from data if needed
-                if minScale is None:
-                    minScale = minValue
-                if maxScale is None:
-                    maxScale = maxValue
-                self.plotWidget.setYRange(minScale, maxScale)
-
-            self.lastPolyLine = polyLine
+        self.lastPolyLine = polyLine
 
     def onPlotScaling(self):
         """
         Allows the user to change the Y axis scaling of the plot
         """
         from .plotscalingdialog import PlotScalingDialog
-        if HAVE_PYQTGRAPH:
-            if self.dataRange is not None:
-                minValue, maxValue = self.dataRange
-                # should inherit type of minValue etc
-                # which should be the same as the data array
-                data = numpy.array([minValue, maxValue])
-            else:
-                # uint8 default if no data 
-                data = numpy.array([0, 1], dtype=numpy.uint8) 
+        if self.dataRange is not None:
+            minValue, maxValue = self.dataRange
+            # should inherit type of minValue etc
+            # which should be the same as the data array
+            data = numpy.array([minValue, maxValue])
+        else:
+            # uint8 default if no data 
+            data = numpy.array([0, 1], dtype=numpy.uint8) 
 
-            dlg = PlotScalingDialog(self, self.plotScaling, data)
+        dlg = PlotScalingDialog(self, self.plotScaling, data)
 
-            if dlg.exec_() == PlotScalingDialog.Accepted:
-                self.plotScaling = dlg.getScale()
-                if self.lastPolyLine is not None:
-                    self.newLine(self.lastPolyLine)
+        if dlg.exec_() == PlotScalingDialog.Accepted:
+            self.plotScaling = dlg.getScale()
+            if self.lastPolyLine is not None:
+                self.newLine(self.lastPolyLine)
 
     def closeEvent(self, event):
         """
@@ -257,21 +242,3 @@ class ProfileDockWidget(QDockWidget):
         """
         self.emit(SIGNAL("profileClosed(PyQt_PyObject)"), self)
 
-    def __del__(self):
-        """
-        HACK ALERT!
-        From the PyQtGraph doco:
-        exit()
-            Causes python to exit without garbage-collecting any objects, and thus avoids
-            calling object destructor methods. This is a sledgehammer workaround for 
-            a variety of bugs in PyQt and Pyside that cause crashes on exit.
-
-        For some reason this window does seem to cause a crash on Python 3.3 
-            so this seems the best option. 
-        Note: __del__ seems only to be called once on application exit, not on window close
-        """
-        try:
-            pyqtgraph.exit()
-        except AttributeError:
-            # older verisions don't have it
-            pass
