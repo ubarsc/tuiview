@@ -1055,15 +1055,6 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         from osgeo.gdal import __version__ as gdalVersion
         import sys
         from numpy import version as numpyVersion
-        scipyVersionString = 'Not Available'
-        pyqtgraphVersionString = 'Not Available'
-        try:
-            from scipy import version as scipyVersion
-            scipyVersionString = scipyVersion.version
-            from pyqtgraph import __version__ as pyqtgraphVersion
-            pyqtgraphVersionString = pyqtgraphVersion
-        except ImportError:
-            pass
         turbogdalString = 'Not Available'
         try:
             from turbogdal import turborat, turbovector
@@ -1082,16 +1073,13 @@ PyQt Version: %s
 Qt Version: %s
 Python Version: %s
 Numpy Version: %s
-Scipy Version: %s
-PyQtGraph Version: %s
 TurboGDAL: %s
 """
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
                     sys.version_info.micro)
         msg = msg % (appDir, gdalVersion, PYQT_VERSION_STR, QT_VERSION_STR, 
-                pyVer, numpyVersion.version, scipyVersionString, 
-                pyqtgraphVersionString, turbogdalString)
+                pyVer, numpyVersion.version, turbogdalString)
 
         # centre each line - doesn't work very well due to font
         msgLines = msg.split('\n')
