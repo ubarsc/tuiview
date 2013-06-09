@@ -28,23 +28,13 @@ from PyQt4.QtCore import SIGNAL, Qt, QAbstractTableModel
 from PyQt4.QtCore import QModelIndex
 import numpy
 
-# See if we have access to PyQtGraph
-HAVE_PYQTGRAPH = True
-try:
-    # following needed for cx_freeze
-    from scipy.stats import futil
-    import pyqtgraph
-    # following needed for cxfreeze for some reason
-    from pyqtgraph.graphicsItems import TextItem 
-except ImportError:
-    HAVE_PYQTGRAPH = False
-
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
 from .viewerwidget import  VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
 from .viewerwindow import MESSAGE_TITLE
+from . import plotwidget
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
@@ -509,19 +499,10 @@ class QueryDockWidget(QDockWidget):
         # don't worry about QItemDelegate etc
         self.tableView.verticalHeader().setDefaultSectionSize(height)
 
-        if HAVE_PYQTGRAPH:
-            self.plotWidget = pyqtgraph.PlotWidget()
-            # can't seem to resize which is a hassle...
-        else:
-            self.noPyQtGraphLabel = QLabel()
-            self.noPyQtGraphLabel.setText("PyQtGraph needs to be installed for plot")
-            self.noPyQtGraphLabel.setAlignment(Qt.AlignCenter)
+        self.plotWidget = plotwidget.PlotWidget(self)
 
         self.tabWidget.addTab(self.tableView, "Table")
-        if HAVE_PYQTGRAPH:
-            self.tabWidget.addTab(self.plotWidget, "Plot")
-        else:
-            self.tabWidget.addTab(self.noPyQtGraphLabel, "Plot")
+        self.tabWidget.addTab(self.plotWidget, "Plot")
 
         self.mainLayout = QVBoxLayout()
         self.mainLayout.addWidget(self.toolBar)
@@ -755,10 +736,9 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.geogSelectLineAction)
         self.toolBar.addAction(self.geogSelectPointAction)
         self.toolBar.addAction(self.toggleCoordsAction)
-        if HAVE_PYQTGRAPH:
-            self.toolBar.addAction(self.labelAction)
-            self.toolBar.addAction(self.savePlotAction)
-            self.toolBar.addAction(self.plotScalingAction)
+        self.toolBar.addAction(self.labelAction)
+        self.toolBar.addAction(self.savePlotAction)
+        self.toolBar.addAction(self.plotScalingAction)
 
 
     def changeCursorColor(self):
@@ -778,7 +758,7 @@ class QueryDockWidget(QDockWidget):
             if self.lastqi is not None:
                 self.viewwidget.setQueryPoint(id(self), self.lastqi.easting,
                          self.lastqi.northing, newcolor, self.cursorSize)
-                if HAVE_PYQTGRAPH and self.lastqi is not None:
+                if self.lastqi is not None:
                     # to get new color
                     self.updatePlot(self.lastqi, newcolor)
 
@@ -822,7 +802,7 @@ class QueryDockWidget(QDockWidget):
         """
         State of display labels check has been changed. Redisplay plot.
         """
-        if HAVE_PYQTGRAPH and self.lastqi is not None:
+        if self.lastqi is not None:
             self.updatePlot(self.lastqi, self.cursorColor)
 
     def savePlot(self):
@@ -831,38 +811,36 @@ class QueryDockWidget(QDockWidget):
         chooses format based on extension.
         """
         from PyQt4.QtGui import QPrinter, QPainter, QFileDialog
-        if HAVE_PYQTGRAPH:
-            fname = QFileDialog.getSaveFileName(self, "Plot File", 
-                        filter="PDF (*.pdf);;Postscript (*.ps)")
-            if fname != '':
-                printer = QPrinter()
-                printer.setOrientation(QPrinter.Landscape)
-                printer.setColorMode(QPrinter.Color)
-                printer.setOutputFileName(fname)
-                printer.setResolution(96)
-                painter = QPainter()
-                painter.begin(printer)
-                self.plotWidget.render(painter)
-                painter.end()
+        fname = QFileDialog.getSaveFileName(self, "Plot File", 
+                    filter="PDF (*.pdf);;Postscript (*.ps)")
+        if fname != '':
+            printer = QPrinter()
+            printer.setOrientation(QPrinter.Landscape)
+            printer.setColorMode(QPrinter.Color)
+            printer.setOutputFileName(fname)
+            printer.setResolution(96)
+            painter = QPainter()
+            painter.begin(printer)
+            self.plotWidget.render(painter)
+            painter.end()
 
     def onPlotScaling(self):
         """
         Allows the user to change the Y axis scaling of the plot
         """
         from .plotscalingdialog import PlotScalingDialog
-        if HAVE_PYQTGRAPH:
+        if self.lastqi is not None:
+            data = self.lastqi.data
+        else:
+            # uint8 default if no data 
+            data = numpy.array([0, 1], dtype=numpy.uint8) 
+
+        dlg = PlotScalingDialog(self, self.plotScaling, data)
+
+        if dlg.exec_() == PlotScalingDialog.Accepted:
+            self.plotScaling = dlg.getScale()
             if self.lastqi is not None:
-                data = self.lastqi.data
-            else:
-                # uint8 default if no data 
-                data = numpy.array([0, 1], dtype=numpy.uint8) 
-
-            dlg = PlotScalingDialog(self, self.plotScaling, data)
-
-            if dlg.exec_() == PlotScalingDialog.Accepted:
-                self.plotScaling = dlg.getScale()
-                if self.lastqi is not None:
-                    self.updatePlot(self.lastqi, self.cursorColor)
+                self.updatePlot(self.lastqi, self.cursorColor)
 
     def highlight(self, state):
         """
@@ -1512,8 +1490,7 @@ Use the special columns:
                 self.setupTableContinuous(qi.data, qi.layer)
 
             # set up the plot
-            if HAVE_PYQTGRAPH:
-                self.updatePlot(qi, self.cursorColor)
+            self.updatePlot(qi, self.cursorColor)
 
             # add/modify this is a query point to the widget
             self.viewwidget.setQueryPoint(id(self), qi.easting, 
@@ -1525,11 +1502,10 @@ Use the special columns:
         """
         Updates the plot widget with new data/color
         """
-        self.plotWidget.clear()
+        self.plotWidget.removeCurves()
+        self.plotWidget.removeLabels()
 
         pen = QPen(color)
-        curve = self.plotWidget.plot()
-        curve.setPen(pen)
         nbands = qi.data.shape[0]
 
         if qi.layer.wavelengths is None:
@@ -1538,7 +1514,9 @@ Use the special columns:
         else:
             xdata = qi.layer.wavelengths
 
-        curve.setData(x=xdata, y=qi.data)
+        curve = plotwidget.PlotCurve(xdata, qi.data, pen)
+        self.plotWidget.addCurve(curve)
+        self.plotWidget.setXRange(xmin=xdata[0]) # just plot the range of the data
 
         # only do new labels if they have asked for them.
         if self.labelAction.isChecked():
@@ -1546,31 +1524,25 @@ Use the special columns:
             for x, y, text in zip(xdata, qi.data, qi.layer.bandNames):
                 # align appropriately for first and last
                 if count == 1:
-                    anchor = (0, 0.5)
+                    flags = Qt.AlignLeft | Qt.AlignTop
                 else:
-                    anchor = (1, 0.5)
+                    flags = Qt.AlignRight | Qt.AlignTop
 
-                textItem = pyqtgraph.TextItem(text=text, anchor=anchor)
-                textItem.setPos(x, y)
-                self.plotWidget.addItem(textItem)
+                label = plotwidget.PlotLabel(x, y, text, flags)
+                self.plotWidget.addLabel(label)
             
                 count += 1
 
-        # make xaxis labels integer if no wavelengths
-        axis = self.plotWidget.getAxis('bottom')
-        if qi.layer.wavelengths is None:
-            majorticks = [(int(x), "%d" % x) for x in xdata]
-            ticks = [majorticks, []] # no minor ticks
-            axis.setTicks(ticks)
-        else:
-            # set back to autoscale
-            axis.setTicks(None)
+        # set xticks - we want descrete points
+        # where there is data
+        xticks = [(int(x), "%d" % x) for x in xdata]
+        self.plotWidget.setXTicks(xticks)
 
         # set scaling if needed
         minScale, maxScale = self.plotScaling
         if minScale is None and maxScale is None:
             # set back to auto
-            self.plotWidget.enableAutoRange(pyqtgraph.ViewBox.YAxis)
+            self.plotWidget.setYRange()
         else:
             # we need to provide both min and max so
             # derive from data if needed

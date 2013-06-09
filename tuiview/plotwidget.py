@@ -40,6 +40,26 @@ class PlotCurve(object):
             self.pen.setWidth(1)
             self.pen.setColor(Qt.white)
 
+class PlotLabel(object):
+    """
+    Pass instances of these to PlotWidget.addLabel()
+    xloc and yloc are in data units
+    txt is text to display
+    flags are those accepted by QPainter.drawText
+    If pen not given will be white, 1 pixel wide
+    """
+    def __init__(self, xloc, yloc, txt, flags=Qt.AlignLeft|Qt.AlignTop, 
+                            pen=None):
+        self.xloc = xloc
+        self.yloc = yloc
+        self.txt = txt
+        self.flags = flags
+        self.pen = pen
+        if self.pen is None:
+            self.pen = QPen()
+            self.pen.setWidth(1)
+            self.pen.setColor(Qt.white)
+
 AXES_YSIZE = 18 # pixels
 TICK_SIZE = 2  # pixels
 
@@ -70,12 +90,24 @@ class PlotWidget(QWidget):
         font.setPointSize(6)
         self.setFont(font)
 
+        # xticks. Tuples of xloc, labels
+        self.xticks = None
+        # yticks
+        self.yticks = None
+
+        # text labels list of PlotTexts
+        self.labels = []
+
+        # fontmetrics
+        self.fontMetrics = QFontMetrics(self.font())
+
     def setYRange(self, ymin=None, ymax=None):
         """
         Set the Y range. Pass None for autoscale
         for either or both
         """
         self.yrange = (ymin, ymax)
+        self.update()
 
     def setXRange(self, xmin=None, xmax=None):
         """
@@ -83,6 +115,23 @@ class PlotWidget(QWidget):
         for either or both
         """
         self.xrange = (xmin, xmax)
+        self.update()
+
+    def setXTicks(self, xticks=None):
+        """
+        Pass a list of tuples (xloc, text)
+        xloc in data coordinates
+        """
+        self.xticks = xticks
+        self.update()
+
+    def setYTicks(self, yticks=None):
+        """
+        Pass a list of tuples (yloc, text)
+        yloc in data coordinates
+        """
+        self.yticks = yticks
+        self.update()
 
     def setBackgroundColor(self, color):
         "Sets the background color for the widget"
@@ -102,6 +151,16 @@ class PlotWidget(QWidget):
     def removeCurves(self):
         "Remove all the curves"
         self.curves = []
+        self.update()
+
+    def addLabel(self, label):
+        "Add a PlotLabel to be drawn"
+        self.labels.append(label)
+        self.update()
+
+    def removeLabels(self):
+        "remove all labels"
+        self.labels = []
         self.update()
 
     def getYDataRange(self):
@@ -184,6 +243,26 @@ class PlotWidget(QWidget):
 
         return intervals, npd
 
+    def drawText(self, paint, xloc, yloc, txt, flags):
+        """
+        Helper method to draw text in given device coords
+        For some reason Qt doesn't come with a method like
+        this that moves the text around for given flags.
+        """
+        # the position we are after is relative to the left bottom of the rect
+        txtrect = self.fontMetrics.boundingRect(txt)
+
+        if flags & Qt.AlignRight:
+            xloc -= txtrect.width()
+        if flags & Qt.AlignHCenter:
+            xloc -= txtrect.width() / 2
+        if flags & Qt.AlignTop:
+            yloc += txtrect.height()
+        if flags & Qt.AlignVCenter:
+            yloc += txtrect.height() / 2
+
+        paint.drawText(xloc, yloc, txt)
+
     @staticmethod
     def formatInterval(interval, ndp):
         if ndp == 0:
@@ -192,56 +271,97 @@ class PlotWidget(QWidget):
             txt = "%.*f" % (ndp, interval)
         return txt
 
-    def drawYLabels(self, paint, minYData, maxYData, yoffset, yscale, height):
+    def drawYTicks(self, paint, minYData, maxYData, yoffset, yscale, height):
         """
-        Draw the Y-labels. Returns the size needed for the text
+        Draw the Y-ticks. Returns the size needed for the text
         """
         paint.setPen(self.axesPen)
 
-        nIntervals = int(height / 20)
+        if self.yticks is None:
+            # create our own
+            nIntervals = int(height / 20)
 
-        intervals, ndp = self.makeIntervals(minYData, maxYData, nIntervals)
-        # find with of largest interval (last?) and use that for width param
-        txt = self.formatInterval(intervals[-1], ndp)
-        fm = QFontMetrics(self.font())
-        textrect = fm.boundingRect(txt)
-        txtwidth = textrect.width()
-        txtheight = textrect.height()
-        for interval in intervals:
-            txt = self.formatInterval(interval, ndp)
+            intervals, ndp = self.makeIntervals(minYData, maxYData, nIntervals)
 
-            yloc = interval * yscale + yoffset
-            paint.drawText(0, yloc, txtwidth, txtheight, 
-                            Qt.AlignRight | Qt.AlignVCenter, txt)
-            # draw tick
-            paint.drawLine(txtwidth, yloc, txtwidth + TICK_SIZE, yloc)
+            # find with of largest interval (last?) and use that for width param
+            txt = self.formatInterval(intervals[-1], ndp)
+            textrect = self.fontMetrics.boundingRect(txt)
+            txtwidth = textrect.width()
+            for interval in intervals:
+
+                if interval < minYData:
+                    continue
+
+                txt = self.formatInterval(interval, ndp)
+
+                yloc = (interval - minYData) * yscale + yoffset
+
+                self.drawText(paint, txtwidth, yloc, txt, 
+                                        Qt.AlignRight | Qt.AlignVCenter)
+
+                # draw tick
+                paint.drawLine(txtwidth, yloc, txtwidth + TICK_SIZE, yloc)
+        else:
+            # user supplied
+            (yloc, txt) = self.xticks[-1]
+            textrect = self.fontMetrics.boundingRect(txt)
+            txtwidth = textrect.width()
+            for (yloc, txt) in self.xticks:
+                yloc = (yloc - minYData) * yscale + yoffset
+
+                self.drawText(paint, txtwidth, yloc, txt, 
+                                Qt.AlignRight | Qt.AlignVCenter)
+                # draw tick
+                paint.drawLine(txtwidth, yloc, txtwidth + TICK_SIZE, yloc)
 
         return txtwidth + TICK_SIZE
 
-    def drawXLabels(self, paint, minXData, maxXData, xoffset, xscale, width, height):
+    def drawXTicks(self, paint, minXData, maxXData, xoffset, xscale, width, height):
         """
-        Draw the Y-labels
+        Draw the Y-ticks
         """
         paint.setPen(self.axesPen)
 
-        nIntervals = int(width / 100)
+        if self.xticks is None:
+            # we have to create our own
 
-        intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
-        # find with of largest interval (last?) and use that for width param
-        txt = self.formatInterval(intervals[-1], ndp)
-        fm = QFontMetrics(self.font())
-        txtwidth = fm.boundingRect(txt).width()
-        halftxtwidth = txtwidth / 2
-        for interval in intervals:
-            txt = self.formatInterval(interval, ndp)
+            nIntervals = int(width / 100)
 
-            xloc = interval * xscale + xoffset
-            paint.drawText(xloc - halftxtwidth, height, 
-                            txtwidth, AXES_YSIZE - TICK_SIZE, 
-                            Qt.AlignHCenter | Qt.AlignBottom, txt)
-            # draw tick
-            paint.drawLine(xloc, height, xloc, 
-                            height + TICK_SIZE)
+            intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
+            for interval in intervals:
+                if interval < minXData:
+                    continue
+
+                txt = self.formatInterval(interval, ndp)
+
+                xloc = (interval - minXData) * xscale + xoffset
+
+                self.drawText(paint, xloc, height, txt, 
+                            Qt.AlignHCenter | Qt.AlignTop)
+
+                # draw tick
+                paint.drawLine(xloc, height, xloc, 
+                                height + TICK_SIZE)
+        else:
+            # user supplied ticks
+            for (xloc, txt) in self.xticks:
+                xloc = (xloc - minXData) * xscale + xoffset
+
+                self.drawText(paint, xloc, height, txt, 
+                                Qt.AlignHCenter | Qt.AlignTop)
+                # draw tick
+                paint.drawLine(xloc, height, xloc, 
+                                height + TICK_SIZE)
+
+    def drawLabels(self, paint, minXData, minYData, xoffset, xscale, yoffset, yscale):
+        """
+        Draw the user supplied labels onto the plot
+        """
+        for label in self.labels:
+            xloc = (label.xloc - minXData) * xscale + xoffset
+            yloc = (label.yloc - minYData) * yscale + yoffset
+            paint.setPen(label.pen)
+            self.drawText(paint, xloc, yloc, label.txt, label.flags)
 
     def paintEvent(self, event):
         """
@@ -252,7 +372,7 @@ class PlotWidget(QWidget):
         paint = QPainter(self)
 
         size = self.size()
-        plotheight = size.height() - AXES_YSIZE - 1
+        plotheight = size.height() - AXES_YSIZE
 
         yoffset = size.height() - AXES_YSIZE
         axes_xsize = AXES_YSIZE # in case there no data, we still have axes drawn ok
@@ -265,21 +385,21 @@ class PlotWidget(QWidget):
             yrange = (maxYData - minYData)
 
             # check we can draw lines
-            if xrange != 0 and yrange != 0:
+            if xrange > 0 and yrange > 0:
 
                 # NB: Qt works from top left, plots from bottom left
                 yscale = -plotheight / yrange
 
                 # axes labels
-                axes_xsize = self.drawYLabels(paint, minYData, maxYData, yoffset, 
+                axes_xsize = self.drawYTicks(paint, minYData, maxYData, yoffset, 
                                     yscale, plotheight)
 
                 # now we now the width of the axes_xsize calc the other parts
-                plotwidth = size.width() - axes_xsize - 1
+                plotwidth = size.width() - axes_xsize
                 xoffset = axes_xsize
                 xscale = plotwidth / xrange
 
-                self.drawXLabels(paint, minXData, maxXData, xoffset, 
+                self.drawXTicks(paint, minXData, maxXData, xoffset, 
                                     xscale, plotwidth, plotheight)
 
                 # each curve
@@ -298,6 +418,9 @@ class PlotWidget(QWidget):
                     for x, y in zip(xpoints[1:], ypoints[1:]):
                         path.lineTo(x, y)
                     paint.drawPath(path)
+
+                # labels
+                self.drawLabels(paint, minXData, minYData, xoffset, xscale, yoffset, yscale)
 
         # axes
         paint.setPen(self.axesPen)
