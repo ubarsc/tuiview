@@ -140,6 +140,10 @@ class CmdArgs(object):
         self.parser.add_option('--separate', action="store_true", 
                             default=False, dest='separate',
                             help="load multiple files into separate windows")
+        self.parser.add_option('--goto', dest='goto', 
+                            help="Zoom to a location. Format is:"+
+                            " 'easting,northing,factor' where factor is meters"+
+                            " per window pixel.")
 
         (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
@@ -186,4 +190,19 @@ class ViewerApplication(QApplication):
                         viewer = self.viewers.newViewer(filename, stretch)
                     else:
                         viewer.addRasterInternal(filename, stretch)
+
+        # goto a location
+        if cmdargs.goto is not None:
+            from tuiview.viewerwidget import GeolinkInfo
+            arr = cmdargs.goto.split(',')
+            if len(arr) != 3:
+                msg = "goto usage: 'easting,northing,factor'"
+                raise SystemExit(msg)
+            (easting, northing, metresperimgpix) = arr
+            easting = float(easting)
+            northing = float(northing)
+            metresperimgpix = float(metresperimgpix)
+
+            obj = GeolinkInfo(0, easting, northing, metresperimgpix)
+            self.viewers.onMove(obj)                
 
