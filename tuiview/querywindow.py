@@ -1535,7 +1535,10 @@ Use the special columns:
 
         # set xticks - we want descrete points
         # where there is data
-        xticks = [(int(x), "%d" % x) for x in xdata]
+        xticks = [plotwidget.PlotTick(int(x), "%d" % x) for x in xdata]
+        # set the alignment on the rightmost one so it gets displayed, 
+        # not chopped
+        xticks[-1].flags = Qt.AlignRight | Qt.AlignTop
         self.plotWidget.setXTicks(xticks)
 
         # set scaling if needed

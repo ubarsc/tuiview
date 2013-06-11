@@ -23,6 +23,11 @@ import numpy
 from PyQt4.QtGui import QWidget, QPainter, QPainterPath, QPen, QFontMetrics
 from PyQt4.QtCore import Qt, QSize
 
+DEFAULT_FONT_SIZE = 6
+DEFAULT_YTICK_FLAGS = Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip
+DEFAULT_XTICK_FLAGS = Qt.AlignHCenter | Qt.AlignTop | Qt.TextDontClip
+TICK_SIZE = 2  # pixels
+
 class PlotCurve(object):
     """
     Pass instances of these to PlotWidget.addCurve()
@@ -60,14 +65,24 @@ class PlotLabel(object):
             self.pen.setWidth(1)
             self.pen.setColor(Qt.white)
 
-AXES_YSIZE = 18 # pixels
-TICK_SIZE = 2  # pixels
+class PlotTick(object):
+    """
+    Pass lists of these to PlotWidget.setXTicks and PlotWidget.setYTicks
+    if flags is None either DEFAULT_YTICK_FLAGS or DEFAULT_XTICK_FLAGS
+        will be used depending on the direction
+    if pen is None the default axes pen will be used
+    """
+    def __init__(self, loc, txt, flags=None, pen=None):
+        self.loc = loc
+        self.txt = txt
+        self.flags = flags
+        self.pen = pen
 
 class PlotWidget(QWidget):
     """
     Lightweight plot widget
     """
-    def __init__(self, parent):
+    def __init__(self, parent, fontSize=DEFAULT_FONT_SIZE):
         QWidget.__init__(self, parent)
         # always draw background as black
         self.setBackgroundColor(Qt.black)
@@ -87,10 +102,10 @@ class PlotWidget(QWidget):
 
         # font - default, but small
         font = self.font()
-        font.setPointSize(6)
+        font.setPointSize(fontSize)
         self.setFont(font)
 
-        # xticks. Tuples of xloc, labels
+        # xticks. Lists of PlotTicks
         self.xticks = None
         # yticks
         self.yticks = None
@@ -119,16 +134,14 @@ class PlotWidget(QWidget):
 
     def setXTicks(self, xticks=None):
         """
-        Pass a list of tuples (xloc, text)
-        xloc in data coordinates
+        Pass a list of PlotTicks. None to reset.
         """
         self.xticks = xticks
         self.update()
 
     def setYTicks(self, yticks=None):
         """
-        Pass a list of tuples (yloc, text)
-        yloc in data coordinates
+        Pass a list of PlotTicks. None to reset.
         """
         self.yticks = yticks
         self.update()
@@ -261,6 +274,15 @@ class PlotWidget(QWidget):
         if flags & Qt.AlignVCenter:
             yloc += txtrect.height() / 2
 
+        if flags & Qt.TextDontClip:
+            # remember: y is baseline
+            txtrect.setRect(xloc, yloc - txtrect.height(), 
+                    txtrect.width(), txtrect.height())
+
+            winrect = self.rect()
+            if not winrect.contains(txtrect):
+                return
+
         paint.drawText(xloc, yloc, txt)
 
     @staticmethod
@@ -276,6 +298,7 @@ class PlotWidget(QWidget):
         Draw the Y-ticks. Returns the size needed for the text
         """
         paint.setPen(self.axesPen)
+        flags = DEFAULT_YTICK_FLAGS
 
         if self.yticks is None:
             # create our own
@@ -296,38 +319,60 @@ class PlotWidget(QWidget):
 
                 yloc = (interval - minYData) * yscale + yoffset
 
-                self.drawText(paint, txtwidth, yloc, txt, 
-                                        Qt.AlignRight | Qt.AlignVCenter)
-
+                self.drawText(paint, txtwidth, yloc, txt, flags)
                 # draw tick
                 paint.drawLine(txtwidth, yloc, txtwidth + TICK_SIZE, yloc)
         else:
             # user supplied
-            (yloc, txt) = self.xticks[-1]
-            textrect = self.fontMetrics.boundingRect(txt)
-            txtwidth = textrect.width()
-            for (yloc, txt) in self.xticks:
-                yloc = (yloc - minYData) * yscale + yoffset
 
-                self.drawText(paint, txtwidth, yloc, txt, 
-                                Qt.AlignRight | Qt.AlignVCenter)
+            lastTick = self.xticks[-1]
+            textrect = self.fontMetrics.boundingRect(lastTick.txt)
+            txtwidth = textrect.width()
+            for tick in self.xticks:
+                yloc = (tick.loc - minYData) * yscale + yoffset
+
+                if tick.pen is not None:
+                    oldPen = paint.pen() # save it
+                    paint.setPen(tick.pen)
+
+                flags = DEFAULT_YTICK_FLAGS
+                if tick.flags is not None:
+                    flags = tick.flags
+
+                self.drawText(paint, txtwidth, yloc, tick.txt, flags)
+
+                if tick.pen is not None:
+                    paint.setPen(oldPen) # restore
+
                 # draw tick
                 paint.drawLine(txtwidth, yloc, txtwidth + TICK_SIZE, yloc)
+    
 
         return txtwidth + TICK_SIZE
 
     def drawXTicks(self, paint, minXData, maxXData, xoffset, xscale, width, height):
         """
-        Draw the Y-ticks
+        Draw the X-ticks
         """
         paint.setPen(self.axesPen)
+        flags = DEFAULT_XTICK_FLAGS
 
         if self.xticks is None:
             # we have to create our own
 
+            # do a guess
             nIntervals = int(width / 100)
-
             intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
+
+            # work out the width of the largest tick (last?)
+            txt = self.formatInterval(intervals[-1], ndp)
+            textrect = self.fontMetrics.boundingRect(txt)
+            txtwidth = textrect.width() * 1.2  # give a bit of space
+
+            # make a better guess
+            nIntervals = int(width / txtwidth)
+            intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
+
             for interval in intervals:
                 if interval < minXData:
                     continue
@@ -336,19 +381,28 @@ class PlotWidget(QWidget):
 
                 xloc = (interval - minXData) * xscale + xoffset
 
-                self.drawText(paint, xloc, height, txt, 
-                            Qt.AlignHCenter | Qt.AlignTop)
+                self.drawText(paint, xloc, height, txt, flags)
 
                 # draw tick
                 paint.drawLine(xloc, height, xloc, 
                                 height + TICK_SIZE)
         else:
             # user supplied ticks
-            for (xloc, txt) in self.xticks:
-                xloc = (xloc - minXData) * xscale + xoffset
+            for tick in self.xticks:
+                xloc = (tick.loc - minXData) * xscale + xoffset
 
-                self.drawText(paint, xloc, height, txt, 
-                                Qt.AlignHCenter | Qt.AlignTop)
+                if tick.pen is not None:
+                    oldPen = paint.pen() # save it
+                    paint.setPen(tick.pen)
+
+                flags = DEFAULT_XTICK_FLAGS
+                if tick.flags is not None:
+                    flags = tick.flags
+
+                self.drawText(paint, xloc, height, tick.txt, flags)
+
+                if tick.pen is not None:
+                    paint.setPen(oldPen) # restore
                 # draw tick
                 paint.drawLine(xloc, height, xloc, 
                                 height + TICK_SIZE)
@@ -371,11 +425,14 @@ class PlotWidget(QWidget):
         """
         paint = QPainter(self)
 
-        size = self.size()
-        plotheight = size.height() - AXES_YSIZE
+        # allow enough size under the x-axes for text and tick
+        axes_ysize = self.fontMetrics.height() + TICK_SIZE
 
-        yoffset = size.height() - AXES_YSIZE
-        axes_xsize = AXES_YSIZE # in case there no data, we still have axes drawn ok
+        size = self.size()
+        plotheight = size.height() - axes_ysize
+
+        yoffset = size.height() - axes_ysize
+        axes_xsize = axes_ysize # in case there no data, we still have axes drawn ok
 
         # do we have data?
         if len(self.curves) != 0:
@@ -424,9 +481,9 @@ class PlotWidget(QWidget):
 
         # axes
         paint.setPen(self.axesPen)
-        paint.drawLine(axes_xsize, 0, axes_xsize, size.height() - AXES_YSIZE)
-        paint.drawLine(axes_xsize, size.height() - AXES_YSIZE, size.width(), 
-                        size.height() - AXES_YSIZE)
+        paint.drawLine(axes_xsize, 0, axes_xsize, size.height() - axes_ysize)
+        paint.drawLine(axes_xsize, size.height() - axes_ysize, size.width(), 
+                        size.height() - axes_ysize)
 
         paint.end()
 
