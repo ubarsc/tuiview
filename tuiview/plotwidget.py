@@ -19,9 +19,10 @@ Plot widget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from __future__ import division # ensure we are using Python 3 semantics
+import sys
 import numpy
 from PyQt4.QtGui import QWidget, QPainter, QPainterPath, QPen, QFontMetrics
-from PyQt4.QtCore import Qt, QSize
+from PyQt4.QtCore import Qt, QSize, QSettings
 
 DEFAULT_FONT_SIZE = 6
 DEFAULT_YTICK_FLAGS = Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip
@@ -82,7 +83,7 @@ class PlotWidget(QWidget):
     """
     Lightweight plot widget
     """
-    def __init__(self, parent, fontSize=DEFAULT_FONT_SIZE):
+    def __init__(self, parent):
         QWidget.__init__(self, parent)
         # always draw background as black
         self.setBackgroundColor(Qt.black)
@@ -100,10 +101,9 @@ class PlotWidget(QWidget):
         # x left =0, right autoscale
         self.setXRange(xmin=0)
 
-        # font - default, but small
-        font = self.font()
-        font.setPointSize(fontSize)
-        self.setFont(font)
+        # font 
+        fontSize = self.getSettingsFontSize()
+        self.setFontSize(fontSize)
 
         # xticks. Lists of PlotTicks
         self.xticks = None
@@ -115,6 +115,23 @@ class PlotWidget(QWidget):
 
         # fontmetrics
         self.fontMetrics = QFontMetrics(self.font())
+
+    def getSettingsFontSize(self):
+        "Get the default font size from settings"
+        settings = QSettings()
+        settings.beginGroup('Plot')
+
+        fontSize = settings.value('FontSize', DEFAULT_FONT_SIZE, int)
+
+        settings.endGroup()
+        return fontSize
+
+    def setFontSize(self, size):
+        "Set the font point size"
+        font = self.font()
+        font.setPointSize(size)
+        self.setFont(font)
+        self.update()
 
     def setYRange(self, ymin=None, ymax=None):
         """

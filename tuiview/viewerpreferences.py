@@ -21,9 +21,11 @@ Module that contains the ViewerPreferences class
 
 from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
 from PyQt4.QtGui import QPushButton, QGroupBox, QButtonGroup, QLabel, QColor
+from PyQt4.QtGui import QSpinBox
 from PyQt4.QtCore import QSettings, SIGNAL, Qt
 import sys
 from .stretchdialog import ColorButton
+from .plotwidget import DEFAULT_FONT_SIZE
 
 class ViewerPreferencesDialog(QDialog):
     """
@@ -79,6 +81,22 @@ class ViewerPreferencesDialog(QDialog):
 
         self.mainLayout.addWidget(self.backgroundColorGroup)
 
+        # plots
+        self.plotGroup = QGroupBox("Plots")
+        self.plotLayout = QHBoxLayout()
+        
+        self.plotFontSizeLabel = QLabel()
+        self.plotFontSizeLabel.setText("Font Size")
+        self.plotFontSizeSpin = QSpinBox()
+        self.plotFontSizeSpin.setMinimum(1)
+        self.plotFontSizeSpin.setValue(self.settingPlotFontSize)
+
+        self.plotLayout.addWidget(self.plotFontSizeLabel)
+        self.plotLayout.addWidget(self.plotFontSizeSpin)
+        self.plotGroup.setLayout(self.plotLayout)
+
+        self.mainLayout.addWidget(self.plotGroup)
+
         # ok and cancel buttons
         self.okButton = QPushButton(self)
         self.okButton.setText("OK")
@@ -117,6 +135,11 @@ class ViewerPreferencesDialog(QDialog):
         self.settingBackgroundColor = value
         settings.endGroup()
 
+        settings.beginGroup('Plot')
+        value = settings.value('FontSize', DEFAULT_FONT_SIZE, int)
+        self.settingPlotFontSize = value
+        settings.endGroup()
+
     def onOK(self):
         """
         Selected OK so save preferences
@@ -124,6 +147,7 @@ class ViewerPreferencesDialog(QDialog):
 
         self.settingMouseWheelZoom = self.mouseZoom.isChecked()
         self.settingBackgroundColor = self.backgroundColorButton.color
+        self.settingPlotFontSize = self.plotFontSizeSpin.value()
 
         settings = QSettings()
         settings.beginGroup('ViewerMouse')
@@ -131,6 +155,9 @@ class ViewerPreferencesDialog(QDialog):
         settings.endGroup()
         settings.beginGroup('ViewerBackground')
         settings.setValue("color", self.settingBackgroundColor)
+        settings.endGroup()
+        settings.beginGroup('Plot')
+        settings.setValue('FontSize', self.settingPlotFontSize)
         settings.endGroup()
 
         QDialog.accept(self)
