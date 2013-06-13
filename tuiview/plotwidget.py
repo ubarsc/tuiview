@@ -212,6 +212,12 @@ class PlotWidget(QWidget):
                 my = curve.ydata.max()
                 if my > maxYData:
                     maxYData = my
+
+        if (maxYData - minYData) == 0:
+            # make range +/- 20%
+            minYData = maxYData - (maxYData * 0.2)
+            maxYData = maxYData + (maxYData * 0.2)
+
         return minYData, maxYData
 
     def getXDataRange(self):
@@ -233,6 +239,12 @@ class PlotWidget(QWidget):
                 mx = curve.xdata.max()
                 if mx > maxXData:
                     maxXData = mx
+
+        if (maxXData - minXData) == 0:
+            # make range +/- 20%
+            minXData = maxXData - (maxXData * 0.2)
+            maxXData = maxXData + (maxXData * 0.2)
+
         return minXData, maxXData
 
     @staticmethod
@@ -458,7 +470,8 @@ class PlotWidget(QWidget):
             xrange = (maxXData - minXData)
             yrange = (maxYData - minYData)
 
-            # check we can draw lines
+            # check we can draw lines 
+            # - might still be a problem if range set by user
             if xrange > 0 and yrange > 0:
 
                 # NB: Qt works from top left, plots from bottom left
