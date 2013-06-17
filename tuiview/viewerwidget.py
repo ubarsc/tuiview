@@ -860,7 +860,7 @@ class ViewerWidget(QAbstractScrollArea):
             return
 
         (easting, northing) = layer.coordmgr.display2world(dspX, dspY)
-        tolerance = layer.coordmgr.metersperpix
+        tolerance = layer.coordmgr.metersperpix * 3 # maybe should be a pref?
 
         # show hourglass while query running
         oldCursor = self.cursor()
