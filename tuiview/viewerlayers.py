@@ -902,6 +902,49 @@ class ViewerVectorLayer(ViewerLayer):
         self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
         self.image.viewerdata = data
 
+    def getAttributesAtPoint(self, easting, northing, tolerance=0):
+        """
+        Returns a list of attributes for the point centred on 
+        (easting, northing). If tolerance is specified a box will 
+        will be drawn centred at (easting, northing) and size tolerance.
+        Each item in the list contains a dictionary keyed on the attribute
+        name and the value will be the attribute value as a string.
+        """
+        # set the spatial filter
+        halftolerance = tolerance / 2
+        self.ogrLayer.SetSpatialFilterRect(easting - halftolerance, 
+            northing + halftolerance, easting + halftolerance, 
+            northing - halftolerance)
+
+        # get the field names
+        feat_defn = self.ogrLayer.GetLayerDefn()
+        fieldNames = []
+        for field_idx in range(feat_defn.GetFieldCount()):
+            field_defn = feat_defn.GetFieldDefn(field_idx)
+            field_name = field_defn.GetName()
+            fieldNames.append(field_name)
+
+        # read through
+        results = []
+        self.ogrLayer.ResetReading()
+        feat = self.ogrLayer.GetNextFeature()
+        while feat is not None:
+
+            thisresult = {}
+            field_idx = 0
+            for field_name in fieldNames:
+                field_value = feat.GetFieldAsString(field_idx)
+                thisresult[field_name] = field_value
+                field_idx += 1
+
+            results.append(thisresult)
+            feat = self.ogrLayer.GetNextFeature()
+
+        # reset 
+        self.ogrLayer.SetSpatialFilter(None)
+
+        return results
+
     def getPropertiesString(self):
         "Return the properties as a string we can show the user"
         from osgeo import ogr

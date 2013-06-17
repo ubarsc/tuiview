@@ -144,6 +144,8 @@ class ViewerWindow(QMainWindow):
         self.queryWindowCount = 0
         # same, but for profile window
         self.profileWindowCount = 0
+        # same, but for vector query window
+        self.vectorQueryWindowCount = 0
 
         # accept dropping files
         self.setAcceptDrops(True)
@@ -408,7 +410,21 @@ class ViewerWindow(QMainWindow):
         self.newQueryAct.setShortcut("CTRL+W")
         self.connect(self.newQueryAct, SIGNAL("triggered()"), 
                                                             self.newQueryWindow)
-
+        self.vectorQueryAct = QAction(self)
+        self.vectorQueryAct.setText("&Vector Query Tool")
+        self.vectorQueryAct.setStatusTip("Start Vector Query Tool")
+        self.vectorQueryAct.setShortcut("CTRL+C")
+        self.vectorQueryAct.setCheckable(True)
+        self.vectorQueryAct.setEnabled(viewerwidget.haveVector())
+        self.vectorQueryAct.setIcon(QIcon(":/viewer/images/queryvector.png"))
+        self.vectorQueryAct.setIconVisibleInMenu(True)
+        self.connect(self.vectorQueryAct, SIGNAL("toggled(bool)"), 
+                                                            self.vectorQuery)
+        self.newVectorQueryAct = QAction(self)
+        self.newVectorQueryAct.setText("New Vector Query &Window")
+        self.newVectorQueryAct.setStatusTip("Open New Vector Query Window")
+        self.connect(self.newVectorQueryAct, SIGNAL("triggered()"), 
+                                                    self.newVectorQueryWindow)
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
@@ -518,6 +534,8 @@ class ViewerWindow(QMainWindow):
         toolMenu = self.menuBar().addMenu("&Tools")
         toolMenu.addAction(self.queryAct)
         toolMenu.addAction(self.newQueryAct)
+        toolMenu.addAction(self.vectorQueryAct)
+        toolMenu.addAction(self.newVectorQueryAct)
         toolMenu.addAction(self.profileAct)
         toolMenu.addAction(self.newProfileAct)
         toolMenu.addAction(self.flickerAct)
@@ -552,6 +570,7 @@ class ViewerWindow(QMainWindow):
 
         toolToolbar = self.addToolBar("Tools")
         toolToolbar.addAction(self.queryAct)
+        toolToolbar.addAction(self.vectorQueryAct)
         toolToolbar.addAction(self.profileAct)
         toolToolbar.addAction(self.flickerAct)
 
@@ -808,6 +827,16 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                                 self.viewwidget, layer)
             self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
 
+    def disableTools(self, ignoreTool=None):
+        """
+        Disable all tool actions apart from ignoreTool
+        """
+        tools = (self.panAct, self.zoomInAct, self.zoomOutAct, 
+                        self.queryAct, self.profileAct, self.vectorQueryAct)
+        for tool in tools:
+            if tool is not ignoreTool:
+                tool.setChecked(False)
+
     def zoomIn(self, checked):
         """
         Zoom in tool selected.
@@ -815,10 +844,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         if checked:
             # disable any other tools
-            self.panAct.setChecked(False)
-            self.zoomOutAct.setChecked(False)
-            self.queryAct.setChecked(False)
-            self.profileAct.setChecked(False)
+            self.disableTools(self.zoomInAct)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMIN, 
                         id(self))
         elif not self.suppressToolReset:
@@ -832,10 +858,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         if checked:
             # disable any other tools
-            self.panAct.setChecked(False)
-            self.zoomInAct.setChecked(False)
-            self.queryAct.setChecked(False)
-            self.profileAct.setChecked(False)
+            self.disableTools(self.zoomOutAct)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_ZOOMOUT, 
                         id(self))
         elif not self.suppressToolReset:
@@ -849,10 +872,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         if checked:
             # disable any other tools
-            self.zoomInAct.setChecked(False)
-            self.zoomOutAct.setChecked(False)
-            self.queryAct.setChecked(False)
-            self.profileAct.setChecked(False)
+            self.disableTools(self.panAct)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_PAN, 
                         id(self))
         elif not self.suppressToolReset:
@@ -891,10 +911,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         if checked:
             # disable any other tools
-            self.zoomInAct.setChecked(False)
-            self.zoomOutAct.setChecked(False)
-            self.panAct.setChecked(False)
-            self.profileAct.setChecked(False)
+            self.disableTools(self.queryAct)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_QUERY, 
                     id(self))
 
@@ -941,6 +958,59 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         # any plugins can be informed
         self.emit(SIGNAL("newQueryWindow(PyQt_PyObject)"), queryDock)
 
+    def vectorQuery(self, checked):
+        """
+        Vector Query tool selected
+        Tell view widget to operate in query mode
+        """
+        if checked:
+            self.disableTools(self.vectorQueryAct)
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_VECTORQUERY,
+                    id(self))
+
+            # if no window, start one
+            if self.vectorQueryWindowCount <= 0:
+                self.newVectorQueryWindow()
+        else:
+            self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
+
+    def newVectorQueryWindow(self):
+        """
+        Create a new VectorQueryDockWidget and connect signals
+        and increment our count of these windows
+        """
+        from . import vectorquerywindow
+        queryDock = vectorquerywindow.VectorQueryDockWidget(self)
+        self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
+        queryDock.setFloating(True) # detach so it isn't docked by default
+
+        # connect it to signals emitted by the viewerwidget
+        self.connect(self.viewwidget, 
+                            SIGNAL("vectorLocationSelected(PyQt_PyObject)"),
+                            queryDock.vectorLocationSelected)
+
+        # grab the signal the queryDock sends when it is closed
+        self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), 
+                                                self.vectorQueryClosed)
+
+        # increment our count
+        self.vectorQueryWindowCount += 1
+
+        # emit the signal back to geolinked viewers so that 
+        # any plugins can be informed
+        self.emit(SIGNAL("newQueryWindow(PyQt_PyObject)"), queryDock)
+
+    def vectorQueryClosed(self, queryDock):
+        """
+        Query dock window has been closed. Disconnect from
+        vectorLocationSelected signal and decrement our count
+        """
+        self.disconnect(self.viewwidget, 
+                            SIGNAL("vectorLocationSelected(PyQt_PyObject)"), 
+                            queryDock.vectorLocationSelected)
+        self.vectorQueryWindowCount -= 1
+
     def profile(self, checked):
         """
         Profile tool selected.
@@ -948,10 +1018,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         if checked:
             # disable any other tools
-            self.zoomInAct.setChecked(False)
-            self.zoomOutAct.setChecked(False)
-            self.panAct.setChecked(False)
-            self.queryAct.setChecked(False)
+            self.disableTools(self.profileAct)
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_POLYLINE, 
                         id(self))
 

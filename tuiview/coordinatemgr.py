@@ -144,6 +144,18 @@ class VectorCoordManager(CoordManager):
                     display = (dspX, dspY)
         return display
 
+    def display2world(self, dspX, dspY):
+        """
+        convert display coords to world coords
+        """
+        world = None
+        if self.extent is not None:
+            xoff = dspX * self.metersperpix
+            yoff = dspY * self.metersperpix
+            world = (self.extent[0] + xoff, self.extent[1] - yoff)
+
+        return world
+
     def recalcBottomRight(self):
         "I don't think we need to do anything here"
         pass

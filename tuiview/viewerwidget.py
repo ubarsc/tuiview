@@ -75,6 +75,7 @@ VIEWER_TOOL_PAN = 3
 VIEWER_TOOL_QUERY = 4
 VIEWER_TOOL_POLYGON = 5
 VIEWER_TOOL_POLYLINE = 6
+VIEWER_TOOL_VECTORQUERY = 7
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -107,6 +108,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.zoomInCursor = None
         self.zoomOutCursor = None
         self.queryCursor = None
+        self.vectorQueryCursor = None
         self.polygonCursor = None
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
@@ -382,6 +384,30 @@ class ViewerWidget(QAbstractScrollArea):
                 self.queryCursor = QCursor(Qt.CrossCursor)
             self.viewport().setCursor(self.queryCursor)
 
+        elif tool == VIEWER_TOOL_VECTORQUERY:
+            if self.vectorQueryCursor is None:
+                self.vectorQueryCursor = QCursor(QPixmap(["16 16 3 1",
+                                      "# c None",
+                                      "a c #000000",
+                                      ". c #ffffff",
+                                      ".###########..##",
+                                      "...########.aa.#",
+                                      ".aa..######.aa.#",
+                                      "#.aaa..#####..##",
+                                      "#.aaaaa..##.aa.#",
+                                      "##.aaaaaa...aa.#",
+                                      "##.aaaaaa...aa.#",
+                                      "##.aaaaa.##.aa.#",
+                                      "###.aaaaa.#.aa.#",
+                                      "###.aa.aaa..aa.#",
+                                      "####..#..aa.aa.#",
+                                      "####.####.aa.a.#",
+                                      "##########.aa..#",
+                                      "###########.aa..",
+                                      "############.a.#",
+                                      "#############.##"]))
+            self.viewport().setCursor(self.vectorQueryCursor)
+
         elif tool == VIEWER_TOOL_POLYGON or tool == VIEWER_TOOL_POLYLINE:
             if self.polygonCursor is None:
                 self.polygonCursor = QCursor(QPixmap(["16 16 3 1",
@@ -591,6 +617,12 @@ class ViewerWidget(QAbstractScrollArea):
             modifiers = event.modifiers()
             (dspX, dspY) = (pos.x(), pos.y())
             self.newQueryPoint(dspX=dspX, dspY=dspY, modifiers=modifiers)
+
+        elif self.activeTool == VIEWER_TOOL_VECTORQUERY:
+
+            modifiers = event.modifiers()
+            (dspX, dspY) = (pos.x(), pos.y())
+            self.newVectorQueryPoint(dspX, dspY, modifiers=modifiers)
 
         elif self.activeTool == VIEWER_TOOL_POLYGON:
             button = event.button()
@@ -816,6 +848,29 @@ class ViewerWidget(QAbstractScrollArea):
         # emit the geolinked query point signal
         obj = GeolinkInfo(id(self), easting, northing)
         self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
+
+    def newVectorQueryPoint(self, dspX, dspY, modifiers=None):
+        """
+        New vector query point. Does the spatial query
+        and emits the vectorLocationSelected signal with
+        the results
+        """
+        layer = self.layers.getTopVectorLayer()
+        if layer is None:
+            return
+
+        (easting, northing) = layer.coordmgr.display2world(dspX, dspY)
+        tolerance = layer.coordmgr.metersperpix
+
+        # show hourglass while query running
+        oldCursor = self.cursor()
+        self.setCursor(Qt.WaitCursor)
+
+        results = layer.getAttributesAtPoint(easting, northing, tolerance)
+
+        self.setCursor(oldCursor)
+
+        self.emit(SIGNAL("vectorLocationSelected(PyQt_PyObject)"), results)
 
     def updateQueryPoint(self, easting, northing, column, row, modifiers):
         """
