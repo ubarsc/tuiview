@@ -21,7 +21,6 @@ Module that contains the LayerWindow class
 import os
 import sys
 from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction
-from PyQt4.QtGui import QMessageBox
 from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
 
 from . import viewerlayers
@@ -334,6 +333,7 @@ class LayerListView(QListView):
 
     def properties(self):
         "Show the properties for the layer"
+        from . import propertieswindow
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -341,7 +341,9 @@ class LayerListView(QListView):
             model = self.model()
             layer = model.getLayer(index)
             propstring = layer.getPropertiesString()
-            QMessageBox.information(self, MESSAGE_TITLE, propstring)
+            dlg = propertieswindow.PropertiesWindow(self, propstring)
+            dlg.setWindowTitle(MESSAGE_TITLE)
+            dlg.show()
 
 class LayerWindow(QDockWidget):
     """

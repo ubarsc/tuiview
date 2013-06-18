@@ -694,6 +694,7 @@ class ViewerRasterLayer(ViewerLayer):
 Files: %s
 Size is %d, %d
 Number of Bands: %d
+Overviews: %s
 Coordinate System is:\n%s
 Origin = (%f,%f)
 Pixel Size = (%f,%f)
@@ -703,6 +704,7 @@ Lower Left  ( %f, %f)
 Upper Right ( %f, %f)
 Lower Right ( %f, %f)
 Center      ( %f, %f)
+%s
 """
         driver = self.gdalDataset.GetDriver()
         driverString = "%s/%s" % (driver.ShortName, driver.LongName)
@@ -719,14 +721,69 @@ Center      ( %f, %f)
         (cx, cy) = self.coordmgr.pixel2world(
                                         self.gdalDataset.RasterYSize / 2.0, 
                                         self.gdalDataset.RasterYSize / 2.0)
+
+        if len(self.overviews.overviews) > 1:
+            overviewString = "Present"
+        else:
+            overviewString = "Absent"
+
+        # build string with per-band info
+        perbandString = ''
+        for nband in range(self.gdalDataset.RasterCount):
+            band = self.gdalDataset.GetRasterBand(nband+1)
+            metadata = band.GetMetadata()
+
+            if 'LAYER_TYPE' in metadata:
+                layerType = metadata['LAYER_TYPE']
+            else:
+                layerType = 'Not Set'
+
+            if 'STATISTICS_MAXIMUM' in metadata:
+                statsMax = metadata['STATISTICS_MAXIMUM']
+            else:
+                statsMax = 'Not Set'
+
+            if 'STATISTICS_MEAN' in metadata:
+                statsMean = metadata['STATISTICS_MEAN']
+            else:
+                statsMean = 'Not Set'
+
+            if 'STATISTICS_MEDIAN' in metadata:
+                statsMedian = metadata['STATISTICS_MEDIAN']
+            else:
+                statsMedian = 'Not Set'
+
+            if 'STATISTICS_MINIMUM' in metadata:
+                statsMin = metadata['STATISTICS_MINIMUM']
+            else:
+                statsMin = 'Not Set'
+
+            if 'STATISTICS_MODE' in metadata:
+                statsMode = metadata['STATISTICS_MODE']
+            else:
+                statsMode = 'Not Set'
+
+            if 'STATISTICS_STDDEV' in metadata:
+                statsStd = metadata['STATISTICS_STDDEV']
+            else:
+                statsStd = 'Not Set'
+
+            dataTypeName = gdal.GetDataTypeName(band.DataType)
+
+            perbandString = (perbandString + 
+                ('Band: %d Layer Type: %s Type: %s\n\tMax: %s\n\tMin: %s\n\t' + 
+                'Mean: %s\n\tMedian: %s\n\tStd: %s\n\tMode: %s\n') % (nband+1, 
+                    layerType, dataTypeName, statsMax, 
+                    statsMin, statsMean, statsMedian, statsStd, statsMode))
         
         propstr = fmt % (driverString, fileString, 
                         self.gdalDataset.RasterXSize, 
                         self.gdalDataset.RasterYSize,
-                    self.gdalDataset.RasterCount, coordString, 
+                    self.gdalDataset.RasterCount, overviewString, coordString, 
                     self.transform[0], self.transform[3],
                     self.transform[1], self.transform[5], 
-                    ulx, uly, llx, lly, urx, ury, lrx, lry, cx, cy)
+                    ulx, uly, llx, lly, urx, ury, lrx, lry, cx, cy, 
+                    perbandString)
         return propstr
 
 QUERY_CURSOR_HALFSIZE = 8 # number of pixels
