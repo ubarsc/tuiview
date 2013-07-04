@@ -291,8 +291,26 @@ class ViewerRAT(QObject):
             self.emit(SIGNAL("newProgress(QString)"), "Writing Attributes...")
 
             nrows = self.getNumRows()
-            rat = gdal.RasterAttributeTable()
-            col = 0
+
+            # things get a bit weird here as we need different
+            # behaviour depending on whether we have an RFC40
+            # RAT or not.
+            if hasattr(gdal.RasterAttributeTable, "WriteArray"):
+                # new behaviour
+                rat = gdalband.GetDefaultRAT()
+                isFileRAT = True
+
+                # but if it doesn't support dynamic writing
+                # we still ahve to call SetDefaultRAT
+                if not rat.ChangesAreWrittenToFile():
+                    isFileRAT = False
+
+            else:
+                # old behaviour
+                rat = gdal.RasterAttributeTable()
+                isFileRAT = False
+
+            col = rat.GetColumnCount()
             percent_per_col = 100.0 / float(ncols)
 
             for colname in self.dirtyColumns:
@@ -302,8 +320,14 @@ class ViewerRAT(QObject):
                 # preserve usage
                 rat.CreateColumn(str(colname), dtype, usage)
 
-                if HAVE_TURBORAT:
-                    # do it fast way
+                if hasattr(rat, "WriteArray"):
+                    # if GDAL > 1.10 has these functions
+                    # thanks to RFC40
+                    rat.SetRowCount(colData.size)
+                    rat.WriteArray(colData, col)
+
+                elif HAVE_TURBORAT:
+                    # do it fast way without RFC40
                     turborat.writeColumn(rat, col, colData, colData.size)
                 else:
                     # do it slow way checking the type
@@ -324,10 +348,12 @@ class ViewerRAT(QObject):
                 col += 1
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
-            # assume that existing cols re-written
-            # and new cols created in output file.
-            # this is correct for HFA and KEA AKAIK
-            gdalband.SetDefaultRAT(rat)
+            if not isFileRAT:
+                # assume that existing cols re-written
+                # and new cols created in output file.
+                # this is correct for HFA and KEA AKAIK
+                gdalband.SetDefaultRAT(rat)
+
             self.dirtyColumns = []
             self.emit(SIGNAL("endProgress()"))
 
@@ -351,6 +377,10 @@ class ViewerRAT(QObject):
         Read a column from the rat at index colIndex
         into a numpy array
         """
+        # use RFC40 function if available
+        if hasattr(rat, "ReadAsArray"):
+            return rat.ReadAsArray(colIndex)
+
         # use turborat if available
         if HAVE_TURBORAT:
             return turborat.readColumn(rat, colIndex)
