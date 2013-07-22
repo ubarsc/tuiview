@@ -317,8 +317,17 @@ class ViewerRAT(QObject):
                 colData = self.attributeData[colname]
                 dtype = self.columnTypes[colname]
                 usage = self.columnUsages[colname]
-                # preserve usage
-                rat.CreateColumn(str(colname), dtype, usage)
+                colname = str(colname)
+                
+                # thanks to RFC40 we need to ensure colname doesn't already exist
+                colExists = False
+                for n in range(rat.GetColumnCount()):
+                    if rat.GetNameOfCol(n) == colname:
+                        colExists = True
+                        break
+                if not colExists:
+                    # preserve usage
+                    rat.CreateColumn(str(colname), dtype, usage)
 
                 if hasattr(rat, "WriteArray"):
                     # if GDAL > 1.10 has these functions
