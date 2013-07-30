@@ -310,7 +310,6 @@ class ViewerRAT(QObject):
                 rat = gdal.RasterAttributeTable()
                 isFileRAT = False
 
-            col = rat.GetColumnCount()
             percent_per_col = 100.0 / float(ncols)
 
             for colname in self.dirtyColumns:
@@ -324,10 +323,12 @@ class ViewerRAT(QObject):
                 for n in range(rat.GetColumnCount()):
                     if rat.GetNameOfCol(n) == colname:
                         colExists = True
+                        col = n
                         break
                 if not colExists:
                     # preserve usage
-                    rat.CreateColumn(str(colname), dtype, usage)
+                    rat.CreateColumn(colname, dtype, usage)
+                    col = rat.GetColumnCount() - 1
 
                 if hasattr(rat, "WriteArray"):
                     # if GDAL > 1.10 has these functions
@@ -360,7 +361,7 @@ class ViewerRAT(QObject):
             if not isFileRAT:
                 # assume that existing cols re-written
                 # and new cols created in output file.
-                # this is correct for HFA and KEA AKAIK
+                # this is correct for HFA and KEA AFAIK
                 gdalband.SetDefaultRAT(rat)
 
             self.dirtyColumns = []
