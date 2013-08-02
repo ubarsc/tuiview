@@ -14,7 +14,17 @@ import zipimport
 appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 dataDir = os.path.join(appDir, 'data')
 
+# so we get access to the coordinate info
 os.putenv('GDAL_DATA', dataDir)
+
+# often Windows users have %GDAL_DRIVER_PATH% 
+# set for some incompatible version for GDAL
+# only honour %TUIVIEW_DRIVER_PATH% and unset %GDAL_DRIVER_PATH%
+if 'TUIVIEW_DRIVER_PATH' in os.environ:
+    tdp = os.environ['TUIVIEW_DRIVER_PATH']
+    os.environ['GDAL_DRIVER_PATH'] = tpd
+elif 'GDAL_DRIVER_PATH' in os.environ:
+    del os.environ['GDAL_DRIVER_PATH']
 
 sys.frozen = True
 sys.path = sys.path[:4]
