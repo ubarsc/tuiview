@@ -77,6 +77,8 @@ class ThematicTableModel(QAbstractTableModel):
         the row that should be highlighted
         """
         self.highlightRow = row
+        self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
+                    Qt.Vertical, 0, self.attributes.getNumRows())
 
     def rowCount(self, parent):
         "returns the number of rows"
