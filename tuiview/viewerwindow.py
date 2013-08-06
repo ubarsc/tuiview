@@ -941,6 +941,12 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
         queryDock.setFloating(True) # detach so it isn't docked by default
+        
+        # start over this window
+        thispos = self.pos()
+        x = thispos.x() + 100
+        y = thispos.y() + 100
+        queryDock.move(x, y)
 
         # connect it to signals emitted by the viewerwidget
         self.connect(self.viewwidget, 
@@ -984,6 +990,12 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         queryDock = vectorquerywindow.VectorQueryDockWidget(self)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
         queryDock.setFloating(True) # detach so it isn't docked by default
+
+        # start over this window
+        thispos = self.pos()
+        x = thispos.x() + 100
+        y = thispos.y() + 100
+        queryDock.move(x, y)
 
         # connect it to signals emitted by the viewerwidget
         self.connect(self.viewwidget, 
@@ -1034,6 +1046,12 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         profileDock = profilewindow.ProfileDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, profileDock)
         profileDock.setFloating(True) # detach so it isn't docked by default
+
+        # start over this window
+        thispos = self.pos()
+        x = thispos.x() + 100
+        y = thispos.y() + 100
+        profileDock.move(x, y)
 
         # connect to the signal that provides our new line
         self.connect(self.viewwidget, 
