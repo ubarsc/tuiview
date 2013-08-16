@@ -20,7 +20,7 @@ Contains the GeolinkedViewers class.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import math
-from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt
+from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt, QEventLoop
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
@@ -264,12 +264,17 @@ class GeolinkedViewers(QObject):
         other widgets. A GeolinkInfo object is passed.
         Sends the id() of the widget and uses this to not move the original widget
         """
+        # paint any windows that are ready
+        QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
         for viewer in self.getViewerList():
             # we use the id() of the widget to 
             # identify them.
             if id(viewer.viewwidget) != obj.senderid:
                 viewer.viewwidget.doGeolinkMove(obj.easting, obj.northing, 
                                     obj.metresperwinpix)
+
+            # paint any windows that are ready
+            QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def onQuery(self, obj):
         """
