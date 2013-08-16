@@ -1007,15 +1007,11 @@ class StretchDockWidget(QDockWidget):
             fname = dlg.selectedFiles()[0]
             fname = str(fname)
             try:
-                gdaldataset = gdal.Open(fname)
-
-                stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
-                del gdaldataset
+                stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(fname)
                 if stretch is None:
                     QMessageBox.critical(self, MESSAGE_TITLE, 
                                                 "Unable to find stretch")
                 else:
-                    stretch.setLUTFromGDAL(fname)
                     self.viewwidget.setNewStretch(stretch, self.layer)
 
                     self.stretchLayout.updateStretch(stretch)
@@ -1032,12 +1028,7 @@ class StretchDockWidget(QDockWidget):
                     os.getcwd(), STRETCH_FILTER)
         if fname != "":
             try:
-                fileobj = open(fname)
-                s = fileobj.readline()
-                fileobj.close()
-                stretch = viewerstretch.ViewerStretch.fromString(s)
-
-                stretch.setLUTFromText(fname)
+                stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(fname)
                 self.viewwidget.setNewStretch(stretch, self.layer)
 
                 self.stretchLayout.updateStretch(stretch)

@@ -68,20 +68,12 @@ def optionCallback(option, opt_str, value, parser):
         parser.stretch.setBands(bandlist)
         parser.bandsSet = True
     elif opt_str == '--stretchfromtext':
-        fileobj = open(value)
-        s = fileobj.readline()
-        fileobj.close()
-        parser.stretch = viewerstretch.ViewerStretch.fromString(s)
-        parser.stretch.setLUTFromText(value)
+        parser.stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(value)
         parser.modeSet = True
         parser.stretchModeSet = True
         parser.bandsSet = True
     elif opt_str == '--stretchfromgdal':
-        from osgeo import gdal
-        ds = gdal.Open(value)
-        parser.stretch = viewerstretch.ViewerStretch.readFromGDAL(ds)
-        del ds
-        parser.stretch.setLUTFromGDAL(value)
+        parser.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(value)
         parser.modeSet = True
         parser.stretchModeSet = True
         parser.bandsSet = True

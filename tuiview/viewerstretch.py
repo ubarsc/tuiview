@@ -158,6 +158,36 @@ class ViewerStretch(object):
         return json.dumps(rep)
 
     @staticmethod
+    def fromTextFileWithLUT(fname):
+        """
+        For reading a .stretch file.
+        The stretch is read out of the first line and 
+        setLUTFromText called with this file also
+        since .stretch files contain both
+        """
+        fileobj = open(fname)
+        s = fileobj.readline()
+        fileobj.close()
+        stretch = ViewerStretch.fromString(s)
+        stretch.setLUTFromText(fname)
+        return stretch
+
+    @staticmethod
+    def fromGDALFileWithLUT(fname):
+        """
+        For reading a GDAL file with stretch and LUT
+        saved.
+        The stretch is read out and
+        setLUTFromGDAL called with this file also
+        """
+        gdaldataset = gdal.Open(fname)
+        stretch = ViewerStretch.readFromGDAL(gdaldataset)
+        del gdaldataset
+        if stretch is not None:
+            stretch.setLUTFromGDAL(fname)
+        return stretch
+    
+    @staticmethod
     def fromString(string):
         """
         Create a ViewerStretch instance from a json encoded
