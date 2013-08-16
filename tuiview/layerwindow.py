@@ -377,4 +377,8 @@ class LayerWindow(QDockWidget):
         model = LayerItemModel(self.viewwidget, self.parent, self)
         self.listView.setModel(model)
 
-
+    def closeEvent(self, event):
+        """
+        Window is being closed - inform parent window
+        """
+        self.emit(SIGNAL("layerWindowClosed(PyQt_PyObject)"), self)

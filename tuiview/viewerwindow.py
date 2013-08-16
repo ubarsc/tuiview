@@ -800,6 +800,12 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         self.viewwidget.removeLayer()
 
+    def layerWindowClosed(self, window):
+        """
+        Reset state so we know we need to open another
+        """
+        self.layerWindow = None
+
     def arrangeLayers(self):
         """
         Toggle the LayerWindow
@@ -808,6 +814,9 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         if self.layerWindow is None:
             self.layerWindow = layerwindow.LayerWindow(self, self.viewwidget)
             self.addDockWidget(Qt.LeftDockWidgetArea, self.layerWindow)
+            self.connect(self.layerWindow, 
+                                SIGNAL("layerWindowClosed(PyQt_PyObject)"), 
+                                self.layerWindowClosed)
         else:
             # remove
             self.removeDockWidget(self.layerWindow)
