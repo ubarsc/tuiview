@@ -1031,27 +1031,26 @@ class ViewerLUT(QObject):
         else:
             nanmask = None
 
+        # convert to float for maths below
+        data = data.astype(numpy.floating)
+
         # in case data outside range of stretch
-        # don't use the in place version because if either min or max are
-        # float we need the type to change
-        data = numpy.clip(data, self.bandinfo.min, self.bandinfo.max)
+        numpy.clip(data, self.bandinfo.min, self.bandinfo.max, out=data)
 
         # apply scaling
-        data = (data + self.bandinfo.offset) / self.bandinfo.scale
+        numpy.add(data, self.bandinfo.offset)
+        numpy.divide(data, self.bandinfo.scale)
 
         # can only do lookups with integer data
-        if numpy.issubdtype(data.dtype, numpy.floating):
-            data = data.astype(numpy.integer)
+        data = data.astype(numpy.integer)
 
         if nanmask is not None:
             # set NaN values back to LUT=nan if originally float
-            data = numpy.where(nanmask, self.bandinfo.nan_index, data)
+            data[nanmask] = self.bandinfo.nan_index
 
         # mask no data and background
-        data = numpy.where(mask == MASK_NODATA_VALUE, 
-                                self.bandinfo.nodata_index, data)
-        data = numpy.where(mask == MASK_BACKGROUND_VALUE, 
-                                self.bandinfo.background_index, data)
+        data[mask == MASK_NODATA_VALUE] = self.bandinfo.nodata_index
+        data[mask == MASK_BACKGROUND_VALUE] = self.bandinfo.background_index
 
         # do the lookup
         bgra = self.lut[data]
@@ -1070,7 +1069,7 @@ class ViewerLUT(QObject):
                                     (mask != MASK_BACKGROUND_VALUE))
             # mask sure mask has same number of axis
             surrogatemask = numpy.expand_dims(surrogatemask, axis=2)
-            # swap where needed
+            # swap where needed - can't do direct mask index as different shape
             bgra = numpy.where(surrogatemask, surrogatebgra, bgra)
         
         # create QImage from numpy array
@@ -1105,27 +1104,25 @@ class ViewerLUT(QObject):
             else:
                 nanmask = None
 
+            # convert to float for maths below
+            data = data.astype(numpy.floating)
             # in case data outside range of stretch
-            # don't use the in place version because if either min or max are
-            # float we need the type to change
-            data = numpy.clip(data, bandinfo.min, bandinfo.max)
+            numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
             
-            # apply scaling
-            data = (data + bandinfo.offset) / bandinfo.scale
+            # apply scaling in place
+            numpy.add(data, bandinfo.offset, out=data)
+            numpy.divide(data, bandinfo.scale, out=data)
 
             # can only do lookups with integer data
-            if numpy.issubdtype(data.dtype, numpy.floating):
-                data = data.astype(numpy.integer)
+            data = data.astype(numpy.integer)
 
             # set NaN values back to LUT=nandata if data originally float
             if nanmask is not None:
-                data = numpy.where(nanmask, bandinfo.nan_index, data)
+                data[nanmask] = bandinfo.nan_index
 
             # mask no data and background
-            data = numpy.where(mask == MASK_NODATA_VALUE, 
-                        bandinfo.nodata_index, data)
-            data = numpy.where(mask == MASK_BACKGROUND_VALUE, 
-                        bandinfo.background_index, data)
+            data[mask == MASK_NODATA_VALUE] = bandinfo.nodata_index
+            data[mask == MASK_BACKGROUND_VALUE] = bandinfo.background_index
 
             # do the lookup
             bgra[..., lutindex] = self.lut[lutindex][data]
@@ -1145,11 +1142,12 @@ class ViewerLUT(QObject):
         # create the alpha array (do separately so we not always doing strides)
         alpha = numpy.empty((winysize, winxsize), numpy.uint8)
         alpha.fill(255)
-        alpha = numpy.where(mask == MASK_NODATA_VALUE, nodata_value, alpha)
+        alpha[mask == MASK_NODATA_VALUE] = nodata_value
         if nanmask is not None:
-            alpha = numpy.where(nanmask, nan_value, alpha)
-        bgra[..., lutindex] = numpy.where(mask == MASK_BACKGROUND_VALUE, 
-                                    background_value, alpha)
+            alpha[nanmask] = nan_value
+        alpha[mask == MASK_BACKGROUND_VALUE] = background_value
+        bgra[..., lutindex] = alpha
+
         # turn into QImage
         # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
         # is faster. Not sure what this means
