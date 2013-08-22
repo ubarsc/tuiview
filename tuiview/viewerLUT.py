@@ -1045,8 +1045,8 @@ class ViewerLUT(QObject):
         numpy.clip(data, self.bandinfo.min, self.bandinfo.max, out=data)
 
         # apply scaling
-        numpy.add(data, self.bandinfo.offset)
-        numpy.divide(data, self.bandinfo.scale)
+        numpy.add(data, self.bandinfo.offset, out=data)
+        numpy.divide(data, self.bandinfo.scale, out=data)
 
         # can only do lookups with integer data
         data = data.astype(numpy.integer)
