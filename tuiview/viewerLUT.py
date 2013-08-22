@@ -489,20 +489,15 @@ class ViewerLUT(QObject):
         gdaldataset.SetMetadataItem(VIEWER_SURROGATE_CT_KEY, jsonstring)
 
     @staticmethod
-    def loadColorTable(gdalband, nodata_rgba, background_rgba):
+    def loadColorTable(rat, nodata_rgba, background_rgba, nan_rgba):
         """
         Creates a LUT for a single band using 
-        the color table
+        the RAT
         """
-        ct = gdalband.GetColorTable()
-        if ct is not None:
-
-            if ct.GetPaletteInterpretation() != gdal.GPI_RGB:
-                msg = 'only handle RGB color tables'
-                raise viewererrors.InvalidColorTable(msg)
+        if rat.hasColorTable:
 
             # read in the colour table as lut
-            ctcount = ct.GetCount()
+            ctcount = rat.getNumRows()
 
             # LUT is shape [lutsize,4] so we can index from a single 
             # band and get the brga (native order)
@@ -510,22 +505,32 @@ class ViewerLUT(QObject):
             lut = numpy.empty((ctcount + VIEWER_LUT_EXTRA, 4), 
                                     numpy.uint8, 'C')
 
-            for i in range(ctcount):
-                entry = ct.GetColorEntry(i)
-                # entry is RGBA, need to store as BGRA - 
-                # always ignore alpha for now
-                for (value, code) in zip(entry, RGBA_CODES):
-                    lutindex = CODE_TO_LUTINDEX[code]
-                    lut[i, lutindex] = value
+            # copy in from RAT
+            names = rat.getColumnNames()
+            redCol = rat.getAttribute(names[rat.redColumnIdx])
+            greenCol = rat.getAttribute(names[rat.greenColumnIdx])
+            blueCol = rat.getAttribute(names[rat.blueColumnIdx])
+            alphaCol = rat.getAttribute(names[rat.alphaColumnIdx])
+
+            cols = [redCol, greenCol, blueCol, alphaCol]
+            for (col, code) in zip(cols, RGBA_CODES):
+                lutindex = CODE_TO_LUTINDEX[code]
+                # HFA is float 0 - 1
+                if numpy.issubdtype(col.dtype, numpy.floating):
+                    lut[:-3, lutindex] = col * 255
+                else:
+                    lut[:-3, lutindex] = col
 
             # fill in the background and no data
             nodata_index = ctcount
             background_index = ctcount + 1
-            data = zip(nodata_rgba, background_rgba, RGBA_CODES)
-            for (nodatavalue, backgroundvalue, code) in data:
+            nan_index = ctcount + 2
+            data = zip(nodata_rgba, background_rgba, nan_rgba, RGBA_CODES)
+            for (nodatavalue, backgroundvalue, nanvalue, code) in data:
                 lutindex = CODE_TO_LUTINDEX[code]
                 lut[nodata_index, lutindex] = nodatavalue
                 lut[background_index, lutindex] = backgroundvalue
+                lut[nan_index, lutindex] = nanvalue
 
         else:
             msg = 'No color table present'
@@ -745,11 +750,12 @@ class ViewerLUT(QObject):
 
         return histo
 
-    def createLUT(self, dataset, stretch, image=None):
+    def createLUT(self, dataset, stretch, rat, image=None):
         """
         Main function.
         dataset is a GDAL dataset to use.
         stetch is a ViewerStretch instance that describes the stretch.
+        rat is an instance of ViewerRAT - for reading color table
         if image is not None it should be a QImage returned by the apply
             functions and a local stretch will be calculated using this.
         """
@@ -819,9 +825,10 @@ class ViewerLUT(QObject):
             gdalband = dataset.GetRasterBand(band)
 
             # load the color table
-            self.lut, self.bandinfo = self.loadColorTable(gdalband, 
+            self.lut, self.bandinfo = self.loadColorTable(rat, 
                                                 stretch.nodata_rgba, 
-                                                stretch.background_rgba)
+                                                stretch.background_rgba,
+                                                stretch.nan_rgba)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(stretch.bands) > 1:

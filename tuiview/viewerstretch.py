@@ -284,6 +284,9 @@ class StretchRule(object):
             # but we need to check there is a color 
             # table in the specified band
             gdalband = gdaldataset.GetRasterBand(self.ctband)
+            # TODO: we really need to check only that the RAT
+            # reports that we have the right columns
+            # but reading RAT expensive. Revisit post RFC40
             ct = gdalband.GetColorTable()
             match = ct is not None
         

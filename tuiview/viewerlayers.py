@@ -267,7 +267,7 @@ class ViewerRasterLayer(ViewerLayer):
 
         # read in the LUT if not specified
         if lut is None:
-            self.lut.createLUT(self.gdalDataset, stretch)
+            self.lut.createLUT(self.gdalDataset, stretch, self.attributes)
         else:
             self.lut = lut
 
@@ -379,7 +379,7 @@ class ViewerRasterLayer(ViewerLayer):
         if self.attributes.hasAttributes():
             newstretch.setAttributeTableSize(self.attributes.getNumRows())
 
-        self.lut.createLUT(self.gdalDataset, newstretch, image)
+        self.lut.createLUT(self.gdalDataset, newstretch, self.attributes, image)
 
         self.stretch = newstretch
         # note - we need to do this to reapply the stretch
@@ -391,7 +391,8 @@ class ViewerRasterLayer(ViewerLayer):
             # this is a bit of a hack. We needed to do a 
             # getData to get the new bands loaded. Now
             # we can get the stats and apply the stretch locally
-            self.lut.createLUT(self.gdalDataset, newstretch, self.image)
+            self.lut.createLUT(self.gdalDataset, newstretch, self.attributes, 
+                                                                self.image)
             self.getImage()
 
     def saveStretchToFile(self, stretch):
