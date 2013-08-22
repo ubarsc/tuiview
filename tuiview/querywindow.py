@@ -94,6 +94,11 @@ class ThematicTableModel(QAbstractTableModel):
         horizontal
         """
         if orientation == Qt.Horizontal:
+            if self.attributes.hasColorTable:
+                if role == Qt.DisplayRole and section == 0:
+                    return "Color"
+                section -= 1 # for below, to ignore the color col
+
             if role == Qt.DisplayRole:
                 name = self.saneColNames[section]
                 return name
@@ -116,6 +121,32 @@ class ThematicTableModel(QAbstractTableModel):
         else:
             return None
 
+    def createColorIcon(self, row):
+        """
+        Returns the colour icon for the given row
+        """
+        names = self.attributes.getColumnNames()
+        name = names[self.attributes.redColumnIdx]
+        redVal = self.attributes.getAttribute(name)[row]
+        if isinstance(redVal, float):
+            redVal *= 255
+
+        name = names[self.attributes.greenColumnIdx]
+        greenVal = self.attributes.getAttribute(name)[row]
+        if isinstance(greenVal, float):
+            greenVal *= 255
+
+        name = names[self.attributes.blueColumnIdx]
+        blueVal = self.attributes.getAttribute(name)[row]
+        if isinstance(blueVal, float):
+            blueVal *= 255
+
+        col = QColor(redVal, greenVal, blueVal)
+
+        pixmap = QPixmap(64, 24)
+        pixmap.fill(col)
+        return pixmap
+
     def data(self, index, role):
         """
         Gets the actual data. A variety of Qt.ItemDataRole's
@@ -131,6 +162,11 @@ class ThematicTableModel(QAbstractTableModel):
 
         if role == Qt.DisplayRole: 
             column = index.column()
+            if self.attributes.hasColorTable:
+                if column == 0:
+                    return "" # no text
+                column -= 1 # for below to ignore the color col
+
             name = self.attributes.getColumnNames()[column]
             attr = self.attributes.getAttribute(name)
             attr_val = attr[row]
@@ -139,6 +175,14 @@ class ThematicTableModel(QAbstractTableModel):
                 attr_val = attr_val.decode()
             fmt = self.attributes.getFormat(name)
             return fmt % attr_val
+
+        elif role == Qt.DecorationRole:
+            column = index.column()
+            if self.attributes.hasColorTable and column == 0:
+                return self.createColorIcon(row)
+            else:
+                return None
+
         else:
             return None
 
@@ -360,6 +404,13 @@ class ThematicHorizontalHeader(QHeaderView):
         if self.thematic:
             from osgeo.gdal import GFT_Real, GFT_Integer
             col = self.logicalIndexAt(event.pos())
+
+            if self.parent.lastLayer.attributes.hasColorTable:
+                if col == 0:
+                    print("need colour lookup")
+                    return
+                col -= 1 # to ignore color col for below
+
             # work out whether this is float column
             colName = self.parent.lastLayer.attributes.getColumnNames()[col]
             colType = self.parent.lastLayer.attributes.getType(colName)

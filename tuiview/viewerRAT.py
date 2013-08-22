@@ -176,6 +176,13 @@ class ViewerRAT(QObject):
         # into a a file.
         self.dirtyColumns = None
 
+        self.redColumnIdx = None # int
+        self.greenColumnIdx = None # int
+        self.blueColumnIdx = None # int
+        self.alphaColumnIdx = None # int
+        self.hasColorTable = False
+
+
     def addColumn(self, colname, coltype):
         """
         Adds a new column with the specified name. Pass one of
@@ -479,6 +486,17 @@ class ViewerRAT(QObject):
                 else:
                     self.columnFormats[colname] = DEFAULT_STRING_FMT
 
+                # see if we can build a color table
+                if usage == gdal.GFU_Red:
+                    self.redColumnIdx = col
+                elif usage == gdal.GFU_Green:
+                    self.greenColumnIdx = col
+                elif usage == gdal.GFU_Blue:
+                    self.blueColumnIdx = col
+                # hack for bug in HFA driver
+                elif usage == gdal.GFU_Alpha or colname == 'Opacity':
+                    self.alphaColumnIdx = col
+
                 # read the column
                 colArray = self.readColumnIndex(rat, col)
 
@@ -490,6 +508,12 @@ class ViewerRAT(QObject):
             if len(prefColOrder) > 0:
                 # rearrange our columns given this
                 self.arrangeColumnOrder(prefColOrder)
+
+            # if we have all the columns, we have a color table
+            self.hasColorTable = (self.redColumnIdx is not None and 
+                    self.greenColumnIdx is not None and 
+                    self.blueColumnIdx is not None and
+                    self.alphaColumnIdx is not None)
 
             # remember the lookup column if set (None if not)
             self.lookupColName = lookup
