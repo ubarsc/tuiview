@@ -40,22 +40,19 @@ QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
-# icons for displaying in the 'band' column for RGB
-ICON_PIXMAP = QPixmap(24, 24)
+# pixmaps for displaying in the 'band' column for RGB
+RED_PIXMAP = QPixmap(64, 24)
+RED_PIXMAP.fill(Qt.red)
 
-ICON_PIXMAP.fill(Qt.red)
-RED_ICON = QIcon(ICON_PIXMAP)
+GREEN_PIXMAP = QPixmap(64, 24)
+GREEN_PIXMAP.fill(Qt.green)
 
-ICON_PIXMAP.fill(Qt.green)
-GREEN_ICON = QIcon(ICON_PIXMAP)
-
-ICON_PIXMAP.fill(Qt.blue)
-BLUE_ICON = QIcon(ICON_PIXMAP)
+BLUE_PIXMAP = QPixmap(64, 24)
+BLUE_PIXMAP.fill(Qt.blue)
 
 # for greyscale
-ICON_PIXMAP.fill(Qt.gray)
-GREY_ICON = QIcon(ICON_PIXMAP)
-
+GREY_PIXMAP = QPixmap(64, 24)
+GREY_PIXMAP.fill(Qt.gray)
 
 class ThematicTableModel(QAbstractTableModel):
     """
@@ -237,16 +234,16 @@ class ContinuousTableModel(QAbstractTableModel):
             if (self.stretch.mode == VIEWER_MODE_RGB and 
                             band in self.stretch.bands):
                 if band == self.stretch.bands[0]:
-                    return RED_ICON
+                    return RED_PIXMAP
                 elif band == self.stretch.bands[1]:
-                    return GREEN_ICON
+                    return GREEN_PIXMAP
                 elif band == self.stretch.bands[2]:
-                    return BLUE_ICON
+                    return BLUE_PIXMAP
                 else:
                     return None
             elif (self.stretch.mode == VIEWER_MODE_GREYSCALE 
                     and band == self.stretch.bands[0]):
-                return GREY_ICON
+                return GREY_PIXMAP
 
             else:
                 return None
