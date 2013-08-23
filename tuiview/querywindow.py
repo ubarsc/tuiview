@@ -161,7 +161,7 @@ class ThematicTableModel(QAbstractTableModel):
             column = index.column()
             if self.attributes.hasColorTable:
                 if column == 0:
-                    return "" # no text
+                    return None # no text
                 column -= 1 # for below to ignore the color col
 
             name = self.attributes.getColumnNames()[column]
@@ -390,6 +390,14 @@ class ThematicHorizontalHeader(QHeaderView):
         self.popup.addAction(self.setLookupAction) # enabled when int col
         self.popup.addAction(self.setKeyboardEditAction)
 
+        self.setColorAction = QAction(self)
+        self.setColorAction.setText("Set &Color of Selected Rows")
+        self.setColorAction.setStatusTip("Set Color of Selected Rows")
+
+        # alternate popup for color column
+        self.colorPopup = QMenu(self)
+        self.colorPopup.addAction(self.setColorAction)
+
         self.setToolTip("Right click for menu")
 
     def setThematicMode(self, mode):
@@ -404,7 +412,10 @@ class ThematicHorizontalHeader(QHeaderView):
 
             if self.parent.lastLayer.attributes.hasColorTable:
                 if col == 0:
-                    print("need colour lookup")
+                    # do special handling for color column
+                    action = self.colorPopup.exec_(event.globalPos())
+                    if action is self.setColorAction:
+                        self.parent.editColor()
                     return
                 col -= 1 # to ignore color col for below
 
@@ -1067,6 +1078,73 @@ Use the special columns:
 
         # should be modal?
         dlg.show()
+
+    def editColor(self):
+        """
+        Change the colour of the selected rows
+        """
+        if not self.selectionArray.any():
+            # if nothing selected, don't even bother
+            QMessageBox.warning(self, MESSAGE_TITLE, "No rows selected")
+            return
+
+        # get the colour of the first selected one
+        selectedIdx = self.selectionArray.nonzero()[0][0] # first axis first elem
+        attributes = self.lastLayer.attributes
+
+        names = attributes.getColumnNames()
+        redname = names[attributes.redColumnIdx]
+        redVal = attributes.getAttribute(redname)[selectedIdx]
+        redFloat = False
+        if isinstance(redVal, float):
+            redVal *= 255
+            redFloat = True
+
+        greenname = names[attributes.greenColumnIdx]
+        greenVal = attributes.getAttribute(greenname)[selectedIdx]
+        greenFloat = False
+        if isinstance(greenVal, float):
+            greenVal *= 255
+            greenFloat = True
+
+        bluename = names[attributes.blueColumnIdx]
+        blueVal = attributes.getAttribute(bluename)[selectedIdx]
+        blueFloat = False
+        if isinstance(blueVal, float):
+            blueVal *= 255
+            blueFloat = True
+
+        alphaname = names[attributes.alphaColumnIdx]
+        alphaVal = attributes.getAttribute(alphaname)[selectedIdx]
+        alphaFloat = False
+        if isinstance(alphaVal, float):
+            alphaVal *= 255
+            alphaFloat = True
+
+        initial = QColor(redVal, greenVal, blueVal, alphaVal)
+        newcolor = QColorDialog.getColor(initial, self, 
+                    "Choose Cursor Color", QColorDialog.ShowAlphaChannel)
+        if newcolor.isValid():
+            red = newcolor.red()
+            if redFloat:
+                red = red / 255.0
+            attributes.updateColumn(redname, self.selectionArray, red)
+
+            green = newcolor.green()
+            if greenFloat:
+                green = green / 255.0
+            attributes.updateColumn(greenname, self.selectionArray, green)
+
+            blue = newcolor.blue()
+            if blueFloat:
+                blue = blue / 255.0
+            attributes.updateColumn(bluename, self.selectionArray, blue)
+
+            alpha = newcolor.alpha()
+            if alphaFloat:
+                alpha = alpha / 255.0
+            attributes.updateColumn(redname, self.selectionArray, red)
+
 
     def newEditUserExpression(self, expression, col):
         """
