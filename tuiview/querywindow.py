@@ -29,6 +29,7 @@ from PyQt4.QtCore import QModelIndex
 import numpy
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
+from .viewerstretch import VIEWER_MODE_COLORTABLE
 from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
 from .viewerwidget import  VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
@@ -1187,6 +1188,19 @@ Use the special columns:
             # so we repaint and new values get shown
             self.tableModel.doUpdate()
 
+            self.updateColorTableInWidget()
+
+    def updateColorTableInWidget(self):
+        """
+        Call this when the color table changed and the LUT
+        will be reloaded and redisplayed
+        """
+        # also need to update the widget
+        stretch = self.lastLayer.stretch
+        if stretch.mode == VIEWER_MODE_COLORTABLE:
+            # causes lut to be updated
+            self.viewwidget.setNewStretch(stretch, self.lastLayer)
+
 
     def newEditUserExpression(self, expression, col):
         """
@@ -1211,6 +1225,13 @@ Use the special columns:
             # so we repaint and new values get shown
             self.tableModel.doUpdate()
 
+            # was a color table column?
+            if (col == attributes.redColumnIdx or 
+                    col == attributes.greenColumnIdx or
+                    col == attributes.blueColumnIdx or
+                    col == attributes.alphaColumnIdx):
+                self.updateColorTableInWidget()
+
             # is this a the lookup column?
             if colname == attributes.getLookupColName():
                 # can't just use result because we need selectionArray applied
@@ -1233,6 +1254,12 @@ Use the special columns:
         if colName == attributes.getLookupColName():
             col = attributes.getAttribute(colName)
             self.viewwidget.setColorTableLookup(col, colName)
+
+        if (col == attributes.redColumnIdx or 
+                col == attributes.greenColumnIdx or
+                col == attributes.blueColumnIdx or
+                col == attributes.alphaColumnIdx):
+            self.updateColorTableInWidget()
 
         # so we repaint and new values get shown
         self.tableModel.doUpdate()
