@@ -159,6 +159,19 @@ class ViewerWindow(QMainWindow):
         # the tool
         self.suppressToolReset = False
 
+    def resizeForWidgetSize(self, xsize, ysize):
+        """
+        Resizes this window so that the widget is the given size
+        Takes into account the border etc
+        """
+        viewerSize = self.size()
+        widgetSize = self.viewwidget.viewport().size()
+        borderWidth = viewerSize.width() - widgetSize.width()
+        borderHeight = viewerSize.height() - widgetSize.height()
+
+        # resize it to desired size
+        self.resize(xsize + borderWidth, ysize + borderHeight)
+        
     def updateWindowTitle(self, fname):
         """
         called in response to the topLayerChanged(QString) signal
