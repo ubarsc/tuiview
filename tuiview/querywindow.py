@@ -1285,15 +1285,9 @@ Use the special columns:
             col = len(columnNames)
                 
         columnNames.insert(col, colName)
-
-        if oldcol == attributes.redColumnIdx:
-            attributes.redColumnIdx = col
-        if oldcol == attributes.greenColumnIdx:
-            attributes.greenColumnIdx = col
-        if oldcol == attributes.blueColumnIdx:
-            attributes.blueColumnIdx = col
-        if oldcol == attributes.alphaColumnIdx:
-            attributes.alphaColumnIdx = col
+    
+        # this should update the color table idxs    
+        attributes.findColorTableColumns()
 
         self.tableModel.doUpdate(True)
 
