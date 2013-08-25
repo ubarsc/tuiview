@@ -486,17 +486,6 @@ class ViewerRAT(QObject):
                 else:
                     self.columnFormats[colname] = DEFAULT_STRING_FMT
 
-                # see if we can build a color table
-                if usage == gdal.GFU_Red:
-                    self.redColumnIdx = col
-                elif usage == gdal.GFU_Green:
-                    self.greenColumnIdx = col
-                elif usage == gdal.GFU_Blue:
-                    self.blueColumnIdx = col
-                # hack for bug in HFA driver
-                elif usage == gdal.GFU_Alpha or colname == 'Opacity':
-                    self.alphaColumnIdx = col
-
                 # read the column
                 colArray = self.readColumnIndex(rat, col)
 
@@ -509,16 +498,38 @@ class ViewerRAT(QObject):
                 # rearrange our columns given this
                 self.arrangeColumnOrder(prefColOrder)
 
-            # if we have all the columns, we have a color table
-            self.hasColorTable = (self.redColumnIdx is not None and 
-                    self.greenColumnIdx is not None and 
-                    self.blueColumnIdx is not None and
-                    self.alphaColumnIdx is not None)
+            # see if there is a colour table
+            self.findColorTableColumns()
 
             # remember the lookup column if set (None if not)
             self.lookupColName = lookup
 
         self.emit(SIGNAL("endProgress()"))
+
+    def findColorTableColumns(self):
+        """
+        Update the variables that define which are the columns
+        in the colour table
+        """
+        col = 0
+        for colname in self.columnNames:
+            usage = self.columnUsages[colname]
+            if usage == gdal.GFU_Red:
+                self.redColumnIdx = col
+            elif usage == gdal.GFU_Green:
+                self.greenColumnIdx = col
+            elif usage == gdal.GFU_Blue:
+                self.blueColumnIdx = col
+            # hack for bug in HFA driver
+            elif usage == gdal.GFU_Alpha or colname == 'Opacity':
+                self.alphaColumnIdx = col
+            col += 1
+
+        # if we have all the columns, we have a color table
+        self.hasColorTable = (self.redColumnIdx is not None and 
+                self.greenColumnIdx is not None and 
+                self.blueColumnIdx is not None and
+                self.alphaColumnIdx is not None)
 
     def arrangeColumnOrder(self, prefColOrder):
         """
@@ -536,8 +547,12 @@ class ViewerRAT(QObject):
         # been added to newColOrder. Add the remaining
         # values from  self.columnNames
         newColOrder.extend(self.columnNames)
+
         # finally clobber the old self.columnNames
         self.columnNames = newColOrder
+
+        # this needs to be updated
+        self.findColorTableColumns()
         
     def getUserExpressionGlobals(self, isselected, queryRow, lastselected=None):
         """

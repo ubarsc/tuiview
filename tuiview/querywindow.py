@@ -68,6 +68,23 @@ class ThematicTableModel(QAbstractTableModel):
         self.highlightRow = -1
         self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
 
+    def doUpdate(self, updateHorizHeader=False):
+        """
+        Called by the parent window when the attributes have changed.
+        Emits the appropriate signal.
+        """
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.columnCount(None) - 1,
+                            self.rowCount(None) - 1)
+        self.emit(SIGNAL("dataChanged(const QModelIndex &,const QModelIndex &)"),
+                            topLeft, bottomRight)
+
+        if updateHorizHeader:
+            self.saneColNames = self.attributes.getSaneColumnNames()
+            self.colNames = self.attributes.getColumnNames()
+            self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
+                    Qt.Horizontal, 0, self.columnCount(None) - 1)
+
     def setHighlightRow(self, row):
         """
         Called by setupTableThematic to indicate 
@@ -75,7 +92,7 @@ class ThematicTableModel(QAbstractTableModel):
         """
         self.highlightRow = row
         self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
-                    Qt.Vertical, 0, self.attributes.getNumRows())
+                    Qt.Vertical, 0, self.rowCount(None) - 1)
 
     def rowCount(self, parent):
         "returns the number of rows"
@@ -83,7 +100,10 @@ class ThematicTableModel(QAbstractTableModel):
 
     def columnCount(self, parent):
         "number of columns"
-        return self.attributes.getNumColumns()
+        ncols = self.attributes.getNumColumns()
+        if self.attributes.hasColorTable:
+            ncols += 1
+        return ncols
 
     def headerData(self, section, orientation, role):
         """
@@ -100,6 +120,9 @@ class ThematicTableModel(QAbstractTableModel):
                 name = self.saneColNames[section]
                 return name
             elif role == Qt.DecorationRole:
+                if section == -1:
+                    # color column
+                    return None
                 name = self.colNames[section]
                 if name == self.attributes.getLookupColName():
                     return self.lookupColIcon
@@ -138,6 +161,7 @@ class ThematicTableModel(QAbstractTableModel):
         if isinstance(blueVal, float):
             blueVal *= 255
 
+        # ignore alpha as we want to see it
         col = QColor(redVal, greenVal, blueVal)
 
         pixmap = QPixmap(64, 24)
@@ -194,6 +218,21 @@ class ContinuousTableModel(QAbstractTableModel):
         self.bandNames = bandNames
         self.stretch = stretch
         self.colNames = ["Band", "Name", "Value"]
+
+    def doUpdate(self, updateHorizHeader=False):
+        """
+        Called by the parent window when the data has changed.
+        Emits the appropriate signal.
+        """
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.columnCount(None) - 1, 
+                        self.rowCount(None) - 1)
+        self.emit(SIGNAL("dataChanged(const QModelIndex &,const QModelIndex &)"),
+                            topLeft, bottomRight)
+
+        if updateHorizHeader:
+            self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
+                    Qt.Horizontal, 0, self.rowCount(None) - 1)
 
     def rowCount(self, parent):
         "returns the number of rows"
@@ -307,7 +346,7 @@ class ThematicSelectionModel(QItemSelectionModel):
                                 self.parent.selectionArray)
 
         # update the view
-        self.parent.tableView.viewport().update()
+        self.parent.tableModel.doUpdate(True)
         # note: the behaviour still not right....
 
 class ThematicItemDelegate(QStyledItemDelegate):
@@ -931,7 +970,7 @@ class QueryDockWidget(QDockWidget):
                                 self.selectionArray)
         
         # so we repaint and our itemdelegate gets called
-        self.tableView.viewport().update()
+        self.tableModel.doUpdate()
 
     def selectAll(self):
         """
@@ -946,7 +985,7 @@ class QueryDockWidget(QDockWidget):
                                 self.selectionArray)
 
         # so we repaint and our itemdelegate gets called
-        self.tableView.viewport().update()
+        self.tableModel.doUpdate()
 
     def showUserExpression(self):
         """
@@ -1025,7 +1064,7 @@ Use the special columns:
 
             self.updateToolTip()
             # so we repaint and our itemdelegate gets called
-            self.tableView.viewport().update()
+            self.tableModel.doUpdate()
 
         except viewererrors.UserExpressionError as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
@@ -1046,7 +1085,7 @@ Use the special columns:
             except Exception as e:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
-            self.updateThematicTableModel(attributes)
+            self.tableModel.doUpdate(True)
 
     def editColumn(self, col):
         """
@@ -1143,7 +1182,10 @@ Use the special columns:
             alpha = newcolor.alpha()
             if alphaFloat:
                 alpha = alpha / 255.0
-            attributes.updateColumn(redname, self.selectionArray, red)
+            attributes.updateColumn(alphaname, self.selectionArray, alpha)
+
+            # so we repaint and new values get shown
+            self.tableModel.doUpdate()
 
 
     def newEditUserExpression(self, expression, col):
@@ -1167,7 +1209,7 @@ Use the special columns:
             attributes.updateColumn(colname, self.selectionArray, result)
 
             # so we repaint and new values get shown
-            self.tableView.viewport().update()
+            self.tableModel.doUpdate()
 
             # is this a the lookup column?
             if colname == attributes.getLookupColName():
@@ -1193,7 +1235,7 @@ Use the special columns:
             self.viewwidget.setColorTableLookup(col, colName)
 
         # so we repaint and new values get shown
-        self.tableView.viewport().update()
+        self.tableModel.doUpdate()
 
     def moveColumn(self, col, code):
         """
@@ -1204,6 +1246,7 @@ Use the special columns:
         columnNames = attributes.getColumnNames()
         # remove the one we are interested in 
         colName = columnNames.pop(col)
+        oldcol = col
 
         if code == MOVE_LEFT and col > 0:
             col -= 1
@@ -1215,7 +1258,17 @@ Use the special columns:
             col = len(columnNames)
                 
         columnNames.insert(col, colName)
-        self.updateThematicTableModel(attributes)
+
+        if oldcol == attributes.redColumnIdx:
+            attributes.redColumnIdx = col
+        if oldcol == attributes.greenColumnIdx:
+            attributes.greenColumnIdx = col
+        if oldcol == attributes.blueColumnIdx:
+            attributes.blueColumnIdx = col
+        if oldcol == attributes.alphaColumnIdx:
+            attributes.alphaColumnIdx = col
+
+        self.tableModel.doUpdate(True)
 
     def setColumnDecimalPlaces(self, colName):
         """
@@ -1231,7 +1284,7 @@ Use the special columns:
         if ok:
             newFormat = "%%.%df" % newDP
             attributes.setFormat(colName, newFormat)
-            self.updateThematicTableModel(attributes)
+            self.tableModel.doUpdate()
 
     def setColumnAsLookup(self, colName):
         """
@@ -1272,7 +1325,7 @@ Use the special columns:
                                     tables[tablename], tablename)
 
         # so header gets updated
-        self.updateThematicTableModel(attributes)
+        self.tableModel.doUpdate(True)
 
     def setColumnKeyboardEdit(self, colName):
         """
@@ -1364,7 +1417,7 @@ Use the special columns:
         self.scrollToFirstSelected()
         self.updateToolTip()
         # so we repaint and our itemdelegate gets called
-        self.tableView.viewport().update()
+        self.tableModel.doUpdate()
 
         # so keyboard entry etc works
         self.activateWindow()
@@ -1399,7 +1452,7 @@ Use the special columns:
         self.scrollToFirstSelected()
         self.updateToolTip()
         # so we repaint and our itemdelegate gets called
-        self.tableView.viewport().update()
+        self.tableModel.doUpdate()
 
         # so keyboard entry etc works
         self.activateWindow()
@@ -1418,8 +1471,6 @@ Use the special columns:
             else:
                 self.eastingEdit.setText("%.5f" % self.lastqi.easting)
                 self.northingEdit.setText("%.5f" % self.lastqi.northing)
-        self.tableView.viewport().update()
-    
 
     def geogSelect(self, checked):
         """
@@ -1511,20 +1562,6 @@ Use the special columns:
 
         self.tableView.setToolTip("") # disable toolip
 
-    def updateThematicTableModel(self, attributes):
-        """
-        Install our own table model that shows the contents of
-        attributes. Call whenever data is updated.
-        """
-        self.tableModel = ThematicTableModel(attributes, self)
-        self.tableView.setModel(self.tableModel)
-
-        # create our own selection model so nothing gets selected
-        # as far as the model is concerned
-        selectionModel = ThematicSelectionModel(self.tableModel, self)
-        self.tableView.setSelectionModel(selectionModel)
-
-
     def setupTableThematic(self, data, layer):
         """
         For a single band dataset with attributes. Displays
@@ -1543,7 +1580,13 @@ Use the special columns:
             self.lastAttributeid = id(layer.attributes)
             self.lastLayer = layer
 
-            self.updateThematicTableModel(layer.attributes)
+            self.tableModel = ThematicTableModel(layer.attributes, self)
+            self.tableView.setModel(self.tableModel)
+
+            # create our own selection model so nothing gets selected
+            # as far as the model is concerned
+            selectionModel = ThematicSelectionModel(self.tableModel, self)
+            self.tableView.setSelectionModel(selectionModel)
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
@@ -1567,7 +1610,7 @@ Use the special columns:
         self.updateToolTip()
 
         # so the items get redrawn and old highlight areas get removed
-        self.tableView.viewport().update()
+        self.tableModel.doUpdate(True)
         
 
     def locationSelected(self, qi):
@@ -1594,7 +1637,7 @@ Use the special columns:
             self.scrollToFirstSelected()
             self.updateToolTip()
             # so we repaint and our itemdelegate gets called
-            self.tableView.viewport().update()
+            self.tableModel.doUpdate()
 
             # so keyboard entry etc works
             self.activateWindow()
@@ -1706,7 +1749,7 @@ Use the special columns:
                     attributes.updateColumn(colname, self.selectionArray, data)
 
                     # so we repaint and new values get shown
-                    self.tableView.viewport().update()
+                    self.tableModel.doUpdate()
 
                     # is this a the lookup column?
                     if colname == attributes.getLookupColName():
