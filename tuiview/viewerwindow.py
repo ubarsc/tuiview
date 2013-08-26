@@ -486,6 +486,15 @@ class ViewerWindow(QMainWindow):
         self.connect(self.newProfileAct, SIGNAL("triggered()"), 
                                                     self.newProfile)
 
+        self.propertiesAct = QAction(self)
+        self.propertiesAct.setText("Properties")
+        self.propertiesAct.setStatusTip("Show Properties of top layer")
+        self.propertiesAct.setShortcut("CTRL+X")
+        self.propertiesAct.setIcon(QIcon(":/viewer/images/properties.png"))
+        self.propertiesAct.setIconVisibleInMenu(True)
+        self.connect(self.propertiesAct, SIGNAL("triggered()"), 
+                                                    self.properties)
+
         self.timeseriesForwardAct = QAction(self)
         self.timeseriesForwardAct.setShortcut(".")
         self.timeseriesForwardAct.setText("Timeseries Forward")
@@ -527,6 +536,7 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.tileWindowsAct)
         fileMenu.addAction(self.defaultStretchAct)
         fileMenu.addAction(self.saveCurrentViewAct)
+        fileMenu.addAction(self.propertiesAct)
         fileMenu.addAction(self.exitAct)
         fileMenu.insertSeparator(self.exitAct)
 
@@ -572,6 +582,7 @@ class ViewerWindow(QMainWindow):
         fileToolbar.addAction(self.removeLayerAct)
         fileToolbar.addAction(self.layerAct)
         fileToolbar.addAction(self.newWindowAct)
+        fileToolbar.addAction(self.propertiesAct)
 
         viewToolbar = self.addToolBar("View")
         viewToolbar.addAction(self.panAct)
@@ -1095,6 +1106,18 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                             SIGNAL("polylineCollected(PyQt_PyObject)"), 
                             profileDock.newLine)
         self.profileWindowCount -= 1
+
+    def properties(self):
+        """
+        Show the properties dialog
+        """
+        from . import propertieswindow
+        layer = self.viewwidget.layers.getTopLayer()
+        if layer is not None:
+            info = layer.getPropertiesInfo()
+            dlg = propertieswindow.PropertiesWindow(self, info)
+            dlg.setWindowTitle(os.path.basename(layer.filename))
+            dlg.show()
 
     def flicker(self):
         """

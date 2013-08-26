@@ -170,6 +170,8 @@ class LayerListView(QListView):
         self.propertiesAct = QAction(self)
         self.propertiesAct.setText("&Properties")
         self.propertiesAct.setStatusTip("Show properties of file")
+        self.propertiesAct.setIcon(QIcon(":/viewer/images/properties.png"))
+        self.propertiesAct.setIconVisibleInMenu(True)
         self.connect(self.propertiesAct, SIGNAL("triggered()"), self.properties)
 
     def setupMenu(self):
