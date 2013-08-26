@@ -340,9 +340,9 @@ class LayerListView(QListView):
 
             model = self.model()
             layer = model.getLayer(index)
-            propstring = layer.getPropertiesString()
-            dlg = propertieswindow.PropertiesWindow(self, propstring)
-            dlg.setWindowTitle(MESSAGE_TITLE)
+            info = layer.getPropertiesInfo()
+            dlg = propertieswindow.PropertiesWindow(self, info)
+            dlg.setWindowTitle(os.path.basename(layer.filename))
             dlg.show()
 
 class LayerWindow(QDockWidget):

@@ -155,6 +155,69 @@ class OverviewManager(object):
 
         return selectedovi
 
+NOTSET_STRING = 'Not Set'
+
+class PropertyInfo(object):
+    """
+    Container for Info for proerties window
+    """
+    def __init__(self):
+        self.fileInfo = []  # list of tuples
+        self.sr = None # SpatialReference
+        self.bandInfo = [] # list of lists of tuples
+        self.bandNames = [] # list of strings
+
+    def addFileInfo(self, name, value):
+        "Add a file info"
+        self.fileInfo.append((name, value))
+
+    def setSR(self, sr):
+        "set spatial reference"
+        self.sr = sr
+
+    def getUTMZone(self):
+        utmZone = NOTSET_STRING
+        if self.sr is not None:
+            zone = self.sr.GetUTMZone()
+            if zone != 0:
+                utmZone = zone
+        return utmZone
+
+    def getProjection(self):
+        proj = NOTSET_STRING
+        if self.sr is not None:
+            proj = self.sr.GetAttrValue('PROJECTION')
+        return proj
+
+    def getDatum(self):
+        datum = NOTSET_STRING
+        if self.sr is not None:
+            datum = self.sr.GetAttrValue('DATUM')
+        return datum
+
+    def getSpheroid(self):
+        spheroid = NOTSET_STRING
+        if self.sr is not None:
+            spheroid = self.sr.GetAttrValue('SPHEROID')
+        return spheroid
+
+    def getUnits(self):
+        units = NOTSET_STRING
+        if self.sr is not None:
+            units = self.sr.GetLinearUnitsName()
+        return units
+
+    def getWKT(self):
+        wkt = NOTSET_STRING
+        if self.sr is not None:
+            wkt = self.sr.ExportToPrettyWkt()
+        return wkt
+
+    def addBandInfo(self, bandName, infoList):
+        "sets info for a band"
+        self.bandInfo.append(infoList)
+        self.bandNames.append(bandName)
+
 class ViewerLayer(object):
     """
     Base class for a type of layer
@@ -168,8 +231,8 @@ class ViewerLayer(object):
         "return a QImage with the data in it"
         raise NotImplementedError("Must implement in derived class")
 
-    def getPropertiesString(self):
-        "Return the properties as a string we can show the user"
+    def getPropertiesInfo(self):
+        "Return the properties as a PropertyInfo instance we can show the user"
         raise NotImplementedError("Must implement in derived class")
 
 VIEWER_NONSQUARE_PIXEL_THRESHOLD = 0.001 # 0.1%
@@ -686,106 +749,109 @@ class ViewerRasterLayer(ViewerLayer):
             # apply LUT
             self.image = self.lut.applyLUTSingle(data, mask)
 
-    def getPropertiesString(self):
+    def getPropertiesInfo(self):
         """
-        Get the properties of the file as a string for presentation to user.
+        Get the properties of the file as a PropertyInfo for presentation to user.
         Do something similar to gdalinfo.
         """
-        fmt = """Driver: %s
-Files: %s
-Size is %d, %d
-Number of Bands: %d
-Overviews: %s
-Coordinate System is:\n%s
-Origin = (%f,%f)
-Pixel Size = (%f,%f)
-Corner Coordinates:
-Upper Left  ( %f, %f)
-Lower Left  ( %f, %f)
-Upper Right ( %f, %f)
-Lower Right ( %f, %f)
-Center      ( %f, %f)
-%s
-"""
-        driver = self.gdalDataset.GetDriver()
-        driverString = "%s/%s" % (driver.ShortName, driver.LongName)
-        fileString = " ".join(self.gdalDataset.GetFileList())
+        info = PropertyInfo()
         proj = self.gdalDataset.GetProjection()
         sr = osr.SpatialReference(proj)
-        coordString = sr.ExportToPrettyWkt()
+        info.setSR(sr)
 
-        (ulx, uly) = self.coordmgr.pixel2world(0, 0)
-        (llx, lly) = self.coordmgr.pixel2world(0, self.gdalDataset.RasterYSize)
-        (urx, ury) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 0)
-        (lrx, lry) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 
-                                                self.gdalDataset.RasterYSize)
-        (cx, cy) = self.coordmgr.pixel2world(
-                                        self.gdalDataset.RasterYSize / 2.0, 
-                                        self.gdalDataset.RasterYSize / 2.0)
+        driver = self.gdalDataset.GetDriver()
+        driverString = "%s/%s" % (driver.ShortName, driver.LongName)
+        info.addFileInfo('Driver:', driverString)
+
+        fileString = " ".join(self.gdalDataset.GetFileList())
+        info.addFileInfo('Files:', fileString)
+
+        info.addFileInfo('Number of Bands:', '%d' % self.gdalDataset.RasterCount)
 
         if len(self.overviews.overviews) > 1:
             overviewString = "Present"
         else:
             overviewString = "Absent"
+        info.addFileInfo('Overviews:', overviewString)
 
-        # build string with per-band info
-        perbandString = ''
+        pixelSizeString = '%f, %f' % (self.transform[1], self.transform[5])
+        info.addFileInfo('Pixel Size:', pixelSizeString)
+
+        (ulx, uly) = self.coordmgr.pixel2world(0, 0)
+        info.addFileInfo('Upper Left', '%f, %f' % (ulx, uly))
+        (llx, lly) = self.coordmgr.pixel2world(0, self.gdalDataset.RasterYSize)
+        info.addFileInfo('Lower Left', '%f, %f' % (llx, lly))
+        (urx, ury) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 0)
+        info.addFileInfo('Upper Right', '%f, %f' % (urx, ury))
+        (lrx, lry) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 
+                                                self.gdalDataset.RasterYSize)
+        info.addFileInfo('Lower Right', '%f, %f' % (lrx, lry))
+        (cx, cy) = self.coordmgr.pixel2world(
+                                        self.gdalDataset.RasterYSize / 2.0, 
+                                        self.gdalDataset.RasterYSize / 2.0)
+        info.addFileInfo('Center', '%f, %f' % (cx, cy))
+
         for nband in range(self.gdalDataset.RasterCount):
+            bandInfo = []
             band = self.gdalDataset.GetRasterBand(nband+1)
             metadata = band.GetMetadata()
 
             if 'LAYER_TYPE' in metadata:
                 layerType = metadata['LAYER_TYPE']
             else:
-                layerType = 'Not Set'
+                layerType = NOTSET_STRING
+            bandInfo.append(('Layer Type:', layerType))
+
+            nodata = band.GetNoDataValue()
+            if nodata is None:
+                nodataString = NOTSET_STRING
+            else:
+                nodataString = '%f' % nodata
+            bandInfo.append(('No Data Value:', nodataString))
 
             if 'STATISTICS_MAXIMUM' in metadata:
                 statsMax = metadata['STATISTICS_MAXIMUM']
             else:
-                statsMax = 'Not Set'
+                statsMax = NOTSET_STRING
+            bandInfo.append(('Maximum:', statsMax))
 
             if 'STATISTICS_MEAN' in metadata:
                 statsMean = metadata['STATISTICS_MEAN']
             else:
-                statsMean = 'Not Set'
+                statsMean = NOTSET_STRING
+            bandInfo.append(('Mean', statsMean))
 
             if 'STATISTICS_MEDIAN' in metadata:
                 statsMedian = metadata['STATISTICS_MEDIAN']
             else:
-                statsMedian = 'Not Set'
+                statsMedian = NOTSET_STRING
+            bandInfo.append(('Median', statsMedian))
 
             if 'STATISTICS_MINIMUM' in metadata:
                 statsMin = metadata['STATISTICS_MINIMUM']
             else:
-                statsMin = 'Not Set'
+                statsMin = NOTSET_STRING
+            bandInfo.append(('Minimum', statsMin))
 
             if 'STATISTICS_MODE' in metadata:
                 statsMode = metadata['STATISTICS_MODE']
             else:
-                statsMode = 'Not Set'
+                statsMode = NOTSET_STRING
+            bandInfo.append(('Mode:', statsMode))
 
             if 'STATISTICS_STDDEV' in metadata:
                 statsStd = metadata['STATISTICS_STDDEV']
             else:
-                statsStd = 'Not Set'
+                statsStd = NOTSET_STRING
+            bandInfo.append(('Standard Deviation:', statsStd))
 
             dataTypeName = gdal.GetDataTypeName(band.DataType)
+            bandInfo.append(('Data Type:', dataTypeName))
 
-            perbandString = (perbandString + 
-                ('Band: %d Layer Type: %s Type: %s\n\tMax: %s\n\tMin: %s\n\t' + 
-                'Mean: %s\n\tMedian: %s\n\tStd: %s\n\tMode: %s\n') % (nband+1, 
-                    layerType, dataTypeName, statsMax, 
-                    statsMin, statsMean, statsMedian, statsStd, statsMode))
-        
-        propstr = fmt % (driverString, fileString, 
-                        self.gdalDataset.RasterXSize, 
-                        self.gdalDataset.RasterYSize,
-                    self.gdalDataset.RasterCount, overviewString, coordString, 
-                    self.transform[0], self.transform[3],
-                    self.transform[1], self.transform[5], 
-                    ulx, uly, llx, lly, urx, ury, lrx, lry, cx, cy, 
-                    perbandString)
-        return propstr
+            bandName = band.GetDescription()
+            info.addBandInfo(bandName, bandInfo)
+
+        return info
 
 QUERY_CURSOR_HALFSIZE = 8 # number of pixels
 QUERY_CURSOR_WIDTH = 1 # in pixels
@@ -1003,14 +1069,20 @@ class ViewerVectorLayer(ViewerLayer):
 
         return results
 
-    def getPropertiesString(self):
-        "Return the properties as a string we can show the user"
+    def getPropertiesInfo(self):
+        "Return the properties as a PropertyInfo we can show the user"
         from osgeo import ogr
-        fmt = """Driver: %s
-Files: %s
-Layer type is: %s
-Coordinate System is:\n%s"""
-        driver = self.ogrDataSource.GetDriver().GetName()
+        info = PropertyInfo()
+
+        sr = self.ogrLayer.GetSpatialRef()
+        info.setSR(sr)
+
+        driverString = self.ogrDataSource.GetDriver().GetName()
+        info.addFileInfo('Driver:', driverString)
+
+        info.addFileInfo('Files:', self.filename)
+
+        layerInfo = []
         geomTypes = {ogr.wkbUnknown:'Unknown', ogr.wkbPoint:'Point',
             ogr.wkbLineString:'Line String', ogr.wkbPolygon:'Polygon',
             ogr.wkbMultiPoint:'Multi Point', 
@@ -1019,12 +1091,12 @@ Coordinate System is:\n%s"""
             ogr.wkbGeometryCollection:'Geometry Collection'}
         geomCode = self.ogrLayer.GetGeomType()
         geomType = geomTypes[geomCode]
-        sr = self.ogrLayer.GetSpatialRef()
-        if sr is not None:
-            coordString = sr.ExportToPrettyWkt()
-        else:
-            coordString = "None defined"
-        return fmt % (driver, self.filename, geomType, coordString)
+        layerInfo.append(('Layer Type:', geomType))
+
+        layerName = self.ogrLayer.GetName()
+        info.addBandInfo(layerName, layerInfo)
+
+        return info
 
 class ViewerFeatureVectorLayer(ViewerVectorLayer):
     """
