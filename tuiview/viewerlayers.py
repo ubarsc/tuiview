@@ -180,7 +180,7 @@ class PropertyInfo(object):
         if self.sr is not None:
             zone = self.sr.GetUTMZone()
             if zone != 0:
-                utmZone = zone
+                utmZone = str(zone)
         return utmZone
 
     def getProjection(self):
