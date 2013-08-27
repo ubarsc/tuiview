@@ -942,6 +942,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.image = None
         self.filename = None
         self.sql = None
+        self.linewidth = 1
         
     def setSQL(self, sql=None):
         "sets the sql attribute filter"
@@ -953,6 +954,13 @@ class ViewerVectorLayer(ViewerLayer):
     def hasSQL(self):
         "returns True if there is an attribute filter in place"
         return self.sql is not None
+
+    def setLineWidth(self, linewidth):
+        "sets the line width"
+        self.linewidth = linewidth
+
+    def getLineWidth(self):
+        return self.linewidth
         
     def getColorAsRGBATuple(self):
         rgba = []
@@ -1019,7 +1027,7 @@ class ViewerVectorLayer(ViewerLayer):
 
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
         data = turbovector.rasterizeOutlines(self.ogrLayer, extent, 
-                    xsize, ysize, self.sql)
+                    xsize, ysize, self.linewidth, self.sql)
 
         # do our lookup
         bgra = self.lut[data]
@@ -1128,7 +1136,7 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
 
         # rasterizeOutlinesFeature burns in 1 for outline, 0 otherwise
         data = turbovector.rasterizeOutlinesFeature(self.ogrFeature, extent, 
-                    xsize, ysize)
+                    xsize, ysize, self.linewidth)
 
         # do our lookup
         bgra = self.lut[data]

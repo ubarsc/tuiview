@@ -161,6 +161,11 @@ class LayerListView(QListView):
         self.setSQLAct.setStatusTip("Set attribute filter via SQL")
         self.connect(self.setSQLAct, SIGNAL("triggered()"), self.setSQL)
 
+        self.setLineWidthAct = QAction(self)
+        self.setLineWidthAct.setText("Set &Line width")
+        self.setLineWidthAct.setStatusTip("Set line width of rendered features")
+        self.connect(self.setLineWidthAct, SIGNAL("triggered()"), self.setLineWidth)
+
         self.editStretchAct = QAction(self)
         self.editStretchAct.setText("&Edit Stretch")
         self.editStretchAct.setStatusTip("Edit Stretch of raster layer")
@@ -195,6 +200,7 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.changeColorAct)
         self.vectorPopupMenu.addAction(self.setSQLAct)
+        self.vectorPopupMenu.addAction(self.setLineWidthAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.propertiesAct)
 
@@ -316,6 +322,25 @@ class LayerListView(QListView):
                 else:
                     sql = str(sql)
                 layer.setSQL(sql)
+                layer.getImage()
+                model.viewwidget.viewport().update()
+
+    def setLineWidth(self):
+        "Set the line width for vector layers"
+        from PyQt4.QtGui import QInputDialog
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+
+            linewidth = layer.getLineWidth()            
+                
+            linewidth, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
+                "Enter line width", value=linewidth, min=1, max=100)
+            if ok:
+                layer.setLineWidth(linewidth)
                 layer.getImage()
                 model.viewwidget.viewport().update()
 
