@@ -209,7 +209,7 @@ class ViewerLUT(QObject):
             # color table - just one bandinfo - write it out
             bi = self.bandinfo
             fileobj.write('%s\n' % bi.toString())
-            for code in RGB_CODES:
+            for code in RGBA_CODES:
                 lutindex = CODE_TO_LUTINDEX[code]
                 lut = self.lut[..., lutindex]
                 rep = {'code' : code, 'data' : lut.tolist()}
@@ -314,7 +314,7 @@ class ViewerLUT(QObject):
             lutobj.bandinfo = bi
             lutobj.lut = numpy.empty((bi.lutsize+VIEWER_LUT_EXTRA, 4), 
                                         numpy.uint8, 'C')
-            for n in range(len(RGB_CODES)):
+            for n in range(len(RGBA_CODES)):
                 s = fileobj.readline()
                 rep = json.loads(s)
                 code = rep['code']
