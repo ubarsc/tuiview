@@ -136,6 +136,9 @@ class CmdArgs(object):
                             help="Zoom to a location. Format is:"+
                             " 'easting,northing,factor' where factor is meters"+
                             " per window pixel.")
+        self.parser.add_option('-v', '--vector', action='append', dest="vectors",
+                            help="overlay vector file on top of rasters." +
+                            " Can be specified multple times")
 
         (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
@@ -182,6 +185,12 @@ class ViewerApplication(QApplication):
                         viewer = self.viewers.newViewer(filename, stretch)
                     else:
                         viewer.addRasterInternal(filename, stretch)
+
+        # open vectors in all viewer windows
+        if cmdargs.vectors is not None:
+            for viewer in self.viewers.viewers:
+                for vector in cmdargs.vectors:
+                    viewer.addVectorInternal(vector)
 
         # goto a location
         if cmdargs.goto is not None:
