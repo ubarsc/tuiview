@@ -533,7 +533,7 @@ class ViewerLUT(QObject):
                 lut[nan_index, lutindex] = nanvalue
 
         else:
-            msg = 'No color table present'
+            msg = 'No color table present or file not thematic'
             raise viewererrors.InvalidColorTable(msg)
 
         bandinfo = BandLUTInfo(1.0, 0.0, ctcount, 0, ctcount-1, 
