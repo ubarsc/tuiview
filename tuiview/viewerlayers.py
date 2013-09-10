@@ -845,6 +845,15 @@ class ViewerRasterLayer(ViewerLayer):
                 statsStd = NOTSET_STRING
             bandInfo.append(('Standard Deviation:', statsStd))
 
+            if ('STATISTICS_SKIPFACTORX' in metadata and 
+                    'STATISTICS_SKIPFACTORY' in metadata):
+                skipX = metadata['STATISTICS_SKIPFACTORX']
+                skipY = metadata['STATISTICS_SKIPFACTORY']
+                statsSkip = '%s, %s' % (skipX, skipY)
+            else:
+                statsSkip = NOTSET_STRING
+            bandInfo.append(('Skip Factor:', statsSkip))
+
             dataTypeName = gdal.GetDataTypeName(band.DataType)
             bandInfo.append(('Data Type:', dataTypeName))
 
