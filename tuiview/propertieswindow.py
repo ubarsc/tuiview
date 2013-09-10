@@ -124,6 +124,7 @@ class PropertiesWindow(QDialog):
         self.mainLayout.addWidget(self.closeButton)
 
         self.setLayout(self.mainLayout)
+        self.setSizeGripEnabled(True)
         self.resize(500, 600)
         
 
