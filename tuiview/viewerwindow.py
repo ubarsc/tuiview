@@ -650,6 +650,8 @@ class ViewerWindow(QMainWindow):
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is not None:
             dir = os.path.dirname(layer.filename)
+            if dir == '':
+                dir = os.getcwd()
         else:
             # or cwd
             dir = os.getcwd()
@@ -673,6 +675,8 @@ class ViewerWindow(QMainWindow):
         layer = self.viewwidget.layers.getTopVectorLayer()
         if layer is not None:
             dir = os.path.dirname(layer.filename)
+            if dir == '':
+                dir = os.getcwd()
         else:
             # or cwd
             dir = os.getcwd()
@@ -691,6 +695,8 @@ class ViewerWindow(QMainWindow):
         layer = self.viewwidget.layers.getTopVectorLayer()
         if layer is not None:
             olddir = os.path.dirname(layer.filename)
+            if dir == '':
+                dir = os.getcwd()
         else:
             # or cwd
             olddir = os.getcwd()
