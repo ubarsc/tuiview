@@ -1385,6 +1385,7 @@ class LayerManager(QObject):
         """
         layer.displayed = state
         self.updateTopFilename()
+        self.emit(SIGNAL("layersChanged()"))
 
     def timeseriesForward(self):
         """
