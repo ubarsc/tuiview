@@ -781,13 +781,13 @@ class ViewerRasterLayer(ViewerLayer):
         info.addFileInfo('Upper Left', '%f, %f' % (ulx, uly))
         (llx, lly) = self.coordmgr.pixel2world(0, self.gdalDataset.RasterYSize)
         info.addFileInfo('Lower Left', '%f, %f' % (llx, lly))
-        (urx, ury) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 0)
+        (urx, ury) = self.coordmgr.pixel2world(self.gdalDataset.RasterXSize, 0)
         info.addFileInfo('Upper Right', '%f, %f' % (urx, ury))
-        (lrx, lry) = self.coordmgr.pixel2world(self.gdalDataset.RasterYSize, 
+        (lrx, lry) = self.coordmgr.pixel2world(self.gdalDataset.RasterXSize, 
                                                 self.gdalDataset.RasterYSize)
         info.addFileInfo('Lower Right', '%f, %f' % (lrx, lry))
         (cx, cy) = self.coordmgr.pixel2world(
-                                        self.gdalDataset.RasterYSize / 2.0, 
+                                        self.gdalDataset.RasterXSize / 2.0, 
                                         self.gdalDataset.RasterYSize / 2.0)
         info.addFileInfo('Center', '%f, %f' % (cx, cy))
 
