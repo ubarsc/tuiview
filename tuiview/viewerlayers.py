@@ -774,6 +774,10 @@ class ViewerRasterLayer(ViewerLayer):
             overviewString = "Absent"
         info.addFileInfo('Overviews:', overviewString)
 
+        sizeString = '%d, %d' % (self.gdalDataset.RasterXSize, 
+                                    self.gdalDataset.RasterYSize)
+        info.addFileInfo('Size:', sizeString)
+
         pixelSizeString = '%f, %f' % (self.transform[1], self.transform[5])
         info.addFileInfo('Pixel Size:', pixelSizeString)
 
