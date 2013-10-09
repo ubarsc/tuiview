@@ -55,6 +55,33 @@ BLUE_PIXMAP.fill(Qt.blue)
 GREY_PIXMAP = QPixmap(64, 24)
 GREY_PIXMAP.fill(Qt.gray)
 
+def safeCreateColor(r, g, b, a=255):
+    """
+    Same as QColor constructor but ensures vales
+    all between 0 and 255 to avoid annoying warnings from Qt
+    """
+    if r < 0:
+        r = 0
+    elif r > 255:
+        r = 255
+
+    if g < 0:
+        g = 0
+    elif g > 255:
+        g = 255
+
+    if b < 0:
+        b = 0
+    elif b > 255:
+        b = 255
+
+    if a < 0:
+        a = 0
+    elif a > 255:
+        a = 255
+
+    return QColor(r, g, b, a)
+
 class ThematicTableModel(QAbstractTableModel):
     """
     This class is the 'model' that drives the thematic table.
@@ -163,7 +190,7 @@ class ThematicTableModel(QAbstractTableModel):
             blueVal *= 255
 
         # ignore alpha as we want to see it
-        col = QColor(redVal, greenVal, blueVal)
+        col = safeCreateColor(redVal, greenVal, blueVal)
 
         pixmap = QPixmap(64, 24)
         pixmap.fill(col)
@@ -1161,7 +1188,7 @@ Use the special columns:
             alphaVal *= 255
             alphaFloat = True
 
-        initial = QColor(redVal, greenVal, blueVal, alphaVal)
+        initial = safeCreateColor(redVal, greenVal, blueVal, alphaVal)
         newcolor = QColorDialog.getColor(initial, self, 
                     "Choose Cursor Color", QColorDialog.ShowAlphaChannel)
         if newcolor.isValid():
