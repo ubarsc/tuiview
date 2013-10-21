@@ -81,16 +81,14 @@ class PlotTick(object):
 
 class PlotWidget(QWidget):
     """
-    Lightweight plot widget
+    Lightweight plot widget base class
+    Don't instantiate directly - use one of the base classes.
     """
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         # always draw background as black
         self.setBackgroundColor(Qt.black)
         self.setAutoFillBackground(True)
-
-        # list of PlotCurves to draw
-        self.curves = []
 
         # pen to draw the axes
         self.axesPen = QPen(Qt.gray)
@@ -170,19 +168,6 @@ class PlotWidget(QWidget):
         self.setPalette(palette)
         self.update()
 
-    def addCurve(self, curve):
-        """
-        Add an instance of PlotCurve to the list of curves
-        to be plotted
-        """
-        self.curves.append(curve)
-        self.update()
-
-    def removeCurves(self):
-        "Remove all the curves"
-        self.curves = []
-        self.update()
-
     def addLabel(self, label):
         "Add a PlotLabel to be drawn"
         self.labels.append(label)
@@ -196,56 +181,14 @@ class PlotWidget(QWidget):
     def getYDataRange(self):
         """
         Get the range of the Y data to be plotted.
-        If value(s) have been set with SetYRange these
-        are returned
         """
-        (minYData, maxYData) = self.yrange
-        if minYData is None:
-            minYData = self.curves[0].ydata.min()
-            for curve in self.curves[1:]:
-                my = curve.ydata.min()
-                if my < minYData:
-                    minYData = my
-        if maxYData is None:
-            maxYData = self.curves[0].ydata.max()
-            for curve in self.curves[1:]:
-                my = curve.ydata.max()
-                if my > maxYData:
-                    maxYData = my
-
-        if (maxYData - minYData) == 0:
-            # make range +/- 20%
-            minYData = maxYData - (maxYData * 0.2)
-            maxYData = maxYData + (maxYData * 0.2)
-
-        return minYData, maxYData
+        return self.yrange
 
     def getXDataRange(self):
         """
         Get the range of the X data to be plotted.
-        If value(s) have been set with SetXRange these
-        are returned
         """
-        (minXData, maxXData) = self.xrange
-        if minXData is None:
-            minXData = self.curves[0].xdata.min()
-            for curve in self.curves[1:]:
-                mx = curve.xdata.min()
-                if mx < minXData:
-                    minXData = mx
-        if maxXData is None:
-            maxXData = self.curves[0].xdata.max()
-            for curve in self.curves[1:]:
-                mx = curve.xdata.max()
-                if mx > maxXData:
-                    maxXData = mx
-
-        if (maxXData - minXData) == 0:
-            # make range +/- 20%
-            minXData = maxXData - (maxXData * 0.2)
-            maxXData = maxXData + (maxXData * 0.2)
-
-        return minXData, maxXData
+        return self.xrange
 
     @staticmethod
     def makeIntervals(start, end, nIntervals):
@@ -448,6 +391,95 @@ class PlotWidget(QWidget):
 
     def paintEvent(self, event):
         """
+        To be implemented by base class
+        """
+        raise NotImplementedError('paintEvent method not implemented')
+
+    def sizeHint(self):
+        """
+        This has to be implemented otherwise plot is very small!
+        """
+        return QSize(400, 400)
+
+class PlotLineWidget(PlotWidget):
+    """
+    Widget for making lines
+    """
+    def __init__(self, parent):
+        PlotWidget.__init__(self, parent)
+
+        # list of PlotCurves to draw
+        self.curves = []
+
+    def addCurve(self, curve):
+        """
+        Add an instance of PlotCurve to the list of curves
+        to be plotted
+        """
+        self.curves.append(curve)
+        self.update()
+
+    def removeCurves(self):
+        "Remove all the curves"
+        self.curves = []
+        self.update()
+
+    def getYDataRange(self):
+        """
+        Get the range of the Y data to be plotted.
+        If value(s) have been set with SetYRange these
+        are returned
+        """
+        (minYData, maxYData) = PlotWidget.getYDataRange(self)
+        if minYData is None:
+            minYData = self.curves[0].ydata.min()
+            for curve in self.curves[1:]:
+                my = curve.ydata.min()
+                if my < minYData:
+                    minYData = my
+        if maxYData is None:
+            maxYData = self.curves[0].ydata.max()
+            for curve in self.curves[1:]:
+                my = curve.ydata.max()
+                if my > maxYData:
+                    maxYData = my
+
+        if (maxYData - minYData) == 0:
+            # make range +/- 20%
+            minYData = maxYData - (maxYData * 0.2)
+            maxYData = maxYData + (maxYData * 0.2)
+
+        return minYData, maxYData
+
+    def getXDataRange(self):
+        """
+        Get the range of the X data to be plotted.
+        If value(s) have been set with SetXRange these
+        are returned
+        """
+        (minXData, maxXData) = PlotWidget.getXDataRange(self)
+        if minXData is None:
+            minXData = self.curves[0].xdata.min()
+            for curve in self.curves[1:]:
+                mx = curve.xdata.min()
+                if mx < minXData:
+                    minXData = mx
+        if maxXData is None:
+            maxXData = self.curves[0].xdata.max()
+            for curve in self.curves[1:]:
+                mx = curve.xdata.max()
+                if mx > maxXData:
+                    maxXData = mx
+
+        if (maxXData - minXData) == 0:
+            # make range +/- 20%
+            minXData = maxXData - (maxXData * 0.2)
+            maxXData = maxXData + (maxXData * 0.2)
+
+        return minXData, maxXData
+
+    def paintEvent(self, event):
+        """
         This is the main part - calculation and drawing happen here.
         In theory the calculation should happen separately on resize etc 
         and paint should be simpler, but can't be bothered right now
@@ -516,9 +548,3 @@ class PlotWidget(QWidget):
                         size.height() - axes_ysize)
 
         paint.end()
-
-    def sizeHint(self):
-        """
-        This has to be implemented otherwise plot is very small!
-        """
-        return QSize(400, 400)

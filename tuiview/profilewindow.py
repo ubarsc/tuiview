@@ -43,7 +43,7 @@ class ProfileDockWidget(QDockWidget):
         self.setupToolbar()
         self.mainLayout.addWidget(self.toolBar)
 
-        self.plotWidget = plotwidget.PlotWidget(self)
+        self.plotWidget = plotwidget.PlotLineWidget(self)
         self.mainLayout.addWidget(self.plotWidget)
 
         self.whitePen = QPen(Qt.white)

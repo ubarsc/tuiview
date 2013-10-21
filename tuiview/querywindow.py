@@ -627,7 +627,7 @@ class QueryDockWidget(QDockWidget):
         # don't worry about QItemDelegate etc
         self.tableView.verticalHeader().setDefaultSectionSize(height)
 
-        self.plotWidget = plotwidget.PlotWidget(self)
+        self.plotWidget = plotwidget.PlotLineWidget(self)
 
         self.tabWidget.addTab(self.tableView, "Table")
         self.tabWidget.addTab(self.plotWidget, "Plot")
