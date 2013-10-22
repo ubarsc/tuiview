@@ -31,7 +31,7 @@ TICK_SIZE = 2  # pixels
 
 class PlotCurve(object):
     """
-    Pass instances of these to PlotWidget.addCurve()
+    Pass instances of these to PlotLineWidget.addCurve()
     xdata and ydata should be numpy arrays
     If pen not given will be white, 1 pixel wide
     """
@@ -45,6 +45,25 @@ class PlotCurve(object):
             self.pen = QPen()
             self.pen.setWidth(1)
             self.pen.setColor(Qt.white)
+
+class PlotBars(object):
+    """
+    Pass an instance of this to PlotBarWidget.setBars()
+    data should be a numpy array containing the counts. minVal and maxVal
+    describe the range of the data
+    """
+    def __init__(self, data, minVal, maxVal, pen=None, fillColor=Qt.white):
+        self.data = data
+        self.minVal = minVal
+        self.maxVal = maxVal
+        if data.size == 0:
+            raise ValueError('inavlid data')
+        self.pen = pen
+        if self.pen is None:
+            self.pen = QPen()
+            self.pen.setWidth(1)
+            self.pen.setColor(Qt.white)
+        self.fillColor = fillColor
 
 class PlotLabel(object):
     """
@@ -94,11 +113,6 @@ class PlotWidget(QWidget):
         self.axesPen = QPen(Qt.gray)
         self.axesPen.setWidth(1)
 
-        # default ranges - y autoscale
-        self.setYRange()
-        # x left =0, right autoscale
-        self.setXRange(xmin=0)
-
         # font 
         fontSize = self.getSettingsFontSize()
         self.setFontSize(fontSize)
@@ -113,6 +127,12 @@ class PlotWidget(QWidget):
 
         # fontmetrics
         self.fontMetrics = QFontMetrics(self.font())
+
+    def haveData(self):
+        """
+        Returns True if data has been set 
+        """
+        raise NotImplmentedError('haveData() must be implemented')
 
     def getSettingsFontSize(self):
         "Get the default font size from settings"
@@ -391,9 +411,67 @@ class PlotWidget(QWidget):
 
     def paintEvent(self, event):
         """
-        To be implemented by base class
+        This is the main part - calculation and drawing happen here.
+        In theory the calculation should happen separately on resize etc 
+        and paint should be simpler, but can't be bothered right now
+        Delegates to paintData() in sublass to do actuall work
         """
-        raise NotImplementedError('paintEvent method not implemented')
+        paint = QPainter(self)
+
+        # allow enough size under the x-axes for text and tick
+        axes_ysize = self.fontMetrics.height() + TICK_SIZE
+
+        size = self.size()
+        plotheight = size.height() - axes_ysize
+
+        yoffset = size.height() - axes_ysize
+        axes_xsize = axes_ysize # in case there no data, we still have axes drawn ok
+
+        # do we have data?
+        if self.haveData():
+            minYData, maxYData = self.getYDataRange()
+            minXData, maxXData = self.getXDataRange()
+            xrange = (maxXData - minXData)
+            yrange = (maxYData - minYData)
+
+            # check we can draw lines 
+            # - might still be a problem if range set by user
+            if xrange > 0 and yrange > 0:
+
+                # NB: Qt works from top left, plots from bottom left
+                yscale = -plotheight / yrange
+
+                # axes labels
+                axes_xsize = self.drawYTicks(paint, minYData, maxYData, yoffset, 
+                                    yscale, plotheight)
+
+                # now we now the width of the axes_xsize calc the other parts
+                plotwidth = size.width() - axes_xsize
+                xoffset = axes_xsize
+                xscale = plotwidth / xrange
+
+                self.drawXTicks(paint, minXData, maxXData, xoffset, 
+                                    xscale, plotwidth, plotheight)
+
+                # delegate to sublass
+                self.paintData(paint, minXData, minYData, xoffset, xscale, yoffset, yscale)
+
+                # labels
+                self.drawLabels(paint, minXData, minYData, xoffset, xscale, yoffset, yscale)
+
+        # axes
+        paint.setPen(self.axesPen)
+        paint.drawLine(axes_xsize, 0, axes_xsize, size.height() - axes_ysize)
+        paint.drawLine(axes_xsize, size.height() - axes_ysize, size.width(), 
+                        size.height() - axes_ysize)
+
+        paint.end()
+
+    def paintData(self, paint):
+        """
+        To be implemented in sublass
+        """
+        return NotImplementedError('must implement paintData')
 
     def sizeHint(self):
         """
@@ -403,13 +481,24 @@ class PlotWidget(QWidget):
 
 class PlotLineWidget(PlotWidget):
     """
-    Widget for making lines
+    Widget for making line plots
     """
     def __init__(self, parent):
         PlotWidget.__init__(self, parent)
 
+        # default ranges - y autoscale
+        self.setYRange()
+        # x left =0, right autoscale
+        self.setXRange(xmin=0)
+
         # list of PlotCurves to draw
         self.curves = []
+
+    def haveData(self):
+        """
+        Returns True if data has been set 
+        """
+        return len(self.curves) != 0
 
     def addCurve(self, curve):
         """
@@ -478,73 +567,105 @@ class PlotLineWidget(PlotWidget):
 
         return minXData, maxXData
 
-    def paintEvent(self, event):
+    def paintData(self, paint, minXData, minYData, xoffset, xscale, yoffset, yscale):
         """
-        This is the main part - calculation and drawing happen here.
-        In theory the calculation should happen separately on resize etc 
-        and paint should be simpler, but can't be bothered right now
+        Paints the curves - called from paintEvent in the baseclass
         """
-        paint = QPainter(self)
+        # each curve
+        for curve in self.curves:
+            paint.setPen(curve.pen)
 
-        # allow enough size under the x-axes for text and tick
-        axes_ysize = self.fontMetrics.height() + TICK_SIZE
+            xpoints = (curve.xdata - minXData) * xscale + xoffset
+            ypoints = (curve.ydata - minYData) * yscale + yoffset
+            xpoints = xpoints.astype(int)
+            ypoints = ypoints.astype(int)
 
-        size = self.size()
-        plotheight = size.height() - axes_ysize
+            # doesn't seem to be a faster array way, but this
+            # seems plenty fast enough
+            path = QPainterPath()
+            path.moveTo(xpoints[0], ypoints[0])
+            for x, y in zip(xpoints[1:], ypoints[1:]):
+                path.lineTo(x, y)
+            paint.drawPath(path)
 
-        yoffset = size.height() - axes_ysize
-        axes_xsize = axes_ysize # in case there no data, we still have axes drawn ok
 
-        # do we have data?
-        if len(self.curves) != 0:
-            minYData, maxYData = self.getYDataRange()
-            minXData, maxXData = self.getXDataRange()
-            xrange = (maxXData - minXData)
-            yrange = (maxYData - minYData)
+class PlotBarWidget(PlotWidget):
+    """
+    Widget for making bar plots
+    """
+    def __init__(self, parent):
+        PlotWidget.__init__(self, parent)
 
-            # check we can draw lines 
-            # - might still be a problem if range set by user
-            if xrange > 0 and yrange > 0:
+        # default ranges - y min = 0
+        self.setYRange(ymin=0)
+        # x  autoscale
+        self.setXRange()
 
-                # NB: Qt works from top left, plots from bottom left
-                yscale = -plotheight / yrange
+        # out one PlotBars object
+        # maybe we should support more than one?
+        self.bars = None
 
-                # axes labels
-                axes_xsize = self.drawYTicks(paint, minYData, maxYData, yoffset, 
-                                    yscale, plotheight)
+    def haveData(self):
+        """
+        Returns True if data has been set 
+        """
+        return self.bars is not None
 
-                # now we now the width of the axes_xsize calc the other parts
-                plotwidth = size.width() - axes_xsize
-                xoffset = axes_xsize
-                xscale = plotwidth / xrange
+    def setBars(self, bars):
+        "Set the bars object to use"
+        self.bars = bars
+        self.update()
 
-                self.drawXTicks(paint, minXData, maxXData, xoffset, 
-                                    xscale, plotwidth, plotheight)
+    def getYDataRange(self):
+        """
+        Get the range of the Y data to be plotted.
+        If value(s) have been set with SetYRange these
+        are returned
+        """
+        (minYData, maxYData) = PlotWidget.getYDataRange(self)
+        if minYData is None:
+            minYData = self.bars.data.min()
+        if maxYData is None:
+            maxYData = self.bars.data.max()
 
-                # each curve
-                for curve in self.curves:
-                    paint.setPen(curve.pen)
+        if (maxYData - minYData) == 0:
+            # make range +/- 20%
+            minYData = maxYData - (maxYData * 0.2)
+            maxYData = maxYData + (maxYData * 0.2)
 
-                    xpoints = (curve.xdata - minXData) * xscale + xoffset
-                    ypoints = (curve.ydata - minYData) * yscale + yoffset
-                    xpoints = xpoints.astype(int)
-                    ypoints = ypoints.astype(int)
+        return minYData, maxYData
 
-                    # doesn't seem to be a faster array way, but this
-                    # seems plenty fast enough
-                    path = QPainterPath()
-                    path.moveTo(xpoints[0], ypoints[0])
-                    for x, y in zip(xpoints[1:], ypoints[1:]):
-                        path.lineTo(x, y)
-                    paint.drawPath(path)
+    def getXDataRange(self):
+        """
+        Get the range of the X data to be plotted.
+        If value(s) have been set with SetXRange these
+        are returned
+        """
+        (minXData, maxXData) = PlotWidget.getXDataRange(self)
+        if minXData is None:
+            minXData = self.bars.minVal
+        if maxXData is None:
+            maxXData = self.bars.maxVal
 
-                # labels
-                self.drawLabels(paint, minXData, minYData, xoffset, xscale, yoffset, yscale)
+        if (maxXData - minXData) == 0:
+            # make range +/- 20%
+            minXData = maxXData - (maxXData * 0.2)
+            maxXData = maxXData + (maxXData * 0.2)
 
-        # axes
-        paint.setPen(self.axesPen)
-        paint.drawLine(axes_xsize, 0, axes_xsize, size.height() - axes_ysize)
-        paint.drawLine(axes_xsize, size.height() - axes_ysize, size.width(), 
-                        size.height() - axes_ysize)
+        return minXData, maxXData
 
-        paint.end()
+    def paintData(self, paint, minXData, minYData, xoffset, xscale, yoffset, yscale):
+        """
+        Paints the bars - called from paintEvent in the baseclass
+        """
+        paint.setPen(self.bars.pen)
+        heights = (self.bars.data - minYData) * yscale + yoffset
+        tlxs = numpy.linspace(self.bars.minVal, self.bars.maxVal, self.bars.data.size)
+        tlxs = (tlxs - minXData) * xscale + xoffset
+        tlxs += 1 # otherwise left most bar gets clobbered by axis
+        width = int(tlxs[1] - tlxs[0])
+        if width < 1:
+            width = 1
+
+        for height, tlx in zip(heights, tlxs):
+            paint.fillRect(tlx, height, width, yoffset - height, self.bars.fillColor)
