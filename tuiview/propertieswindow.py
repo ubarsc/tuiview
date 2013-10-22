@@ -23,6 +23,8 @@ from PyQt4.QtGui import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
 from PyQt4.QtGui import QComboBox
 from PyQt4.QtCore import SIGNAL
 
+from . import plotwidget
+
 def VariantToInt(variant):
     """
     Action depends on which version of Python we are running
@@ -84,7 +86,9 @@ class PropertiesWindow(QDialog):
         self.fileGroup.setLayout(self.fileLayout)
         self.mainLayout.addWidget(self.fileGroup)
 
+
         self.layerLayout = QVBoxLayout()
+        self.layerTab = QTabWidget()
 
         self.layerSelLayout = QGridLayout()
         self.layerSelLabel = QLabel()
@@ -100,12 +104,20 @@ class PropertiesWindow(QDialog):
                                 self.layerChanged)
 
         self.layerLayout.addLayout(self.layerSelLayout)
+        self.layerLayout.addWidget(self.layerTab)
+
+        self.layerInfoWidget = QWidget()
+        self.plotWidget = plotwidget.PlotBarWidget(self)
 
         self.layerInfoLayout = QGridLayout()
         self.layerValueLabels = {} # so we can just update what we need
         self.layerChanged(0) # fill it in
         self.layerSelCombo.setCurrentIndex(0) # make sure we are at first one
-        self.layerLayout.addLayout(self.layerInfoLayout)
+        self.layerInfoWidget.setLayout(self.layerInfoLayout)
+
+        self.layerTab.addTab(self.layerInfoWidget, 'Layer Information')
+
+        self.layerTab.addTab(self.plotWidget, 'Layer Histogram')
 
         self.layerGroup = QGroupBox('Layer')
         self.layerGroup.setLayout(self.layerLayout)
@@ -151,3 +163,15 @@ class PropertiesWindow(QDialog):
             for name, value in self.info.bandInfo[idx]:
                 valueLabel = self.layerValueLabels[name]
                 valueLabel.setText(value)
+
+        # update histogram info
+        name = self.info.bandNames[idx]
+        if name in self.info.histograms:
+            minVal, maxVal, histData = self.info.histograms[name]
+
+            plotBar = plotwidget.PlotBars(histData, minVal, maxVal)
+            self.plotWidget.setBars(plotBar)
+        else:
+            # no histo info
+            self.plotWidget.setBars(None)
+

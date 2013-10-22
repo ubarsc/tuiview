@@ -166,6 +166,8 @@ class PropertyInfo(object):
         self.sr = None # SpatialReference
         self.bandInfo = [] # list of lists of tuples
         self.bandNames = [] # list of strings
+        self.histograms = {} # dictionary of min, max, data tuples
+                            # keyed on bandName
 
     def addFileInfo(self, name, value):
         "Add a file info"
@@ -217,6 +219,13 @@ class PropertyInfo(object):
         "sets info for a band"
         self.bandInfo.append(infoList)
         self.bandNames.append(bandName)
+
+    def addHistogramInfo(self, bandName, histInfo):
+        """
+        sets histogram info for a band. Should be a tuple
+        of min, max, data
+        """
+        self.histograms[bandName] = histInfo
 
 class ViewerLayer(object):
     """
@@ -863,6 +872,17 @@ class ViewerRasterLayer(ViewerLayer):
 
             bandName = band.GetDescription()
             info.addBandInfo(bandName, bandInfo)
+
+            # check the histo info
+            if ('STATISTICS_HISTOMIN' in metadata and
+                    'STATISTICS_HISTOMAX' in metadata and
+                    'STATISTICS_HISTOBINVALUES' in metadata):
+                histMin = float(metadata['STATISTICS_HISTOMIN'])
+                histMax = float(metadata['STATISTICS_HISTOMAX'])
+                histDataString = metadata['STATISTICS_HISTOBINVALUES']
+                histData = [float(x) for x in histDataString.split('|') if x != '']
+                histData = numpy.array(histData)
+                info.addHistogramInfo(bandName, (histMin, histMax, histData))
 
         return info
 
