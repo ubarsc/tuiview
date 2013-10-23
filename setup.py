@@ -29,7 +29,7 @@ For creation of cx freeze installer on Windows
 from distutils.core import setup
 
 setup(name='TuiView', 
-    version='0.9', 
+    version='1.0', 
     description='Simple Raster Viewer',
     author='Sam Gillingham',
     author_email='gillingham.sam@gmail.com',
