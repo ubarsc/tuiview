@@ -360,6 +360,9 @@ class ViewerRasterLayer(ViewerLayer):
         for n in range(self.gdalDataset.RasterCount):
             band = self.gdalDataset.GetRasterBand(n+1)
             name = band.GetDescription()
+            if name == '':
+                # in case the name is missing
+                name = 'Band %d' % (n+1)
             bandNames.append(name)
         return bandNames
         

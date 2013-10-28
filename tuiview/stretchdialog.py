@@ -351,6 +351,9 @@ class StretchLayout(QFormLayout):
             bandnum = count + 1
             gdalband = gdaldataset.GetRasterBand(bandnum)
             name = gdalband.GetDescription()
+            if name == '':
+                # make up a name so the user can still choose
+                name = 'Band %d' % bandnum
             combo.addItem(name, bandnum)
 
     @staticmethod
