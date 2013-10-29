@@ -82,7 +82,7 @@ class PluginManager(object):
         Order is:
         1. If there is a plugins directory under where we are running
         2. Any directories listed in os.getenv(PLUGINS_ENV)
-        3. Under ~/.viewer/plugins
+        3. Under ~/.tuiview/plugins
         Reads any Python file that has the required entries
         """
         # check where we are running
@@ -100,7 +100,7 @@ class PluginManager(object):
 
         # now home directory
         homeDir = os.path.expanduser('~')
-        subdir = os.path.join(homeDir, '.viewer', PLUGINS_SUBDIR)
+        subdir = os.path.join(homeDir, '.tuiview', PLUGINS_SUBDIR)
         if os.path.isdir(subdir):
             self.loadPluginsFromDir(subdir)
 
@@ -124,7 +124,7 @@ class PluginManager(object):
             fileobj = open(path, self.pysuffixes[1])
 
             # make up a name to keep Python happy
-            name = 'viewer.plugin%d' % self.pluginNameIndex
+            name = 'tuiview.plugin%d' % self.pluginNameIndex
             self.pluginNameIndex += 1
 
             try:
