@@ -717,10 +717,12 @@ class ViewerWindow(QMainWindow):
         if ok and con != "":
             self.addVectorInternal(con)
 
-    def addRasterInternal(self, fname, stretch=None):
+    def addRasterInternal(self, fname, stretch=None, showError=True):
         """
         Actually to the file opening. If stretch is None
         is is determined using our automatic scheme.
+        if showError is True a message box will be displayed with any error
+        if false an exception will be raised.
         """
         fname = str(fname) # was QString
         lut = None
@@ -729,9 +731,12 @@ class ViewerWindow(QMainWindow):
         try:
             gdaldataset = gdal.Open(fname)
         except RuntimeError:
-            msg = "Unable to open %s" % fname
-            QMessageBox.critical(self, MESSAGE_TITLE, msg)
-            return
+            if showError:
+                msg = "Unable to open %s" % fname
+                QMessageBox.critical(self, MESSAGE_TITLE, msg)
+                return
+            else:
+                raise
 
         if stretch is None:
             # first see if it has a stretch saved in the file
@@ -776,10 +781,16 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                     self.viewwidget.addRasterLayer(gdaldataset, stretch, lut,
                             ignoreProjectionMismatch=True)
                 except Exception as e:
-                    QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+                    if showError:
+                        QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+                    else:
+                        raise
 
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            if showError:
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            else:
+                raise
 
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
@@ -1259,9 +1270,17 @@ TurboGDAL: %s
         mimeData = event.mimeData()
         if mimeData.hasUrls():
             for url in mimeData.urls():
-                # things will get tricky when we support vectors
-                # try raster then vector?
-                self.addRasterInternal(url.toLocalFile())
+                fname = url.toLocalFile()
+                try:
+                    # try raster first
+                    self.addRasterInternal(fname, showError=False)
+                except Exception as e:
+                    if viewerwidget.haveVector():
+                        # then vector if available
+                        self.addVectorInternal(fname)
+                    else:
+                        # otherwise just error
+                        QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def setPreferences(self):
         """
