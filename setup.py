@@ -5,9 +5,8 @@ Setup script for TuiView. Use like this for Unix:
 $ python setup.py install
 
 For creation of cx freeze installer on Windows
-> /c/Python32/python.exe setup.py install
-> /c/Python32/python.exe setup_cxfreeze.py build
-> /c/Python32/python.exe setup_cxfreeze.py bdist_msi
+> /c/Python33/python.exe setup.py install
+> /c/Python33/python.exe setup_cxfreeze.py bdist_msi
 
 """
 # This file is part of 'TuiView' - a simple Raster viewer
@@ -28,8 +27,10 @@ For creation of cx freeze installer on Windows
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from distutils.core import setup
 
+import tuiview
+
 setup(name='TuiView', 
-    version='1.0', 
+    version=tuiview.TUIVIEW_VERSION, 
     description='Simple Raster Viewer',
     author='Sam Gillingham',
     author_email='gillingham.sam@gmail.com',

@@ -28,14 +28,11 @@ For creation of cxfreeze bundle on Windows:
 from cx_Freeze import setup, Executable
 import os
 import sys
-from datetime import date
 
-# to make a unique name encode todays date
-appName = 'TuiView_%s' % date.today().strftime('%Y%m%d')
+import tuiview
 
 # NB. Had to hack python scripts in C:\Python33\Lib\site-packages\osgeo
 # to 'from . import <blah>' in exception handler, and all over
-
 base = None
 include_msvcr = False
 initScript = None
@@ -62,13 +59,13 @@ build_exe_options = {'excludes':["pywin", "pywin.debugger", "pydoc",
                     'include_msvcr':include_msvcr, 'include_files':include_files, "init_script":initScript,
                     "optimize":'2'}
                     
-viewerexe = Executable("bin/tuiview", base=base, shortcutName=appName, 
+viewerexe = Executable("bin/tuiview", base=base, shortcutName='TuiView-%s' % tuiview.TUIVIEW_VERSION, 
             shortcutDir="ProgramMenuFolder")
 viewerwritetableexe = Executable("bin/tuiviewwritetable") # console is default
 
 #
-setup(name=appName,
-      version='1.0',
+setup(name='TuiView',
+      version=tuiview.TUIVIEW_VERSION,
       description='Simple Raster Viewer',
       author='Sam Gillingham',
       author_email='gillingham.sam@gmail.com',

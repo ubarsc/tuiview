@@ -1198,6 +1198,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         """
         Show author and version info
         """
+        from . import TUIVIEW_VERSION
         from PyQt4.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
         from osgeo.gdal import __version__ as gdalVersion
         import sys
@@ -1214,6 +1215,7 @@ By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and 
 
 Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.
 
+Version: %s
 Installed in: %s
 GDAL Version: %s
 PyQt Version: %s
@@ -1225,7 +1227,8 @@ TurboGDAL: %s
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
                     sys.version_info.micro)
-        msg = msg % (appDir, gdalVersion, PYQT_VERSION_STR, QT_VERSION_STR, 
+        msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYQT_VERSION_STR, 
+                QT_VERSION_STR, 
                 pyVer, numpyVersion.version, turbogdalString)
 
         # centre each line - doesn't work very well due to font
