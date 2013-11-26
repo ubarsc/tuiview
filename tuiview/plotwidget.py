@@ -298,10 +298,16 @@ class PlotWidget(QWidget):
 
             intervals, ndp = self.makeIntervals(minYData, maxYData, nIntervals)
 
-            # find with of largest interval (last?) and use that for width param
-            txt = self.formatInterval(intervals[-1], ndp)
-            textrect = self.fontMetrics.boundingRect(txt)
-            txtwidth = textrect.width()
+            # find width of largest interval and use that for width param
+            maxwidth = 0
+            for interval in intervals:
+                txt = self.formatInterval(interval, ndp)
+                textrect = self.fontMetrics.boundingRect(txt)
+                txtwidth = textrect.width()
+                if txtwidth > maxwidth:
+                    maxwidth = txtwidth
+            txtwidth = maxwidth
+
             for interval in intervals:
 
                 if interval < minYData:
