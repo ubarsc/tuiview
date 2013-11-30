@@ -179,7 +179,7 @@ class ProfileDockWidget(QDockWidget):
                 masked = numpy.compress(profilemask, data)
                 if masked.size == 0:
                     # can't do anything if no valid data
-                    return
+                    continue
                 bandMinValue = masked.min()
                 bandMaxValue = masked.max()
 
