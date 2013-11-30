@@ -175,24 +175,32 @@ class ProfileDockWidget(QDockWidget):
             minValue = None
             maxValue = None
             for data, pen in zip(profiledata, penList):
-                self.plotProfile(distance, data, profilemask, pen)
-        
                 # record the range of the data for scaling
                 masked = numpy.compress(profilemask, data)
+                if masked.size == 0:
+                    # can't do anything if no valid data
+                    return
                 bandMinValue = masked.min()
                 bandMaxValue = masked.max()
+
+                self.plotProfile(distance, data, profilemask, pen)
+        
                 if minValue is None or bandMinValue < bandMinValue:
                     minValue = bandMinValue
                 if maxValue is None or bandMaxValue > maxValue:
                     maxValue = bandMaxValue
         else:
             # greyscale
-            pen = self.whitePen
-            self.plotProfile(distance, profiledata, profilemask, pen)
             # find range of data for scaling
             masked = numpy.compress(profilemask, profiledata)
+            if masked.size == 0:
+                # can't do anything if no valid data
+                return
             minValue = masked.min()
             maxValue = masked.max()
+
+            pen = self.whitePen
+            self.plotProfile(distance, profiledata, profilemask, pen)
 
         self.dataRange = (minValue, maxValue)
 
