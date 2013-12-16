@@ -285,6 +285,16 @@ class PlotWidget(QWidget):
             txt = "%.*f" % (ndp, interval)
         return txt
 
+    def findLargestIntervalLabel(self, intervals, ndp):
+        maxwidth = 0
+        for interval in intervals:
+            txt = self.formatInterval(interval, ndp)
+            textrect = self.fontMetrics.boundingRect(txt)
+            txtwidth = textrect.width()
+            if txtwidth > maxwidth:
+                maxwidth = txtwidth
+        return maxwidth
+
     def drawYTicks(self, paint, minYData, maxYData, yoffset, yscale, height):
         """
         Draw the Y-ticks. Returns the size needed for the text
@@ -299,14 +309,7 @@ class PlotWidget(QWidget):
             intervals, ndp = self.makeIntervals(minYData, maxYData, nIntervals)
 
             # find width of largest interval and use that for width param
-            maxwidth = 0
-            for interval in intervals:
-                txt = self.formatInterval(interval, ndp)
-                textrect = self.fontMetrics.boundingRect(txt)
-                txtwidth = textrect.width()
-                if txtwidth > maxwidth:
-                    maxwidth = txtwidth
-            txtwidth = maxwidth
+            txtwidth = self.findLargestIntervalLabel(intervals, ndp)
 
             for interval in intervals:
 
@@ -358,19 +361,20 @@ class PlotWidget(QWidget):
         if self.xticks is None:
             # we have to create our own
 
-            # do a guess
-            nIntervals = int(width / 100)
-            intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
-
-            # work out the width of the largest tick (last?)
-            txt = self.formatInterval(intervals[-1], ndp)
-            textrect = self.fontMetrics.boundingRect(txt)
-            txtwidth = textrect.width() * 1.2  # give a bit of space
-
-            # make a better guess
+            # do a guess and refine it until it fits
+            txtwidth = 20
+            finished = False
             nIntervals = int(width / txtwidth)
-            intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
+            while not finished:
 
+                intervals, ndp = self.makeIntervals(minXData, maxXData, nIntervals)
+                txtwidth = self.findLargestIntervalLabel(intervals, ndp)
+
+                nIntervals = int(width / txtwidth)
+                # had to make it nIntervals+1 otherwise ended up
+                # with infinite loop for long labels for some reason...
+                finished = len(intervals) <= nIntervals+1
+                
             for interval in intervals:
                 if interval < minXData:
                     continue
