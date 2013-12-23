@@ -609,18 +609,18 @@ class ViewerRasterLayer(ViewerLayer):
         fullrespixperovpix = selectedovi.fullrespixperpix
         pixTop = max(self.coordmgr.pixTop, 0)
         pixLeft = max(self.coordmgr.pixLeft, 0)
-        pixBottom = min(self.coordmgr.pixBottom, self.gdalDataset.RasterYSize-1)
-        pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize-1)
+        pixBottom = min(self.coordmgr.pixBottom, self.gdalDataset.RasterYSize)
+        pixRight = min(self.coordmgr.pixRight, self.gdalDataset.RasterXSize)
         ovtop = int(pixTop / fullrespixperovpix)
         ovleft = int(pixLeft / fullrespixperovpix)
         ovbottom = int(numpy.ceil(pixBottom / fullrespixperovpix))
         ovright = int(numpy.ceil(pixRight / fullrespixperovpix))
         ovtop = max(ovtop, 0)
         ovleft = max(ovleft, 0)
-        ovbottom = min(ovbottom, selectedovi.ysize-1)
-        ovright = min(ovright, selectedovi.xsize-1)
-        ovxsize = ovright - ovleft + 1
-        ovysize = ovbottom - ovtop + 1
+        ovbottom = min(ovbottom, selectedovi.ysize)
+        ovright = min(ovright, selectedovi.xsize)
+        ovxsize = ovright - ovleft
+        ovysize = ovbottom - ovtop
 
         # The display coordinates of the top-left corner of the raster data.
         #  Often this
@@ -1558,18 +1558,24 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra,
     nRptsX = float(xsize + dspLeftExtra + dspRightExtra) / float(ncols)
     nRptsY = float(ysize + dspTopExtra + dspBottomExtra) / float(nrows)
 
-    rowCount = int(numpy.ceil(nrows * nRptsY)) * 1j
-    colCount = int(numpy.ceil(ncols * nRptsX)) * 1j
+    rowCount = int(numpy.ceil(nrows * nRptsY))
+    colCount = int(numpy.ceil(ncols * nRptsX))
     
     # create the lookup table (up to nrows/ncols-1)
-    (row, col) = (
-       numpy.mgrid[0:nrows-1:rowCount, 0:ncols-1:colCount].astype(numpy.int32))
+    # using the complex number stuff in numpy.mgrid
+    # doesn't work too well since you end up with unevenly
+    # spaced divisions...
+    row, col = numpy.mgrid[dspTopExtra:rowCount-dspBottomExtra, 
+                        dspLeftExtra:colCount-dspRightExtra]
+    # try to be a little frugal with memory
+    numpy.multiply(row, nrows / float(rowCount), out=row)
+    numpy.multiply(col, ncols / float(colCount), out=col)
+    # need to index with ints
+    row = row.astype(numpy.int32)
+    col = col.astype(numpy.int32)
+
     # do the lookup
     outarr = arr[row, col]
-
-    # chop out the extra pixels
-    outarr = (
-       outarr[dspTopExtra:dspTopExtra+ysize, dspLeftExtra:dspLeftExtra+xsize])
 
     return outarr
 
