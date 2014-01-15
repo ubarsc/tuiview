@@ -34,7 +34,7 @@ from . import viewererrors
 
 # environment variable we use to specify file
 # to load extra ramps from
-EXTRA_RAMP_VAR = 'VIEWER_EXTRA_RAMP'
+EXTRA_RAMP_VAR = 'TUIVIEW_EXTRA_RAMP'
 HAVE_LOADED_EXTRA_RAMPS = False
 
 # init our dictionary of data
