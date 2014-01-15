@@ -42,7 +42,7 @@ DEFAULT_XPOS = 200
 DEFAULT_YPOS = 200
 
 MESSAGE_TIMEOUT = 2000
-DEFAULT_DRIVER = 'HFA'
+DEFAULT_DRIVER = os.getenv('TUIVIEW_DFLT_DRIVER', default='HFA')
 MESSAGE_TITLE = 'TuiView'
 
 # Populate this list the first time the
@@ -80,20 +80,25 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
     # only bother if it hasn't been populated already
     if GDAL_FILTERS is None:
         GDAL_FILTERS = []
-        # add all files first
-        GDAL_FILTERS.append("All files (*)")
 
-        # if we have a default driver do it next
+        # if we have a default driver do it first
         if not defaultDriver is None:
             driver = gdal.GetDriverByName(defaultDriver)
-            qfilter = createFilter(driver)
-            GDAL_FILTERS.append(qfilter)
+            if driver is not None:
+                qfilter = createFilter(driver)
+                GDAL_FILTERS.append(qfilter)
+
+        # add all files next
+        GDAL_FILTERS.append("All files (*)")
 
         # just go thru them all and create filters
         for count in range(gdal.GetDriverCount()):
             driver = gdal.GetDriver(count)
-            qfilter = createFilter(driver)
-            GDAL_FILTERS.append(qfilter)
+            # we have already done the default driver
+            # and it looks a bit silly if it is in there again
+            if driver.ShortName != defaultDriver:
+                qfilter = createFilter(driver)
+                GDAL_FILTERS.append(qfilter)
 
 
 class ViewerWindow(QMainWindow):
