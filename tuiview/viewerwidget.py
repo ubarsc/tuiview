@@ -88,6 +88,11 @@ class ViewerWidget(QAbstractScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
+        # tracking works awfully badly under X
+        # turn off until we work out a workaround
+        self.verticalScrollBar().setTracking(False)
+        self.horizontalScrollBar().setTracking(False)
+
         self.layers = viewerlayers.LayerManager()
 
         self.paintPoint = QPoint() # normally 0,0 unless we are panning
