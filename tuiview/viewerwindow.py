@@ -42,7 +42,7 @@ DEFAULT_XPOS = 200
 DEFAULT_YPOS = 200
 
 MESSAGE_TIMEOUT = 2000
-DEFAULT_DRIVER = os.getenv('TUIVIEW_DFLT_DRIVER', default='HFA')
+DEFAULT_DRIVER = os.getenv('TUIVIEW_DFLT_DRIVER')
 MESSAGE_TITLE = 'TuiView'
 
 # Populate this list the first time the
@@ -96,7 +96,7 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
             driver = gdal.GetDriver(count)
             # we have already done the default driver
             # and it looks a bit silly if it is in there again
-            if driver.ShortName != defaultDriver:
+            if defaultDriver is None or driver.ShortName != defaultDriver:
                 qfilter = createFilter(driver)
                 GDAL_FILTERS.append(qfilter)
 
