@@ -1777,7 +1777,21 @@ Use the special columns:
     def closeEvent(self, event):
         """
         Window is being closed - inform parent window
+        Also check if there are unsaved attribute changes
         """
+        attributes = self.lastLayer.attributes
+        if attributes.haveDirtyColumns():
+            btn = QMessageBox.question(self, MESSAGE_TITLE, 
+                    "Attributes have changed. Do you want to save them?",
+                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                    QMessageBox.Yes)
+            if btn == QMessageBox.Yes:
+                self.saveAttributes()
+            elif btn == QMessageBox.Cancel:
+                event.ignore()
+                return
+            # otherwise on no, continue to close as per normal
+
         self.viewwidget.removeQueryPoint(id(self))
         self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
 

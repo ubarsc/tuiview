@@ -1251,7 +1251,7 @@ TurboGDAL: %s
     def closeEvent(self, event):
         """
         Window is being closed. Save the position and size.
-        Emit signal for GeolinkedViewers.
+        Check that any of the query windows don't have unsaved data
         """
         settings = QSettings()
         settings.beginGroup('ViewerWindow')
@@ -1259,7 +1259,16 @@ TurboGDAL: %s
         settings.setValue("pos", self.pos())
         settings.endGroup()
 
+        # say accept for now
         event.accept()
+
+        # check if any of the querywindows have unsaved data
+        from . import querywindow
+        for w in self.findChildren(querywindow.QueryDockWidget):
+            w.closeEvent(event)
+            # user canceled
+            if not event.isAccepted():
+                break
 
     def dragEnterEvent(self, event):
         """

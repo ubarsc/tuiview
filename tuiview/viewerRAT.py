@@ -93,6 +93,10 @@ class ViewerRAT(QObject):
         """
         return self.columnNames is not None
 
+    def haveDirtyColumns(self):
+        "Any columns that need to be written out?"
+        return self.dirtyColumns is not None and len(self.dirtyColumns) > 0
+
     def getColumnNames(self):
         "return the column names"
         return self.columnNames
