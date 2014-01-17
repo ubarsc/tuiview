@@ -1787,10 +1787,16 @@ Use the special columns:
                     QMessageBox.Yes)
             if btn == QMessageBox.Yes:
                 self.saveAttributes()
+            elif btn == QMessageBox.No:
+                # dock windows don't actually disapper
+                # they just go to sleep until the app
+                # is closed when we do this all again
+                # reset the dirtyColumns so the user 
+                # doesn't get asked again
+                attributes.dirtyColumns = []
             elif btn == QMessageBox.Cancel:
                 event.ignore()
                 return
-            # otherwise on no, continue to close as per normal
 
         self.viewwidget.removeQueryPoint(id(self))
         self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
