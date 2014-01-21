@@ -1779,24 +1779,25 @@ Use the special columns:
         Window is being closed - inform parent window
         Also check if there are unsaved attribute changes
         """
-        attributes = self.lastLayer.attributes
-        if attributes.haveDirtyColumns():
-            btn = QMessageBox.question(self, MESSAGE_TITLE, 
-                    "Attributes have changed. Do you want to save them?",
-                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-                    QMessageBox.Yes)
-            if btn == QMessageBox.Yes:
-                self.saveAttributes()
-            elif btn == QMessageBox.No:
-                # dock windows don't actually disapper
-                # they just go to sleep until the app
-                # is closed when we do this all again
-                # reset the dirtyColumns so the user 
-                # doesn't get asked again
-                attributes.dirtyColumns = []
-            elif btn == QMessageBox.Cancel:
-                event.ignore()
-                return
+        if self.lastLayer is not None:
+            attributes = self.lastLayer.attributes
+            if attributes.haveDirtyColumns():
+                btn = QMessageBox.question(self, MESSAGE_TITLE, 
+                        "Attributes have changed. Do you want to save them?",
+                        QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                        QMessageBox.Yes)
+                if btn == QMessageBox.Yes:
+                    self.saveAttributes()
+                elif btn == QMessageBox.No:
+                    # dock windows don't actually disapper
+                    # they just go to sleep until the app
+                    # is closed when we do this all again
+                    # reset the dirtyColumns so the user 
+                    # doesn't get asked again
+                    attributes.dirtyColumns = []
+                elif btn == QMessageBox.Cancel:
+                    event.ignore()
+                    return
 
         self.viewwidget.removeQueryPoint(id(self))
         self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
