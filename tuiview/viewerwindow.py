@@ -984,17 +984,16 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
             self.viewwidget.emitGeolinkMoved()
 
     def moveUp(self):
-        self.moveFixedDist(0, -100)
+        self.moveFixedDist(0, -1 * self.viewwidget.size().height())
 
     def moveDown(self):
-        #self.moveFixedDist(0, 100)
         self.moveFixedDist(0, self.viewwidget.size().height())
 
     def moveLeft(self):
-        self.moveFixedDist(-100, 0)
+        self.moveFixedDist(-1 * self.viewwidget.size().width(), 0)
 
     def moveRight(self):
-        self.moveFixedDist(100, 0)
+        self.moveFixedDist(self.viewwidget.size().width(), 0)
 
     def zoomNative(self):
         """
