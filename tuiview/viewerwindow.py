@@ -528,6 +528,31 @@ class ViewerWindow(QMainWindow):
         self.aboutAct.setStatusTip("Show author and version information")
         self.connect(self.aboutAct, SIGNAL("triggered()"), self.about)
 
+
+
+        # Actions just for keyboard shortcuts
+
+        self.moveUpAct = QAction(self)
+        self.moveUpAct.setShortcut(Qt.CTRL + Qt.Key_Up)
+        self.connect(self.moveUpAct, SIGNAL("triggered()"), self.moveUp)
+
+        self.moveDownAct = QAction(self)
+        self.moveDownAct.setShortcut(Qt.CTRL + Qt.Key_Down)
+        self.connect(self.moveDownAct, SIGNAL("triggered()"), self.moveDown)
+
+        self.moveLeftAct = QAction(self)
+        self.moveLeftAct.setShortcut(Qt.CTRL + Qt.Key_Left)
+        self.connect(self.moveLeftAct, SIGNAL("triggered()"), self.moveLeft)
+
+        self.moveRightAct = QAction(self)
+        self.moveRightAct.setShortcut(Qt.CTRL + Qt.Key_Right)
+        self.connect(self.moveRightAct, SIGNAL("triggered()"), self.moveRight)
+
+        self.addAction(self.moveUpAct)
+        self.addAction(self.moveDownAct)
+        self.addAction(self.moveLeftAct)
+        self.addAction(self.moveRightAct)
+
     def setupMenus(self):
         """
         Creates the menus and adds the actions to them
@@ -558,6 +583,7 @@ class ViewerWindow(QMainWindow):
         viewMenu.addAction(self.followExtentAct)
         viewMenu.addAction(self.timeseriesForwardAct)
         viewMenu.addAction(self.timeseriesBackwardAct)
+        #viewMenu.addAction(self.moveUpAct)
 
         toolMenu = self.menuBar().addMenu("&Tools")
         toolMenu.addAction(self.queryAct)
@@ -570,6 +596,7 @@ class ViewerWindow(QMainWindow):
 
         helpMenu = self.menuBar().addMenu("&Help")
         helpMenu.addAction(self.aboutAct)
+
 
     def setupToolbars(self):
         """
@@ -933,6 +960,41 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
         elif not self.suppressToolReset:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                         id(self))
+
+    def moveFixedDist(self, xdist, ydist):
+        layer = self.viewwidget.layers.getTopRasterLayer()
+        if layer is not None:
+            # stop panning and move viewport
+            (pixNewX, pixNewY) = layer.coordmgr.display2pixel(xdist, 
+                                                            ydist)
+            #print 'panning'
+            #print layer.coordmgr
+            layer.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
+            layer.coordmgr.recalcBottomRight()
+            #print layer.coordmgr
+            # reset
+            self.viewwidget.paintPoint.setX(0)
+            self.viewwidget.paintPoint.setY(0)
+            # redraw
+            self.viewwidget.layers.makeLayersConsistent(layer)
+            self.viewwidget.layers.updateImages()
+            self.viewwidget.viewport().update()
+            self.viewwidget.updateScrollBars()
+            # geolink
+            self.viewwidget.emitGeolinkMoved()
+
+    def moveUp(self):
+        self.moveFixedDist(0, -100)
+
+    def moveDown(self):
+        #self.moveFixedDist(0, 100)
+        self.moveFixedDist(0, self.viewwidget.size().height())
+
+    def moveLeft(self):
+        self.moveFixedDist(-100, 0)
+
+    def moveRight(self):
+        self.moveFixedDist(100, 0)
 
     def zoomNative(self):
         """
