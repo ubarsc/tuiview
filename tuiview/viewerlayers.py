@@ -113,7 +113,13 @@ class OverviewManager(object):
 
         # for the overviews
         # start with the first band and go from there
-        band = ds.GetRasterBand(bands[0])
+        try:
+            band = ds.GetRasterBand(bands[0])
+        except RuntimeError as e:
+            # when the stretch refers to a band that does not exist
+            # this is the first bit of code that fails
+            # raise a proper exceptions
+            raise viewererrors.InvalidStretch(str(e))
 
         count = band.GetOverviewCount()
         for index in range(count):

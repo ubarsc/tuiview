@@ -749,6 +749,21 @@ class ViewerWindow(QMainWindow):
         if ok and con != "":
             self.addVectorInternal(con)
 
+    @staticmethod
+    def findDefaultStretchForDataset(gdaldataset):
+        """
+        Attempts to find the default stretch that matches the
+        given gdal dataset. Returns None on failure.
+        """
+        from . import stretchdialog
+        stretch = None
+        defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
+        for rule in defaultList:
+            if rule.isMatch(gdaldataset):
+                stretch = rule.stretch
+                break
+        return stretch
+
     def addRasterInternal(self, fname, stretch=None, showError=True):
         """
         Actually to the file opening. If stretch is None
@@ -776,12 +791,7 @@ class ViewerWindow(QMainWindow):
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches
-                from . import stretchdialog
-                defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
-                for rule in defaultList:
-                    if rule.isMatch(gdaldataset):
-                        stretch = rule.stretch
-                        break
+                stretch = self.findDefaultStretchForDataset(gdaldataset)
             else:
                 # if there was a stretch, see if we can read a LUT also
                 from . import viewerLUT
@@ -817,6 +827,25 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                         QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
                     else:
                         raise
+        except viewererrors.InvalidStretch as e:
+            # probably band referred to in stretch no longer exists
+            # display error and fall back on default stretch
+            QMessageBox.information(self, MESSAGE_TITLE,
+                """Saved stretch refers to invalid band(s).
+File will now be opened using default stretch""")
+
+            stretch = self.findDefaultStretchForDataset(gdaldataset)
+            if stretch is None:
+                del gdaldataset
+                msg = ("File has no stretch saved and none of the default " + 
+                "stretches match\nThe default stretch dialog will now open.")
+                QMessageBox.warning(self, MESSAGE_TITLE, msg)
+                self.defaultStretch()
+                return
+
+            # now call this function again with default stretch
+            del gdaldataset
+            self.addRasterInternal(fname, stretch=stretch)
 
         except Exception as e:
             if showError:
