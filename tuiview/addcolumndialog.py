@@ -64,6 +64,7 @@ class AddColumnDialog(QDialog):
         self.mainLayout.addLayout(self.formLayout)
         self.mainLayout.addLayout(self.buttonLayout)
         self.nameEdit.setFocus()
+        self.setLayout(self.mainLayout)
 
     def onOK(self):
         if len(self.nameEdit.text()) == 0:

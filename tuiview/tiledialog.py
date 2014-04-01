@@ -58,6 +58,7 @@ class TileDialog(QDialog):
 
         self.connect(self.okButton, SIGNAL("clicked()"), self.accept)
         self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.setLayout(self.formLayout)
 
     def getValues(self):
         "Returns the x and y value as a tuple"

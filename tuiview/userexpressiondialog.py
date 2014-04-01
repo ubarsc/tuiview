@@ -77,6 +77,7 @@ Use the special column 'row' for the row number.""")
         self.mainLayout.addWidget(self.exprEdit)
         self.mainLayout.addWidget(self.hintEdit)
         self.mainLayout.addLayout(self.buttonLayout)
+        self.setLayout(self.mainLayout)
 
         self.connect(self.closeButton, SIGNAL("clicked()"), self.close)
         self.connect(self.applyButton, SIGNAL("clicked()"), 

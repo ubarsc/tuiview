@@ -112,6 +112,7 @@ class ViewerPreferencesDialog(QDialog):
         self.buttonLayout.addWidget(self.cancelButton)
 
         self.mainLayout.addLayout(self.buttonLayout)
+        self.setLayout(self.mainLayout)
 
         self.resize(400, 300)
 

@@ -628,6 +628,7 @@ class StretchDefaultsDialog(QDialog):
         self.buttonLayout.addWidget(self.cancelButton)
 
         self.mainLayout.addLayout(self.buttonLayout)
+        self.setLayout(self.mainLayout)
 
         self.setWindowTitle("Default Stretch")
         self.setSizeGripEnabled(True)

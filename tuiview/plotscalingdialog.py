@@ -106,6 +106,7 @@ class PlotScalingDialog(QDialog):
         self.mainLayout = QVBoxLayout(self)
         self.mainLayout.addLayout(self.formLayout)
         self.mainLayout.addLayout(self.buttonLayout)
+        self.setLayout(self.mainLayout)
 
     def onMaxAuto(self, state):
         "Called when auto state changed"
