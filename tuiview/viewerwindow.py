@@ -727,8 +727,8 @@ class ViewerWindow(QMainWindow):
         layer = self.viewwidget.layers.getTopVectorLayer()
         if layer is not None:
             olddir = os.path.dirname(layer.filename)
-            if dir == '':
-                dir = os.getcwd()
+            if olddir == '':
+                olddir = os.getcwd()
         else:
             # or cwd
             olddir = os.getcwd()
