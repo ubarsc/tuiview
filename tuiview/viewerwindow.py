@@ -862,6 +862,7 @@ File will now be opened using default stretch""")
         to the list of layers
         """
         from osgeo import ogr
+        isResultSet = False
         try:
             ds = ogr.Open(str(path))
             if ds is None:
@@ -874,24 +875,31 @@ File will now be opened using default stretch""")
                 numLayers = ds.GetLayerCount()
                 if numLayers == 0:
                     raise IOError("no valid layers")
-                elif numLayers == 1:
-                    lyr = ds.GetLayer(0)
                 else:
-                    from PyQt4.QtGui import QInputDialog
+                    from . import vectoropendialog
                     layerNames = []
                     for n in range(ds.GetLayerCount()):
                         name = ds.GetLayer(n).GetName()
                         layerNames.append(name)
-                    (name, ok) = QInputDialog.getItem(self, MESSAGE_TITLE, 
-                        "select layer to open", layerNames, editable=False)
-                    if ok:
-                        lyr = ds.GetLayerByName(str(name))
+
+                    dlg = vectoropendialog.VectorOpenDialog(self, layerNames)
+                    if dlg.exec_() == QDialog.Accepted:
+                        if dlg.isNamedLayer():
+                            name = dlg.getSelectedLayer()
+                            lyr = ds.GetLayerByName(str(name))
+                        else:
+                            sql = dlg.getSQL()
+                            lyr = ds.ExecuteSQL(str(sql))
+                            if lyr is None:
+                                raise IOError("Invalid SQL")                                
+                            isResultSet = True
                     else:
                         return
+
             else:
                 lyr = ds.GetLayerByName(layername)
                 
-            self.viewwidget.addVectorLayer(ds, lyr)
+            self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet)
 
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )

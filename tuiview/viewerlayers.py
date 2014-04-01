@@ -985,6 +985,16 @@ class ViewerVectorLayer(ViewerLayer):
         self.filename = None
         self.sql = None
         self.linewidth = 1
+        self.isResultSet = False
+
+    def __del__(self):
+        # unfortunately this isn't called when the viewer
+        # is closed and there are still layers existing...
+        # but is when the user removes the layer
+        # perhaps we can do something better here
+        if (self.isResultSet and self.ogrDataSource is not None and 
+                    self.ogrLayer is not None):
+            self.ogrDataSource.ReleaseResultSet(self.ogrLayer)
         
     def setSQL(self, sql=None):
         "sets the sql attribute filter"
@@ -1021,10 +1031,12 @@ class ViewerVectorLayer(ViewerLayer):
             self.lut[1,lutindex] = value
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
-                    color=DEFAULT_VECTOR_COLOR):
+                    color=DEFAULT_VECTOR_COLOR, resultSet=False):
         """
         Use the supplied datasource and layer for accessing vector data
         keeps a reference to the datasource and layer
+        If resultSet is True then ogrDataSource.ReleaseResultSet is called
+        on destruction.
         """
         if not HAVE_TURBOVECTOR:
             msg = 'Must install TurboGDAL/TurboVector to display vectors'
@@ -1034,6 +1046,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.ogrDataSource = ogrDataSource
         self.ogrLayer = ogrLayer
         self.setColor(color)
+        self.isResultSet = resultSet
 
         self.coordmgr.setDisplaySize(width, height)
         bbox = ogrLayer.GetExtent()
@@ -1314,7 +1327,7 @@ class LayerManager(QObject):
         self.updateTopFilename()
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
-                                color=DEFAULT_VECTOR_COLOR):
+                                color=DEFAULT_VECTOR_COLOR, resultSet=False):
         """
         Add a vector layer. 
         """
@@ -1325,7 +1338,8 @@ class LayerManager(QObject):
             extent = topLayer.coordmgr.getWorldExtent()
 
         layer = ViewerVectorLayer()
-        layer.open(ogrDataSource, ogrLayer, width, height, extent, color)
+        layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
+                                resultSet)
 
         layer.getImage()
         self.layers.append(layer)
