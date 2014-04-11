@@ -27,13 +27,6 @@ from PyQt4.QtCore import QObject, SIGNAL
 
 from . import viewererrors
 
-# use TurboGDAL/TurboRAT if available
-HAVE_TURBORAT = True
-try:
-    from turbogdal import turborat
-except ImportError:
-    HAVE_TURBORAT = False
-
 NEWCOL_INT = 0
 NEWCOL_FLOAT = 1
 NEWCOL_STRING = 2
@@ -341,30 +334,8 @@ class ViewerRAT(QObject):
                     rat.CreateColumn(colname, dtype, usage)
                     col = rat.GetColumnCount() - 1
 
-                if hasattr(rat, "WriteArray"):
-                    # if GDAL > 1.10 has these functions
-                    # thanks to RFC40
-                    rat.SetRowCount(colData.size)
-                    rat.WriteArray(colData, col)
-
-                elif HAVE_TURBORAT:
-                    # do it fast way without RFC40
-                    turborat.writeColumn(rat, col, colData, colData.size)
-                else:
-                    # do it slow way checking the type
-                    if dtype == gdal.GFT_Integer:
-                        for row in range(nrows):
-                            val = colData[row]
-                            # convert from numpy int to python int
-                            val = rat.SetValueAsInt(row, col, int(val))
-                    elif dtype == gdal.GFT_Real:
-                        for row in range(nrows):
-                            val = colData[row]
-                            val = rat.SetValueAsDouble(row, col, val)
-                    else:
-                        for row in range(nrows):
-                            val = colData[row]
-                            val = rat.SetValueAsString(row, col, val)
+                rat.SetRowCount(colData.size)
+                rat.WriteArray(colData, col)
 
                 col += 1
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
@@ -398,48 +369,7 @@ class ViewerRAT(QObject):
         Read a column from the rat at index colIndex
         into a numpy array
         """
-        # use RFC40 function if available
-        if hasattr(rat, "ReadAsArray"):
-            return rat.ReadAsArray(colIndex)
-
-        # use turborat if available
-        if HAVE_TURBORAT:
-            return turborat.readColumn(rat, colIndex)
-
-        nrows = rat.GetRowCount()
-        dtype = rat.GetTypeOfCol(colIndex)
-        if dtype == gdal.GFT_Integer:
-            colArray = numpy.zeros(nrows, int)
-        elif dtype == gdal.GFT_Real:
-            colArray = numpy.zeros(nrows, float)
-        elif dtype == gdal.GFT_String:
-            # for string attributes, create a list
-            # convert to array later - don't know the length 
-            # of strings yet
-            colArray = []
-        else:
-            msg = "Can't interpret data type of attribute"
-            raise viewererrors.AttributeTableTypeError(msg)
-
-        # do it checking the type
-        if dtype == gdal.GFT_Integer:
-            for row in range(nrows):
-                val = rat.GetValueAsInt(row, colIndex)
-                colArray[row] = val
-        elif dtype == gdal.GFT_Real:
-            for row in range(nrows):
-                val = rat.GetValueAsDouble(row, colIndex)
-                colArray[row] = val
-        else:
-            for row in range(nrows):
-                val = rat.GetValueAsString(row, colIndex)
-                colArray.append(val)
-
-        if isinstance(colArray, list):
-            # convert to array - numpy can handle this now it 
-            # can work out the lengths
-            colArray = numpy.array(colArray)
-        return colArray
+        return rat.ReadAsArray(colIndex)
 
     def readFromGDALBand(self, gdalband, gdaldataset):
         """
