@@ -288,7 +288,6 @@ class ViewerWindow(QMainWindow):
         self.addVectorFileAct.setShortcut("CTRL+V")
         self.addVectorFileAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorFileAct.setIconVisibleInMenu(True)
-        self.addVectorFileAct.setEnabled(viewerwidget.haveVector())
         self.connect(self.addVectorFileAct, SIGNAL("triggered()"), 
                                                             self.addVectorFile)
 
@@ -297,7 +296,6 @@ class ViewerWindow(QMainWindow):
         self.addVectorDirAct.setStatusTip("Open an OGR supported vector directory")
         self.addVectorDirAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorDirAct.setIconVisibleInMenu(True)
-        self.addVectorDirAct.setEnabled(viewerwidget.haveVector())
         self.connect(self.addVectorDirAct, SIGNAL("triggered()"), 
                                                             self.addVectorDir)
 
@@ -307,7 +305,6 @@ class ViewerWindow(QMainWindow):
                                 "Open a layer from an OGR supported database")
         self.addVectorDBAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorDBAct.setIconVisibleInMenu(True)
-        self.addVectorDBAct.setEnabled(viewerwidget.haveVector())
         self.connect(self.addVectorDBAct, SIGNAL("triggered()"), 
                                                             self.addVectorDB)
 
@@ -433,7 +430,6 @@ class ViewerWindow(QMainWindow):
         self.vectorQueryAct.setStatusTip("Start Vector Query Tool")
         self.vectorQueryAct.setShortcut("CTRL+C")
         self.vectorQueryAct.setCheckable(True)
-        self.vectorQueryAct.setEnabled(viewerwidget.haveVector())
         self.vectorQueryAct.setIcon(QIcon(":/viewer/images/queryvector.png"))
         self.vectorQueryAct.setIconVisibleInMenu(True)
         self.connect(self.vectorQueryAct, SIGNAL("toggled(bool)"), 
@@ -1306,12 +1302,6 @@ File will now be opened using default stretch""")
         from osgeo.gdal import __version__ as gdalVersion
         import sys
         from numpy import version as numpyVersion
-        turbogdalString = 'Not Available'
-        try:
-            from turbogdal import turborat, turbovector
-            turbogdalString = 'Available'
-        except ImportError:
-            pass
 
         msg = """ TuiView
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and Tony Gill.
@@ -1325,14 +1315,13 @@ PyQt Version: %s
 Qt Version: %s
 Python Version: %s
 Numpy Version: %s
-TurboGDAL: %s
 """
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
                     sys.version_info.micro)
         msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYQT_VERSION_STR, 
                 QT_VERSION_STR, 
-                pyVer, numpyVersion.version, turbogdalString)
+                pyVer, numpyVersion.version)
 
         # centre each line - doesn't work very well due to font
         msgLines = msg.split('\n')
@@ -1390,12 +1379,8 @@ TurboGDAL: %s
                     # try raster first
                     self.addRasterInternal(fname, showError=False)
                 except Exception as e:
-                    if viewerwidget.haveVector():
-                        # then vector if available
-                        self.addVectorInternal(fname)
-                    else:
-                        # otherwise just error
-                        QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+                    # then vector 
+                    self.addVectorInternal(fname)
 
     def setPreferences(self):
         """

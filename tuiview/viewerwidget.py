@@ -32,9 +32,6 @@ from . import viewerlayers
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
 
-def haveVector():
-    return viewerlayers.HAVE_TURBOVECTOR
-
 class QueryInfo(object):
     """
     Container class for the information passed in the locationSelected

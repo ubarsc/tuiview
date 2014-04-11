@@ -32,13 +32,6 @@ from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
 
-# if we have turbovector we can handle vectors
-try:
-    from turbogdal import turbovector
-    HAVE_TURBOVECTOR = True
-except ImportError:
-    HAVE_TURBOVECTOR = False
-
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
@@ -970,7 +963,7 @@ DEFAULT_VECTOR_COLOR = (255, 255, 0, 255)
 
 class ViewerVectorLayer(ViewerLayer):
     """
-    A vector layer. Uses turbogdal, if installed
+    A vector layer. Uses vectorrasterizer
     to burn in the outlines
     """
     def __init__(self):
@@ -1038,10 +1031,6 @@ class ViewerVectorLayer(ViewerLayer):
         If resultSet is True then ogrDataSource.ReleaseResultSet is called
         on destruction.
         """
-        if not HAVE_TURBOVECTOR:
-            msg = 'Must install TurboGDAL/TurboVector to display vectors'
-            raise viewererrors.InvalidParameters(msg)
-
         self.filename = ogrDataSource.GetName()
         self.ogrDataSource = ogrDataSource
         self.ogrLayer = ogrLayer
@@ -1077,11 +1066,12 @@ class ViewerVectorLayer(ViewerLayer):
         Updates self.image with the outlines of the
         vector in the current color
         """
+        from . import vectorrasterizer
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
-        data = turbovector.rasterizeOutlines(self.ogrLayer, extent, 
+        data = vectorrasterizer.rasterizeOutlines(self.ogrLayer, extent, 
                     xsize, ysize, self.linewidth, self.sql)
 
         # do our lookup
@@ -1186,11 +1176,12 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         Updates self.image with the outlines of the
         vector feature in the current color
         """
+        from . import vectorrasterizer
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
         # rasterizeOutlinesFeature burns in 1 for outline, 0 otherwise
-        data = turbovector.rasterizeOutlinesFeature(self.ogrFeature, extent, 
+        data = vectorrasterizer.rasterizeOutlinesFeature(self.ogrFeature, extent, 
                     xsize, ysize, self.linewidth)
 
         # do our lookup

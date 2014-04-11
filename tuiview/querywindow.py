@@ -220,7 +220,7 @@ class ThematicTableModel(QAbstractTableModel):
             attr = self.attributes.getAttribute(name)
             attr_val = attr[row]
             if isinstance(attr_val, bytes):
-                # other wide we get b'...' in Python3 when read by TurboGDAL
+                # other wide we get b'...' in Python3 
                 attr_val = attr_val.decode()
             fmt = self.attributes.getFormat(name)
             return fmt % attr_val
