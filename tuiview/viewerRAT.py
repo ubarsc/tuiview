@@ -454,9 +454,6 @@ class ViewerRAT(QObject):
                 self.greenColumnIdx = col
             elif usage == gdal.GFU_Blue:
                 self.blueColumnIdx = col
-            # hack for bug in HFA driver
-            elif usage == gdal.GFU_Alpha or colname == 'Opacity':
-                self.alphaColumnIdx = col
             col += 1
 
         # if we have all the columns, we have a color table

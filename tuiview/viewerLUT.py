@@ -515,11 +515,7 @@ class ViewerLUT(QObject):
             cols = [redCol, greenCol, blueCol, alphaCol]
             for (col, code) in zip(cols, RGBA_CODES):
                 lutindex = CODE_TO_LUTINDEX[code]
-                # HFA is float 0 - 1
-                if numpy.issubdtype(col.dtype, numpy.floating):
-                    lut[:-3, lutindex] = col * 255
-                else:
-                    lut[:-3, lutindex] = col
+                lut[:-3, lutindex] = col
 
             # fill in the background and no data
             nodata_index = ctcount
