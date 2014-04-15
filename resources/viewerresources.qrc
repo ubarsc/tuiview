@@ -45,6 +45,7 @@
 	<file>opentext.png</file>
 	<file>queryvector.png</file>
 	<file>properties.png</file>
+	<file>lock.png</file>
     </qresource>
 </RCC>
 

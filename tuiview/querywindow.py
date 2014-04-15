@@ -55,6 +55,8 @@ BLUE_PIXMAP.fill(Qt.blue)
 GREY_PIXMAP = QPixmap(64, 24)
 GREY_PIXMAP.fill(Qt.gray)
 
+RAT_CACHE_CHUNKSIZE = 1000
+
 def safeCreateColor(r, g, b, a=255):
     """
     Same as QColor constructor but ensures vales
@@ -92,6 +94,8 @@ class ThematicTableModel(QAbstractTableModel):
         self.attributes = attributes
         self.saneColNames = attributes.getSaneColumnNames()
         self.colNames = attributes.getColumnNames()
+        # for reading the data
+        self.attCache = attributes.getCacheObject(RAT_CACHE_CHUNKSIZE) 
         self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
         self.highlightRow = -1
         self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
@@ -173,21 +177,17 @@ class ThematicTableModel(QAbstractTableModel):
         """
         Returns the colour icon for the given row
         """
+        self.attCache.autoScrollToIncludeRow(row)
+
         names = self.attributes.getColumnNames()
         name = names[self.attributes.redColumnIdx]
-        redVal = self.attributes.getAttribute(name)[row]
-        if isinstance(redVal, float):
-            redVal *= 255
+        redVal = self.attCache.getValueFromCol(name, row)
 
         name = names[self.attributes.greenColumnIdx]
-        greenVal = self.attributes.getAttribute(name)[row]
-        if isinstance(greenVal, float):
-            greenVal *= 255
+        greenVal = self.attCache.getValueFromCol(name, row)
 
         name = names[self.attributes.blueColumnIdx]
-        blueVal = self.attributes.getAttribute(name)[row]
-        if isinstance(blueVal, float):
-            blueVal *= 255
+        blueVal = self.attCache.getValueFromCol(name, row)
 
         # ignore alpha as we want to see it
         col = safeCreateColor(redVal, greenVal, blueVal)
@@ -217,10 +217,12 @@ class ThematicTableModel(QAbstractTableModel):
                 column -= 1 # for below to ignore the color col
 
             name = self.attributes.getColumnNames()[column]
-            attr = self.attributes.getAttribute(name)
-            attr_val = attr[row]
+            # scroll to row
+            self.attCache.autoScrollToIncludeRow(row)
+            attr_val = self.attCache.getValueFromCol(name, row)
+
             if isinstance(attr_val, bytes):
-                # other wide we get b'...' in Python3 
+                # other wise we get b'...' in Python3 
                 attr_val = attr_val.decode()
             fmt = self.attributes.getFormat(name)
             return fmt % attr_val
@@ -616,6 +618,9 @@ class QueryDockWidget(QDockWidget):
             else:
                 self.setupTableContinuous(None, layer)
 
+        # now update UI to show unlock state is false
+        self.setUIUpdateState(False)
+
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
         fm = QFontMetrics(font)
@@ -764,20 +769,22 @@ class QueryDockWidget(QDockWidget):
         self.connect(self.expressionAction, SIGNAL("triggered()"), 
                         self.showUserExpression)
 
+        self.unlockDatasetAction = QAction(self)
+        self.unlockDatasetAction.setText("Toggle &updates to dataset")
+        self.unlockDatasetAction.setStatusTip(
+                        "Toggle whether updates are allowed to dataset")
+        icon = QIcon(":/viewer/images/lock.png")
+        self.unlockDatasetAction.setIcon(icon)
+        self.unlockDatasetAction.setCheckable(True)
+        self.connect(self.unlockDatasetAction, SIGNAL("toggled(bool)"),
+                        self.unlockDataset)
+
         self.addColumnAction = QAction(self)
         self.addColumnAction.setText("Add C&olumn")
         self.addColumnAction.setStatusTip("Add Column")
         self.addColumnAction.setIcon(QIcon(":/viewer/images/addcolumn.png"))
         self.connect(self.addColumnAction, SIGNAL("triggered()"), 
                         self.addColumn)
-
-        self.saveAttrAction = QAction(self)
-        self.saveAttrAction.setText("Save Edi&ted Columns")
-        self.saveAttrAction.setStatusTip("Save Edited Columns")
-        icon = QIcon(":/viewer/images/saveattributes.png")
-        self.saveAttrAction.setIcon(icon)
-        self.connect(self.saveAttrAction, SIGNAL("triggered()"),
-                        self.saveAttributes)
 
         self.saveColOrderAction = QAction(self)
         self.saveColOrderAction.setText("Sa&ve Column Order")
@@ -857,8 +864,8 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.removeSelectionAction)
         self.toolBar.addAction(self.selectAllAction)
         self.toolBar.addAction(self.expressionAction)
+        self.toolBar.addAction(self.unlockDatasetAction)
         self.toolBar.addAction(self.addColumnAction)
-        self.toolBar.addAction(self.saveAttrAction)
         self.toolBar.addAction(self.saveColOrderAction)
         self.toolBar.addAction(self.geogSelectAction)
         self.toolBar.addAction(self.geogSelectLineAction)
@@ -1035,6 +1042,29 @@ Use the special columns:
                         self.newSelectUserExpression)
         dlg.show()
 
+    def unlockDataset(self, state):
+        """
+        User wants to lock or unlock dataset
+        """
+        try:
+            self.lastLayer.changeUpdateAccess(state)
+            self.setUIUpdateState(state)
+        except Exception as e:
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+            state = self.lastLayer.updateAccess
+            self.unlockDatasetAction.setChecked(state)
+            self.setUIUpdateState(state)
+
+    def setUIUpdateState(self, state):
+        """
+        Update the bits of the UI that change when the 
+        update state changes.
+        """
+        self.addColumnAction.setEnabled(state)
+        self.saveColOrderAction.setEnabled(state)
+        self.thematicHeader.editColumnAction.setEnabled(state)
+        self.thematicHeader.setColorAction.setEnabled(state)
+
     def scrollToFirstSelected(self):
         "scroll to the first selected row"
         # find the first selected index and scroll to it
@@ -1162,54 +1192,30 @@ Use the special columns:
         names = attributes.getColumnNames()
         redname = names[attributes.redColumnIdx]
         redVal = attributes.getAttribute(redname)[selectedIdx]
-        redFloat = False
-        if isinstance(redVal, float):
-            redVal *= 255
-            redFloat = True
 
         greenname = names[attributes.greenColumnIdx]
         greenVal = attributes.getAttribute(greenname)[selectedIdx]
-        greenFloat = False
-        if isinstance(greenVal, float):
-            greenVal *= 255
-            greenFloat = True
 
         bluename = names[attributes.blueColumnIdx]
         blueVal = attributes.getAttribute(bluename)[selectedIdx]
-        blueFloat = False
-        if isinstance(blueVal, float):
-            blueVal *= 255
-            blueFloat = True
 
         alphaname = names[attributes.alphaColumnIdx]
         alphaVal = attributes.getAttribute(alphaname)[selectedIdx]
-        alphaFloat = False
-        if isinstance(alphaVal, float):
-            alphaVal *= 255
-            alphaFloat = True
 
         initial = safeCreateColor(redVal, greenVal, blueVal, alphaVal)
         newcolor = QColorDialog.getColor(initial, self, 
                     "Choose Cursor Color", QColorDialog.ShowAlphaChannel)
         if newcolor.isValid():
             red = newcolor.red()
-            if redFloat:
-                red = red / 255.0
             attributes.updateColumn(redname, self.selectionArray, red)
 
             green = newcolor.green()
-            if greenFloat:
-                green = green / 255.0
             attributes.updateColumn(greenname, self.selectionArray, green)
 
             blue = newcolor.blue()
-            if blueFloat:
-                blue = blue / 255.0
             attributes.updateColumn(bluename, self.selectionArray, blue)
 
             alpha = newcolor.alpha()
-            if alphaFloat:
-                alpha = alpha / 255.0
             attributes.updateColumn(alphaname, self.selectionArray, alpha)
 
             # so we repaint and new values get shown
@@ -1389,21 +1395,6 @@ Use the special columns:
             # seem to need to do this otherwise table keeps focus
             self.setFocus()
 
-    def saveAttributes(self):
-        """
-        Get the layer to save the 'dirty' columns
-        ie ones that have been added or edited.
-        """
-        self.setCursor(Qt.WaitCursor)  # look like we are busy
-        try:
-
-            self.lastLayer.writeDirtyRATColumns()
-
-        except viewererrors.InvalidDataset as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
-        finally:
-            self.setCursor(Qt.ArrowCursor)  # look like we are finished
-
     def saveColOrder(self):
         """
         Get the layer to save the current order
@@ -1580,8 +1571,8 @@ Use the special columns:
         self.removeSelectionAction.setEnabled(thematic)
         self.selectAllAction.setEnabled(thematic)
         self.expressionAction.setEnabled(thematic)
+        self.unlockDatasetAction.setEnabled(thematic)
         self.addColumnAction.setEnabled(thematic)
-        self.saveAttrAction.setEnabled(thematic)
         self.saveColOrderAction.setEnabled(thematic)
         self.geogSelectAction.setEnabled(thematic)
         self.geogSelectLineAction.setEnabled(thematic)
@@ -1777,28 +1768,7 @@ Use the special columns:
     def closeEvent(self, event):
         """
         Window is being closed - inform parent window
-        Also check if there are unsaved attribute changes
         """
-        if self.lastLayer is not None:
-            attributes = self.lastLayer.attributes
-            if attributes.haveDirtyColumns():
-                btn = QMessageBox.question(self, MESSAGE_TITLE, 
-                        "Attributes have changed. Do you want to save them?",
-                        QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-                        QMessageBox.Yes)
-                if btn == QMessageBox.Yes:
-                    self.saveAttributes()
-                elif btn == QMessageBox.No:
-                    # dock windows don't actually disapper
-                    # they just go to sleep until the app
-                    # is closed when we do this all again
-                    # reset the dirtyColumns so the user 
-                    # doesn't get asked again
-                    attributes.dirtyColumns = []
-                elif btn == QMessageBox.Cancel:
-                    event.ignore()
-                    return
-
         self.viewwidget.removeQueryPoint(id(self))
         self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
 

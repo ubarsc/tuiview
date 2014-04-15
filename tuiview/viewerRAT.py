@@ -38,6 +38,8 @@ DEFAULT_STRING_FMT = "%s"
 VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
 VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
 
+ENTIRE_ATTRIBUTE_CHUNKSIZE = 1000
+
 def formatException(code):
     """
     Formats an exception for display and returns string
@@ -86,10 +88,6 @@ class ViewerRAT(QObject):
         """
         return self.columnNames is not None
 
-    def haveDirtyColumns(self):
-        "Any columns that need to be written out?"
-        return self.dirtyColumns is not None and len(self.dirtyColumns) > 0
-
     def getColumnNames(self):
         "return the column names"
         return self.columnNames
@@ -108,14 +106,6 @@ class ViewerRAT(QObject):
                 colName = colName.replace(' ', '_')
             sane.append(colName)
         return sane
-
-    def getAttribute(self, colName):
-        "return the array of attributes for a given column name"
-        return self.attributeData[colName]
-
-    def setAttribute(self, colName, data):
-        "replace the array of attributes for a given column name"
-        self.attributeData[colName] = data
 
     def getType(self, colName):
         "return the type for a given column name"
@@ -142,13 +132,59 @@ class ViewerRAT(QObject):
 
     def getNumRows(self):
         "get the number of rows"
-        if (self.columnNames is not None and self.attributeData is not None 
-            and len(self.columnNames) > 0):
-            # assume all same length
-            firstCol = self.columnNames[0]
-            return self.attributeData[firstCol].size
+        if self.columnNames is not None and len(self.columnNames) > 0:
+            return self.gdalRAT.GetRowCount()
         else:
             return 0
+
+    def getCacheObject(self, chunkSize):
+        """
+        Creates a new cache object to cache chunks of the RAT
+        """
+        return RATCache(self.gdalRAT, chunkSize)
+
+    def getEntireAttribute(self, colName, chunkSize=ENTIRE_ATTRIBUTE_CHUNKSIZE):
+        """
+        Reads and entire column (in chunks) and returns a long array
+        with all the data - for colour table use
+        """
+        print('getEntireAttribute start')
+        colIdx = -1
+        colType = -1
+        ncols = self.gdalRAT.GetColumnCount()
+        for col in range(ncols):
+            name = self.gdalRAT.GetNameOfCol(col)
+            if name == colName:
+                colIdx = col
+                colType = self.gdalRAT.GetTypeOfCol(col)
+                break
+
+        if colIdx == -1:
+            msg = 'unable to find column %s' % colName
+            raise viewererrors.InvalidParameters(msg)
+
+        nrows = self.gdalRAT.GetRowCount()
+        if colType == gdal.GFT_Integer:
+            data = numpy.empty(nrows, dtype=numpy.int)
+        elif colType == gdal.GFT_Real:
+            data = numpy.empty(nrows, dtype=numpy.float)
+        else:
+            msg = "don't support string types yet"
+            raise viewererrors.AttributeTableTypeError(msg)
+
+        startRow = 0
+        while startRow < nrows:
+            length = chunkSize
+            if (startRow + length) > nrows:
+                length = nrows - startRow
+
+            subdata = self.gdalRAT.ReadAsArray(colIdx, startRow, length)
+            data[startRow:startRow+length] = subdata
+
+            startRow += chunkSize
+
+        print('getEntireAttribute end')
+        return data
 
     def getLookupColName(self):
         "Return column to be used to lookup color table"
@@ -163,15 +199,11 @@ class ViewerRAT(QObject):
         Removes attributes from this class
         """
         self.columnNames = None # list
-        self.attributeData = None # dict
         self.columnTypes = None # dict
         self.columnUsages = None # dict
         self.columnFormats = None # dict
         self.lookupColName = None # string
-        # list of columns in self.columnNames
-        # that need to be written to (and possibly created)
-        # into a a file.
-        self.dirtyColumns = None
+        self.gdalRAT = None # object
 
         self.redColumnIdx = None # int
         self.greenColumnIdx = None # int
@@ -184,8 +216,6 @@ class ViewerRAT(QObject):
         """
         Adds a new column with the specified name. Pass one of
         the NEWCOL constants as coltype.
-        The new column is added to the 'dirty' list so it
-        is written out when writeDirtyColumns() is called.
         """
         if self.columnNames is None:
             msg = 'No valid RAT for this file'
@@ -196,21 +226,14 @@ class ViewerRAT(QObject):
             raise viewererrors.InvalidParameters(msg)
 
         self.columnNames.append(colname)
-        self.dirtyColumns.append(colname)
-        nrows = self.getNumRows()
 
         if coltype == NEWCOL_INT:
-            col = numpy.zeros(nrows, numpy.int)
             self.columnTypes[colname] = gdal.GFT_Integer
             self.columnFormats[colname] = DEFAULT_INT_FMT
         elif coltype == NEWCOL_FLOAT:
-            col = numpy.zeros(nrows, numpy.float)
             self.columnTypes[colname] = gdal.GFT_Real
             self.columnFormats[colname] = DEFAULT_FLOAT_FMT
         elif coltype == NEWCOL_STRING:
-            # assume the strings aren't any bigger than 10 chars for now
-            stringtype = numpy.dtype('S10')
-            col =  numpy.zeros(nrows, dtype=stringtype)
             self.columnTypes[colname] = gdal.GFT_String
             self.columnFormats[colname] = DEFAULT_STRING_FMT
         else:
@@ -219,136 +242,10 @@ class ViewerRAT(QObject):
 
         # new cols always this type
         self.columnUsages[colname] = gdal.GFU_Generic 
+
+        self.gdalRAT.CreateColumn(colname, self.columnTypes[colname], 
+                    self.columnUsages[colname])
         
-        self.attributeData[colname] = col
-
-    def updateColumn(self, colname, selection, values):
-        """
-        Update the specified column. selection is a boolean array that
-        specifies which rows are to be updated, values are taken
-        from values where this is True.
-        The column is added to the list of columns that are
-        written out when writeDirtyColumns() is called.
-        """
-        if colname not in self.columnNames:
-            msg = "Don't have a column named %s" % colname
-            raise viewererrors.InvalidParameters(msg)
-
-        # get the existing values
-        oldvalues = self.attributeData[colname]
-
-        # make sure we do something sensible with type
-        # hopefully I have this right
-        coltype = self.columnTypes[colname]
-        try:
-            if coltype == gdal.GFT_Integer:
-                if numpy.isscalar(values):
-                    values = int(values)
-                else:
-                    values = values.astype(numpy.integer)
-            elif coltype == gdal.GFT_Real:
-                if numpy.isscalar(values):
-                    values = float(values)
-                else:
-                    values = values.astype(numpy.float)
-            else:
-                if numpy.isscalar(values):
-                    values = str(values)
-                    # there is a slight probo here
-                    # where doesn't resize the string
-                    # arrays automatically so we manually
-                    # convert oldvalues to a large enough array
-                    # for values
-                    lenvalues = len(values)
-                    if lenvalues > oldvalues.itemsize:
-                        vdtype = numpy.dtype('S%d' % lenvalues)
-                        oldvalues = oldvalues.astype(vdtype)
-                else:
-                    # this converts to a string array
-                    # of the right dtype to handle values
-                    values = numpy.array(values, dtype=str)
-        except ValueError as e:
-            msg = str(e)
-            raise viewererrors.UserExpressionTypeError(msg)
-
-        # do the masking
-        # it is assumed this will do the right thing when 
-        # string lengths are different
-        newvalues = numpy.where(selection, values, oldvalues)
-
-        # set the new values as our data
-        self.attributeData[colname] = newvalues
-
-        # add to list of 'dirty' columns
-        if colname not in self.dirtyColumns:
-            self.dirtyColumns.append(colname)
-
-    def writeDirtyColumns(self, gdalband):
-        """
-        Writes out the columns that are marked as 'dirty'
-        to the specified gdalband. It is assumed this has been
-        opened with GA_Update.
-        The list of dirty columns gets reset.
-        """
-        ncols = len(self.dirtyColumns)
-        if ncols > 0:
-            self.emit(SIGNAL("newProgress(QString)"), "Writing Attributes...")
-
-            nrows = self.getNumRows()
-
-            # things get a bit weird here as we need different
-            # behaviour depending on whether we have an RFC40
-            # RAT or not.
-            if hasattr(gdal.RasterAttributeTable, "WriteArray"):
-                # new behaviour
-                rat = gdalband.GetDefaultRAT()
-                isFileRAT = True
-
-                # but if it doesn't support dynamic writing
-                # we still ahve to call SetDefaultRAT
-                if not rat.ChangesAreWrittenToFile():
-                    isFileRAT = False
-
-            else:
-                # old behaviour
-                rat = gdal.RasterAttributeTable()
-                isFileRAT = False
-
-            percent_per_col = 100.0 / float(ncols)
-
-            for colname in self.dirtyColumns:
-                colData = self.attributeData[colname]
-                dtype = self.columnTypes[colname]
-                usage = self.columnUsages[colname]
-                colname = str(colname)
-                
-                # thanks to RFC40 we need to ensure colname doesn't already exist
-                colExists = False
-                for n in range(rat.GetColumnCount()):
-                    if rat.GetNameOfCol(n) == colname:
-                        colExists = True
-                        col = n
-                        break
-                if not colExists:
-                    # preserve usage
-                    rat.CreateColumn(colname, dtype, usage)
-                    col = rat.GetColumnCount() - 1
-
-                rat.SetRowCount(colData.size)
-                rat.WriteArray(colData, col)
-
-                col += 1
-                self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
-
-            if not isFileRAT:
-                # assume that existing cols re-written
-                # and new cols created in output file.
-                # this is correct for HFA and KEA AFAIK
-                gdalband.SetDefaultRAT(rat)
-
-            self.dirtyColumns = []
-            self.emit(SIGNAL("endProgress()"))
-
     @staticmethod
     def readColumnName(rat, colName):
         """
@@ -392,7 +289,7 @@ class ViewerRAT(QObject):
             self.columnTypes = {}
             self.columnUsages = {}
             self.columnFormats = {}
-            self.dirtyColumns = []
+            self.gdalRAT = rat
 
             # first get the column names
             # we do this so we can preserve the order
@@ -403,10 +300,6 @@ class ViewerRAT(QObject):
                 colname = rat.GetNameOfCol(col)
                 self.columnNames.append(colname)
 
-                # get the attributes as a dictionary
-                # keyed on column name and the values
-                # being an array of attribute values
-                # adapted from rios.rat
                 dtype = rat.GetTypeOfCol(col)
                 self.columnTypes[colname] = dtype
                 usage = rat.GetUsageOfCol(col)
@@ -420,10 +313,6 @@ class ViewerRAT(QObject):
                 else:
                     self.columnFormats[colname] = DEFAULT_STRING_FMT
 
-                # read the column
-                colArray = self.readColumnIndex(rat, col)
-
-                self.attributeData[colname] = colArray
                 self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
 
             # read in a preferred column order (if any)
@@ -454,6 +343,8 @@ class ViewerRAT(QObject):
                 self.greenColumnIdx = col
             elif usage == gdal.GFU_Blue:
                 self.blueColumnIdx = col
+            elif usage == gdal.GFU_Alpha:
+                self.alphaColumnIdx = col
             col += 1
 
         # if we have all the columns, we have a color table
@@ -602,3 +493,162 @@ class ViewerRAT(QObject):
         if string is not None and string != '':
             name = string
         return columns, name
+
+class RATCache(object):
+    """
+    Class that caches a 'chunk' of the RAT
+    """
+    def __init__(self, gdalRAT, chunkSize):
+        self.gdalRAT = gdalRAT
+        self.chunkSize = chunkSize
+        self.currStartRow = 0
+        self.cacheDict = {}
+
+    def columnAdded(self, colName):
+        """
+        Shortcut to be called when a new column added
+        saves having to re-read all the data - just
+        updates the cache with the new data
+        """
+        rowCount = self.gdalRAT.GetRowCount()
+        length = self.chunkSize
+        if (self.currStartRow + length) > rowCount:
+            length = rowCount - self.currStartRow
+
+        ncols = self.gdalRAT.GetColumnCount()
+        for col in range(ncols):
+            name = self.gdalRAT.GetNameOfCol(col)
+            if name == colName:
+                data = self.gdalRAT.ReadAsArray(col, self.currStartRow, length)
+                self.cacheDict[name] = data
+                break
+
+    def updateCache(self):
+        """
+        Internal method, called when self.currStartRow changed
+        """
+        rowCount = self.gdalRAT.GetRowCount()
+        length = self.chunkSize
+        if (self.currStartRow + length) > rowCount:
+            length = rowCount - self.currStartRow
+
+        ncols = self.gdalRAT.GetColumnCount()
+        for col in range(ncols):
+            name = self.gdalRAT.GetNameOfCol(col)
+            data = self.gdalRAT.ReadAsArray(col, self.currStartRow, length)
+            self.cacheDict[name] = data
+
+    def setStartRow(self, startRow):
+        """
+        Call this to set the cache to contain the new data
+        """
+        print('setStartRow', startRow)
+        self.currStartRow = startRow
+        self.updateCache()
+
+    def getValueFromCol(self, colName, row):
+        """
+        Return the actual value given name of col and 
+        a row count based on the full rat
+        """
+        data = self.cacheDict[colName]
+        return data[row - self.currStartRow]
+
+    def autoScrollToIncludeRow(self, row):
+        """
+        For calling from GUI. Qt will ask for a given row
+        but we don't want to re-read every time. Most requests will
+        be around a location so we only update when we have to.
+        """
+        if row >= self.currStartRow and row < (self.currStartRow + 
+                                self.chunkSize) and len(self.cacheDict) > 0:
+            # no need - already have that data
+            return
+
+        newStartRow = int(row / self.chunkSize) * self.chunkSize
+        self.setStartRow(newStartRow)
+        
+    def updateColumn(self, colName, data, selectionArray):
+        """
+        New data for a column. selectionArray is the size of the file's RAT.
+        data is just the subset for this cache. 
+        Updates only done where selectionArray == True (for the subset we are caching)
+        updates cache and data in file
+        """
+
+        rowCount = self.gdalRAT.GetRowCount()
+        length = self.chunkSize
+        if (self.currStartRow + length) > rowCount:
+            length = rowCount - self.currStartRow
+
+        if len(data) != length:
+            msg = 'data wrong length'
+            raise viewererrors.AttributeTableTypeError(msg)
+
+        selectionArraySubset = selectionArray[
+                    self.currStartRow:self.currStartRow+length]
+
+        if not selectionArraySubset.any():
+            # nothing to be updated
+            return
+
+        ncols = self.gdalRAT.GetColumnCount()
+        if not selectionArraySubset.all():
+            # some need to be updated
+            # keep old where selectionArray == False
+            olddata = self.cacheDict[colName] 
+
+            # need to do some massaging based on coltype
+            coltype = gdal.GFT_Integer
+            for col in range(ncols):
+                name = self.gdalRAT.GetNameOfCol(col)
+                if name == colName:
+                    colType = self.gdalRAT.GetTypeOfCol(col)
+                    break
+
+            try:
+                if coltype == gdal.GFT_Integer:
+                    if numpy.isscalar(data):
+                        data = int(data)
+                    else:
+                        data = data.astype(numpy.integer)
+                elif coltype == gdal.GFT_Real:
+                    if numpy.isscalar(data):
+                        data = float(data)
+                    else:
+                        data = data.astype(numpy.float)
+                else:
+                    if numpy.isscalar(data):
+                        data = str(data)
+                        # there is a slight probo here
+                        # where doesn't resize the string
+                        # arrays automatically so we manually
+                        # convert olddata to a large enough array
+                        # for data
+                        lendata = len(data)
+                        if lendata > olddata.itemsize:
+                            vdtype = numpy.dtype('S%d' % lendata)
+                            olddata = olddata.astype(vdtype)
+                    else:
+                        # this converts to a string array
+                        # of the right dtype to handle data
+                        data = numpy.array(data, dtype=str)
+            except ValueError as e:
+                msg = str(e)
+                raise viewererrors.UserExpressionTypeError(msg)
+
+            # do the masking
+            # it is assumed this will do the right thing when 
+            # string lengths are different
+            data = numpy.where(selectionArraySubset, data, olddata)
+
+        # else: all new data
+
+        # update cache
+        self.cacheDict[colName] = data
+        # write back to file
+        for col in range(ncols):
+            name = self.gdalRAT.GetNameOfCol(col)
+            if name == colName:
+                self.gdalRAT.WriteArray(data, col, self.currStartRow)
+                break

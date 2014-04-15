@@ -253,6 +253,7 @@ class ViewerRasterLayer(ViewerLayer):
         ViewerLayer.__init__(self)
         self.coordmgr = coordinatemgr.RasterCoordManager()
         self.gdalDataset = None
+        self.updateAccess = False
         self.transform = None
         self.bandNames = None
         self.wavelengths = None
@@ -286,10 +287,12 @@ class ViewerRasterLayer(ViewerLayer):
         if specified, the lut is used to display the data, otherwise
         calculated from the stretch
         Keeps a reference to gdalDataset
+        Assumes gdalDataset opened in read only mode.
         """
         # open the file
         self.filename = gdalDataset.GetDescription()
         self.gdalDataset = gdalDataset
+        self.updateAccess = False
 
         # do some checks to see if we can deal with the data
         # currently only support square pixels and non rotated
@@ -473,50 +476,64 @@ class ViewerRasterLayer(ViewerLayer):
         """
         Saves the given stretch and current LUT to the file
         """
-        # ok we need to close the current file handle and re-open in write mode
-        del self.gdalDataset
-        try:
-            # now open as writeable
-            dataset = gdal.Open(self.filename, gdal.GA_Update)
-
+        if self.updateAccess:
             # write the stretch
-            stretch.writeToGDAL(dataset)
+            stretch.writeToGDAL(self.gdalDataset)
 
             # write the LUT
-            self.lut.writeToGDAL(dataset)
+            self.lut.writeToGDAL(self.gdalDataset)
+        else:
+            # ok we need to close the current file handle and re-open in write mode
+            del self.gdalDataset
+            try:
+                # now open as writeable
+                dataset = gdal.Open(self.filename, gdal.GA_Update)
 
-            # close this (writeable) file handle
-            del dataset
-        except RuntimeError:
-            raise viewererrors.InvalidDataset('Unable to save stretch to file')
-        finally:
-            # attempt to open the file readonly again
-            self.gdalDataset = gdal.Open(self.filename)
+                # write the stretch
+                stretch.writeToGDAL(dataset)
+
+                # write the LUT
+                self.lut.writeToGDAL(dataset)
+
+                # close this (writeable) file handle
+                del dataset
+            except RuntimeError:
+                raise viewererrors.InvalidDataset('Unable to save stretch to file')
+            finally:
+                # attempt to open the file readonly again
+                self.gdalDataset = gdal.Open(self.filename)
 
     def deleteStretchFromFile(self):
         """
         deletes the stretch and current LUT from the file
         """
-        # ok we need to close the current file handle and re-open in write mode
-        del self.gdalDataset
-        try:
-            # now open as writeable
-            dataset = gdal.Open(self.filename, gdal.GA_Update)
-
+        if self.updateAccess:
             # delete the stretch
-            viewerstretch.ViewerStretch.deleteFromGDAL(dataset)
+            viewerstretch.ViewerStretch.deleteFromGDAL(self.gdalDataset)
 
             # delete the LUT
-            viewerLUT.ViewerLUT.deleteFromGDAL(dataset)
+            viewerLUT.ViewerLUT.deleteFromGDAL(self.gdalDataset)
+        else:
+            # ok we need to close the current file handle and re-open in write mode
+            del self.gdalDataset
+            try:
+                # now open as writeable
+                dataset = gdal.Open(self.filename, gdal.GA_Update)
 
-            # close this (writeable) file handle
-            del dataset
-        except RuntimeError:
-            msg = 'Unable to delete stretch from file'
-            raise viewererrors.InvalidDataset(msg)
-        finally:
-            # attempt to open the file readonly again
-            self.gdalDataset = gdal.Open(self.filename)
+                # delete the stretch
+                viewerstretch.ViewerStretch.deleteFromGDAL(dataset)
+
+                # delete the LUT
+                viewerLUT.ViewerLUT.deleteFromGDAL(dataset)
+
+                # close this (writeable) file handle
+                del dataset
+            except RuntimeError:
+                msg = 'Unable to delete stretch from file'
+                raise viewererrors.InvalidDataset(msg)
+            finally:
+                # attempt to open the file readonly again
+                self.gdalDataset = gdal.Open(self.filename)
 
     def exportStretchandLUTToText(self, fname):
         """
@@ -532,49 +549,43 @@ class ViewerRasterLayer(ViewerLayer):
 
         fileobj.close()
 
-    def writeDirtyRATColumns(self):
+    def changeUpdateAccess(self, update):
         """
-        calls self.attributes.writeDirtyColumns on the band opening
-        the file in update mode first.
+        Re-opens the GDAL dataset in the new update mode (True
+        for update False for readonly)
         """
-        # close the current file handle and re-open in write mode
+        if self.updateAccess == update:
+            # already in this mode - multiple query windows may be out of date
+            # with each other
+            return
+
+        # close the current file handle and re-open in new mode
         del self.gdalDataset
         try:
-            # now open as writeable
-            dataset = gdal.Open(self.filename, gdal.GA_Update)
+            if update:
+                self.gdalDataset = gdal.Open(self.filename, gdal.GA_Update)
+            else:
+                self.gdalDataset = gdal.Open(self.filename)
 
-            gdalband = dataset.GetRasterBand(self.stretch.bands[0])
-            self.attributes.writeDirtyColumns(gdalband)
-            # close this (writeable) file handle
-            del dataset
+            self.updateAccess = update
         except RuntimeError:
-            msg = 'Unable to save columns'
+            msg = 'Unable to change mode of dataset'
             raise viewererrors.InvalidDataset(msg)
         finally:
             # attempt to open the file readonly again
             self.gdalDataset = gdal.Open(self.filename)
-
+            self.updateAccess = False
 
     def writeRATColumnOrder(self):
         """
-        calls self.attributes.writeColumnOrderToGDAL on the band opening
-        the file in update mode first.
+        calls self.attributes.writeColumnOrderToGDAL. Assumes file upen in 
+        update mode - raises exception otherwise
         """
-        # close the current file handle and re-open in write mode
-        del self.gdalDataset
-        try:
-            # now open as writeable
-            dataset = gdal.Open(self.filename, gdal.GA_Update)
-
-            self.attributes.writeColumnOrderToGDAL(dataset)
-            # close this (writeable) file handle
-            del dataset
-        except RuntimeError:
-            msg = 'Unable to save column order'
+        if not self.updateAccess:
+            msg = 'file needs to be open in update mode'
             raise viewererrors.InvalidDataset(msg)
-        finally:
-            # attempt to open the file readonly again
-            self.gdalDataset = gdal.Open(self.filename)
+
+        self.attributes.writeColumnOrderToGDAL(dataset)
 
     def getImage(self):
         """

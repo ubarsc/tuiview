@@ -488,8 +488,7 @@ class ViewerLUT(QObject):
         jsonstring = json.dumps(jsondict)
         gdaldataset.SetMetadataItem(VIEWER_SURROGATE_CT_KEY, jsonstring)
 
-    @staticmethod
-    def loadColorTable(rat, nodata_rgba, background_rgba, nan_rgba):
+    def loadColorTable(self, rat, nodata_rgba, background_rgba, nan_rgba):
         """
         Creates a LUT for a single band using 
         the RAT
@@ -507,10 +506,20 @@ class ViewerLUT(QObject):
 
             # copy in from RAT
             names = rat.getColumnNames()
-            redCol = rat.getAttribute(names[rat.redColumnIdx])
-            greenCol = rat.getAttribute(names[rat.greenColumnIdx])
-            blueCol = rat.getAttribute(names[rat.blueColumnIdx])
-            alphaCol = rat.getAttribute(names[rat.alphaColumnIdx])
+            self.emit(SIGNAL("newProgress(QString)"), 
+                    "Reading Colors...")
+
+            redCol = rat.getEntireAttribute(names[rat.redColumnIdx])
+            self.emit(SIGNAL("newPercent(int)"), 25)
+
+            greenCol = rat.getEntireAttribute(names[rat.greenColumnIdx])
+            self.emit(SIGNAL("newPercent(int)"), 50)
+
+            blueCol = rat.getEntireAttribute(names[rat.blueColumnIdx])
+            self.emit(SIGNAL("newPercent(int)"), 75)
+
+            alphaCol = rat.getEntireAttribute(names[rat.alphaColumnIdx])
+            self.emit(SIGNAL("endProgress()"))
 
             cols = [redCol, greenCol, blueCol, alphaCol]
             for (col, code) in zip(cols, RGBA_CODES):
