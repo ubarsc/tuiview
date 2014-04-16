@@ -289,11 +289,26 @@ class StretchRule(object):
             # only check if file is thematic anyway
             if 'LAYER_TYPE' in metadata:
                 if metadata['LAYER_TYPE'] == 'thematic':
-                    # TODO: we really need to check only that the RAT
+                    # we really need to check only that the RAT
                     # reports that we have the right columns
-                    # but reading RAT expensive. Revisit post RFC40
-                    ct = gdalband.GetColorTable()
-                    match = ct is not None
+                    hasRed = False
+                    hasGreen = False
+                    hasBlue = False
+                    hasAlpha = False
+                    rat = gdalband.GetDefaultRAT()
+                    ncols = rat.GetColumnCount()
+                    for col in range(ncols):
+                        usage = rat.GetUsageOfCol(col)
+                        if usage == gdal.GFU_Red:
+                            hasRed = True
+                        elif usage == gdal.GFU_Green:
+                            hasGreen = True
+                        elif usage == gdal.GFU_Blue:
+                            hasBlue = True
+                        elif usage == gdal.GFU_Alpha:
+                            hasAlpha = True
+
+                    match = hasRed and hasGreen and hasBlue and hasAlpha
         
         return match
 

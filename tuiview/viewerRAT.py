@@ -18,7 +18,7 @@ Contains the ViewerRAT class
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
+from __future__ import division
 import keyword
 import numpy
 import json
@@ -38,7 +38,7 @@ DEFAULT_STRING_FMT = "%s"
 VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
 VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
 
-ENTIRE_ATTRIBUTE_CHUNKSIZE = 1000
+DEFAULT_CACHE_SIZE = 10000
 
 def formatException(code):
     """
@@ -104,6 +104,9 @@ class ViewerRAT(QObject):
                 colName = colName + '_'
             elif colName.find(' ') != -1:
                 colName = colName.replace(' ', '_')
+
+            if colName[0].isdigit():
+                colName = '_' + colName
             sane.append(colName)
         return sane
 
@@ -143,48 +146,24 @@ class ViewerRAT(QObject):
         """
         return RATCache(self.gdalRAT, chunkSize)
 
-    def getEntireAttribute(self, colName, chunkSize=ENTIRE_ATTRIBUTE_CHUNKSIZE):
+    def getEntireAttribute(self, colName):
         """
         Reads and entire column (in chunks) and returns a long array
         with all the data - for colour table use
         """
-        print('getEntireAttribute start')
         colIdx = -1
-        colType = -1
         ncols = self.gdalRAT.GetColumnCount()
         for col in range(ncols):
             name = self.gdalRAT.GetNameOfCol(col)
             if name == colName:
                 colIdx = col
-                colType = self.gdalRAT.GetTypeOfCol(col)
                 break
 
         if colIdx == -1:
             msg = 'unable to find column %s' % colName
             raise viewererrors.InvalidParameters(msg)
 
-        nrows = self.gdalRAT.GetRowCount()
-        if colType == gdal.GFT_Integer:
-            data = numpy.empty(nrows, dtype=numpy.int)
-        elif colType == gdal.GFT_Real:
-            data = numpy.empty(nrows, dtype=numpy.float)
-        else:
-            msg = "don't support string types yet"
-            raise viewererrors.AttributeTableTypeError(msg)
-
-        startRow = 0
-        while startRow < nrows:
-            length = chunkSize
-            if (startRow + length) > nrows:
-                length = nrows - startRow
-
-            subdata = self.gdalRAT.ReadAsArray(colIdx, startRow, length)
-            data[startRow:startRow+length] = subdata
-
-            startRow += chunkSize
-
-        print('getEntireAttribute end')
-        return data
+        return self.gdalRAT.ReadAsArray(colIdx)
 
     def getLookupColName(self):
         "Return column to be used to lookup color table"
@@ -376,7 +355,8 @@ class ViewerRAT(QObject):
         # this needs to be updated
         self.findColorTableColumns()
         
-    def getUserExpressionGlobals(self, isselected, queryRow, lastselected=None):
+    def getUserExpressionGlobals(self, cache, isselected, queryRow, 
+                            lastselected=None):
         """
         Get globals for user in user expression
         """
@@ -400,7 +380,7 @@ class ViewerRAT(QObject):
         for colName, saneName in (
                 zip(self.columnNames, self.getSaneColumnNames())):
             # use sane names so as not to confuse Python
-            globaldict[saneName] = self.attributeData[colName]
+            globaldict[saneName] = cache.cacheDict[colName]
 
         # give them access to numpy
         globaldict['numpy'] = numpy
@@ -416,46 +396,89 @@ class ViewerRAT(QObject):
         An exception is raised if code is invalid, or does not return
         an array of bools.
         """
-        globaldict = self.getUserExpressionGlobals(isselected, queryRow,
-                                                    lastselected)
+        self.emit(SIGNAL("newProgress(QString)"), 
+                        "Evaluating User Expression...")
+        cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
+        nrows = self.getNumRows()
 
-        try:
-            result = eval(expression, globaldict)
-        except Exception:
-            msg = formatException(expression)
-            raise viewererrors.UserExpressionSyntaxError(msg)
+        # create the new selected array the full size of the rat
+        # we will fill in each chunk as we go
+        result = numpy.empty(nrows, dtype=numpy.bool)
 
-        # check type of result
-        if not isinstance(result, numpy.ndarray):
-            msg = 'must return a numpy array'
-            raise viewererrors.UserExpressionTypeError(msg)
+        currRow = 0
 
-        if result.dtype.kind != 'b':
-            msg = 'must return a boolean array'
-            raise viewererrors.UserExpressionTypeError(msg)
+        while currRow < nrows:
+            cache.setStartRow(currRow)
+            length = cache.getLength()
 
+            isselectedSub = isselected[currRow:currRow+length]
+            if lastselected is not None:
+                lastselectedSub = lastselected[currRow:currRow+length]
+            else:
+                lastselectedSub = None
+            globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
+                                queryRow, lastselectedSub)
+
+            try:
+                resultSub = eval(expression, globaldict)
+            except Exception:
+                msg = formatException(expression)
+                raise viewererrors.UserExpressionSyntaxError(msg)
+
+            # check type of result
+            if not isinstance(resultSub, numpy.ndarray):
+                msg = 'must return a numpy array'
+                raise viewererrors.UserExpressionTypeError(msg)
+
+            if resultSub.dtype.kind != 'b':
+                msg = 'must return a boolean array'
+                raise viewererrors.UserExpressionTypeError(msg)
+
+            result[currRow:currRow+length] = resultSub
+            currRow += DEFAULT_CACHE_SIZE
+            self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
+
+        self.emit(SIGNAL("endProgress()"))
         return result
 
-    def evaluateUserEditExpression(self, expression, isselected, queryRow):
+    def evaluateUserEditExpression(self, colName, expression, isselected, 
+                                    queryRow):
         """
-        Evaluate a user expression for editing. 
-        Returns a vector or scalar - no checking on result
-        is hoped it will work with where() in self.updateColumn
+        Evaluate a user expression for editing and apply result to rat
+        where isselected == True
         It is expected that a fragment
         of numpy code will be passed. numpy is provided in the global
         namespace.
-        An exception is raised if code is invalid, or does not return
-        an array of bools.
+        An exception is raised if code is invalid.
         """
-        globaldict = self.getUserExpressionGlobals(isselected, queryRow)
+        self.emit(SIGNAL("newProgress(QString)"), 
+                        "Evaluating User Expression...")
+        cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
+        nrows = self.getNumRows()
 
-        try:
-            result = eval(expression, globaldict)
-        except Exception:
-            msg = formatException(expression)
-            raise viewererrors.UserExpressionSyntaxError(msg)
+        currRow = 0
+        done = False
 
-        return result
+        while currRow < nrows and not done:
+            cache.setStartRow(currRow)
+            length = cache.getLength()
+
+            isselectedSub = isselected[currRow:currRow+length]
+            globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
+                                queryRow)
+
+            try:
+                resultSub = eval(expression, globaldict)
+            except Exception:
+                msg = formatException(expression)
+                raise viewererrors.UserExpressionSyntaxError(msg)
+
+            cache.updateColumn(colName, resultSub, isselected)
+
+            currRow += DEFAULT_CACHE_SIZE
+            self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
+
+        self.emit(SIGNAL("endProgress()"))
 
     def writeColumnOrderToGDAL(self, gdaldataset):
         """
@@ -502,7 +525,12 @@ class RATCache(object):
         self.gdalRAT = gdalRAT
         self.chunkSize = chunkSize
         self.currStartRow = 0
+        self.length = 0
         self.cacheDict = {}
+
+    def getLength(self):
+        "Return the length of the current RAT chunk"
+        return self.length
 
     def columnAdded(self, colName):
         """
@@ -510,16 +538,11 @@ class RATCache(object):
         saves having to re-read all the data - just
         updates the cache with the new data
         """
-        rowCount = self.gdalRAT.GetRowCount()
-        length = self.chunkSize
-        if (self.currStartRow + length) > rowCount:
-            length = rowCount - self.currStartRow
-
         ncols = self.gdalRAT.GetColumnCount()
         for col in range(ncols):
             name = self.gdalRAT.GetNameOfCol(col)
             if name == colName:
-                data = self.gdalRAT.ReadAsArray(col, self.currStartRow, length)
+                data = self.gdalRAT.ReadAsArray(col, self.currStartRow, self.length)
                 self.cacheDict[name] = data
                 break
 
@@ -528,21 +551,20 @@ class RATCache(object):
         Internal method, called when self.currStartRow changed
         """
         rowCount = self.gdalRAT.GetRowCount()
-        length = self.chunkSize
-        if (self.currStartRow + length) > rowCount:
-            length = rowCount - self.currStartRow
+        self.length = self.chunkSize
+        if (self.currStartRow + self.length) > rowCount:
+            self.length = rowCount - self.currStartRow
 
         ncols = self.gdalRAT.GetColumnCount()
         for col in range(ncols):
             name = self.gdalRAT.GetNameOfCol(col)
-            data = self.gdalRAT.ReadAsArray(col, self.currStartRow, length)
+            data = self.gdalRAT.ReadAsArray(col, self.currStartRow, self.length)
             self.cacheDict[name] = data
 
     def setStartRow(self, startRow):
         """
         Call this to set the cache to contain the new data
         """
-        print('setStartRow', startRow)
         self.currStartRow = startRow
         self.updateCache()
 
@@ -575,36 +597,36 @@ class RATCache(object):
         Updates only done where selectionArray == True (for the subset we are caching)
         updates cache and data in file
         """
-
-        rowCount = self.gdalRAT.GetRowCount()
-        length = self.chunkSize
-        if (self.currStartRow + length) > rowCount:
-            length = rowCount - self.currStartRow
-
-        if len(data) != length:
+        if not numpy.isscalar(data) and len(data) != self.length:
             msg = 'data wrong length'
             raise viewererrors.AttributeTableTypeError(msg)
 
         selectionArraySubset = selectionArray[
-                    self.currStartRow:self.currStartRow+length]
+                    self.currStartRow:self.currStartRow+self.length]
 
         if not selectionArraySubset.any():
             # nothing to be updated
             return
 
+        # need to do some massaging based on coltype
         ncols = self.gdalRAT.GetColumnCount()
+        coltype = gdal.GFT_Integer
+        colIdx = -1
+        for col in range(ncols):
+            name = self.gdalRAT.GetNameOfCol(col)
+            if name == colName:
+                colIdx = col
+                colType = self.gdalRAT.GetTypeOfCol(col)
+                break
+
+        if colIdx == -1:
+            msg = 'unable to find column %s' % colName
+            raise viewererrors.AttributeTableTypeError(msg)
+
         if not selectionArraySubset.all():
             # some need to be updated
             # keep old where selectionArray == False
             olddata = self.cacheDict[colName] 
-
-            # need to do some massaging based on coltype
-            coltype = gdal.GFT_Integer
-            for col in range(ncols):
-                name = self.gdalRAT.GetNameOfCol(col)
-                if name == colName:
-                    colType = self.gdalRAT.GetTypeOfCol(col)
-                    break
 
             try:
                 if coltype == gdal.GFT_Integer:
@@ -642,13 +664,25 @@ class RATCache(object):
             # string lengths are different
             data = numpy.where(selectionArraySubset, data, olddata)
 
-        # else: all new data
+        else:
+            # all new data
+            if numpy.isscalar(data):
+                if coltype == gdal.GFT_Integer:
+                    dataarr = numpy.empty(self.length, dtype=numpy.integer)
+                    dataarr.fill(data)
+                elif coltype == gdal.GFT_Real:
+                    dataarr = numpy.empty(self.length, dtype=numpy.float)
+                    dataarr.fill(data)
+                else:
+                    lendata = len(data)
+                    vdtype = numpy.dtype('S%d' % lendata)
+                    dataarr = numpy.empty(self.length, dtype=vdtype)
+                    dataarr.fill(data)
+
+                data = dataarr
+            # else: already an array
 
         # update cache
         self.cacheDict[colName] = data
         # write back to file
-        for col in range(ncols):
-            name = self.gdalRAT.GetNameOfCol(col)
-            if name == colName:
-                self.gdalRAT.WriteArray(data, col, self.currStartRow)
-                break
+        self.gdalRAT.WriteArray(data, colIdx, self.currStartRow)

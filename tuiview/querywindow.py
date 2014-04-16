@@ -111,6 +111,9 @@ class ThematicTableModel(QAbstractTableModel):
         self.emit(SIGNAL("dataChanged(const QModelIndex &,const QModelIndex &)"),
                             topLeft, bottomRight)
 
+        # cache will be out of date
+        self.attCache = self.attributes.getCacheObject(RAT_CACHE_CHUNKSIZE) 
+
         if updateHorizHeader:
             self.saneColNames = self.attributes.getSaneColumnNames()
             self.colNames = self.attributes.getColumnNames()
@@ -1048,6 +1051,7 @@ Use the special columns:
         """
         try:
             self.lastLayer.changeUpdateAccess(state)
+            self.tableModel.doUpdate(True)
             self.setUIUpdateState(state)
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
@@ -1153,9 +1157,8 @@ Use the special columns:
         # of that column before any editing
         attributes = self.lastLayer.attributes
         colName = attributes.getColumnNames()[col]
-        undoObject = attributes.getAttribute(colName).copy()
 
-        dlg = UserExpressionDialog(self, col=col, undoObject=undoObject)
+        dlg = UserExpressionDialog(self, col=col)
         hint = """Hint: Enter an expression using column names 
 (ie 'col_a * 2.1'). Or a scalar (ie '3').
 
@@ -1170,8 +1173,6 @@ Use the special columns:
         dlg.setHint(hint)
         self.connect(dlg, SIGNAL("newExpression(QString,int)"), 
                         self.newEditUserExpression)
-        self.connect(dlg, SIGNAL("undoEdit(PyQt_PyObject,int)"),
-                        self.undoEditUserExpression)
 
         # should be modal?
         dlg.show()
@@ -1245,15 +1246,12 @@ Use the special columns:
             return
 
         try:
-            # get the numpy array or scalar from user
+            # get the rat object to do the work using the cache
             attributes = self.lastLayer.attributes
             queryRow = self.tableModel.highlightRow
-            result = attributes.evaluateUserEditExpression(str(expression),
-                                                self.selectionArray, queryRow)
-
-            # use it to update the column
             colname = attributes.getColumnNames()[col]
-            attributes.updateColumn(colname, self.selectionArray, result)
+            result = attributes.evaluateUserEditExpression(colname, 
+                    str(expression), self.selectionArray, queryRow)
 
             # so we repaint and new values get shown
             self.tableModel.doUpdate()

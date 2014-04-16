@@ -560,7 +560,9 @@ class ViewerRasterLayer(ViewerLayer):
             return
 
         # close the current file handle and re-open in new mode
+        self.gdalDataset.FlushCache()
         del self.gdalDataset
+        del self.attributes.gdalRAT
         try:
             if update:
                 self.gdalDataset = gdal.Open(self.filename, gdal.GA_Update)
@@ -571,10 +573,11 @@ class ViewerRasterLayer(ViewerLayer):
         except RuntimeError:
             msg = 'Unable to change mode of dataset'
             raise viewererrors.InvalidDataset(msg)
-        finally:
-            # attempt to open the file readonly again
-            self.gdalDataset = gdal.Open(self.filename)
-            self.updateAccess = False
+
+        # attributes handle will be stale...
+        if len(self.stretch.bands) == 1:
+            gdalband = self.gdalDataset.GetRasterBand(self.stretch.bands[0])
+            self.attributes.readFromGDALBand(gdalband, self.gdalDataset)
 
     def writeRATColumnOrder(self):
         """
