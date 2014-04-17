@@ -82,8 +82,8 @@ def checkGDALVersion():
 
 
 
-# check the version - disabled - doesn't work with Beta
-#checkGDALVersion()
+# check the version
+checkGDALVersion()
 
 # get the flags for GDAL
 gdalargs = getGDALFlags()

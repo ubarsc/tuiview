@@ -29,6 +29,7 @@ import sys
 import optparse
 from osgeo import gdal
 from tuiview.viewerLUT import ViewerLUT
+from tuiview.viewerRAT import ViewerRAT
 
 class CmdArgs(object):
     """
@@ -108,9 +109,14 @@ def addTable(source, name, dest):
 
     # always band 1?
     sourceband = sourceds.GetRasterBand(1)
+    rat = ViewerRAT()
+    rat.readFromGDALBand(sourceband, sourceds)
+
     # should we allow this to be set?
     nodata_rgba = (0, 0, 0, 0)
-    lut, bi = ViewerLUT.loadColorTable(sourceband, nodata_rgba, nodata_rgba)
+    nan_rgba = (0, 0, 0, 0)
+    lutobj = ViewerLUT()
+    lut, bi = lutobj.loadColorTable(rat, nodata_rgba, nodata_rgba, nan_rgba)
 
     destds = gdal.Open(dest, gdal.GA_Update)
     if destds is None:

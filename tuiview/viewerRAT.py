@@ -458,22 +458,58 @@ class ViewerRAT(QObject):
 
         currRow = 0
         done = False
+        isScalar = False # user code returns a scalar - we 
+                        # can take shortcuts since not all the cols need to
+                        # be read
 
         while currRow < nrows and not done:
-            cache.setStartRow(currRow)
+            if isScalar:
+                cache.setStartRow(currRow, colName)
+            else:
+                cache.setStartRow(currRow)
             length = cache.getLength()
 
             isselectedSub = isselected[currRow:currRow+length]
             globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
                                 queryRow)
 
-            try:
-                resultSub = eval(expression, globaldict)
-            except Exception:
-                msg = formatException(expression)
-                raise viewererrors.UserExpressionSyntaxError(msg)
+            if not isScalar:
+                # can re-use the first result if scalar
+                # all calls should be the same
+                try:
+                    resultSub = eval(expression, globaldict)
+                except Exception:
+                    msg = formatException(expression)
+                    raise viewererrors.UserExpressionSyntaxError(msg)
 
             cache.updateColumn(colName, resultSub, isselected)
+
+            if numpy.isscalar(resultSub):
+                isScalar = True
+
+            currRow += DEFAULT_CACHE_SIZE
+            self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
+
+        self.emit(SIGNAL("endProgress()"))
+
+    def setColumnToConstant(self, colName, value, isselected):
+        """
+        Sets whole column to be a constant value (where isselected == True)
+        for keyboard shortcuts etc
+        """
+        self.emit(SIGNAL("newProgress(QString)"), 
+                        "Evaluating User Expression...")
+        cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
+        nrows = self.getNumRows()
+
+        currRow = 0
+        done = False
+
+        while currRow < nrows and not done:
+            cache.setStartRow(currRow, colName)
+            length = cache.getLength()
+
+            cache.updateColumn(colName, value, isselected)
 
             currRow += DEFAULT_CACHE_SIZE
             self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
@@ -546,9 +582,11 @@ class RATCache(object):
                 self.cacheDict[name] = data
                 break
 
-    def updateCache(self):
+    def updateCache(self, colName=None):
         """
         Internal method, called when self.currStartRow changed
+        If colName is None all columns will be updated 
+        otherwise just the named one
         """
         rowCount = self.gdalRAT.GetRowCount()
         self.length = self.chunkSize
@@ -558,15 +596,19 @@ class RATCache(object):
         ncols = self.gdalRAT.GetColumnCount()
         for col in range(ncols):
             name = self.gdalRAT.GetNameOfCol(col)
-            data = self.gdalRAT.ReadAsArray(col, self.currStartRow, self.length)
-            self.cacheDict[name] = data
+            if colName is None or name == colName:
+                data = self.gdalRAT.ReadAsArray(col, int(self.currStartRow), 
+                            self.length)
+                self.cacheDict[name] = data
 
-    def setStartRow(self, startRow):
+    def setStartRow(self, startRow, colName=None):
         """
         Call this to set the cache to contain the new data
+        If colName is None all columns will be updated 
+        otherwise just the named one
         """
         self.currStartRow = startRow
-        self.updateCache()
+        self.updateCache(colName)
 
     def getValueFromCol(self, colName, row):
         """

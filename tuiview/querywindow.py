@@ -517,6 +517,21 @@ class ThematicHorizontalHeader(QHeaderView):
             elif action is self.setKeyboardEditAction:
                 self.parent.setColumnKeyboardEdit(colName)
 
+class QueryTableView(QTableView):
+    """
+    A hack to ensure all keypresses are redirected to
+    the parent window for processing by the keyboard input
+    handler rather than the default which tries to do some
+    searching thing.
+    """
+    def __init__(self, parent):
+        QTableView.__init__(self, parent)
+        self.parent = parent
+
+    def keyPressEvent(self, event):
+        self.parent.keyPressEvent(event)
+        
+
 class QueryDockWidget(QDockWidget):
     """
     Dock widget that contains the query window. Follows query 
@@ -576,7 +591,7 @@ class QueryDockWidget(QDockWidget):
 
         self.tabWidget = QTabWidget(self.dockWidget)
 
-        self.tableView = QTableView()
+        self.tableView = QueryTableView(self)
         # can only select rows - not individual items
         self.tableView.setSelectionBehavior(QTableView.SelectRows)
         # our own horizontal header that can do context menus
@@ -1067,6 +1082,7 @@ Use the special columns:
         self.addColumnAction.setEnabled(state)
         self.saveColOrderAction.setEnabled(state)
         self.thematicHeader.editColumnAction.setEnabled(state)
+        self.thematicHeader.setKeyboardEditAction.setEnabled(state)
         self.thematicHeader.setColorAction.setEnabled(state)
 
     def scrollToFirstSelected(self):
@@ -1190,34 +1206,40 @@ Use the special columns:
         selectedIdx = self.selectionArray.nonzero()[0][0] # first axis first elem
         attributes = self.lastLayer.attributes
 
+        # instantiate our own cache since the first selected might not
+        # even be in the model's cache
+        # chunksize of one since we will just be reading one row
+        cache = attributes.getCacheObject(1)
+        cache.setStartRow(selectedIdx)
+
         names = attributes.getColumnNames()
         redname = names[attributes.redColumnIdx]
-        redVal = attributes.getAttribute(redname)[selectedIdx]
+        redVal = cache.getValueFromCol(redname, selectedIdx)
 
         greenname = names[attributes.greenColumnIdx]
-        greenVal = attributes.getAttribute(greenname)[selectedIdx]
+        greenVal  = cache.getValueFromCol(greenname, selectedIdx)
 
         bluename = names[attributes.blueColumnIdx]
-        blueVal = attributes.getAttribute(bluename)[selectedIdx]
+        blueVal = cache.getValueFromCol(bluename, selectedIdx)
 
         alphaname = names[attributes.alphaColumnIdx]
-        alphaVal = attributes.getAttribute(alphaname)[selectedIdx]
+        alphaVal = cache.getValueFromCol(alphaname, selectedIdx)
 
         initial = safeCreateColor(redVal, greenVal, blueVal, alphaVal)
         newcolor = QColorDialog.getColor(initial, self, 
                     "Choose Cursor Color", QColorDialog.ShowAlphaChannel)
         if newcolor.isValid():
             red = newcolor.red()
-            attributes.updateColumn(redname, self.selectionArray, red)
+            attributes.setColumnToConstant(redname, red, self.selectionArray)
 
             green = newcolor.green()
-            attributes.updateColumn(greenname, self.selectionArray, green)
+            attributes.setColumnToConstant(redname, green, self.selectionArray)
 
             blue = newcolor.blue()
-            attributes.updateColumn(bluename, self.selectionArray, blue)
+            attributes.setColumnToConstant(redname, blue, self.selectionArray)
 
             alpha = newcolor.alpha()
-            attributes.updateColumn(alphaname, self.selectionArray, alpha)
+            attributes.setColumnToConstant(redname, alpha, self.selectionArray)
 
             # so we repaint and new values get shown
             self.tableModel.doUpdate()
@@ -1266,34 +1288,11 @@ Use the special columns:
             # is this a the lookup column?
             if colname == attributes.getLookupColName():
                 # can't just use result because we need selectionArray applied
-                col = attributes.getAttribute(colname)
+                col = attributes.getEntireAttribute(colname)
                 self.viewwidget.setColorTableLookup(col, colname)
 
         except viewererrors.UserExpressionError as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
-
-    def undoEditUserExpression(self, undoObject, col):
-        """
-        Called in reponse to signal from UserExpressionDialog
-        for editing - says the user wants to undo back to
-        as the column was before we started - data in undoObject
-        """
-        attributes = self.lastLayer.attributes
-        colName = attributes.getColumnNames()[col]
-        attributes.setAttribute(colName, undoObject)
-        # is this a the lookup column?
-        if colName == attributes.getLookupColName():
-            col = attributes.getAttribute(colName)
-            self.viewwidget.setColorTableLookup(col, colName)
-
-        if (col == attributes.redColumnIdx or 
-                col == attributes.greenColumnIdx or
-                col == attributes.blueColumnIdx or
-                col == attributes.alphaColumnIdx):
-            self.updateColorTableInWidget()
-
-        # so we repaint and new values get shown
-        self.tableModel.doUpdate()
 
     def moveColumn(self, col, code):
         """
@@ -1350,7 +1349,7 @@ Use the special columns:
             attributes.setLookupColName(None)
             self.viewwidget.setColorTableLookup()
         else:
-            col = attributes.getAttribute(colName)
+            col = attributes.getEntireAttribute(colName)
 
             gdaldataset = self.lastLayer.gdalDataset
             tables = ViewerLUT.readSurrogateColorTables(gdaldataset)
@@ -1783,7 +1782,8 @@ Use the special columns:
                     attributes = self.lastLayer.attributes
                     colname = self.keyboardEditColumn
                     data = str(self.keyboardData)
-                    attributes.updateColumn(colname, self.selectionArray, data)
+                    attributes.setColumnToConstant(colname, data, 
+                                            self.selectionArray)
 
                     # so we repaint and new values get shown
                     self.tableModel.doUpdate()
@@ -1791,7 +1791,7 @@ Use the special columns:
                     # is this a the lookup column?
                     if colname == attributes.getLookupColName():
                         # can't just use result because we need selectionArray applied
-                        col = attributes.getAttribute(colname)
+                        col = attributes.getEntireAttribute(colname)
                         self.viewwidget.setColorTableLookup(col, colname)
                 except viewererrors.UserExpressionError as e:
                     QMessageBox.critical(self, MESSAGE_TITLE, str(e))

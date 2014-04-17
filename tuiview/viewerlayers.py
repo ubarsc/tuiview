@@ -588,7 +588,7 @@ class ViewerRasterLayer(ViewerLayer):
             msg = 'file needs to be open in update mode'
             raise viewererrors.InvalidDataset(msg)
 
-        self.attributes.writeColumnOrderToGDAL(dataset)
+        self.attributes.writeColumnOrderToGDAL(self.gdalDataset)
 
     def getImage(self):
         """
