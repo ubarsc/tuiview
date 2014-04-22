@@ -4,6 +4,8 @@ Setup script for TuiView. Use like this for Unix:
 
 $ python setup.py install
 
+GDAL devel files need to be installed along with a C compiler
+
 For creation of cx freeze installer on Windows
 > /c/Python33/python.exe setup.py install
 > /c/Python33/python.exe setup_cxfreeze.py bdist_msi
@@ -36,6 +38,7 @@ except ImportError:
     raise SystemExit("GDAL with Python bindings must be installed first")
 
 import tuiview
+MIN_GDAL_VERSION = '1.11.0'
 
 def getGDALFlags():
     """
@@ -77,8 +80,9 @@ def checkGDALVersion():
     if hasattr(gdal, '__version__'):
         gdalVersion = gdal.__version__
 
-    if gdalVersion is None or LooseVersion(gdalVersion) < LooseVersion('1.11.0'):
-        raise SystemExit("This version of TuiView")
+    if gdalVersion is None or LooseVersion(gdalVersion) < LooseVersion(MIN_GDAL_VERSION):
+        msg = "This version of TuiView requires GDAL Version %s or later" % MIN_GDAL_VERSION
+        raise SystemExit(msg)
 
 
 
