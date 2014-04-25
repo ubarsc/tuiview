@@ -463,29 +463,35 @@ class ViewerRAT(QObject):
                         # be read
 
         while currRow < nrows and not done:
-            if isScalar:
-                cache.setStartRow(currRow, colName)
-            else:
-                cache.setStartRow(currRow)
-            length = cache.getLength()
 
-            isselectedSub = isselected[currRow:currRow+length]
-            globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
+            # guess the length
+            isselectedSub = isselected[currRow:currRow+DEFAULT_CACHE_SIZE]
+            if isselectedSub.any():
+
+                if isScalar:
+                    cache.setStartRow(currRow, colName)
+                else:
+                    cache.setStartRow(currRow)
+                length = cache.getLength()
+
+                # re do with correct length
+                isselectedSub = isselected[currRow:currRow+length]
+                globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
                                 queryRow)
 
-            if not isScalar:
-                # can re-use the first result if scalar
-                # all calls should be the same
-                try:
-                    resultSub = eval(expression, globaldict)
-                except Exception:
-                    msg = formatException(expression)
-                    raise viewererrors.UserExpressionSyntaxError(msg)
+                if not isScalar:
+                    # can re-use the first result if scalar
+                    # all calls should be the same
+                    try:
+                        resultSub = eval(expression, globaldict)
+                    except Exception:
+                        msg = formatException(expression)
+                        raise viewererrors.UserExpressionSyntaxError(msg)
 
-            cache.updateColumn(colName, resultSub, isselected)
+                cache.updateColumn(colName, resultSub, isselected)
 
-            if numpy.isscalar(resultSub):
-                isScalar = True
+                if numpy.isscalar(resultSub):
+                    isScalar = True
 
             currRow += DEFAULT_CACHE_SIZE
             self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
@@ -506,10 +512,12 @@ class ViewerRAT(QObject):
         done = False
 
         while currRow < nrows and not done:
-            cache.setStartRow(currRow, colName)
-            length = cache.getLength()
+            # guess size
+            isselectedSub = isselected[currRow:currRow+DEFAULT_CACHE_SIZE]
+            if isselectedSub.any():
+                cache.setStartRow(currRow, colName)
 
-            cache.updateColumn(colName, value, isselected)
+                cache.updateColumn(colName, value, isselected)
 
             currRow += DEFAULT_CACHE_SIZE
             self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
