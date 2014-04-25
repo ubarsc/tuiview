@@ -571,8 +571,32 @@ class ViewerRasterLayer(ViewerLayer):
 
             self.updateAccess = update
         except RuntimeError:
-            msg = 'Unable to change mode of dataset'
-            raise viewererrors.InvalidDataset(msg)
+            if update:
+                # wanted to make updateable, but failed
+                # retry as read-only
+                try:
+                    self.gdalDataset = gdal.Open(self.filename)
+                    self.updateAccess = False
+                except RuntimeError:
+                    msg = "Can't open dataset readonly" 
+                    raise IOError(msg)
+
+                # attributes handle will be stale...
+                if len(self.stretch.bands) == 1:
+                    gdalband = self.gdalDataset.GetRasterBand(self.stretch.bands[0])
+                    self.attributes.readFromGDALBand(gdalband, self.gdalDataset)
+
+                # successfully reopened readonly
+                msg = 'Unable to change mode of dataset'
+                raise viewererrors.InvalidDataset(msg)
+
+            else:
+                # wanted to open readonly, but that failed
+                # file can't exist any more
+                # app needs to exit since we don't have a dataset
+                self.gdalDataset = None
+                msg = "Can't open dataset readonly" 
+                raise IOError(msg)
 
         # attributes handle will be stale...
         if len(self.stretch.bands) == 1:

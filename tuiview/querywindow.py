@@ -1068,6 +1068,14 @@ Use the special columns:
             self.lastLayer.changeUpdateAccess(state)
             self.tableModel.doUpdate(True)
             self.setUIUpdateState(state)
+        except IOError as e:
+            msg = """TuiView was unable to re-open the dataset
+The file no longer exists or is inaccessible.
+The application will now exit."""
+            # unfortunaltely we cannot display the messagebox
+            # since Qt will still want to redraw the RAT 
+            # which we don't have access to. So just exit
+            raise SystemExit(msg)
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
             state = self.lastLayer.updateAccess
