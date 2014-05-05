@@ -28,6 +28,7 @@ For creation of cxfreeze bundle on Windows:
 from cx_Freeze import setup, Executable
 import os
 import sys
+import shutil
 
 import tuiview
 
@@ -42,7 +43,6 @@ if sys.platform == "win32":
     include_msvcr = True
     curDir = os.path.dirname(os.path.abspath(sys.argv[0]))
     initScript = os.path.join(curDir, 'cxfreeze_init.py') # sets the GDAL_DATA path
-    #keadir = 'c:\\kea\\gdal110_2010'
     hdfdir = 'C:\\GDALDeps2010\\bin'
     gdaldir = 'c:\\GDAL2010'
     gdaldatadir = os.path.join(gdaldir, "data")
@@ -50,8 +50,12 @@ if sys.platform == "win32":
     # using internal version now via KEA inline patch (keaplugindir, "gdalplugins")
     #keaplugindir = os.path.join(keadir, "gdalplugins")
     hdfcpp = os.path.join(hdfdir, "HDF5_CPPDLL.DLL")
+    # for some reason we need to copy the vectorrasterizer.pyd into the 
+    # current souce tree - that is where it is looking for the imports
+    # win't get included otherwise
+    shutil.copy("C:\\Python33\\Lib\\site-packages\\tuiview\\vectorrasterizer.pyd", "tuiview")
     include_files = [(gdaldatadir, "data"), (gdalpluginsdir, "gdalplugins"),
-                    ("C:\\kea\\gdal110_2010\\lib\\libkea.dll", ""), (hdfcpp, '')]
+                    ("C:\\kea\\gdal111_2010\\lib\\libkea.dll", ""), (hdfcpp, '')]
 
 build_exe_options = {'excludes':["pywin", "pywin.debugger", "pydoc",
                     "pywin.debugger.dbgcon", "pywin.dialogs", "pywin.dialogs.list",
