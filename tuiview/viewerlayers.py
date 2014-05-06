@@ -1626,6 +1626,9 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra,
     # do the lookup
     outarr = arr[row, col]
 
+    # chop out the extra pixels (if any)
+    outarr = outarr[0:ysize, 0:xsize]
+
     return outarr
 
 
