@@ -260,7 +260,7 @@ class ViewerRAT(QObject):
         self.emit(SIGNAL("newProgress(QString)"), "Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
         thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
-        if rat is not None and thematic:
+        if rat is not None and rat.GetRowCount() != 0 and thematic:
             # looks like we have attributes
             self.count += 1
             self.columnNames = []
