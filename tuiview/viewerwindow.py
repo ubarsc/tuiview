@@ -1304,9 +1304,13 @@ File will now be opened using default stretch""")
         from numpy import version as numpyVersion
 
         msg = """ TuiView
-By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, Pierre Roudier and Tony Gill.
+By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, 
+Pierre Roudier, Tony Gill, Robin Wilson and Dan Clewley.
 
-Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.
+Development funded by Landcare Research NZ Ltd.
+
+Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, 
+Pennsylvania State University.
 
 Version: %s
 Installed in: %s
