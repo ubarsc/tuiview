@@ -720,19 +720,35 @@ class ViewerLUT(QObject):
             # strings in the file
             histomin = gdalband.GetMetadataItem('STATISTICS_HISTOMIN')
             histomax = gdalband.GetMetadataItem('STATISTICS_HISTOMAX')
-            histostr = gdalband.GetMetadataItem('STATISTICS_HISTOBINVALUES')
+            # attempt to read out of the RAT
+            histoIdx = None
+            histostr = None
+            rat = gdalband.GetDefaultRAT()
+            if rat is not None:
+                for col in range(rat.GetColumnCount()):
+                    if rat.GetUsageOfCol(col) == gdal.GFU_PixelCount:
+                        histoIdx = col
+                        break
+            else:
+                # drop back to metadata
+                histostr = gdalband.GetMetadataItem('STATISTICS_HISTOBINVALUES')
+
             if (histomin is not None and histomax is not None 
-                        and histostr is not None):
+                        and (histoIdx is not None or histostr is not None)):
                 # try and convert to float
                 try:
                     histomin = float(histomin)
                     histomax = float(histomax)
                     if histomin == minVal and histomax == maxVal:
-                        histolist = histostr.split('|')
-                        # sometimes there seems to be a trailing '|'
-                        if histolist[-1] == '':
-                            histolist.pop()
-                        histo = [int(x) for x in histolist]
+                        if histoIdx is not None:
+                            histo = rat.ReadAsArray(histoIdx)
+                        else:
+                            # drop back to metadata
+                            histolist = histostr.split('|')
+                            # sometimes there seems to be a trailing '|'
+                            if histolist[-1] == '':
+                                histolist.pop()
+                            histo = [int(x) for x in histolist]
 
                 except ValueError:
                     pass

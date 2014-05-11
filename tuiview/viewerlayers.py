@@ -913,15 +913,27 @@ class ViewerRasterLayer(ViewerLayer):
             bandName = band.GetDescription()
             info.addBandInfo(bandName, bandInfo)
 
-            # check the histo info
+            # check the histo info - from RAT if available
+            histoIdx = None
+            rat = band.GetDefaultRAT()
+            if rat is not None:
+                for col in range(rat.GetColumnCount()):
+                    if rat.GetUsageOfCol(col) == gdal.GFU_PixelCount:
+                        histoIdx = col
+                        break
+
             if ('STATISTICS_HISTOMIN' in metadata and
                     'STATISTICS_HISTOMAX' in metadata and
-                    'STATISTICS_HISTOBINVALUES' in metadata):
+                    (histoIdx is not None or 'STATISTICS_HISTOBINVALUES' in metadata)):
                 histMin = float(metadata['STATISTICS_HISTOMIN'])
                 histMax = float(metadata['STATISTICS_HISTOMAX'])
-                histDataString = metadata['STATISTICS_HISTOBINVALUES']
-                histData = [float(x) for x in histDataString.split('|') if x != '']
-                histData = numpy.array(histData)
+                if histoIdx is not None:
+                    histData = rat.ReadAsArray(histoIdx)
+                else:
+                    histDataString = metadata['STATISTICS_HISTOBINVALUES']
+                    histData = [float(x) for x in histDataString.split('|') if x != '']
+                    histData = numpy.array(histData)
+                    
                 info.addHistogramInfo(bandName, (histMin, histMax, histData))
 
         return info
