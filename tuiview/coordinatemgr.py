@@ -250,6 +250,13 @@ class RasterCoordManager(CoordManager):
         displayAspectRatio = self.dspWidth / self.dspHeight
         rastWidth = right - self.pixLeft
         rastHeight = bottom - self.pixTop
+        # workaround for user drawing 
+        # horizontal or vertical lines which 
+        # causes problems below
+        if rastWidth == 0:
+            rastWidth = 1
+        if rastHeight == 0:
+            rastHeight = 1
         rastAspectRatio = rastWidth / rastHeight
         
         if rastAspectRatio < displayAspectRatio:
