@@ -1520,6 +1520,18 @@ class LayerManager(QObject):
                 break
         return rasterLayer
 
+    def getTopDisplayedRasterLayer(self):
+        """
+        Returns the top most raster layer
+        (if there is one) otherwise None
+        """
+        rasterLayer = None
+        for layer in reversed(self.layers):
+            if isinstance(layer, ViewerRasterLayer) and layer.displayed:
+                rasterLayer = layer
+                break
+        return rasterLayer
+
     def getTopVectorLayer(self):
         """
         Returns the top most vector layer
@@ -1528,6 +1540,18 @@ class LayerManager(QObject):
         vectorLayer = None
         for layer in reversed(self.layers):
             if isinstance(layer, ViewerVectorLayer):
+                vectorLayer = layer
+                break
+        return vectorLayer
+
+    def getTopDisplayedVectorLayer(self):
+        """
+        Returns the top most vector layer
+        (if there is one) otherwise None
+        """
+        vectorLayer = None
+        for layer in reversed(self.layers):
+            if isinstance(layer, ViewerVectorLayer) and layer.displayed:
                 vectorLayer = layer
                 break
         return vectorLayer

@@ -126,6 +126,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.mouseWheelZoom = True
         # do we follow extent when geolinking?
         self.geolinkFollowExtent = True
+        # to we query all layers or only displayed?
+        self.queryOnlyDisplayed = False
 
     def updateScrollBars(self):
         """
@@ -483,6 +485,13 @@ class ViewerWidget(QAbstractScrollArea):
     def setGeolinkFollowExtentAction(self, followExtent):
         "Set whether we are following geolink extent of just center"
         self.geolinkFollowExtent = followExtent
+
+    def setQueryOnlyDisplayed(self, queryOnlyDisplayed):
+        """
+        set whether we are only querying displayed layers (True)
+        or all (False)
+        """
+        self.queryOnlyDisplayed = queryOnlyDisplayed
 
     def flicker(self):
         """
@@ -858,7 +867,10 @@ class ViewerWidget(QAbstractScrollArea):
         and emits the vectorLocationSelected signal with
         the results
         """
-        layer = self.layers.getTopVectorLayer()
+        if self.queryOnlyDisplayed:
+            layer = self.layers.getTopDisplayedVectorLayer()
+        else:
+            layer = self.layers.getTopVectorLayer()
         if layer is None:
             return
 
@@ -883,7 +895,10 @@ class ViewerWidget(QAbstractScrollArea):
         has been received.
         """
         # read the data out of the dataset
-        layer = self.layers.getTopRasterLayer()
+        if self.queryOnlyDisplayed:
+            layer = self.layers.getTopDisplayedRasterLayer()
+        else:
+            layer = self.layers.getTopRasterLayer()
         if (layer is not None and column >= 0 and 
                 column < layer.gdalDataset.RasterXSize and 
                 row >= 0 and row < layer.gdalDataset.RasterYSize):

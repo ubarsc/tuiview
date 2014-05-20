@@ -439,6 +439,16 @@ class ViewerWindow(QMainWindow):
         self.newVectorQueryAct.setStatusTip("Open New Vector Query Window")
         self.connect(self.newVectorQueryAct, SIGNAL("triggered()"), 
                                                     self.newVectorQueryWindow)
+
+        self.queryOnlyDisplayedAct = QAction(self)
+        self.queryOnlyDisplayedAct.setText("&Query Only Displayed Layers")
+        self.queryOnlyDisplayedAct.setCheckable(True)
+        self.queryOnlyDisplayedAct.setShortcut("CTRL+B")
+        self.queryOnlyDisplayedAct.setStatusTip(
+            "Query Only Displayed Layers with Query Window")
+        self.connect(self.queryOnlyDisplayedAct, SIGNAL("toggled(bool)"),
+                                                    self.queryOnlyDisplayed)
+
         self.exitAct = QAction(self)
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
@@ -559,6 +569,7 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.removeLayerAct)
         fileMenu.addAction(self.layerAct)
         fileMenu.addAction(self.newWindowAct)
+        fileMenu.addAction(self.queryOnlyDisplayedAct)
         fileMenu.addAction(self.tileWindowsAct)
         fileMenu.addAction(self.defaultStretchAct)
         fileMenu.addAction(self.saveCurrentViewAct)
@@ -579,7 +590,6 @@ class ViewerWindow(QMainWindow):
         viewMenu.addAction(self.followExtentAct)
         viewMenu.addAction(self.timeseriesForwardAct)
         viewMenu.addAction(self.timeseriesBackwardAct)
-        #viewMenu.addAction(self.moveUpAct)
 
         toolMenu = self.menuBar().addMenu("&Tools")
         toolMenu.addAction(self.queryAct)
@@ -1402,3 +1412,6 @@ Numpy Version: %s
             self.viewwidget.setBackgroundColor(self.backgroundColor)
             # setting have already been set back to disc
 
+    def queryOnlyDisplayed(self, state):
+        "Change the state of the querying behaviour"
+        self.viewwidget.setQueryOnlyDisplayed(state)
