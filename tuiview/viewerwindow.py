@@ -930,6 +930,9 @@ File will now be opened using default stretch""")
         if self.layerWindow is None:
             self.layerWindow = layerwindow.LayerWindow(self, self.viewwidget)
             self.addDockWidget(Qt.LeftDockWidgetArea, self.layerWindow)
+            # this works to prevent it trying to dock when dragging
+            # but double click still works
+            self.layerWindow.setAllowedAreas(Qt.NoDockWidgetArea) 
             self.connect(self.layerWindow, 
                                 SIGNAL("layerWindowClosed(PyQt_PyObject)"), 
                                 self.layerWindowClosed)
@@ -951,6 +954,9 @@ File will now be opened using default stretch""")
             stretchDock = stretchdialog.StretchDockWidget(self, 
                                 self.viewwidget, layer)
             self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
+            # this works to prevent it trying to dock when dragging
+            # but double click still works
+            stretchDock.setAllowedAreas(Qt.NoDockWidgetArea) 
 
     def disableTools(self, ignoreTool=None):
         """
@@ -1098,8 +1104,12 @@ File will now be opened using default stretch""")
         """
         from . import querywindow
         queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
+        # can't pass Qt.NoDockWidgetArea in here
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
         queryDock.setFloating(True) # detach so it isn't docked by default
+        # this works to prevent it trying to dock when dragging
+        # but double click still works
+        queryDock.setAllowedAreas(Qt.NoDockWidgetArea) 
         
         # start over this window
         thispos = self.pos()
@@ -1149,6 +1159,9 @@ File will now be opened using default stretch""")
         queryDock = vectorquerywindow.VectorQueryDockWidget(self)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
         queryDock.setFloating(True) # detach so it isn't docked by default
+        # this works to prevent it trying to dock when dragging
+        # but double click still works
+        queryDock.setAllowedAreas(Qt.NoDockWidgetArea) 
 
         # start over this window
         thispos = self.pos()
@@ -1205,6 +1218,9 @@ File will now be opened using default stretch""")
         profileDock = profilewindow.ProfileDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, profileDock)
         profileDock.setFloating(True) # detach so it isn't docked by default
+        # this works to prevent it trying to dock when dragging
+        # but double click still works
+        profileDock.setAllowedAreas(Qt.NoDockWidgetArea) 
 
         # start over this window
         thispos = self.pos()
