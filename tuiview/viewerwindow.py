@@ -1376,16 +1376,7 @@ Numpy Version: %s
         settings.setValue("pos", self.pos())
         settings.endGroup()
 
-        # say accept for now
         event.accept()
-
-        # check if any of the querywindows have unsaved data
-        from . import querywindow
-        for w in self.findChildren(querywindow.QueryDockWidget):
-            w.closeEvent(event)
-            # user canceled
-            if not event.isAccepted():
-                break
 
     def dragEnterEvent(self, event):
         """
