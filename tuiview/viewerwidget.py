@@ -885,7 +885,9 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.setCursor(oldCursor)
 
-        self.emit(SIGNAL("vectorLocationSelected(PyQt_PyObject)"), results)
+        self.emit(SIGNAL(
+            "vectorLocationSelected(PyQt_PyObject, PyQt_PyObject)"), 
+            results, layer)
 
     def updateQueryPoint(self, easting, northing, column, row, modifiers):
         """

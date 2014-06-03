@@ -20,6 +20,7 @@ this module contains the LayerManager and related classes
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from __future__ import print_function
+import os
 import numpy
 from osgeo import gdal
 from osgeo import osr
@@ -233,6 +234,7 @@ class ViewerLayer(object):
     def __init__(self):
         self.image = None
         self.filename = None
+        self.title = None # basename of filename
         self.displayed = True # use LayerManager.setDisplayedState
 
     def getImage(self):
@@ -291,6 +293,7 @@ class ViewerRasterLayer(ViewerLayer):
         """
         # open the file
         self.filename = gdalDataset.GetDescription()
+        self.title = os.path.basename(self.filename)
         self.gdalDataset = gdalDataset
         self.updateAccess = False
 
@@ -1082,6 +1085,7 @@ class ViewerVectorLayer(ViewerLayer):
         on destruction.
         """
         self.filename = ogrDataSource.GetName()
+        self.title = os.path.basename(self.filename)
         self.ogrDataSource = ogrDataSource
         self.ogrLayer = ogrLayer
         self.setColor(color)

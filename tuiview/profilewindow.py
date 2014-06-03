@@ -158,6 +158,9 @@ class ProfileDockWidget(QDockWidget):
         if not self.followAction.isChecked():
             return
 
+        title = "Profile: %s" % polyLine.layer.title
+        self.setWindowTitle(title)
+
         # get the info we need out of the PolylineToolInfo
         profiledata, profilemask, distance = polyLine.getProfile()
         # set the distance text with commas etc as defined

@@ -68,12 +68,15 @@ class VectorQueryDockWidget(QDockWidget):
         """
         self.toolBar.addAction(self.followAction)
 
-    def vectorLocationSelected(self, results):
+    def vectorLocationSelected(self, results, layer):
         """
         called in response to vectorLocationSelected signal
         """
         if not self.followAction.isChecked():
             return
+
+        title = "Vector Query: %s" % layer.title
+        self.setWindowTitle(title)
 
         self.treeWidget.clear()
         for result in results:

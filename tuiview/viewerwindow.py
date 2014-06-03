@@ -1171,7 +1171,7 @@ File will now be opened using default stretch""")
 
         # connect it to signals emitted by the viewerwidget
         self.connect(self.viewwidget, 
-                            SIGNAL("vectorLocationSelected(PyQt_PyObject)"),
+                            SIGNAL("vectorLocationSelected(PyQt_PyObject, PyQt_PyObject)"),
                             queryDock.vectorLocationSelected)
 
         # grab the signal the queryDock sends when it is closed
@@ -1191,7 +1191,7 @@ File will now be opened using default stretch""")
         vectorLocationSelected signal and decrement our count
         """
         self.disconnect(self.viewwidget, 
-                            SIGNAL("vectorLocationSelected(PyQt_PyObject)"), 
+                            SIGNAL("vectorLocationSelected(PyQt_PyObject, PyQt_PyObject)"), 
                             queryDock.vectorLocationSelected)
         self.vectorQueryWindowCount -= 1
 
@@ -1258,7 +1258,7 @@ File will now be opened using default stretch""")
         if layer is not None:
             info = layer.getPropertiesInfo()
             dlg = propertieswindow.PropertiesWindow(self, info)
-            dlg.setWindowTitle(os.path.basename(layer.filename))
+            dlg.setWindowTitle(layer.title)
             dlg.show()
 
     def flicker(self):

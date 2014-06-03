@@ -832,7 +832,8 @@ class StretchDockWidget(QDockWidget):
     with apply and save buttons
     """
     def __init__(self, parent, viewwidget, layer):
-        QDockWidget.__init__(self, "Stretch", parent)
+        title = "Stretch: %s" % layer.title
+        QDockWidget.__init__(self, title, parent)
         # save the view widget
         self.viewwidget = viewwidget
         self.layer = layer

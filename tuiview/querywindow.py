@@ -1707,6 +1707,10 @@ Use the special columns:
             # set up the plot
             self.updatePlot(qi, self.cursorColor)
 
+            # window title
+            title = "Query: %s" % qi.layer.title
+            self.setWindowTitle(title)
+
             # add/modify this is a query point to the widget
             self.viewwidget.setQueryPoint(id(self), qi.easting, 
                         qi.northing, self.cursorColor, self.cursorSize)

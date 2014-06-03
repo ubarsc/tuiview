@@ -18,7 +18,6 @@ Module that contains the LayerWindow class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import os
 import sys
 from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction
 from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
@@ -68,8 +67,7 @@ class LayerItemModel(QAbstractListModel):
 
         if role == Qt.DisplayRole:
             # name 
-            fname = os.path.basename(layer.filename)
-            return fname
+            return layer.title
         elif role == Qt.DecorationRole:
             # icon
             layer = self.getLayer(index)
@@ -369,7 +367,7 @@ class LayerListView(QListView):
             layer = model.getLayer(index)
             info = layer.getPropertiesInfo()
             dlg = propertieswindow.PropertiesWindow(self, info)
-            dlg.setWindowTitle(os.path.basename(layer.filename))
+            dlg.setWindowTitle(layer.title)
             dlg.show()
 
 class LayerWindow(QDockWidget):
