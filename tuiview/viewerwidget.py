@@ -688,7 +688,10 @@ class ViewerWidget(QAbstractScrollArea):
                 # finished
                 # create object for signal
                 from .viewertoolclasses import PolylineToolInfo
-                layer = self.layers.getTopRasterLayer()
+                if self.queryOnlyDisplayed:
+                    layer = self.layers.getTopDisplayedRasterLayer()
+                else:
+                    layer = self.layers.getTopRasterLayer()
                 modifiers = event.modifiers()
                 obj = PolylineToolInfo(self.toolPoints, layer, modifiers)
                 self.emit(SIGNAL("polylineCollected(PyQt_PyObject)"), obj)
