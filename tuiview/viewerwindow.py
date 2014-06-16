@@ -119,7 +119,7 @@ class ViewerWindow(QMainWindow):
         self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
                                                 self.newPercent)
         # so we can update the window title
-        self.connect(self.viewwidget.layers, SIGNAL("topLayerChanged(QString)"),
+        self.connect(self.viewwidget.layers, SIGNAL("topLayerChanged(PyQt_PyObject)"),
                                                 self.updateWindowTitle)
         # general messages from the widget
         self.connect(self.viewwidget, SIGNAL("showStatusMessage(QString)"),
@@ -177,15 +177,14 @@ class ViewerWindow(QMainWindow):
         # resize it to desired size
         self.resize(xsize + borderWidth, ysize + borderHeight)
         
-    def updateWindowTitle(self, fname):
+    def updateWindowTitle(self, layer):
         """
-        called in response to the topLayerChanged(QString) signal
+        called in response to the topLayerChanged(PyQt_PyObject) signal
         from the layers to say the top displayed layer has changed
         """
-        if fname != '':
-            # just display the basename
-            title = os.path.basename(str(fname))
-            self.setWindowTitle(title)
+        if not layer is None:
+            # just display the layer title
+            self.setWindowTitle(layer.title)
         else:
             # nothing loaded
             self.setWindowTitle(MESSAGE_TITLE)

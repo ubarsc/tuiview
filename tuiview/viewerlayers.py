@@ -1266,25 +1266,23 @@ class LayerManager(QObject):
         self.layers = []
         self.fullextent = None
         self.queryPointLayer = ViewerQueryPointLayer()
-        self.topFilename = None
+        self.topLayer = None
 
     def updateTopFilename(self):
         """
         Call this when the top displayed layer may 
         have changed and the correct signal will be emitted
         """
-        newTopFilename = None
+        newTopLayer = None
         for layer in self.layers:
             if layer.displayed:
-                newTopFilename = layer.filename
+                newTopLayer = layer
+                # don't break since we want the last layer
+                # - top one is displayed
 
-        if newTopFilename != self.topFilename:
-            self.topFilename = newTopFilename
-            if self.topFilename is None:
-                # Qt doesn't like None
-                self.emit(SIGNAL("topLayerChanged(QString)"), '')
-            else:
-                self.emit(SIGNAL("topLayerChanged(QString)"), self.topFilename)
+        if not newTopLayer is self.topLayer:
+            self.topLayer = newTopLayer
+            self.emit(SIGNAL("topLayerChanged(PyQt_PyObject)"), self.topLayer)
 
     def getFullExtent(self):
         """
