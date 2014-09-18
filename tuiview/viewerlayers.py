@@ -309,7 +309,7 @@ class ViewerRasterLayer(ViewerLayer):
             msg = 'Only non-rotated images supported'
             raise viewererrors.InvalidDataset(msg)
 
-         ideally transform[1] == -transform[5] but might not due to rounding
+        # ideally transform[1] == -transform[5] but might not due to rounding
         if (((transform[1] + transform[5]) / transform[1]) > 
                 VIEWER_NONSQUARE_PIXEL_THRESHOLD):
             msg = 'Only square pixels supported'
