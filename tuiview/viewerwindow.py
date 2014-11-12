@@ -33,6 +33,7 @@ if sys.version_info[0] == 3:
     from . import viewerresources3
 else:
     from . import viewerresources2
+from . import archivereader
 from . import viewerwidget
 from . import viewererrors
 
@@ -691,7 +692,8 @@ class ViewerWindow(QMainWindow):
         dlg.setDirectory(dir)
 
         if dlg.exec_() == QDialog.Accepted:
-            for fname in dlg.selectedFiles():
+            file_list = map(str, dlg.selectedFiles())
+            for fname in archivereader.file_list_to_archive_strings(file_list):
                 self.addRasterInternal(fname)
 
     def addVectorFile(self):
