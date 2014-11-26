@@ -1,7 +1,4 @@
-import tarfile
 import zipfile
-from numpy.lib.npyio import zipfile_factory
-
 
 def file_list_to_archive_strings(filenames):
 
