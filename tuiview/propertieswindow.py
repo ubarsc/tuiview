@@ -78,7 +78,7 @@ class PropertiesWindow(QDialog):
             if value is not None:
                 valueLabel.setText(value)
             else:
-                valueLabel.setText("NA")
+                valueLabel.setText("Not Set")
 
             self.fileProjWidgetLayout.addWidget(valueLabel, rowCount, 1)
 
