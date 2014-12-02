@@ -972,7 +972,7 @@ class ViewerLUT(QObject):
                 else:
                     lutsize = DEFAULT_LUTSIZE
 
-                if self.lut == None:
+                if self.lut is None:
                     # LUT is shape [4,lutsize]. We apply the stretch seperately
                     # to each band. Order is RGBA 
                     # (native order to make things easier)
