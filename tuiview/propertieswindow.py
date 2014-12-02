@@ -75,7 +75,10 @@ class PropertiesWindow(QDialog):
             self.fileProjWidgetLayout.addWidget(nameLabel, rowCount, 0)
 
             valueLabel = QLabel()
-            valueLabel.setText(value)
+            if value is not None:
+                valueLabel.setText(value)
+            else:
+                valueLabel.setText("Not Set")
             self.fileProjWidgetLayout.addWidget(valueLabel, rowCount, 1)
 
         self.fileTab.addTab(self.fileProjWidget, "Coordinate System")
