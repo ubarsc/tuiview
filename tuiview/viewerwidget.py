@@ -22,7 +22,7 @@ zooming and panning etc.
 
 from __future__ import division # ensure we are using Python 3 semantics
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor
+from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QApplication
 from PyQt4.QtGui import QPixmap, QPainterPath, QPen
 from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
 
@@ -537,8 +537,14 @@ class ViewerWidget(QAbstractScrollArea):
         """
         layer = self.layers.getTopRasterLayer()
         if layer is not None:
+            # Shift scrolling will move you forward and backwards through the time series
+            if QApplication.keyboardModifiers() == Qt.ShiftModifier: 
+                if event.delta() > 0:
+                    self.timeseriesBackward()
+                else:
+                    self.timeseriesForward()
 
-            if self.mouseWheelZoom:
+            elif self.mouseWheelZoom:
                 (wldX, wldY) = layer.coordmgr.getWorldCenter()
 
                 impixperwinpix = layer.coordmgr.imgPixPerWinPix
