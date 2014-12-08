@@ -1729,9 +1729,9 @@ Use the special columns:
 
         if qi.layer.wavelengths is None:
             # no wavelengths stored with data - just use band number
-            xdata = numpy.array(range(1, nbands+1, 1))
+            xdata = numpy.arange(1, nbands+1, 1)
         else:
-            xdata = qi.layer.wavelengths
+            xdata = numpy.array(qi.layer.wavelengths)
 
         curve = plotwidget.PlotCurve(xdata, qi.data, pen)
         self.plotWidget.addCurve(curve)
