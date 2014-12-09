@@ -23,6 +23,7 @@ import sys
 import optparse
 from PyQt4.QtGui import QApplication
 
+from . import archivereader
 from . import geolinkedviewers
 from . import viewerstretch
 
@@ -180,7 +181,7 @@ class ViewerApplication(QApplication):
             else:
                 # load into one viewer
                 viewer = None
-                for filename in cmdargs.args:
+                for filename in archivereader.file_list_to_archive_strings(cmdargs.args):
                     if viewer is None:
                         viewer = self.viewers.newViewer(filename, stretch)
                     else:
