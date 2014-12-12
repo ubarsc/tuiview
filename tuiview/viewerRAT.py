@@ -666,7 +666,7 @@ class RATCache(object):
             name = self.gdalRAT.GetNameOfCol(col)
             if name == colName:
                 colIdx = col
-                colType = self.gdalRAT.GetTypeOfCol(col)
+                coltype = self.gdalRAT.GetTypeOfCol(col)
                 break
 
         if colIdx == -1:
