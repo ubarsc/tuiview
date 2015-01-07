@@ -1737,10 +1737,18 @@ Use the special columns:
         self.plotWidget.addCurve(curve)
         self.plotWidget.setXRange(xmin=xdata[0]) # just plot the range of the data
 
+        # Calculate the interval for x-axis labels and plot labels
+        # so that if there are more than 10 bands not all are labeled.
+        # The interval between labels is set to provide ~ 10 labels.
+        if len(xdata) > 10:
+            label_interval = int(len(xdata) / 10.0)
+        else:
+            label_interval = 1
+
         # only do new labels if they have asked for them.
         if self.labelAction.isChecked():
             count = 1
-            for x, y, text in zip(xdata, qi.data, qi.layer.bandNames):
+            for x, y, text in zip(xdata[::label_interval], qi.data[::label_interval], qi.layer.bandNames[::label_interval]):
                 # align appropriately for first and last
                 if count == 1:
                     flags = Qt.AlignLeft | Qt.AlignTop
@@ -1753,8 +1761,10 @@ Use the special columns:
                 count += 1
 
         # set xticks - we want descrete points
-        # where there is data
-        xticks = [plotwidget.PlotTick(int(x), "%d" % x) for x in xdata]
+        # where there is data, if there are less than 10 bands
+        # If there are more than 10, set interval so there are ~ 10 labels
+        xticks = [plotwidget.PlotTick(int(x), "%d" % x) for x in xdata[::label_interval]]
+
         # set the alignment on the rightmost one so it gets displayed, 
         # not chopped
         xticks[-1].flags = Qt.AlignRight | Qt.AlignTop
