@@ -84,8 +84,6 @@ def checkGDALVersion():
         msg = "This version of TuiView requires GDAL Version %s or later" % MIN_GDAL_VERSION
         raise SystemExit(msg)
 
-
-
 # check the version
 checkGDALVersion()
 
@@ -99,12 +97,19 @@ vecextkwargs.update(gdalargs)
 
 vecmodule = Extension(**vecextkwargs)
 
+# For windows also copy bat files, to run python scripts
+if sys.platform == 'win32':
+    scripts_list = ['bin/tuiview','bin/tuiview.bat',
+                     'bin/tuiviewwritetable','bin/tuiviewwritetable.bat']
+else:
+    scripts_list = ['bin/tuiview',
+                     'bin/tuiviewwritetable']
 setup(name='TuiView', 
     version=tuiview.TUIVIEW_VERSION, 
     description='Simple Raster Viewer',
     author='Sam Gillingham',
     author_email='gillingham.sam@gmail.com',
-    scripts=['bin/tuiview', 'bin/tuiviewwritetable'],
+    scripts=scripts_list,
     packages=['tuiview'],
     ext_package = 'tuiview',
     ext_modules = [vecmodule],
@@ -116,4 +121,7 @@ setup(name='TuiView',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.2',
-          'Programming Language :: Python :: 3.3'])
+          'Programming Language :: Python :: 3.3',
+          'Programming Language :: Python :: 3.4'])
+
+
