@@ -378,6 +378,10 @@ class ViewerRasterLayer(ViewerLayer):
         ENVI driver, or None.
         Other formats will be added in future.
         """
+
+        # Wavelength units to strip off metadata
+        wavelength_units = ['nm','um']
+
         wavelengths = []
         ok = False
 
@@ -393,6 +397,15 @@ class ViewerRasterLayer(ViewerLayer):
                 metaname = "Band_%d" % (n+1)
                 if metaname in meta:
                     item = meta[metaname]
+                    # Try to replace wavelength units
+                    # Do this rather than stripping off letters
+                    # as metadata might not be a wavelength
+                    for wl_unit in wavelength_units:
+                        item = item.replace(wl_unit,'')
+                    # If wavelengths are stored as:
+                    #    951.20 (951.20)
+                    # subset to before bracket
+                    item = item[0:item.find('(')]
                     # try to convert to float
                     try:
                         wl = float(item)
