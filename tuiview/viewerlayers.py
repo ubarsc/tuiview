@@ -21,17 +21,31 @@ this module contains the LayerManager and related classes
 
 from __future__ import print_function
 import os
+import sys
 import numpy
 from osgeo import gdal
 from osgeo import osr
 from PyQt4.QtGui import QImage, QPainter, QPen
 from PyQt4.QtCore import QObject, SIGNAL
+import threading
+if sys.version_info[0] < 3:
+   import Queue as queue
+else:
+   import queue
 
 from . import viewerRAT
 from . import viewerLUT
 from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
+
+# number of threads to call layer.getImage on - only raster layers supported
+NUM_GETIMAGE_THREADS = os.getenv('TUIVIEW_GETIMAGE_THREADS','1')
+# convert to int with care
+try:
+    NUM_GETIMAGE_THREADS = int(NUM_GETIMAGE_THREADS)
+except ValueError:
+    NUM_GETIMAGE_THREADS = 1
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
@@ -70,6 +84,18 @@ def NumpyTypeToGDALType(numpytype):
             return gdaltype
     msg = "Unknown numpy datatype: %s" % numpytype
     raise viewererrors.TypeConversionError(msg)
+
+def _callGetImage(q):
+    """
+    Calls getImage on each layer in the queue.
+    Passed to a thread
+    """
+    while True:
+        layer = q.get()
+        layer.getImage()
+        q.task_done()
+
+    return None
 
 class OverviewInfo(object):
     """
@@ -1281,6 +1307,18 @@ class LayerManager(QObject):
         self.queryPointLayer = ViewerQueryPointLayer()
         self.topLayer = None
 
+        if NUM_GETIMAGE_THREADS > 1:
+            # thread of the jobs
+            self.queue = queue.Queue()
+            # start the threads
+            for i in range(NUM_GETIMAGE_THREADS):
+                t = threading.Thread(target=_callGetImage,
+                                            args=(self.queue, ))
+                t.daemon = True # so program exits even when threads running
+                t.start()
+        else:
+            self.queue = None
+
     def updateTopFilename(self):
         """
         Call this when the top displayed layer may 
@@ -1577,8 +1615,16 @@ class LayerManager(QObject):
         'image' for rendering. This is called
         when extents have changed etc.
         """
-        for layer in self.layers:
-            layer.getImage()
+        if NUM_GETIMAGE_THREADS <= 1:
+            # do it the old single thread way
+            for layer in self.layers:
+                layer.getImage()
+        else:
+            # put all the layer getImage requests in the Queue
+            for layer in self.layers:
+                self.queue.put(layer)
+            self.queue.join()    # block until all tasks are completed
+
         self.queryPointLayer.getImage()
 
     def makeLayersConsistent(self, reflayer):
