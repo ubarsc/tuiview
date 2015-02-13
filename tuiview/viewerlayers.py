@@ -47,6 +47,13 @@ try:
 except ValueError:
     NUM_GETIMAGE_THREADS = 1
 
+# Check if data without geospatial information is allowed
+ALLOW_NOGEO = os.getenv('TUIVIEW_ALLOW_NOGEO','NO')
+if ALLOW_NOGEO.upper() == 'YES':
+    ALLOW_NOGEO = True
+else:
+    ALLOW_NOGEO = False
+
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
@@ -327,8 +334,22 @@ class ViewerRasterLayer(ViewerLayer):
         # currently only support square pixels and non rotated
         transform = self.gdalDataset.GetGeoTransform()
         if transform[1] < 0 or transform[5] > 0:
-            msg = 'Only north-up images supported'
-            raise viewererrors.InvalidDataset(msg)
+            if ALLOW_NOGEO:
+                # If image isn't north up, and unmapped data is allowed
+                # flip the pixel resolution to trick TuiView into 
+                # handling it as north up data.
+                # Enables opening data with no spatial reference (e.g., 
+                # level1 / level1b).
+                transform = (transform[0],
+                             transform[1],
+                             transform[2],
+                             transform[3],
+                             transform[4],
+                             transform[5]*-1)
+            else:
+                msg = 'Only north-up images allowed. ' \
+                     'To disable this check set:\n"TUIVIEW_ALLOW_NOGEO=YES"'
+                raise viewererrors.InvalidDataset(msg)
 
         if transform[2] != 0 or transform[4] != 0:
             msg = 'Only non-rotated images supported'
