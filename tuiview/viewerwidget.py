@@ -152,9 +152,13 @@ class ViewerWidget(QAbstractScrollArea):
 
                 # to pagestep which is also the slider size
                 fullxsize = float(fullright - fullleft)
+                if fullxsize == 0:
+                    fullxsize = 100
                 hpagestep = (float(right - left) / fullxsize) * 1000
                 horizontalBar.setPageStep(int(hpagestep))
                 fullysize = float(fulltop - fullbottom)
+                if fullysize == 0:
+                    fullysize = 100
                 vpagestep = (float(top - bottom) / fullysize) * 1000
                 verticalBar.setPageStep(int(vpagestep))
 
