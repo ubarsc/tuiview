@@ -677,7 +677,7 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "read an OGR feature and vectorize outlines to numpy array:\n"
 "call signature: arr = rasterizeOutlinesFeature(ogrfeature, boundingbox, xsize, ysize)\n"
 "where:\n"
-"  ogrfeature is an instance of ogr.Layer\n"
+"  ogrfeature is an instance of ogr.Feature\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"},
