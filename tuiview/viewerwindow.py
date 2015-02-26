@@ -784,9 +784,9 @@ class ViewerWindow(QMainWindow):
         from osgeo import gdal
         try:
             gdaldataset = gdal.Open(fname)
-        except RuntimeError:
+        except RuntimeError as err:
             if showError:
-                msg = "Unable to open %s" % fname
+                msg = "Unable to open %s\n%s" % (fname,err)
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return
             else:
