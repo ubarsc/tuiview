@@ -783,6 +783,7 @@ class ViewerWindow(QMainWindow):
         # first open the dataset
         from osgeo import gdal
         try:
+            gdal.PushErrorHandler('CPLQuietErrorHandler')
             gdaldataset = gdal.Open(fname)
         except RuntimeError as err:
             if showError:
