@@ -337,6 +337,10 @@ class ViewerLUT(QObject):
                     lutobj.lut = (
                         numpy.empty((4, bi.lutsize+VIEWER_LUT_EXTRA), 
                                 numpy.uint8, 'C'))
+                    # make sure the alpha channel always inited to 0
+                    # since this isn't stored in the file
+                    alphaindex = CODE_TO_LUTINDEX['alpha']
+                    lutobj.lut[alphaindex].fill(0)
         
                 lut = numpy.fromiter(rep['data'], numpy.uint8)
                 lutobj.lut[lutindex] = lut
