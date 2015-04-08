@@ -848,7 +848,10 @@ class ViewerWidget(QAbstractScrollArea):
 
         pass either [easting and northing] or [dspX,dspY] or [column, row]
         """
-        layer = self.layers.getTopRasterLayer()
+        if self.queryOnlyDisplayed:
+            layer = self.layers.getTopDisplayedRasterLayer()
+        else:
+            layer = self.layers.getTopRasterLayer()
         if layer is None:
             return
 
@@ -939,7 +942,10 @@ class ViewerWidget(QAbstractScrollArea):
         one if the query tool is active.
         """
         if self.activeTool == VIEWER_TOOL_QUERY:
-            layer = self.layers.getTopRasterLayer()
+            if self.queryOnlyDisplayed:
+                layer = self.layers.getTopDisplayedRasterLayer()
+            else:
+                layer = self.layers.getTopRasterLayer()
             if layer is not None:
                 (col, row) = layer.coordmgr.world2pixel(easting, northing)
                 self.updateQueryPoint(easting, northing, col, row, None)
