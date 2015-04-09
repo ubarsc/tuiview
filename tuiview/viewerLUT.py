@@ -337,6 +337,10 @@ class ViewerLUT(QObject):
                     lutobj.lut = (
                         numpy.empty((4, bi.lutsize+VIEWER_LUT_EXTRA), 
                                 numpy.uint8, 'C'))
+                    # make sure the alpha channel always inited to 0
+                    # since this isn't stored in the file
+                    alphaindex = CODE_TO_LUTINDEX['alpha']
+                    lutobj.lut[alphaindex].fill(0)
         
                 lut = numpy.fromiter(rep['data'], numpy.uint8)
                 lutobj.lut[lutindex] = lut
@@ -682,6 +686,7 @@ class ViewerLUT(QObject):
                 gdal.ErrorReset()
                 self.emit(SIGNAL("newProgress(QString)"), 
                         "Calculating Statistics...")
+                # TODO: find a way of ignoring NaNs
                 stats = gdalband.ComputeStatistics(0, GDALProgressFunc, self)
                 self.emit(SIGNAL("endProgress()"))
 
@@ -692,11 +697,26 @@ class ViewerLUT(QObject):
 
         else:
             # local - using numpy - make sure float not 1-d array for json
-            minval = float(localdata.min())
-            maxval = float(localdata.max())
-            mean = float(localdata.mean())
-            stddev = float(localdata.std())
-            stats = (minval, maxval, mean, stddev)
+            # ignore NANs
+            minval = float(numpy.nanmin(localdata))
+            maxval = float(numpy.nanmax(localdata))
+            mean = float(numpy.nanmean(localdata))
+            stddev = float(numpy.nanstd(localdata))
+            stats = [minval, maxval, mean, stddev]
+
+
+        # inf and NaNs really stuff things up
+        # must be a better way, but GDAL doesn't seem to have
+        # an option to ignore NaNs and numpy still returns Infs. 
+        # Make some numbers up.
+        if not numpy.isfinite(stats[0]):
+            stats[0] = 0.0
+        if not numpy.isfinite(stats[1]):
+            stats[1] = 10.0
+        if not numpy.isfinite(stats[2]):
+            stats[2] = 5.0
+        if not numpy.isfinite(stats[3]):
+            stats[3] = 1.0
 
         return stats
 
@@ -1068,7 +1088,7 @@ class ViewerLUT(QObject):
         # apply scaling
         numpy.add(data, self.bandinfo.offset, out=data)
         numpy.divide(data, self.bandinfo.scale, out=data)
-
+        
         # can only do lookups with integer data
         data = data.astype(numpy.integer)
 
