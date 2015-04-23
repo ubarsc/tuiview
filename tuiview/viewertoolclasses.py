@@ -44,7 +44,7 @@ class ToolInfo(QPolygon):
         """
         wldList = []
         for pt in self:
-            wldx, wldy = self.layer.coordmgr.display2world(py.x(), pt.y())
+            wldx, wldy = self.layer.coordmgr.display2world(pt.x(), pt.y())
             wldList.append(QPointF(wldx, wldy))
 
         return QPolygonF(wldList)
