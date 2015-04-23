@@ -145,8 +145,9 @@ class PluginManager(object):
                     return
                 self.plugins[modname] = mod
                 print('loaded plugin %s' % modname)
-            except ImportError:
+            except ImportError as e:
                 print('Unable to import %s' % path)
+                print(str(e))
             finally:
                 fileobj.close()
 
