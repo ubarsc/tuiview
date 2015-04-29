@@ -150,6 +150,7 @@ class ViewerApplication(QApplication):
     """
     def __init__(self):
         QApplication.__init__(self, sys.argv)
+        self.pluginHandlers = []
 
         # for settings
         self.setApplicationName('viewer')
@@ -207,4 +208,17 @@ class ViewerApplication(QApplication):
 
             obj = GeolinkInfo(0, easting, northing, metresperimgpix)
             self.viewers.onMove(obj)                
+
+    def savePluginHandler(self, handler):
+        """
+        Plugins need to be able to save an instance of their signal handling 
+        object so it doesn't get cleaned up by Python's garbage collection.
+        There are a number of ways to address this, but this seems the cleanest.
+        
+        Get an instance of this ViewerApplication class in the plugin by using the:
+            app = QApplication.instance()
+            
+        Call.
+        """
+        self.pluginHandlers.append(handler)
 
