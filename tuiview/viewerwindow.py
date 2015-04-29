@@ -50,6 +50,12 @@ MESSAGE_TITLE = 'TuiView'
 # file open dialog shown.
 GDAL_FILTERS = None
 
+# Set up a dictionary of filters not in GDAL (ENVI files with various extensions)
+NON_GDAL_FILTERS = {'BIL' : 'ENVI BIL (*.bil)',
+                    'BSQ' : 'ENVI BSQ (*.bsq)',
+                    'DEM' : 'ENVI DEM (*.dem)',
+                    'RAW' : 'ENVI RAW (*.raw)'}
+
 def createFilter(driver):
     """
     Given a GDAL driver, creates the Qt QFileDialog
@@ -89,6 +95,14 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
                 qfilter = createFilter(driver)
                 GDAL_FILTERS.append(qfilter)
 
+        else:
+            # If there is no GDAL driver try non-GDAL drivers dict
+            try:
+                qfilter = NON_GDAL_FILTERS[defaultDriver]
+                GDAL_FILTERS.append(qfilter)
+            except KeyError:
+                pass
+
         # add all files next
         GDAL_FILTERS.append("All files (*)")
 
@@ -101,6 +115,9 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
                 qfilter = createFilter(driver)
                 GDAL_FILTERS.append(qfilter)
 
+        # Now add non-GDAL filters
+        for qfilter in NON_GDAL_FILTERS.values():
+            GDAL_FILTERS.append(qfilter)
 
 class ViewerWindow(QMainWindow):
     """
