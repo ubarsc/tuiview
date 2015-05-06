@@ -298,7 +298,7 @@ class ViewerLUT(QObject):
                 gdaldataset.SetMetadataItem(key, '')
     
     @staticmethod
-    def createFromFile(fileobj):
+    def createFromFile(fileobj, stretch):
         """
         Read a text file created by saveToFile and 
         create an instance of this class
@@ -337,13 +337,23 @@ class ViewerLUT(QObject):
                     lutobj.lut = (
                         numpy.empty((4, bi.lutsize+VIEWER_LUT_EXTRA), 
                                 numpy.uint8, 'C'))
-                    # make sure the alpha channel always inited to 0
-                    # since this isn't stored in the file
-                    alphaindex = CODE_TO_LUTINDEX['alpha']
-                    lutobj.lut[alphaindex].fill(0)
-        
+
                 lut = numpy.fromiter(rep['data'], numpy.uint8)
                 lutobj.lut[lutindex] = lut
+
+            # now do alpha seperately - 255 for all except 
+            # no data and background
+            # (this isn't stored in the file)
+            alphaindex = CODE_TO_LUTINDEX['alpha']
+            lutobj.lut[alphaindex].fill(255)
+            rgbindex = CODE_TO_RGBINDEX['alpha']
+            bandinfo = lutobj.bandinfo['red'] # just to get the index for nan, nodata etc
+            nodata_value = stretch.nodata_rgba[rgbindex]
+            background_value = stretch.background_rgba[rgbindex]
+            nan_value = stretch.nan_rgba[rgbindex]
+            lutobj.lut[alphaindex, bandinfo.nodata_index] = nodata_value
+            lutobj.lut[alphaindex, bandinfo.background_index] = background_value
+            lutobj.lut[alphaindex, bandinfo.nan_index] = nan_value
 
         return lutobj
 
@@ -832,7 +842,7 @@ class ViewerLUT(QObject):
             # first line describes the stretch - ignore
             fileobj = open(stretch.readLUTFromText)
             fileobj.readline()
-            lut = self.createFromFile(fileobj)
+            lut = self.createFromFile(fileobj, stretch)
             fileobj.close()
             if lut is None:
                 msg = 'No stretch and lookup table in this file'
