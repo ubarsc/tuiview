@@ -154,10 +154,17 @@ class ViewerWindow(QMainWindow):
         self.setupToolbars()
         self.setupStatusBar()
 
+        # our layer window so we can toggle it
+        self.layerWindow = None
+
         self.restoreFromSettings()
-        # set this value, just read from settings
+        # set these values, just read from settings
         self.viewwidget.setMouseScrollWheelAction(self.mouseWheelZoom)
         self.viewwidget.setBackgroundColor(self.backgroundColor)
+        if self.settingQueryOnlyDisplayed:
+            self.queryOnlyDisplayedAct.setChecked(True)
+        if self.settingArrangeLayersOpen:
+            self.arrangeLayers()
 
         self.showStatusMessage("Ready")
 
@@ -172,9 +179,6 @@ class ViewerWindow(QMainWindow):
 
         # accept dropping files
         self.setAcceptDrops(True)
-
-        # our layer window so we can toggle it
-        self.layerWindow = None
 
         # so if we are turning on a tool because another tool 
         # in another window has been turned on, we don't undo 
@@ -283,6 +287,14 @@ class ViewerWindow(QMainWindow):
         settings.beginGroup('ViewerBackground')
         value = settings.value("color", QColor(Qt.black), QColor)
         self.backgroundColor = value
+        settings.endGroup()
+
+        settings.beginGroup('StartupState')
+        value = settings.value('QueryOnlyDisplayed', False, bool)
+        self.settingQueryOnlyDisplayed = value
+
+        value = settings.value('ArrangeLayersOpen', False, bool)
+        self.settingArrangeLayersOpen = value
         settings.endGroup()
 
     def setupActions(self):

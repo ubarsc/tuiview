@@ -21,7 +21,7 @@ Module that contains the ViewerPreferences class
 
 from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
 from PyQt4.QtGui import QPushButton, QGroupBox, QButtonGroup, QLabel, QColor
-from PyQt4.QtGui import QSpinBox
+from PyQt4.QtGui import QSpinBox, QCheckBox
 from PyQt4.QtCore import QSettings, SIGNAL, Qt
 import sys
 from .stretchdialog import ColorButton
@@ -97,6 +97,23 @@ class ViewerPreferencesDialog(QDialog):
 
         self.mainLayout.addWidget(self.plotGroup)
 
+        # startup
+        self.startupGroup = QGroupBox("Startup State")
+        self.startupLayout = QVBoxLayout()
+
+        self.startupQueryCheck = QCheckBox("Query only Displayed Layers")
+        if self.settingQueryOnlyDisplayed:
+            self.startupQueryCheck.setCheckState(Qt.Checked)
+        self.startupArrangeLayersCheck = QCheckBox("Open Arrange Layers Window")
+        if self.settingArrangeLayersOpen:
+            self.startupArrangeLayersCheck.setCheckState(Qt.Checked)
+
+        self.startupLayout.addWidget(self.startupQueryCheck)
+        self.startupLayout.addWidget(self.startupArrangeLayersCheck)
+        self.startupGroup.setLayout(self.startupLayout)
+
+        self.mainLayout.addWidget(self.startupGroup)
+
         # ok and cancel buttons
         self.okButton = QPushButton(self)
         self.okButton.setText("OK")
@@ -141,6 +158,14 @@ class ViewerPreferencesDialog(QDialog):
         self.settingPlotFontSize = value
         settings.endGroup()
 
+        settings.beginGroup('StartupState')
+        value = settings.value('QueryOnlyDisplayed', False, bool)
+        self.settingQueryOnlyDisplayed = value
+
+        value = settings.value('ArrangeLayersOpen', False, bool)
+        self.settingArrangeLayersOpen = value
+        settings.endGroup()
+
     def onOK(self):
         """
         Selected OK so save preferences
@@ -149,6 +174,10 @@ class ViewerPreferencesDialog(QDialog):
         self.settingMouseWheelZoom = self.mouseZoom.isChecked()
         self.settingBackgroundColor = self.backgroundColorButton.color
         self.settingPlotFontSize = self.plotFontSizeSpin.value()
+        self.settingQueryOnlyDisplayed = (self.startupQueryCheck.checkState() 
+                                            == Qt.Checked)
+        self.settingArrangeLayersOpen = (
+            self.startupArrangeLayersCheck.checkState() == Qt.Checked)
 
         settings = QSettings()
         settings.beginGroup('ViewerMouse')
@@ -159,6 +188,10 @@ class ViewerPreferencesDialog(QDialog):
         settings.endGroup()
         settings.beginGroup('Plot')
         settings.setValue('FontSize', self.settingPlotFontSize)
+        settings.endGroup()
+        settings.beginGroup('StartupState')
+        settings.setValue('QueryOnlyDisplayed', self.settingQueryOnlyDisplayed)
+        settings.setValue('ArrangeLayersOpen', self.settingArrangeLayersOpen)
         settings.endGroup()
 
         QDialog.accept(self)
