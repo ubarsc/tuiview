@@ -6,10 +6,6 @@ $ python setup.py install
 
 GDAL devel files need to be installed along with a C compiler
 
-For creation of cx freeze installer on Windows
-> /c/Python33/python.exe setup.py install
-> /c/Python33/python.exe setup_cxfreeze.py bdist_msi
-
 """
 # This file is part of 'TuiView' - a simple Raster viewer
 # Copyright (C) 2012  Sam Gillingham
@@ -46,11 +42,11 @@ def getGDALFlags():
     """
     extraargs = {}
     if sys.platform == 'win32':
-        # Windows - rely on $GDAL_HOME being set and set 
+        # Windows - rely on %GDAL_HOME% being set and set 
         # paths appropriately
         gdalhome = os.getenv('GDAL_HOME')
         if gdalhome is None:
-            raise SystemExit("need to define $GDAL_HOME")
+            raise SystemExit("need to define %GDAL_HOME%")
         extraargs['include_dirs'] = [os.path.join(gdalhome, 'include')]
         extraargs['library_dirs'] = [os.path.join(gdalhome, 'lib')]
         extraargs['libraries'] = ['gdal_i']
