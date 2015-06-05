@@ -1605,6 +1605,15 @@ class LayerManager(QObject):
                 rasterLayer = layer
                 break
         return rasterLayer
+        
+    def setStretchAllLayers(self, stretch, local=False):
+        """
+        Sets the stretch for all layers contained
+        by the LayerManager.
+        """
+        for layer in self.layers:
+            if isinstance(layer, ViewerRasterLayer):
+               layer.setNewStretch(local=local, newstretch=stretch)
 
     def getTopVectorLayer(self):
         """

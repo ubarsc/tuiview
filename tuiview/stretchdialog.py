@@ -878,6 +878,13 @@ class StretchDockWidget(QDockWidget):
         """
         Create the actions to be shown on the toolbar
         """
+        self.applyAllAction = QAction(self)
+        self.applyAllAction.setText("&Apply Stretch to All Open Files")
+        self.applyAllAction.setStatusTip("Apply Stretch to All Open Files")
+        self.applyAllAction.setIcon(QIcon(":/viewer/images/applyall.png"))
+        self.connect(self.applyAllAction, SIGNAL("triggered()"),
+                     self.onApplyAll)
+        
         self.applyAction = QAction(self)
         self.applyAction.setText("&Apply Stretch")
         self.applyAction.setStatusTip("Apply Stretch")
@@ -937,6 +944,7 @@ class StretchDockWidget(QDockWidget):
         Add the actions to the toolbar
         """
         self.toolBar.addAction(self.applyAction)
+        self.toolBar.addAction(self.applyAllAction)
         self.toolBar.addAction(self.localAction)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.saveAction)
@@ -944,6 +952,20 @@ class StretchDockWidget(QDockWidget):
         self.toolBar.addAction(self.exportToTextAction)
         self.toolBar.addAction(self.importFromGDALAction)
         self.toolBar.addAction(self.importFromTextAction)
+        
+    def onApplyAll(self):
+        """
+        The function to be run when the ApplyAll button is clicked (applies
+        a stretch to all files open in tuiview.
+        """
+        stretchvalue = self.stretchLayout.getStretch()
+        islocalchecked = self.localAction.isChecked()
+        try:
+            self.viewwidget.layers.setStretchAllLayers(stretchvalue,
+                                                       islocalchecked)
+            self.viewwidget.viewport().update()
+        except Exception as e:
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onApply(self):
         """
