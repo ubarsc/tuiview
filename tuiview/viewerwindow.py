@@ -1360,22 +1360,22 @@ File will now be opened using default stretch""")
         import sys
         from numpy import version as numpyVersion
 
-        msg = """ TuiView
-By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, 
-Pierre Roudier, Tony Gill, Robin Wilson and Dan Clewley.
+        msg = """<p align='center'>TuiView<br><br>
+By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, <br>
+Pierre Roudier, Tony Gill, Robin Wilson, Dan Clewley and Dale Peters.<br><br>
 
-Development funded by Landcare Research NZ Ltd.
+Development funded by Landcare Research NZ Ltd.<br><br>
 
-Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, 
-Pennsylvania State University.
+Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography,<br>
+Pennsylvania State University.<br><br>
 
-Version: %s
-Installed in: %s
-GDAL Version: %s
-PyQt Version: %s
-Qt Version: %s
-Python Version: %s
-Numpy Version: %s
+Version: %s<br>
+Installed in: %s<br>
+GDAL Version: %s<br>
+PyQt Version: %s<br>
+Qt Version: %s<br>
+Python Version: %s<br>
+Numpy Version: %s<br></p>
 """
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
