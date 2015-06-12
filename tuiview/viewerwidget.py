@@ -175,14 +175,14 @@ class ViewerWidget(QAbstractScrollArea):
         self.suppressscrollevent = False
 
     def addRasterLayer(self, gdalDataset, stretch, lut=None, 
-                ignoreProjectionMismatch=False):
+                ignoreProjectionMismatch=False, quiet=False):
         """
         Add the given dataset to the stack of images being displayed
         as a raster layer
         """
         size = self.viewport().size()
         self.layers.addRasterLayer(gdalDataset, size.width(), size.height(), 
-                            stretch, lut, ignoreProjectionMismatch)
+                            stretch, lut, ignoreProjectionMismatch, quiet)
         # get rid off tool points
         self.toolPoints = None
         self.toolPointsFinished = True
@@ -193,7 +193,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, color=None, 
-                                    resultSet=False):
+                                    resultSet=False, quiet=False):
         """
         Add the vector given by the ogrDataSource and its dependent 
         ogrLayer to the stack of images.
@@ -203,14 +203,14 @@ class ViewerWidget(QAbstractScrollArea):
             color = viewerlayers.DEFAULT_VECTOR_COLOR
 
         self.layers.addVectorLayer(ogrDataSource, ogrLayer, size.width(), 
-                    size.height(), color, resultSet)
+                    size.height(), color, resultSet, quiet)
         self.viewport().update()
         self.updateScrollBars()
 
         self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
 
     def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
-                                    color=None):
+                                    color=None, quiet=None):
         """
         Just a single feature vector
         """
@@ -219,7 +219,7 @@ class ViewerWidget(QAbstractScrollArea):
             color = viewerlayers.DEFAULT_VECTOR_COLOR
 
         self.layers.addVectorFeatureLayer(ogrDataSource, ogrLayer, ogrFeature, 
-                    size.width(), size.height(), color)
+                    size.width(), size.height(), color, quiet)
         self.viewport().update()
         self.updateScrollBars()
 

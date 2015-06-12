@@ -269,6 +269,7 @@ class ViewerLayer(object):
         self.filename = None
         self.title = None # basename of filename
         self.displayed = True # use LayerManager.setDisplayedState
+        self.quiet = False # not displayed in title bar. Set when calling add*()
 
     def getImage(self):
         "return a QImage with the data in it"
@@ -1347,7 +1348,7 @@ class LayerManager(QObject):
         """
         newTopLayer = None
         for layer in self.layers:
-            if layer.displayed:
+            if layer.displayed and not layer.quiet:
                 newTopLayer = layer
                 # don't break since we want the last layer
                 # - top one is displayed
@@ -1408,13 +1409,14 @@ class LayerManager(QObject):
         return bool(sr1.IsSame(sr2))
 
     def addRasterLayer(self, gdalDataset, width, height, stretch, lut=None,
-                        ignoreProjectionMismatch=False):
+                        ignoreProjectionMismatch=False, quiet=False):
         """
         Add a new raster layer with given display width and height, stretch
         and optional lut.
         """
         # create and open
         layer = ViewerRasterLayer(self)
+        layer.quiet = quiet
         layer.open(gdalDataset, width, height, stretch, lut)
 
         if len(self.layers) > 0:
@@ -1442,7 +1444,8 @@ class LayerManager(QObject):
         self.updateTopFilename()
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
-                                color=DEFAULT_VECTOR_COLOR, resultSet=False):
+                                color=DEFAULT_VECTOR_COLOR, resultSet=False,
+                                quiet=False):
         """
         Add a vector layer. 
         """
@@ -1453,6 +1456,7 @@ class LayerManager(QObject):
             extent = topLayer.coordmgr.getWorldExtent()
 
         layer = ViewerVectorLayer()
+        layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
                                 resultSet)
 
@@ -1464,7 +1468,8 @@ class LayerManager(QObject):
         self.updateTopFilename()
 
     def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
-                                width, height, color=DEFAULT_VECTOR_COLOR):
+                                width, height, color=DEFAULT_VECTOR_COLOR,
+                                quiet=False):
         """
         Add a vector feature layer
         """
@@ -1474,6 +1479,7 @@ class LayerManager(QObject):
             extent = topLayer.coordmgr.getWorldExtent()
 
         layer = ViewerFeatureVectorLayer()
+        layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, ogrFeature, width, 
                             height, extent, color)
 
