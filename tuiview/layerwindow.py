@@ -19,7 +19,7 @@ Module that contains the LayerWindow class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
-from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction
+from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction, QAbstractItemView
 from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
 
 from . import viewerlayers
@@ -109,6 +109,7 @@ class LayerListView(QListView):
     """
     def __init__(self):
         QListView.__init__(self)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setupActions()
         self.setupMenu()
 
@@ -122,12 +123,12 @@ class LayerListView(QListView):
         self.connect(self.layerExtentAct, SIGNAL("triggered()"), self.zoomLayer)
 
         self.removeLayerAct = QAction(self)
-        self.removeLayerAct.setText("&Remove Layer")
-        self.removeLayerAct.setStatusTip("Remove selected layer")
+        self.removeLayerAct.setText("&Remove Selected Layer(s)")
+        self.removeLayerAct.setStatusTip("Remove selected layer(s)")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
         self.removeLayerAct.setIconVisibleInMenu(True)
         self.connect(self.removeLayerAct, SIGNAL("triggered()"), 
-                                                        self.removeLayer)
+                                                        self.removeLayers)
 
         self.moveUpAct = QAction(self)
         self.moveUpAct.setText("Move &Up")
@@ -234,15 +235,16 @@ class LayerListView(QListView):
             model.viewwidget.layers.updateImages()
             model.viewwidget.viewport().update()
 
-    def removeLayer(self):
+    def removeLayers(self):
         "remove the selected layer"
         selected = self.selectedIndexes()
         if len(selected) > 0:
-            index = selected[0]
-
             model = self.model()
-            layer = model.getLayer(index)
-            model.viewwidget.layers.removeLayer(layer)
+
+            for layer_obj in selected:
+                layer = model.getLayer(layer_obj)
+                model.viewwidget.layers.removeLayer(layer)
+
             model.viewwidget.viewport().update()
 
     def moveUp(self):

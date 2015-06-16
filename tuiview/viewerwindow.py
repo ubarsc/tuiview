@@ -344,8 +344,8 @@ class ViewerWindow(QMainWindow):
         self.vectorMenu.addAction(self.addVectorDBAct)
 
         self.removeLayerAct = QAction(self)
-        self.removeLayerAct.setText("&Remove Layer")
-        self.removeLayerAct.setStatusTip("Remove top layer")
+        self.removeLayerAct.setText("&Remove Selected Layer(s)")
+        self.removeLayerAct.setStatusTip("Remove selected layer(s)")
         self.removeLayerAct.setShortcut("CTRL+R")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
         self.removeLayerAct.setIconVisibleInMenu(True)
@@ -945,7 +945,16 @@ File will now be opened using default stretch""")
         """
         Remove the top most layer
         """
-        self.viewwidget.removeLayer()
+        selected_layers = self.layerWindow.listView.selectedIndexes()
+
+        if len(selected_layers) == 0:
+            self.viewwidget.removeLayer()
+        else:
+            model = self.layerWindow.listView.model()
+            for layer_object in selected_layers:
+                layer = model.getLayer(layer_object)
+                model.viewwidget.layers.removeLayer(layer)
+            model.viewwidget.viewport().update()
 
     def layerWindowClosed(self, window):
         """
