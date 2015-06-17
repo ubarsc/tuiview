@@ -945,14 +945,20 @@ File will now be opened using default stretch""")
         """
         Remove the top most layer
         """
-        selected_layers = self.layerWindow.listView.selectedIndexes()
+        try:
+            selected_layers = self.layerWindow.listView.selectedIndexes()
+        except AttributeError:
+            # Layer windows is not open
+            selected_layers = []
 
         if len(selected_layers) == 0:
             self.viewwidget.removeLayer()
         else:
             model = self.layerWindow.listView.model()
-            for layer_object in selected_layers:
-                layer = model.getLayer(layer_object)
+            # Get the layers before deleting them.
+            layers = [model.getLayer(layer) for layer in selected_layers]
+
+            for layer in layers:
                 model.viewwidget.layers.removeLayer(layer)
             model.viewwidget.viewport().update()
 
