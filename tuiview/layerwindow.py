@@ -237,12 +237,17 @@ class LayerListView(QListView):
 
     def removeLayers(self):
         "remove the selected layer"
-        selected = self.selectedIndexes()
+        try:
+            selected = self.selectedIndexes()
+        except AttributeError:
+            # Layer windows is not open
+            selected = []
+
         if len(selected) > 0:
             model = self.model()
+            layers = [model.getLayer(layer) for layer in selected]
 
-            for layer_obj in selected:
-                layer = model.getLayer(layer_obj)
+            for layer in layers:
                 model.viewwidget.layers.removeLayer(layer)
 
             model.viewwidget.viewport().update()
