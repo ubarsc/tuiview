@@ -94,14 +94,13 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
             if driver is not None:
                 qfilter = createFilter(driver)
                 GDAL_FILTERS.append(qfilter)
-
-        else:
-            # If there is no GDAL driver try non-GDAL drivers dict
-            try:
-                qfilter = NON_GDAL_FILTERS[defaultDriver]
-                GDAL_FILTERS.append(qfilter)
-            except KeyError:
-                pass
+            else:
+                # If there is no GDAL driver try non-GDAL drivers dict
+                try:
+                    qfilter = NON_GDAL_FILTERS[defaultDriver]
+                    GDAL_FILTERS.append(qfilter)
+                except KeyError:
+                    pass
 
         # add all files next
         GDAL_FILTERS.append("All files (*)")
