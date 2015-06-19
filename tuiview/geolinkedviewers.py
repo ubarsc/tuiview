@@ -20,7 +20,7 @@ Contains the GeolinkedViewers class.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import math
-from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt, QEventLoop
+from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt, QEventLoop, QRect
 from PyQt4.QtGui import QApplication
 
 from . import viewerwindow
@@ -150,6 +150,12 @@ class GeolinkedViewers(QObject):
         # signal for new query window been opened
         self.connect(newviewer, SIGNAL("newQueryWindow(PyQt_PyObject)"), 
                     self.onNewQueryWindow)
+        # signal for request to write viewers state to a file
+        self.connect(newviewer, SIGNAL("writeViewersState(PyQt_PyObject)"),
+                    self.writeViewersState)
+        # signal for request to read viewers state from file
+        self.connect(newviewer, SIGNAL("readViewersState(PyQt_PyObject)"),
+                    self.readViewersState)
 
     def onNewWindow(self):
         """
@@ -170,6 +176,8 @@ class GeolinkedViewers(QObject):
 
         # emit a signal so that application can do any customisation
         self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
+
+        return newviewer
 
     def onNewQueryWindow(self, querywindow):
         """
@@ -287,3 +295,35 @@ class GeolinkedViewers(QObject):
             # identify them.
             if id(viewer.viewwidget) != obj.senderid:
                 viewer.viewwidget.doGeolinkQueryPoint(obj.easting, obj.northing)
+
+    def writeViewersState(self, fileobj):
+        """
+        Gets the state of all the viewers (location, layers etc) as a json encoded
+        string and write it to fileobj
+        """
+        import json
+        viewers = self.getViewerList()
+        s = json.dumps({'name':'tuiview', 'nviewers':len(viewers)}) + '\n'
+        fileobj.write(s)
+        for viewer in viewers:
+            pos = viewer.pos()
+            viewerDict = {'nlayers':0, 'x':pos.x(), 'y':pos.y(), 
+                    'width':viewer.width(), 'height':viewer.height()}
+            s = json.dumps(viewerDict) + '\n'
+            fileobj.write(s)
+
+    def readViewersState(self, fileobj):
+        """
+        Reads viewer state from the fileobj and restores viewers 
+        """
+        import json
+        headerDict = json.loads(fileobj.readline())
+        if 'name' not in headerDict or headerDict['name'] != 'tuiview':
+            raise ValueError('File not written by tuiview')
+
+        for n in range(headerDict['nviewers']):
+            viewer = self.onNewWindow()
+            viewerDict = json.loads(fileobj.readline())
+            viewer.move(viewerDict['x'], viewerDict['y'])
+            viewer.resize(viewerDict['width'], viewerDict['height'])
+

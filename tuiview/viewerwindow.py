@@ -558,6 +558,20 @@ class ViewerWindow(QMainWindow):
         self.connect(self.saveCurrentViewAct, SIGNAL("triggered()"),
                                 self.saveCurrentView)
 
+        self.saveCurrentViewersState = QAction(self)
+        self.saveCurrentViewersState.setText("Save State of All Viewers")
+        self.saveCurrentViewersState.setStatusTip(
+                "Save state of Viewers to a file so they can be restored")
+        self.connect(self.saveCurrentViewersState, SIGNAL("triggered()"),
+                                self.saveViewersState)
+
+        self.loadCurrentViewersState = QAction(self)
+        self.loadCurrentViewersState.setText("Load State of Viewers")
+        self.loadCurrentViewersState.setStatusTip(
+                "Restore state of viewers previously saved")
+        self.connect(self.loadCurrentViewersState, SIGNAL("triggered()"),
+                                self.loadViewersState)
+
         self.aboutAct = QAction(self)
         self.aboutAct.setText("&About")
         self.aboutAct.setStatusTip("Show author and version information")
@@ -602,6 +616,8 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.tileWindowsAct)
         fileMenu.addAction(self.defaultStretchAct)
         fileMenu.addAction(self.saveCurrentViewAct)
+        fileMenu.addAction(self.saveCurrentViewersState)
+        fileMenu.addAction(self.loadCurrentViewersState)
         fileMenu.addAction(self.propertiesAct)
         fileMenu.addAction(self.exitAct)
         fileMenu.insertSeparator(self.exitAct)
@@ -1454,3 +1470,46 @@ Numpy Version: %s<br></p>
     def queryOnlyDisplayed(self, state):
         "Change the state of the querying behaviour"
         self.viewwidget.setQueryOnlyDisplayed(state)
+
+    def saveViewersState(self):
+        """
+        Get the geolinked viewers class to save the state as a file
+        """
+        # set last dir
+        layer = self.viewwidget.layers.getTopLayer()
+        if layer is not None:
+            dir = os.path.dirname(layer.filename)
+            if dir == '':
+                dir = os.getcwd()
+        else:
+            # or cwd
+            dir = os.getcwd()
+        fname = QFileDialog.getSaveFileName(self, "Select file to save state into",
+                    dir, "TuiView State .tuiview (*.tuiview)")
+
+        if fname != "":
+            fileobj = open(fname, 'w')
+            self.emit(SIGNAL("writeViewersState(PyQt_PyObject)"), fileobj)
+            fileobj.close()
+
+    def loadViewersState(self):
+        """
+        Get the geolinked viewers class to open previously saved state file
+        """
+        # set last dir
+        layer = self.viewwidget.layers.getTopLayer()
+        if layer is not None:
+            dir = os.path.dirname(layer.filename)
+            if dir == '':
+                dir = os.getcwd()
+        else:
+            # or cwd
+            dir = os.getcwd()
+        fname = QFileDialog.getOpenFileName(self, "Select file to restore state from",
+                    dir, "TuiView State .tuiview (*.tuiview)")
+
+        if fname != "":
+            fileobj = open(fname)
+            self.emit(SIGNAL("readViewersState(PyQt_PyObject)"), fileobj)
+            fileobj.close()
+
