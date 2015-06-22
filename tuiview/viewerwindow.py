@@ -915,6 +915,7 @@ File will now be opened using default stretch""")
         """
         from osgeo import ogr
         isResultSet = False
+        origSQL = None
         try:
             ds = ogr.Open(str(path))
             if ds is None:
@@ -941,7 +942,8 @@ File will now be opened using default stretch""")
                             lyr = ds.GetLayerByName(str(name))
                         else:
                             sql = dlg.getSQL()
-                            lyr = ds.ExecuteSQL(str(sql))
+                            origSQL = str(sql)
+                            lyr = ds.ExecuteSQL(origSQL)
                             if lyr is None:
                                 raise IOError("Invalid SQL")                                
                             isResultSet = True
@@ -951,7 +953,8 @@ File will now be opened using default stretch""")
             else:
                 lyr = ds.GetLayerByName(layername)
                 
-            self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet)
+            self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet,
+                                        origSQL=origSQL)
 
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )

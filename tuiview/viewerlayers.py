@@ -26,6 +26,7 @@ import json
 import numpy
 from osgeo import gdal
 from osgeo import osr
+from osgeo import ogr
 from PyQt4.QtGui import QImage, QPainter, QPen
 from PyQt4.QtCore import QObject, SIGNAL
 import threading
@@ -351,10 +352,7 @@ class ViewerRasterLayer(ViewerLayer):
         self.quiet = dict['quiet']
         self.displayed = dict['displayed']
 
-        try:
-            ds = gdal.Open(filename, gdal.GA_Update)
-        except RuntimeError:
-            raise viewererrors.InvalidDataset('Unable to read file')
+        ds = gdal.Open(filename, gdal.GA_Update)
 
         stretch = viewerstretch.ViewerStretch.fromString(dict['stretch'])
         lut = viewerLUT.ViewerLUT.createFromFile(fileobj, stretch)
@@ -1136,6 +1134,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.lut = numpy.zeros((2, 4), numpy.uint8)
         self.image = None
         self.filename = None
+        self.origSQL = None # if query, not layer name (isResultSet = True)
         self.sql = None
         self.linewidth = 1
         self.isResultSet = False
@@ -1148,6 +1147,59 @@ class ViewerVectorLayer(ViewerLayer):
         if (self.isResultSet and self.ogrDataSource is not None and 
                     self.ogrLayer is not None):
             self.ogrDataSource.ReleaseResultSet(self.ogrLayer)
+
+    def toFile(self, fileobj):
+        "write information to re-create layer as JSON"
+        dict = {'type' : 'vector'}
+        fileobj.write(json.dumps(dict) + '\n')
+
+        dict = {'filename' : self.filename, 'displayed' : self.displayed,
+            'quiet' : self.quiet, 'filterSQL': self.sql, 
+            'linewidth':self.linewidth,}
+        # the values out of getColorAsRGBATuple are numpy.uint8's
+        # which confuses json. Convert to ints
+        dict['color'] = [int(x) for x in self.getColorAsRGBATuple()]
+
+        if self.isResultSet:
+            dict['origSQL'] = self.origSQL
+        else:
+            dict['layerName'] = self.ogrLayer.GetName()
+
+        fileobj.write(json.dumps(dict) + '\n')
+
+    def fromFile(self, fileobj, width, height):
+        """
+        Initialise this instance of the class with information from json in fileobj
+        """
+        line = fileobj.readline()
+        dict = json.loads(line)
+        filename = dict['filename']
+        self.quiet = dict['quiet']
+        self.displayed = dict['displayed']
+
+        ds = ogr.Open(filename)
+
+        if 'origSQL' in dict:
+            # result of a query
+            origSQL = dict['origSQL']
+            lyr = ds.ExecuteSQL(origSQL)
+            isResultSet = True
+        else:
+            # a normal layer
+            lyr = ds.GetLayerByName(dict['layerName'])
+            origSQL = None
+            isResultSet = False
+
+        colour = dict['color']
+
+        self.open(ds, lyr, width, height, color=colour, resultSet=isResultSet,
+                    origSQL=origSQL)
+
+        sql = dict['filterSQL']
+        if sql is not None:
+            self.setSQL(sql)
+
+        self.setLineWidth(dict['linewidth'])
         
     def setSQL(self, sql=None):
         "sets the sql attribute filter"
@@ -1184,12 +1236,13 @@ class ViewerVectorLayer(ViewerLayer):
             self.lut[1,lutindex] = value
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
-                    color=DEFAULT_VECTOR_COLOR, resultSet=False):
+                    color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None):
         """
         Use the supplied datasource and layer for accessing vector data
         keeps a reference to the datasource and layer
         If resultSet is True then ogrDataSource.ReleaseResultSet is called
-        on destruction.
+        on destruction. If resultSet is True then origSQL should be passed so
+        layer can be recreated if saved as json
         """
         self.filename = ogrDataSource.GetName()
         self.title = os.path.basename(self.filename)
@@ -1197,6 +1250,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.ogrLayer = ogrLayer
         self.setColor(color)
         self.isResultSet = resultSet
+        self.origSQL = origSQL
 
         self.coordmgr.setDisplaySize(width, height)
         bbox = ogrLayer.GetExtent()
@@ -1491,9 +1545,9 @@ class LayerManager(QObject):
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
                                 color=DEFAULT_VECTOR_COLOR, resultSet=False,
-                                quiet=False):
+                                origSQL=None, quiet=False):
         """
-        Add a vector layer. 
+        Add a vector layer. See ViewerVectorLayer.open for more info on params
         """
         # copy the current extent, if available
         extent = None
@@ -1504,7 +1558,7 @@ class LayerManager(QObject):
         layer = ViewerVectorLayer()
         layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
-                                resultSet)
+                                resultSet, origSQL)
 
         layer.getImage()
         self.layers.append(layer)
@@ -1785,7 +1839,15 @@ class LayerManager(QObject):
                 layer.getImage()
                 self.layers.append(layer)
                 self.recalcFullExtent()
+            elif ltype == 'vector':
 
+                layer = ViewerVectorLayer()
+                layer.fromFile(fileobj, width, height)
+
+                layer.getImage()
+                self.layers.append(layer)
+
+                self.recalcFullExtent()
             else:
                 raise ValueError('unsupported layer type')
 
