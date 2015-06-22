@@ -22,6 +22,7 @@ this module contains the LayerManager and related classes
 from __future__ import print_function
 import os
 import sys
+import json
 import numpy
 from osgeo import gdal
 from osgeo import osr
@@ -279,6 +280,16 @@ class ViewerLayer(object):
         "Return the properties as a PropertyInfo instance we can show the user"
         raise NotImplementedError("Must implement in derived class")
 
+    def toFile(self, fileobj):
+        "write information to re-create layer as JSON"
+        raise NotImplementedError("Must implement in derived class")
+
+    def fromFile(self, fileobj, width, height):
+        """
+        Initialise this instance of the class with information from json in fileobj
+        """
+        raise NotImplementedError("Must implement in derived class")
+
 VIEWER_NONSQUARE_PIXEL_THRESHOLD = 0.001 # 0.1%
 
 class ViewerRasterLayer(ViewerLayer):
@@ -315,6 +326,41 @@ class ViewerRasterLayer(ViewerLayer):
         layermanager.connect(self.attributes, SIGNAL("newPercent(int)"), 
                                                     layermanager.newPercent)
 
+    def toFile(self, fileobj):
+        """
+        Write all the information needed to re-open this layer
+        """
+        dict = {'type' : 'raster'}
+        fileobj.write(json.dumps(dict) + '\n')
+
+        dict = {'filename' : self.filename, 'update' : self.updateAccess,
+            'stretch' : self.stretch.toString(), 'displayed' : self.displayed,
+            'quiet' : self.quiet}
+        fileobj.write(json.dumps(dict) + '\n')
+        self.lut.saveToFile(fileobj)
+
+    def fromFile(self, fileobj, width, height):
+        """
+        Reads information (written by toFile) and builds a layer
+        assumes that the 'type' line has already been read.
+        """
+        line = fileobj.readline()
+        dict = json.loads(line)
+
+        filename = dict['filename']
+        self.quiet = dict['quiet']
+        self.displayed = dict['displayed']
+
+        try:
+            ds = gdal.Open(filename, gdal.GA_Update)
+        except RuntimeError:
+            raise viewererrors.InvalidDataset('Unable to read file')
+
+        stretch = viewerstretch.ViewerStretch.fromString(dict['stretch'])
+        lut = viewerLUT.ViewerLUT.createFromFile(fileobj, stretch)
+
+        self.open(ds, width, height, stretch, lut)
+        self.changeUpdateAccess(dict['update']) # won't do anything if already ro
 
     def open(self, gdalDataset, width, height, stretch, lut=None):
         """
@@ -1698,6 +1744,54 @@ class LayerManager(QObject):
             layer.coordmgr.setWorldExtent(self.fullextent)
             self.makeLayersConsistent(layer)
             self.updateImages()
+
+    def toFile(self, fileobj):
+        """
+        Save all the layers and info needed to re-create them 
+        to the fileobj as JSON.
+        """
+        for layer in self.layers:
+            try:
+                layer.toFile(fileobj)
+            except NotImplementedError:
+                # ignore for now
+                pass
+
+    def fromFile(self, fileobj, nlayers, width, height):
+        """
+        Tries to read the json out of fileobj and reconstruct
+        all the layers
+        """
+        for n in range(nlayers):
+            line = fileobj.readline()
+            dict = json.loads(line)
+            # find the type of the layer
+            ltype = dict['type']
+            if ltype == 'raster':
+                layer = ViewerRasterLayer(self)
+                layer.fromFile(fileobj, width, height)
+        
+                if len(self.layers) > 0:
+                    # get the existing extent
+                    extent = self.layers[-1].coordmgr.getWorldExtent()
+                    layer.coordmgr.setWorldExtent(extent)
+
+                # don't do projection check, but maybe should?
+        
+                # ensure the query points have the correct extent
+                extent = layer.coordmgr.getWorldExtent()
+                self.queryPointLayer.coordmgr.setWorldExtent(extent)
+
+                layer.getImage()
+                self.layers.append(layer)
+                self.recalcFullExtent()
+
+            else:
+                raise ValueError('unsupported layer type')
+
+        self.emit(SIGNAL("layersChanged()"))
+        self.updateTopFilename()
+
 
     # the following functions are needed as this class
     # acts as a 'proxy' between the RAT and LUT's inside

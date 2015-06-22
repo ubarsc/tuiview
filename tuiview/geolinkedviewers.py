@@ -20,8 +20,9 @@ Contains the GeolinkedViewers class.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import math
+import json
 from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt, QEventLoop, QRect
-from PyQt4.QtGui import QApplication
+from PyQt4.QtGui import QApplication, QMessageBox
 
 from . import viewerwindow
 from . import pluginmanager
@@ -301,25 +302,45 @@ class GeolinkedViewers(QObject):
         Gets the state of all the viewers (location, layers etc) as a json encoded
         string and write it to fileobj
         """
-        import json
         viewers = self.getViewerList()
-        s = json.dumps({'name':'tuiview', 'nviewers':len(viewers)}) + '\n'
+
+        # see if we can get a GeolinkInfo
+        # should all be the same since geolinked
+        geolinkStr = 'None'
+        for viewer in viewers:
+            info = viewer.viewwidget.getGeolinkInfo()
+            if info is not None:
+                geolinkStr = info.toString()
+                break
+        
+        s = json.dumps({'name':'tuiview', 'nviewers':len(viewers), 
+                        'geolink':geolinkStr}) + '\n'
         fileobj.write(s)
         for viewer in viewers:
             pos = viewer.pos()
-            viewerDict = {'nlayers':0, 'x':pos.x(), 'y':pos.y(), 
+            nlayers = len(viewer.viewwidget.layers.layers)
+            viewerDict = {'nlayers':nlayers, 'x':pos.x(), 'y':pos.y(), 
                     'width':viewer.width(), 'height':viewer.height()}
             s = json.dumps(viewerDict) + '\n'
             fileobj.write(s)
+
+            # now get the layers to write themselves out
+            viewer.viewwidget.layers.toFile(fileobj)
 
     def readViewersState(self, fileobj):
         """
         Reads viewer state from the fileobj and restores viewers 
         """
-        import json
+        from . import viewerwidget
         headerDict = json.loads(fileobj.readline())
         if 'name' not in headerDict or headerDict['name'] != 'tuiview':
             raise ValueError('File not written by tuiview')
+
+        geolinkStr = headerDict['geolink']
+        if geolinkStr != 'None':
+            geolink = viewerwidget.GeolinkInfo.fromString(geolinkStr)
+        else:
+            geolink = None
 
         for n in range(headerDict['nviewers']):
             viewer = self.onNewWindow()
@@ -327,3 +348,8 @@ class GeolinkedViewers(QObject):
             viewer.move(viewerDict['x'], viewerDict['y'])
             viewer.resize(viewerDict['width'], viewerDict['height'])
 
+            viewer.addLayersFromJSONFile(fileobj, viewerDict['nlayers'])
+                
+        # set the location if any
+        if geolink is not None:
+            self.onMove(geolink)

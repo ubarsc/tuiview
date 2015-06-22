@@ -956,6 +956,15 @@ File will now be opened using default stretch""")
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
+    def addLayersFromJSONFile(self, fileobj, nlayers):
+        """
+        Gets the widget to read layer definitions from fileobj and add them
+        """
+        try:
+            self.viewwidget.addLayersFromJSONFile(fileobj, nlayers)
+        except Exception as e:
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+
     def removeLayer(self):
         """
         Remove the top most layer

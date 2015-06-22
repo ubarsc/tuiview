@@ -21,6 +21,7 @@ zooming and panning etc.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from __future__ import division # ensure we are using Python 3 semantics
+import json
 import numpy
 from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QApplication
 from PyQt4.QtGui import QPixmap, QPainterPath, QPen
@@ -56,6 +57,24 @@ class GeolinkInfo(object):
         self.easting = easting
         self.northing = northing
         self.metresperwinpix = metresperwinpix
+
+    def toString(self):
+        """
+        Return as json
+        """
+        dict = {'easting' : self.easting, 'northing' : self.northing, 
+            'metresperwinpix' : self.metresperwinpix}
+        return json.dumps(dict)
+
+    @staticmethod
+    def fromString(jstring):
+        """
+        Create an instance from json
+        """
+        dict = json.loads(jstring)
+        obj = GeolinkInfo(0, dict['easting'], dict['northing'],
+                dict['metresperwinpix'])
+        return obj
 
 class ActiveToolChangedInfo(object):
     """
@@ -220,6 +239,19 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.layers.addVectorFeatureLayer(ogrDataSource, ogrLayer, ogrFeature, 
                     size.width(), size.height(), color, quiet)
+        self.viewport().update()
+        self.updateScrollBars()
+
+        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+
+    def addLayersFromJSONFile(self, fileobj, nlayers):
+        """
+        Get the layer manager to read all the layer descriptions from fileobj
+        and load these layers into this widget.
+        """
+        size = self.viewport().size()
+        self.layers.fromFile(fileobj, nlayers, size.width(), size.height())
+
         self.viewport().update()
         self.updateScrollBars()
 
@@ -968,18 +1000,28 @@ class ViewerWidget(QAbstractScrollArea):
             self.updateScrollBars()
             self.viewport().update()
 
-    def emitGeolinkMoved(self):
+    def getGeolinkInfo(self):
         """
-        Call this on each zoom/pan to emit the appropriate signal.
+        Called by emitGeolinkMoved and anything else that needs the
+        current GeolinkInfo
         """
+        info = None
         # get the coords of the current centre
         layer = self.layers.getTopRasterLayer()
         if layer is not None:
             easting, northing = layer.coordmgr.getWorldCenter()
             metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
                                         layer.coordmgr.geotransform[1])
+            info = GeolinkInfo(id(self), easting, northing, metresperwinpix)
+        return info
+
+    def emitGeolinkMoved(self):
+        """
+        Call this on each zoom/pan to emit the appropriate signal.
+        """
+        info = self.getGeolinkInfo()
+        if info is not None:
             # emit the signal
-            obj = GeolinkInfo(id(self), easting, northing, metresperwinpix)
-            self.emit(SIGNAL("geolinkMove(PyQt_PyObject)"), obj )
+            self.emit(SIGNAL("geolinkMove(PyQt_PyObject)"), info )
 
 
