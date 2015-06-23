@@ -140,6 +140,8 @@ class CmdArgs(object):
         self.parser.add_option('-v', '--vector', action='append', dest="vectors",
                             help="overlay vector file on top of rasters." +
                             " Can be specified multple times")
+        self.parser.add_option('-t', '--savedstate', dest='savedstate', 
+                            help="path to a .tuiview file with saved viewers state")
 
         (options, self.args) = self.parser.parse_args()
         self.__dict__.update(options.__dict__)
@@ -172,7 +174,7 @@ class ViewerApplication(QApplication):
                 ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
             raise SystemExit(msg)
 
-        if len(cmdargs.args) == 0:
+        if len(cmdargs.args) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
         else:
             if cmdargs.separate:
@@ -187,6 +189,12 @@ class ViewerApplication(QApplication):
                         viewer = self.viewers.newViewer(filename, stretch)
                     else:
                         viewer.addRasterInternal(filename, stretch)
+
+        # saved state
+        if cmdargs.savedstate is not None:
+            fileobj = open(cmdargs.savedstate)
+            self.viewers.readViewersState(fileobj)
+            fileobj.close()
 
         # open vectors in all viewer windows
         if cmdargs.vectors is not None:
