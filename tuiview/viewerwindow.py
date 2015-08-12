@@ -22,6 +22,7 @@ the ViewerWidget, menus, toolbars and status bars.
 
 import os
 import sys
+import traceback
 from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
 from PyQt4.QtGui import QMessageBox, QProgressBar, QToolButton
 from PyQt4.QtGui import QMenu, QColor
@@ -36,6 +37,9 @@ else:
 from . import archivereader
 from . import viewerwidget
 from . import viewererrors
+
+# set to True to see traceback when file open fails
+SHOW_TRACEBACK = False 
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -830,6 +834,8 @@ class ViewerWindow(QMainWindow):
             gdal.PushErrorHandler('CPLQuietErrorHandler')
             gdaldataset = gdal.Open(fname)
         except RuntimeError as err:
+            if SHOW_TRACEBACK:
+                traceback.print_exc(file=sys.stdout)
             if showError:
                 msg = "Unable to open %s\n%s" % (fname,err)
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
@@ -875,6 +881,8 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                     self.viewwidget.addRasterLayer(gdaldataset, stretch, lut,
                             ignoreProjectionMismatch=True)
                 except Exception as e:
+                    if SHOW_TRACEBACK:
+                        traceback.print_exc(file=sys.stdout)
                     if showError:
                         QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
                     else:
@@ -900,6 +908,8 @@ File will now be opened using default stretch""")
             self.addRasterInternal(fname, stretch=stretch)
 
         except Exception as e:
+            if SHOW_TRACEBACK:
+                traceback.print_exc(file=sys.stdout)
             if showError:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
             else:
@@ -957,6 +967,8 @@ File will now be opened using default stretch""")
                                         origSQL=origSQL)
 
         except Exception as e:
+            if SHOW_TRACEBACK:
+                traceback.print_exc(file=sys.stdout)
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def addLayersFromJSONFile(self, fileobj, nlayers):
