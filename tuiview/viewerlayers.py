@@ -1379,6 +1379,13 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         "Update feature to draw"
         self.ogrFeature = ogrFeature
 
+    def toFile(self, fileobj):
+        """
+        This doesn't make sense since the ogrDataSource etc
+        is owned by the driving program so we can't recreate it
+        """
+        raise NotImplementedError()
+
     def open(self, ogrDataSource, ogrLayer, ogrFeature, width, height, 
                     extent=None, color=DEFAULT_VECTOR_COLOR):
         "Set Data source, plus first feature to rasterize"
