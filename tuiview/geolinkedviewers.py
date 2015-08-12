@@ -302,6 +302,7 @@ class GeolinkedViewers(QObject):
         Gets the state of all the viewers (location, layers etc) as a json encoded
         string and write it to fileobj
         """
+        from .viewerlayers import ViewerQueryPointLayer, ViewerFeatureVectorLayer
         viewers = self.getViewerList()
 
         # see if we can get a GeolinkInfo
@@ -318,7 +319,14 @@ class GeolinkedViewers(QObject):
         fileobj.write(s)
         for viewer in viewers:
             pos = viewer.pos()
-            nlayers = len(viewer.viewwidget.layers.layers)
+            # we have to be careful since not all layer types
+            # are saved. Must be a better way...
+            nlayers = 0
+            for layer in viewer.viewwidget.layers.layers:
+                if (not isinstance(layer, ViewerQueryPointLayer) and 
+                        not isinstance(layer, ViewerFeatureVectorLayer)):
+                    nlayers += 1
+
             viewerDict = {'nlayers':nlayers, 'x':pos.x(), 'y':pos.y(), 
                     'width':viewer.width(), 'height':viewer.height()}
             s = json.dumps(viewerDict) + '\n'

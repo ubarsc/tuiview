@@ -39,7 +39,7 @@ from . import viewerwidget
 from . import viewererrors
 
 # set to True to see traceback when file open fails
-SHOW_TRACEBACK = False 
+SHOW_TRACEBACK = False
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -835,7 +835,7 @@ class ViewerWindow(QMainWindow):
             gdaldataset = gdal.Open(fname)
         except RuntimeError as err:
             if SHOW_TRACEBACK:
-                traceback.print_exc(file=sys.stdout)
+                traceback.print_exc()
             if showError:
                 msg = "Unable to open %s\n%s" % (fname,err)
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
@@ -882,7 +882,7 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                             ignoreProjectionMismatch=True)
                 except Exception as e:
                     if SHOW_TRACEBACK:
-                        traceback.print_exc(file=sys.stdout)
+                        traceback.print_exc()
                     if showError:
                         QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
                     else:
@@ -909,7 +909,7 @@ File will now be opened using default stretch""")
 
         except Exception as e:
             if SHOW_TRACEBACK:
-                traceback.print_exc(file=sys.stdout)
+                traceback.print_exc()
             if showError:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
             else:
@@ -968,7 +968,7 @@ File will now be opened using default stretch""")
 
         except Exception as e:
             if SHOW_TRACEBACK:
-                traceback.print_exc(file=sys.stdout)
+                traceback.print_exc()
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
 
     def addLayersFromJSONFile(self, fileobj, nlayers):
