@@ -103,6 +103,13 @@ class GeolinkedViewers(QObject):
             viewer.viewwidget.setQueryPoint(senderid, easting, northing, color,
                                                     size, cursor)
 
+    def removeQueryPointAll(self, senderid):
+        """
+        Calls removeQueryPoint on all the widgets
+        """
+        for viewer in self.viewers:
+            viewer.viewwidget.removeQueryPoint(senderid)
+
     def newViewer(self, filename=None, stretch=None):
         """
         Call this to create a new geolinked viewer.
