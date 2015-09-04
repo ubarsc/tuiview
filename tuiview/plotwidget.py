@@ -89,7 +89,7 @@ class PlotTick(object):
     """
     Pass lists of these to PlotWidget.setXTicks and PlotWidget.setYTicks
     if flags is None either DEFAULT_YTICK_FLAGS or DEFAULT_XTICK_FLAGS
-        will be used depending on the direction
+    will be used depending on the direction
     if pen is None the default axes pen will be used
     """
     def __init__(self, loc, txt, flags=None, pen=None):

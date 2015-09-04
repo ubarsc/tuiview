@@ -213,29 +213,29 @@ def _bresenhamline_nslope(slope):
 
 def _bresenhamlines(start, end, max_iter):
     """
-    Returns npts lines of length max_iter each. (npts x max_iter x dimension) 
+    Returns npts lines of length max_iter each. (npts x max_iter x dimension)::
 
-    >>> s = np.array([[3, 1, 9, 0],[0, 0, 3, 0]])
-    >>> _bresenhamlines(s, np.zeros(s.shape[1]), max_iter=-1)
-    array([[[ 3,  1,  8,  0],
-            [ 2,  1,  7,  0],
-            [ 2,  1,  6,  0],
-            [ 2,  1,  5,  0],
-            [ 1,  0,  4,  0],
-            [ 1,  0,  3,  0],
-            [ 1,  0,  2,  0],
-            [ 0,  0,  1,  0],
-            [ 0,  0,  0,  0]],
-    <BLANKLINE>
-           [[ 0,  0,  2,  0],
-            [ 0,  0,  1,  0],
-            [ 0,  0,  0,  0],
-            [ 0,  0, -1,  0],
-            [ 0,  0, -2,  0],
-            [ 0,  0, -3,  0],
-            [ 0,  0, -4,  0],
-            [ 0,  0, -5,  0],
-            [ 0,  0, -6,  0]]])
+        >>> s = np.array([[3, 1, 9, 0],[0, 0, 3, 0]])
+        >>> _bresenhamlines(s, np.zeros(s.shape[1]), max_iter=-1)
+        array([[[ 3,  1,  8,  0],
+                [ 2,  1,  7,  0],
+                [ 2,  1,  6,  0],
+                [ 2,  1,  5,  0],
+                [ 1,  0,  4,  0],
+                [ 1,  0,  3,  0],
+                [ 1,  0,  2,  0],
+                [ 0,  0,  1,  0],
+                [ 0,  0,  0,  0]],
+        <BLANKLINE>
+               [[ 0,  0,  2,  0],
+                [ 0,  0,  1,  0],
+                [ 0,  0,  0,  0],
+                [ 0,  0, -1,  0],
+                [ 0,  0, -2,  0],
+                [ 0,  0, -3,  0],
+                [ 0,  0, -4,  0],
+                [ 0,  0, -5,  0],
+                [ 0,  0, -6,  0]]])
     """
     if max_iter == -1:
         max_iter = numpy.amax(numpy.amax(numpy.abs(end - start), axis=1))
@@ -257,37 +257,35 @@ def bresenhamline(start, end, max_iter=5):
     Returns a list of points from (start, end] by ray tracing a line b/w the
     points.
     Parameters:
-        start: An array of start points (number of points x dimension)
-        end:   An end points (1 x dimension)
-            or An array of end point corresponding to each start point
-                (number of points x dimension)
-        max_iter: Max points to traverse. if -1, maximum number of required
-                  points are traversed
+    * start: An array of start points (number of points x dimension)
+    * end:   An end points (1 x dimension) or An array of end point corresponding to each start point (number of points x dimension)
+    * max_iter: Max points to traverse. if -1, maximum number of required points are traversed
 
     Returns:
-        linevox (n x dimension) A cumulative array of all points traversed by
-        all the lines so far.
+    * linevox (n x dimension) A cumulative array of all points traversed by all the lines so far.
 
-    >>> s = np.array([[3, 1, 9, 0],[0, 0, 3, 0]])
-    >>> bresenhamline(s, np.zeros(s.shape[1]), max_iter=-1)
-    array([[ 3,  1,  8,  0],
-           [ 2,  1,  7,  0],
-           [ 2,  1,  6,  0],
-           [ 2,  1,  5,  0],
-           [ 1,  0,  4,  0],
-           [ 1,  0,  3,  0],
-           [ 1,  0,  2,  0],
-           [ 0,  0,  1,  0],
-           [ 0,  0,  0,  0],
-           [ 0,  0,  2,  0],
-           [ 0,  0,  1,  0],
-           [ 0,  0,  0,  0],
-           [ 0,  0, -1,  0],
-           [ 0,  0, -2,  0],
-           [ 0,  0, -3,  0],
-           [ 0,  0, -4,  0],
-           [ 0,  0, -5,  0],
-           [ 0,  0, -6,  0]])
+    ::
+
+        >>> s = np.array([[3, 1, 9, 0],[0, 0, 3, 0]])
+        >>> bresenhamline(s, np.zeros(s.shape[1]), max_iter=-1)
+        array([[ 3,  1,  8,  0],
+               [ 2,  1,  7,  0],
+               [ 2,  1,  6,  0],
+               [ 2,  1,  5,  0],
+               [ 1,  0,  4,  0],
+               [ 1,  0,  3,  0],
+               [ 1,  0,  2,  0],
+               [ 0,  0,  1,  0],
+               [ 0,  0,  0,  0],
+               [ 0,  0,  2,  0],
+               [ 0,  0,  1,  0],
+               [ 0,  0,  0,  0],
+               [ 0,  0, -1,  0],
+               [ 0,  0, -2,  0],
+               [ 0,  0, -3,  0],
+               [ 0,  0, -4,  0],
+               [ 0,  0, -5,  0],
+               [ 0,  0, -6,  0]])
     """
     # Return the points as a single array
     return _bresenhamlines(start, end, max_iter).reshape(-1, start.shape[-1])

@@ -124,7 +124,8 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
 
 class ViewerWindow(QMainWindow):
     """
-    Main window for viewer application
+    Main window for viewer application. The ViewerWidget is 
+    contained in the 'viewwidget' attribute.
     """
     def __init__(self):
         QMainWindow.__init__(self)

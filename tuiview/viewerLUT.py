@@ -808,7 +808,7 @@ class ViewerLUT(QObject):
         stetch is a ViewerStretch instance that describes the stretch.
         rat is an instance of ViewerRAT - for reading color table
         if image is not None it should be a QImage returned by the apply
-            functions and a local stretch will be calculated using this.
+        functions and a local stretch will be calculated using this.
         """
         # clobber the backup lut - any hightlights happen afresh
         self.backuplut = None
