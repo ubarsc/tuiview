@@ -112,8 +112,8 @@ class CmdArgs(object):
         self.parser.add_option('-l', '--linear', action="callback", 
                             callback=optionCallback,
                             type="string", nargs=2, 
-                            help="do a linear stretch between two values. " +
-                                    "Pass 'stats' for statistics")
+                            help="do a linear stretch between two values " +
+                                    "(eg '-l 0 10'). Pass 'stats' for statistics")
         self.parser.add_option('-s', '--stddev', action="callback", 
                             callback=optionCallback,
                             help="do a 2 standard deviation stretch")
