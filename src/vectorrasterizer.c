@@ -763,6 +763,7 @@ initvectorrasterizer(void)
         Py_DECREF(pModule);
         INITERROR;
     }
+    PyModule_AddObject(pModule, "error", state->error);
 
 #if PY_MAJOR_VERSION >= 3
     return pModule;
