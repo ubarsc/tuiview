@@ -462,13 +462,27 @@ class ViewerRasterLayer(ViewerLayer):
                 name = 'Band %d' % (n+1)
             bandNames.append(name)
         return bandNames
-        
+
+    def getWavelengthsMetaFormat(self):
+        """
+        Get the format used to store wavelenths in the metadata.
+
+        Note, currently just returns ENVI for all drivers. This can be used
+        for ENVI files and files converted from ENVI format, which retain the
+        same metadata format.
+        """
+        drivername = self.gdalDataset.GetDriver().ShortName
+        wavelengths_meta_format = None
+
+        if drivername is not None:
+            wavelengths_meta_format = 'ENVI'
+
+        return wavelengths_meta_format
+
     def getWavelengths(self):
         """
-        Return the list of wavelength if file
-        conforms to the metadata provided by the 
-        ENVI driver, or None.
-        Other formats will be added in future.
+        Return the list of wavelength if file they conform to the expected format
+        for the driver (provided by getWavelengthsMetaFormat).
         """
 
         # Wavelength units to strip off metadata
@@ -477,8 +491,8 @@ class ViewerRasterLayer(ViewerLayer):
         wavelengths = []
         ok = False
 
-        drivername = self.gdalDataset.GetDriver().ShortName
-        if drivername == 'ENVI':
+        wavelengths_meta_format = self.getWavelengthsMetaFormat()
+        if wavelengths_meta_format == 'ENVI':
             ok = True
             # GetMetadataItem seems buggy for ENVI
             # get the lot and go through
@@ -497,7 +511,8 @@ class ViewerRasterLayer(ViewerLayer):
                     # If wavelengths are stored as:
                     #    951.20 (951.20)
                     # subset to before bracket
-                    item = item[0:item.find('(')]
+                    if '(' in item:
+                        item = item[0:item.find('(')]
                     # try to convert to float
                     try:
                         wl = float(item)
