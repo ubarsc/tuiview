@@ -284,18 +284,18 @@ class StretchRule(object):
             # but we need to check there is a color 
             # table in the specified band
             gdalband = gdaldataset.GetRasterBand(self.ctband)
-            metadata = gdalband.GetMetadata()
+            layerType = gdalband.GetMetadataItem('LAYER_TYPE')
             match = False
             # only check if file is thematic anyway
-            if 'LAYER_TYPE' in metadata:
-                if metadata['LAYER_TYPE'] == 'thematic':
-                    # we really need to check only that the RAT
-                    # reports that we have the right columns
-                    hasRed = False
-                    hasGreen = False
-                    hasBlue = False
-                    hasAlpha = False
-                    rat = gdalband.GetDefaultRAT()
+            if layerType is not None and layerType == 'thematic':
+                # we really need to check only that the RAT
+                # reports that we have the right columns
+                hasRed = False
+                hasGreen = False
+                hasBlue = False
+                hasAlpha = False
+                rat = gdalband.GetDefaultRAT()
+                if rat is not None:
                     ncols = rat.GetColumnCount()
                     for col in range(ncols):
                         usage = rat.GetUsageOfCol(col)
@@ -308,7 +308,7 @@ class StretchRule(object):
                         elif usage == gdal.GFU_Alpha:
                             hasAlpha = True
 
-                    match = hasRed and hasGreen and hasBlue and hasAlpha
+                match = hasRed and hasGreen and hasBlue and hasAlpha
         
         return match
 
