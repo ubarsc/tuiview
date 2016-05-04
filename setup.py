@@ -89,21 +89,22 @@ def checkGDALVersion():
         msg = "This version of TuiView requires GDAL Version %s or later" % MIN_GDAL_VERSION
         raise SystemExit(msg)
 
-# check the version
-checkGDALVersion()
-
-# get the flags for GDAL
-gdalargs = getGDALFlags()
-
-# create our vector extension
-vecextkwargs = {'name':'vectorrasterizer', 'sources':['src/vectorrasterizer.c']}
-# add gdalargs
-vecextkwargs.update(gdalargs)
-
-vecmodule = Extension(**vecextkwargs)
-ext_modules = []
 if withExtensions:
+    # check the version
+    checkGDALVersion()
+
+    # get the flags for GDAL
+    gdalargs = getGDALFlags()
+
+    # create our vector extension
+    vecextkwargs = {'name':'vectorrasterizer', 'sources':['src/vectorrasterizer.c']}
+    # add gdalargs
+    vecextkwargs.update(gdalargs)
+
+    vecmodule = Extension(**vecextkwargs)
     ext_modules = [vecmodule]
+else:
+    ext_modules = []
 
 # For windows also copy bat files, to run python scripts
 if sys.platform == 'win32':
