@@ -40,7 +40,8 @@ import sys
 try:
     from osgeo import gdal
 except ImportError:
-    raise SystemExit("GDAL with Python bindings must be installed first")
+    if withExtensions:
+        raise SystemExit("GDAL with Python bindings must be installed first")
 
 import tuiview
 MIN_GDAL_VERSION = '1.11.0'
