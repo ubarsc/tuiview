@@ -25,7 +25,7 @@ import mock
 from PyQt4.QtGui import QApplication
 app = QApplication([])
 
-MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal']
+MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal', 'tuiview.vectorrasterizer']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 

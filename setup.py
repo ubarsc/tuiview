@@ -23,7 +23,16 @@ GDAL devel files need to be installed along with a C compiler
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from numpy.distutils.core import setup, Extension
+
+# If we fail to import the numpy version of setup, still try to proceed, as it is possibly
+# because we are being run by ReadTheDocs, and so we just need to be able to generate documentation. 
+try:
+    from numpy.distutils.core import setup, Extension
+    withExtensions = True
+except ImportError:
+    from distutils.core import setup
+    withExtensions = False
+    
 from distutils.version import LooseVersion
 import os
 import sys
@@ -92,6 +101,9 @@ vecextkwargs = {'name':'vectorrasterizer', 'sources':['src/vectorrasterizer.c']}
 vecextkwargs.update(gdalargs)
 
 vecmodule = Extension(**vecextkwargs)
+ext_modules = []
+if withExtensions:
+    ext_modules = [vecmodule]
 
 # For windows also copy bat files, to run python scripts
 if sys.platform == 'win32':
@@ -108,7 +120,7 @@ setup(name='TuiView',
     scripts=scripts_list,
     packages=['tuiview'],
     ext_package = 'tuiview',
-    ext_modules = [vecmodule],
+    ext_modules = ext_modules,
     license='LICENSE.txt',
     url='https://bitbucket.org/chchrsc/tuiview',
     classifiers=['Intended Audience :: Developers',
