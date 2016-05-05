@@ -20,12 +20,8 @@ import tuiview # for version info
 # Set up 'mock' modules, needed to build docs if numpy, gdal etc., aren't installed
 import mock
 
-# workaround for certain Qt classes not able to be created
-# without a QApplication already instantiated
-from PyQt4.QtGui import QApplication
-app = QApplication([])
-
-MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal', 'tuiview.vectorrasterizer']
+MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal', 'tuiview.vectorrasterizer',
+        'PyQt4', 'PyQt4.QtCore', 'PyQt4.QtGui']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 

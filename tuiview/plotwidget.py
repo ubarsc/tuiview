@@ -25,8 +25,16 @@ from PyQt4.QtGui import QWidget, QPainter, QPainterPath, QPen, QFontMetrics
 from PyQt4.QtCore import Qt, QSize, QSettings
 
 DEFAULT_FONT_SIZE = 6
-DEFAULT_YTICK_FLAGS = Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip
-DEFAULT_XTICK_FLAGS = Qt.AlignHCenter | Qt.AlignTop | Qt.TextDontClip
+try:
+    DEFAULT_YTICK_FLAGS = Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip
+    DEFAULT_XTICK_FLAGS = Qt.AlignHCenter | Qt.AlignTop | Qt.TextDontClip
+    DEFAULT_LABEL_FLAGS = Qt.AlignLeft | Qt.AlignTop
+except TypeError:
+    # if building from sphinx these values will be type Mock()
+    # which cannot be Or'd. So we fack it.
+    DEFAULT_YTICK_FLAGS = 0
+    DEFAULT_XTICK_FLAGS = 0
+    DEFAULT_LABEL_FLAGS = 0
 TICK_SIZE = 2  # pixels
 
 class PlotCurve(object):
@@ -73,7 +81,7 @@ class PlotLabel(object):
     flags are those accepted by QPainter.drawText
     If pen not given will be white, 1 pixel wide
     """
-    def __init__(self, xloc, yloc, txt, flags=Qt.AlignLeft|Qt.AlignTop, 
+    def __init__(self, xloc, yloc, txt, flags=DEFAULT_LABEL_FLAGS, 
                             pen=None):
         self.xloc = xloc
         self.yloc = yloc
