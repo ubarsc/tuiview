@@ -40,7 +40,7 @@
 
 typedef struct 
 {
-    PyObject *pArray;
+    PyArrayObject *pArray;
     int nLineWidth;
     double *pExtents;
     double dMetersPerPix;
@@ -48,7 +48,7 @@ typedef struct
     npy_intp nYSize;
 } VectorWriterData;
 
-static VectorWriterData* VectorWriter_create(PyObject *pArray, double *pExtents, int nLineWidth)
+static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, int nLineWidth)
 {
     VectorWriterData *pData;
 
@@ -528,7 +528,7 @@ static PyObject *vectorrasterizer_rasterizeOutlines(PyObject *self, PyObject *ar
     /* create output array - all 0 to begin with */
     dims[0] = nYSize;
     dims[1] = nXSize;
-    pOutArray = PyArray_ZEROS(2, dims, PyArray_UINT8, 0);
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
     if( pOutArray == NULL )
     {
         PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
@@ -536,7 +536,7 @@ static PyObject *vectorrasterizer_rasterizeOutlines(PyObject *self, PyObject *ar
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create(pOutArray, adExtents, nLineWidth);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth);
     
     /* set the spatial filter to the extent */
     OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
@@ -642,7 +642,7 @@ static PyObject *vectorrasterizer_rasterizeOutlinesFeature(PyObject *self, PyObj
     /* create output array - all 0 to begin with */
     dims[0] = nYSize;
     dims[1] = nXSize;
-    pOutArray = PyArray_ZEROS(2, dims, PyArray_UINT8, 0);
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
     if( pOutArray == NULL )
     {
         PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
@@ -650,7 +650,7 @@ static PyObject *vectorrasterizer_rasterizeOutlinesFeature(PyObject *self, PyObj
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create(pOutArray, adExtents, nLineWidth);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth);
     
     hGeometry = OGR_F_GetGeometryRef(hOGRFeature);
     if( hGeometry != NULL )
