@@ -421,10 +421,10 @@ typedef struct {
  but to avoid the whole dependence on SWIG headers
  and needing to reach into the GDAL source to get types etc
  I happen to know the 'this' attribute is a pointer to 
- GDALRasterAttributeTableShadow which is actually a pointer
+ OGRLayerShadow which is actually a pointer
  to a SwigPyObject whose ptr field is a pointer to a
- GDALRasterAttributeTable. Phew. 
- given a python object this function returns the underlying
+ OGRLayer. Phew. 
+ Given a python object this function returns the underlying
  pointer. Returns NULL on failure (exception string already set)*/
 void *getUnderlyingPtrFromSWIGPyObject(PyObject *pObj, PyObject *pException)
 {
