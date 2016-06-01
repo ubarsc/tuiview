@@ -18,8 +18,4 @@
 
 from tuiview import viewerapplication
 
-app = viewerapplication.ViewerApplication()
-app.exec_()
-
-
-
+viewerapplication.run()

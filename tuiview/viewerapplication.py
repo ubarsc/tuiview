@@ -230,3 +230,10 @@ class ViewerApplication(QApplication):
         """
         self.pluginHandlers.append(handler)
 
+def run():
+    """
+    Call this function to instantiate an instance of ViewerApplication
+    and have the command line parameters inspected etc and app run
+    """
+    app = ViewerApplication()
+    app.exec_()
