@@ -138,8 +138,8 @@ class ViewerApplication(QApplication):
         self.pluginHandlers = []
 
         # for settings
-        self.setApplicationName('viewer')
-        self.setOrganizationName('Viewer')
+        self.setApplicationName('tuiview')
+        self.setOrganizationName('TuiView')
 
         cmdargs = getCmdargs()
 
