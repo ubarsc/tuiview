@@ -1374,7 +1374,7 @@ Use the special columns:
                 # need to ask them which one
                 from PyQt4.QtGui import QInputDialog
                 (tablename, ok) = QInputDialog.getItem(self, MESSAGE_TITLE,
-                    "Select color table", tables.keys(), editable=False)
+                    "Select color table", list(tables.keys()), editable=False)
                 if not ok:
                     return
                 tablename = str(tablename)

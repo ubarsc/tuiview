@@ -20,32 +20,78 @@ Module contains the ViewerApplication class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
-import optparse
+import argparse
 from PyQt4.QtGui import QApplication
 
 from . import archivereader
 from . import geolinkedviewers
 from . import viewerstretch
 
-def optionCallback(option, opt_str, value, parser):
+def getCmdargs():
     """
-    Called as a callback from optparse so we can process
-    the command line arguments and manipulate parser.stretch
+    Get commandline arguments
     """
-    if opt_str == '-c' or opt_str == '--colortable':
-        parser.stretch.setColorTable()
-        parser.modeSet = True
-    elif opt_str == '-g' or opt_str == '--greyscale':
-        parser.stretch.setGreyScale()
-        parser.modeSet = True
-    elif opt_str == '-r' or opt_str == '--rgb':
-        parser.stretch.setRGB()
-        parser.modeSet = True
-    elif opt_str == '-n' or opt_str == '--nostretch':
-        parser.stretch.setNoStretch()
-        parser.stretchModeSet = True
-    elif opt_str == '-l' or opt_str == '--linear':
-        (minVal, maxVal) = value
+    p = argparse.ArgumentParser()
+    p.add_argument('-b', '--bands', 
+        help="comma seperated list of bands to display")
+    p.add_argument('-c', '--colortable', action="store_true", default=False,
+        help="Apply color table to image")
+    p.add_argument('-g', '--greyscale', action="store_true", default=False,
+        help="Display image in greyscale")
+    p.add_argument('-r', '--rgb', action="store_true", default=False,
+        help="use 3 bands to create RGB image")
+    p.add_argument('-n', '--nostretch', action="store_true", default=False, 
+        help="do no stretch on data")
+    p.add_argument('-l', '--linear', nargs=2, metavar=('minVal', 'maxVal'),
+        help="do a linear stretch between two values " +
+            "(eg '-l 0 10'). Pass 'stats' for statistics")
+    p.add_argument('-s', '--stddev', action="store_true", default=False,
+        help="do a 2 standard deviation stretch")
+    p.add_argument('--hist', action="store_true", default=False,
+        help="do a histogram stretch")
+    p.add_argument('--stretchfromtext', 
+        help="Load stretch and lookup table from text file")
+    p.add_argument('--stretchfromgdal', 
+        help="Load stretch and lookup table from GDAL file" + 
+                            " that contains saved stretch and lookup table")
+    p.add_argument('--noplugins', action="store_false", default=True, 
+        dest='loadplugins', help="Don't load plugins")
+    p.add_argument('--separate', action="store_true", default=False,
+        help="load multiple files into separate windows")
+    p.add_argument('--goto', help="Zoom to a location. Format is:"+
+                            " 'easting,northing,factor' where factor is meters"+
+                            " per window pixel.")
+    p.add_argument('-v', '--vector', action='append', dest="vectors",
+                            help="overlay vector file on top of rasters." +
+                            " Can be specified multple times")
+    p.add_argument('-t', '--savedstate', 
+        help="path to a .tuiview file with saved viewers state")
+    p.add_argument('filenames', nargs='*')
+
+    cmdargs = p.parse_args()
+
+    # default values for these 'fake' parameters that we
+    # then set depending on the flags.
+    cmdargs.stretch = viewerstretch.ViewerStretch()
+    cmdargs.modeSet = False
+    cmdargs.stretchModeSet = False
+    cmdargs.bandsSet = False
+
+    if cmdargs.colortable:
+        cmdargs.stretch.setColorTable()
+        cmdargs.modeSet = True
+    if cmdargs.greyscale:
+        cmdargs.stretch.setGreyScale()
+        cmdargs.modeSet = True
+    if cmdargs.rgb:
+        cmdargs.stretch.setRGB()
+        cmdargs.modeSet = True
+
+    if cmdargs.nostretch:
+        cmdargs.stretch.setNoStretch()
+        cmdargs.stretchModeSet = True
+    if cmdargs.linear is not None:
+        (minVal, maxVal) = cmdargs.linear
         if minVal == 'stats':
             minVal = None
         else:
@@ -56,95 +102,32 @@ def optionCallback(option, opt_str, value, parser):
         else:
             maxVal = float(maxVal)
 
-        parser.stretch.setLinearStretch(minVal, maxVal)
-        parser.stretchModeSet = True
-    elif opt_str == '-s' or opt_str == '--stddev':
-        parser.stretch.setStdDevStretch()
-        parser.stretchModeSet = True
-    elif opt_str == '--hist':
-        parser.stretch.setHistStretch()
-        parser.stretchModeSet = True
-    elif opt_str == '-b' or opt_str == '--bands':
-        bandlist = [int(x) for x in value.split(',')]
-        parser.stretch.setBands(bandlist)
-        parser.bandsSet = True
-    elif opt_str == '--stretchfromtext':
-        parser.stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(value)
-        parser.modeSet = True
-        parser.stretchModeSet = True
-        parser.bandsSet = True
-    elif opt_str == '--stretchfromgdal':
-        parser.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(value)
-        parser.modeSet = True
-        parser.stretchModeSet = True
-        parser.bandsSet = True
-    else:
-        raise ValueError("Unknown option %s" % opt_str)
+        cmdargs.stretch.setLinearStretch(minVal, maxVal)
+        cmdargs.stretchModeSet = True
+    if cmdargs.stddev:
+        cmdargs.stretch.setStdDevStretch()
+        cmdargs.stretchModeSet = True
+    if cmdargs.hist:
+        cmdargs.stretch.setHistStretch()
+        cmdargs.stretchModeSet = True
+    if cmdargs.bands is not None:
+        bandlist = [int(x) for x in cmdargs.bands.split(',')]
+        cmdargs.stretch.setBands(bandlist)
+        cmdargs.bandsSet = True
+    if cmdargs.stretchfromtext is not None:
+        cmdargs.stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(
+                                cmdargs.stretchfromtext)
+        cmdargs.modeSet = True
+        cmdargs.stretchModeSet = True
+        cmdargs.bandsSet = True
+    if cmdargs.stretchfromgdal is not None:
+        cmdargs.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(
+                                cmdargs.stretchfromgdal)
+        cmdargs.modeSet = True
+        cmdargs.stretchModeSet = True
+        cmdargs.bandsSet = True
 
-class CmdArgs(object):
-    """
-    Class for processing command line arguments
-    """
-    def __init__(self):
-        usage = "usage: %prog [options] [filename]"
-        self.parser = optparse.OptionParser(usage)
-        self.parser.stretch = viewerstretch.ViewerStretch()
-        self.parser.modeSet = False
-        self.parser.stretchModeSet = False
-        self.parser.bandsSet = False
-
-        self.parser.add_option('-b', '--bands', action="callback", 
-                            callback=optionCallback,
-                            type="string", nargs=1,  
-                            help="comma seperated list of bands to display")
-        self.parser.add_option('-c', '--colortable', action="callback", 
-                            callback=optionCallback,
-                            help="Apply color table to image")
-        self.parser.add_option('-g', '--greyscale', action="callback", 
-                            callback=optionCallback,
-                            help="Display image in greyscale")
-        self.parser.add_option('-r', '--rgb', action="callback", 
-                            callback=optionCallback,
-                            help="use 3 bands to create RGB image")
-        self.parser.add_option('-n', '--nostretch', action="callback", 
-                            callback=optionCallback,
-                            help="do no stretch on data")
-        self.parser.add_option('-l', '--linear', action="callback", 
-                            callback=optionCallback,
-                            type="string", nargs=2, 
-                            help="do a linear stretch between two values " +
-                                    "(eg '-l 0 10'). Pass 'stats' for statistics")
-        self.parser.add_option('-s', '--stddev', action="callback", 
-                            callback=optionCallback,
-                            help="do a 2 standard deviation stretch")
-        self.parser.add_option('--hist', action="callback", 
-                            callback=optionCallback, 
-                            help="do a histogram stretch")
-        self.parser.add_option('--stretchfromtext', action="callback", 
-                            callback=optionCallback, nargs=1, type="string", 
-                        help="Load stretch and lookup table from text file")
-        self.parser.add_option('--stretchfromgdal', action="callback", 
-                            callback=optionCallback, nargs=1, type="string", 
-                        help="Load stretch and lookup table from GDAL file" + 
-                            " that contains saved stretch and lookup table")
-        self.parser.add_option('--noplugins', action="store_false", 
-                            default=True, dest='loadplugins', 
-                            help="Don't load plugins")
-        self.parser.add_option('--separate', action="store_true", 
-                            default=False, dest='separate',
-                            help="load multiple files into separate windows")
-        self.parser.add_option('--goto', dest='goto', 
-                            help="Zoom to a location. Format is:"+
-                            " 'easting,northing,factor' where factor is meters"+
-                            " per window pixel.")
-        self.parser.add_option('-v', '--vector', action='append', dest="vectors",
-                            help="overlay vector file on top of rasters." +
-                            " Can be specified multple times")
-        self.parser.add_option('-t', '--savedstate', dest='savedstate', 
-                            help="path to a .tuiview file with saved viewers state")
-
-        (options, self.args) = self.parser.parse_args()
-        self.__dict__.update(options.__dict__)
+    return cmdargs
 
 class ViewerApplication(QApplication):
     """
@@ -158,33 +141,34 @@ class ViewerApplication(QApplication):
         self.setApplicationName('viewer')
         self.setOrganizationName('Viewer')
 
-        cmdargs = CmdArgs()
+        cmdargs = getCmdargs()
 
         loadplugins = cmdargs.loadplugins
         self.viewers = geolinkedviewers.GeolinkedViewers(loadplugins)
 
         stretch = None
-        if (cmdargs.parser.modeSet and cmdargs.parser.stretchModeSet 
-                    and cmdargs.parser.bandsSet):
+        if (cmdargs.modeSet and cmdargs.stretchModeSet 
+                    and cmdargs.bandsSet):
             # use the stretch they have constructed
-            stretch = cmdargs.parser.stretch
-        elif (cmdargs.parser.modeSet or cmdargs.parser.stretchModeSet 
-                        or cmdargs.parser.bandsSet):
+            stretch = cmdargs.stretch
+        elif (cmdargs.modeSet or cmdargs.stretchModeSet 
+                        or cmdargs.bandsSet):
             msg = ('Stretch incomplete. Must specify one of [-c|-g|-r] and' + 
                 ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
             raise SystemExit(msg)
 
-        if len(cmdargs.args) == 0 and cmdargs.savedstate is None:
+        if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
         else:
             if cmdargs.separate:
                 # need to be in separate windows
-                for filename in cmdargs.args:
+                for filename in cmdargs.filenames:
                     self.viewers.newViewer(filename, stretch)
             else:
                 # load into one viewer
                 viewer = None
-                for filename in archivereader.file_list_to_archive_strings(cmdargs.args):
+                for filename in archivereader.file_list_to_archive_strings(
+                                        cmdargs.filenames):
                     if viewer is None:
                         viewer = self.viewers.newViewer(filename, stretch)
                     else:

@@ -27,54 +27,51 @@ and delete specified tables.
 
 from __future__ import print_function
 import sys
-import optparse
+import argparse
 from osgeo import gdal
 from tuiview.viewerLUT import ViewerLUT
 from tuiview.viewerRAT import ViewerRAT
 
-class CmdArgs(object):
+def getCmdargs():
     """
-    Class for processing command line arguments
+    Get commandline arguments
     """
-    def __init__(self):
-        usage = "usage: %prog [options]"
-        self.parser = optparse.OptionParser(usage)
-        self.parser.add_option("-s", "--source", dest="source",
-            help="File to read color table from")
-        self.parser.add_option("-n", "--name", dest="name",
-            help="name to save the color table under")
-        self.parser.add_option("-d", "--dest", dest="dest",
+    p = argparse.ArgumentParser()
+    p.add_argument("-s", "--source", help="File to read color table from")
+    p.add_argument("-n", "--name", help="name to save the color table under")
+    p.add_argument("-d", "--dest", 
             help="destination file to write color table into")
-        self.parser.add_option("-p", "--print", dest="printct",
+    p.add_argument("-p", "--print", dest="printct",
             help="print out available color tables")
-        self.parser.add_option("-r", "--remove", dest="remove", 
+    p.add_argument("-r", "--remove", 
             help="remove table from specified file (must specify --name also)")
 
-        (options, args) = self.parser.parse_args()
-        writeArgs = [options.source, options.name, options.dest]
-        writeValid = [x is not None for x in writeArgs]
-        if (options.printct is None and options.remove is None and
-			any(writeValid) and not all(writeValid)):
-            msg = "Must specify all of --source, --name and --dest for writing"
-            raise SystemExit(msg)
+    cmdargs = p.parse_args()
 
-        if options.printct is not None and options.remove is not None:
-            msg = "can't specify both --print and --remove"
-            raise SystemExit(msg)
+    writeArgs = [cmdargs.source, cmdargs.name, cmdargs.dest]
+    writeValid = [x is not None for x in writeArgs]
+    if (cmdargs.printct is None and cmdargs.remove is None and
+		any(writeValid) and not all(writeValid)):
+        msg = "Must specify all of --source, --name and --dest for writing"
+        raise SystemExit(msg)
 
-        if options.remove is not None and options.name is None:
-            msg = "Must specify --name for --remove"
-            raise SystemExit(msg)
+    if cmdargs.printct is not None and cmdargs.remove is not None:
+        msg = "can't specify both --print and --remove"
+        raise SystemExit(msg)
 
-        if options.printct is not None and any(writeValid):
-            msg = "can't specify --name, --source or --dest with --print"
-            raise SystemExit(msg)
+    if cmdargs.remove is not None and cmdargs.name is None:
+        msg = "Must specify --name for --remove"
+        raise SystemExit(msg)
 
-        if not options.printct and not any(writeValid):
-                self.parser.print_help()
-                sys.exit(0)
+    if cmdargs.printct is not None and any(writeValid):
+        msg = "can't specify --name, --source or --dest with --print"
+        raise SystemExit(msg)
 
-        self.__dict__.update(options.__dict__)
+    if not cmdargs.printct and not any(writeValid):
+            p.print_help()
+            sys.exit(0)
+
+    return cmdargs
 
 def printTables(fname):
     """
@@ -157,14 +154,12 @@ def removeTable(fname, tablename):
 
     del destds
 
-
 def run():
     """
     Call this to have command line parameters interpreted
     and the appropriate function called.
     """
-    # main program
-    cmdargs = CmdArgs()
+    cmdargs = getCmdargs()
     
     if cmdargs.printct is not None:
         printTables(cmdargs.printct)
