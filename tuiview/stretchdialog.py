@@ -688,6 +688,7 @@ class StretchDefaultsDialog(QDialog):
 
             # single band without color table
             stretch.setGreyScale()
+            stretch.setStdDevStretch()
             rule = viewerstretch.StretchRule( 
                         viewerstretch.VIEWER_COMP_EQ, 1, None, stretch)
             ruleList.append(rule)
@@ -699,14 +700,12 @@ class StretchDefaultsDialog(QDialog):
             
             # 3 bands
             stretch.setRGB()
-            stretch.setNoStretch()
             stretch.setBands((1, 2, 3))
             rule = viewerstretch.StretchRule(
                         viewerstretch.VIEWER_COMP_EQ, 3, None, stretch)
             ruleList.append(rule)
 
             # < 6 bands
-            stretch.setStdDevStretch()
             stretch.setBands((4, 3, 2))
             rule = viewerstretch.StretchRule(
                         viewerstretch.VIEWER_COMP_LT, 6, None, stretch)
