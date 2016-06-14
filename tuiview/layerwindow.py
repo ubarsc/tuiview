@@ -165,6 +165,12 @@ class LayerListView(QListView):
         self.setLineWidthAct.setStatusTip("Set line width of rendered features")
         self.connect(self.setLineWidthAct, SIGNAL("triggered()"), self.setLineWidth)
 
+        self.setFillAct = QAction(self)
+        self.setFillAct.setText("Fill Polygons")
+        self.setFillAct.setStatusTip("Toggle the fill status of polygons")
+        self.setFillAct.setCheckable(True)
+        self.connect(self.setFillAct, SIGNAL("toggled(bool)"), self.toggleFill)
+
         self.editStretchAct = QAction(self)
         self.editStretchAct.setText("&Edit Stretch")
         self.editStretchAct.setStatusTip("Edit Stretch of raster layer")
@@ -200,6 +206,7 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addAction(self.changeColorAct)
         self.vectorPopupMenu.addAction(self.setSQLAct)
         self.vectorPopupMenu.addAction(self.setLineWidthAct)
+        self.vectorPopupMenu.addAction(self.setFillAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.propertiesAct)
 
@@ -217,6 +224,11 @@ class LayerListView(QListView):
                 allowSQL = not isinstance(layer, 
                             viewerlayers.ViewerFeatureVectorLayer)
                 self.setSQLAct.setEnabled(allowSQL)
+
+                # get the existing state of the fill
+                bFill = layer.getFill()
+                self.setFillAct.setChecked(bFill)
+
                 self.vectorPopupMenu.popup(e.globalPos())
             else:
                 self.rasterPopupMenu.popup(e.globalPos())
@@ -348,6 +360,18 @@ class LayerListView(QListView):
                 layer.setLineWidth(linewidth)
                 layer.getImage()
                 model.viewwidget.viewport().update()
+
+    def toggleFill(self, state):
+        "toggle the fill state"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            layer.setFill(state)
+            layer.getImage()
+            model.viewwidget.viewport().update()
 
     def editStretch(self):
         "Edit the stretch for the layer"

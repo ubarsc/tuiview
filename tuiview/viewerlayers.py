@@ -1153,6 +1153,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.sql = None
         self.linewidth = 1
         self.isResultSet = False
+        self.bFill = False
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1226,6 +1227,14 @@ class ViewerVectorLayer(ViewerLayer):
     def hasSQL(self):
         "returns True if there is an attribute filter in place"
         return self.sql is not None
+
+    def setFill(self, bFill):
+        "Sets if the polygons are filled or not"
+        self.bFill = bFill
+
+    def getFill(self):
+        "returns True if polygons are being filled"
+        return self.bFill
 
     def setLineWidth(self, linewidth):
         "sets the line width"
@@ -1301,8 +1310,8 @@ class ViewerVectorLayer(ViewerLayer):
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
-        data = vectorrasterizer.rasterizeOutlines(self.ogrLayer, extent, 
-                    xsize, ysize, self.linewidth, self.sql)
+        data = vectorrasterizer.rasterizeLayer(self.ogrLayer, extent, 
+                    xsize, ysize, self.linewidth, self.sql, self.bFill)
 
         # do our lookup
         bgra = self.lut[data]
@@ -1418,8 +1427,8 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
         # rasterizeOutlinesFeature burns in 1 for outline, 0 otherwise
-        data = vectorrasterizer.rasterizeOutlinesFeature(self.ogrFeature, extent, 
-                    xsize, ysize, self.linewidth)
+        data = vectorrasterizer.rasterizeFeature(self.ogrFeature, extent, 
+                    xsize, ysize, self.linewidth, self.bFill)
 
         # do our lookup
         bgra = self.lut[data]

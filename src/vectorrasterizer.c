@@ -46,9 +46,11 @@ typedef struct
     double dMetersPerPix;
     npy_intp nXSize;
     npy_intp nYSize;
+    int bFill;
 } VectorWriterData;
 
-static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, int nLineWidth)
+static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
+        int nLineWidth, int bFill)
 {
     VectorWriterData *pData;
 
@@ -62,6 +64,7 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->nYSize = PyArray_DIMS(pArray)[0];
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
+    pData->bFill = bFill;
 
     return pData;
 }
@@ -240,40 +243,169 @@ static unsigned char* VectorWriter_processLineString(VectorWriterData *pData, un
     return pWKB;
 }
 
+/* See http://alienryderflex.com/polygon/ */
+void precalc_values(int polyCorners, double *polyX, double *polyY, double *constant, double *multiple)
+{
+  int i, j=polyCorners-1;
+
+    for(i=0; i<polyCorners; i++) 
+    {
+        if(polyY[j]==polyY[i]) 
+        {
+            constant[i]=polyX[i];
+            multiple[i]=0; 
+        }
+        else 
+        {
+            constant[i]=polyX[i]-(polyY[i]*polyX[j])/(polyY[j]-polyY[i])+(polyY[i]*polyX[i])/(polyY[j]-polyY[i]);
+            multiple[i]=(polyX[j]-polyX[i])/(polyY[j]-polyY[i]); 
+        }
+        j=i; 
+    }
+}
+
+int pointInPolygon(int polyCorners, double x, double y,double *polyX, 
+        double *polyY, double *constant, double *multiple) 
+{
+    int   i, j=polyCorners-1;
+    int  oddNodes=0;
+
+    for (i=0; i<polyCorners; i++) 
+    {
+        if ((((polyY[i]< y) && (polyY[j]>=y))
+            ||   ((polyY[j]< y) && (polyY[i]>=y))) )
+        {
+            oddNodes^=(y*multiple[i]+constant[i]<x); 
+        }
+        j=i; 
+    }
+
+    return oddNodes; 
+}
+
 /* same as processLineString, but closes ring */
 static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
     double dFirstX, dFirstY;
+    /* when pData->bFill */
+    double *pPolyX, *pPolyY, *pConstant, *pMultiple;
+    double dMinX, dMaxX, dMinY, dMaxY;
+    int x, y;
 
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
     {
-        /* get the first point */
-        READ_WKB_VAL(dx1, pWKB)
-        READ_WKB_VAL(dy1, pWKB)
-        if(hasz)
+        if( pData->bFill )
         {
-            pWKB += sizeof(double);
+            pPolyX = (double*)malloc(nPoints * sizeof(double));
+            pPolyY = (double*)malloc(nPoints * sizeof(double));
+            pConstant = (double*)malloc(nPoints * sizeof(double));
+            pMultiple = (double*)malloc(nPoints * sizeof(double));
+
+            for( n = 0; n < nPoints; n++ )
+            {
+                READ_WKB_VAL(dx1, pWKB)
+                READ_WKB_VAL(dy1, pWKB)
+                if(hasz)
+                {
+                    pWKB += sizeof(double);
+                }
+                pPolyX[n] = dx1;
+                pPolyY[n] = dy1;
+                /* need the extent */
+                if( n == 0 )
+                {
+                    dMinX = dx1;
+                    dMaxX = dx1;
+                    dMinY = dy1;
+                    dMaxY = dy1;
+                }
+                else
+                {
+                    if( dx1 < dMinX )
+                        dMinX = dx1;
+                    else if( dx1 > dMaxX)
+                        dMaxX = dx1;
+                    else if( dy1 < dMinY)
+                        dMinY = dy1;
+                    else if( dy1 > dMaxY)
+                        dMaxY = dy1;
+                }
+            }
+
+            /* if we are not actually anywhere near the extent then just return */
+            if( ( dMinX > pData->pExtents[2] ) || ( dMaxX < pData->pExtents[0])
+                    || (dMinY > pData->pExtents[1] ) || (dMaxY < pData->pExtents[3]) )
+            {
+                /*fprintf( stderr, "ignoring poly %d %d %d %d\n", ( dMinX > pData->pExtents[2] ), ( dMaxX < pData->pExtents[0]), 
+                        (dMinY > pData->pExtents[1] ) , (dMaxY > pData->pExtents[3]));*/
+                return pWKB;
+            }
+
+            precalc_values(nPoints, pPolyX, pPolyY, pConstant, pMultiple);
+
+            /* pData->pExtents is (tlx, tly, brx, bry) */
+            /* chop down area to that within the extent */
+            if( dMinX < pData->pExtents[0] )
+                dMinX = pData->pExtents[0];
+            if( dMaxX > pData->pExtents[2] )
+                dMaxX = pData->pExtents[2];
+            if( dMinY < pData->pExtents[3] )
+                dMinY = pData->pExtents[3];
+            if( dMaxY > pData->pExtents[1] )
+                dMaxY = pData->pExtents[1];
+
+            for( dy1 = dMaxY; dy1 > dMinY; dy1 -= pData->dMetersPerPix )
+            {
+                for( dx1 = dMinX; dx1 < dMaxX; dx1 += pData->dMetersPerPix )
+                {
+                    if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
+                            pConstant, pMultiple) )
+                    {
+                        x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
+                        y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
+                        VectorWriter_plot(pData, x, y);
+                    }
+                }
+            }
+
+            free(pPolyX);
+            free(pPolyY);
+            free(pConstant);
+            free(pMultiple);
         }
-        dFirstX = dx1;
-        dFirstY = dy1;
-        for( n = 1; n < nPoints; n++ )
+        else
         {
-            READ_WKB_VAL(dx2, pWKB)
-            READ_WKB_VAL(dy2, pWKB)
+            /* outline */
+            /* get the first point */
+            READ_WKB_VAL(dx1, pWKB)
+            READ_WKB_VAL(dy1, pWKB)
             if(hasz)
             {
                 pWKB += sizeof(double);
             }
-            VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
-            /* set up for next one */
-            dx1 = dx2;
-            dy1 = dy2;
+            dFirstX = dx1;
+            dFirstY = dy1;
+
+            for( n = 1; n < nPoints; n++ )
+            {
+                READ_WKB_VAL(dx2, pWKB)
+                READ_WKB_VAL(dy2, pWKB)
+                if(hasz)
+                {
+                    pWKB += sizeof(double);
+                }
+                VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
+
+                /* set up for next one */
+                dx1 = dx2;
+                dy1 = dy2;
+            }
+            /* close it*/
+            VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
         }
-        /* close it*/
-        VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
     }
     return pWKB;
 }
@@ -472,7 +604,7 @@ static struct VectorRasterizerState _state;
 #endif
 
 
-static PyObject *vectorrasterizer_rasterizeOutlines(PyObject *self, PyObject *args)
+static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
 {
     PyObject *pPythonLayer; /* of type ogr.Layer*/
     PyObject *pBBoxObject; /* must be a sequence*/
@@ -490,9 +622,10 @@ static PyObject *vectorrasterizer_rasterizeOutlines(PyObject *self, PyObject *ar
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pNewWKB;
-    int n;
+    int n, bFill = 0;
 
-    if( !PyArg_ParseTuple(args, "OOiiiz:rasterizeOutlines", &pPythonLayer, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter))
+    if( !PyArg_ParseTuple(args, "OOiiiz|i:rasterizeOutlines", &pPythonLayer, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
@@ -536,7 +669,7 @@ static PyObject *vectorrasterizer_rasterizeOutlines(PyObject *self, PyObject *ar
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
     
     /* set the spatial filter to the extent */
     OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
@@ -589,7 +722,7 @@ static PyObject *vectorrasterizer_rasterizeOutlines(PyObject *self, PyObject *ar
     return pOutArray;
 }
 
-static PyObject *vectorrasterizer_rasterizeOutlinesFeature(PyObject *self, PyObject *args)
+static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *args)
 {
     PyObject *pPythonFeature; /* of type ogr.Feature*/
     PyObject *pBBoxObject; /* must be a sequence*/
@@ -604,9 +737,10 @@ static PyObject *vectorrasterizer_rasterizeOutlinesFeature(PyObject *self, PyObj
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n;
+    int n, bFill = 0;
 
-    if( !PyArg_ParseTuple(args, "OOiii:rasterizeOutlinesFeature", &pPythonFeature, &pBBoxObject, &nXSize, &nYSize, &nLineWidth))
+    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeOutlinesFeature", &pPythonFeature, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonFeature, GETSTATE(self)->error);
@@ -650,7 +784,7 @@ static PyObject *vectorrasterizer_rasterizeOutlinesFeature(PyObject *self, PyObj
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
     
     hGeometry = OGR_F_GetGeometryRef(hOGRFeature);
     if( hGeometry != NULL )
@@ -682,23 +816,25 @@ static PyObject *vectorrasterizer_rasterizeOutlinesFeature(PyObject *self, PyObj
 
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
-    {"rasterizeOutlines", vectorrasterizer_rasterizeOutlines, METH_VARARGS, 
+    {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
 "read an OGR dataset and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeOutlines(ogrlayer, boundingbox, xsize, ysize, linewidth, sql)\n"
+"call signature: arr = rasterizeOutlines(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False)\n"
 "where:\n"
 "  ogrlayer is an instance of ogr.Layer\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
-"  sql is the attribute filter. Pass None or SQL string"},
-    {"rasterizeOutlinesFeature", vectorrasterizer_rasterizeOutlinesFeature, METH_VARARGS, 
+"  sql is the attribute filter. Pass None or SQL string\n"
+"  fill is an optional argument that determines if polygons are filled in"},
+    {"rasterizeFeature", vectorrasterizer_rasterizeFeature, METH_VARARGS, 
 "read an OGR feature and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeOutlinesFeature(ogrfeature, boundingbox, xsize, ysize)\n"
+"call signature: arr = rasterizeOutlinesFeature(ogrfeature, boundingbox, xsize, ysize, fill=False)\n"
 "where:\n"
 "  ogrfeature is an instance of ogr.Feature\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
 "  xsize,ysize size of output array\n"
-"  linewidth is the width of the line\n"},
+"  linewidth is the width of the line\n"
+"  fill is an optional argument that determines if polygons are filled in\n"},
     {NULL}        /* Sentinel */
 };
 
