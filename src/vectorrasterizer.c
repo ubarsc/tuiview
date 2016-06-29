@@ -326,11 +326,11 @@ static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, un
                 {
                     if( dx1 < dMinX )
                         dMinX = dx1;
-                    else if( dx1 > dMaxX)
+                    if( dx1 > dMaxX)
                         dMaxX = dx1;
-                    else if( dy1 < dMinY)
+                    if( dy1 < dMinY)
                         dMinY = dy1;
-                    else if( dy1 > dMaxY)
+                    if( dy1 > dMaxY)
                         dMaxY = dy1;
                 }
             }
