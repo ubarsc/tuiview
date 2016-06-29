@@ -624,7 +624,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     unsigned char *pNewWKB;
     int n, bFill = 0;
 
-    if( !PyArg_ParseTuple(args, "OOiiiz|i:rasterizeOutlines", &pPythonLayer, 
+    if( !PyArg_ParseTuple(args, "OOiiiz|i:rasterizeLayer", &pPythonLayer, 
             &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill))
         return NULL;
 
@@ -739,7 +739,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     unsigned char *pCurrWKB;
     int n, bFill = 0;
 
-    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeOutlinesFeature", &pPythonFeature, 
+    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeFeature", &pPythonFeature, 
             &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
         return NULL;
 
@@ -814,6 +814,96 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     return pOutArray;
 }
 
+static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *args)
+{
+    PyObject *pPythonGeometry; /* of type ogr.Geometry*/
+    PyObject *pBBoxObject; /* must be a sequence*/
+    int nXSize, nYSize, nLineWidth;
+    void *pPtr;
+    double adExtents[4];
+    PyObject *o;
+    npy_intp dims[2];
+    PyObject *pOutArray;
+    VectorWriterData *pWriter;
+    OGRGeometryH hGeometry;
+    int nNewWKBSize;
+    unsigned char *pCurrWKB;
+    int n, bFill = 0;
+
+    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeGeometry", &pPythonGeometry, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+        return NULL;
+
+    pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonGeometry, GETSTATE(self)->error);
+    if( pPtr == NULL )
+        return NULL;
+    hGeometry = (OGRGeometryH)pPtr;
+
+    if( !PySequence_Check(pBBoxObject))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "second argument must be a sequence");
+        return NULL;
+    }
+
+    if( PySequence_Size(pBBoxObject) != 4 )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
+        return NULL;
+    }
+
+    for( n = 0; n < 4; n++ )
+    {
+        o = PySequence_GetItem(pBBoxObject, n);
+        if( !PyFloat_Check(o) )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Must be a sequence of floats" );
+            Py_DECREF(o);
+            return NULL;
+        }
+        adExtents[n] = PyFloat_AsDouble(o);
+        Py_DECREF(o);
+    }
+
+    /* create output array - all 0 to begin with */
+    dims[0] = nYSize;
+    dims[1] = nXSize;
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
+    if( pOutArray == NULL )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
+        return NULL;
+    }
+
+    /* set up the object that does the writing */
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    
+    if( hGeometry != NULL )
+    {
+        /* how big a buffer do we need? */
+        nNewWKBSize = OGR_G_WkbSize(hGeometry);
+        pCurrWKB = (unsigned char*)malloc(nNewWKBSize);
+        if( pCurrWKB == NULL )
+        {
+            /* malloc failed - bail out*/
+            Py_DECREF(pOutArray);
+            VectorWriter_destroy(pWriter);
+            PyErr_SetString(GETSTATE(self)->error, "memory allocation failed");
+            return NULL;
+        }
+        else
+        {
+            /* read it in*/
+            OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
+            /* write it to array*/
+            VectorWriter_processWKB(pWriter, pCurrWKB);
+            free( pCurrWKB );
+        }
+    }
+    VectorWriter_destroy(pWriter);
+
+    return pOutArray;
+}
+
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
@@ -828,9 +918,18 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  fill is an optional argument that determines if polygons are filled in"},
     {"rasterizeFeature", vectorrasterizer_rasterizeFeature, METH_VARARGS, 
 "read an OGR feature and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeOutlinesFeature(ogrfeature, boundingbox, xsize, ysize, fill=False)\n"
+"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False)\n"
 "where:\n"
 "  ogrfeature is an instance of ogr.Feature\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  xsize,ysize size of output array\n"
+"  linewidth is the width of the line\n"
+"  fill is an optional argument that determines if polygons are filled in\n"},
+    {"rasterizeGeometry", vectorrasterizer_rasterizeGeometry, METH_VARARGS,
+"read an OGR Geometry and vectorize outlines to numpy array:\n"
+"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False)\n"
+"where:\n"
+"  ogrgeometry is an instance of ogr.Geometry\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
