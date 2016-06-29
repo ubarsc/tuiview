@@ -22,6 +22,7 @@ Supporting classes for tools in the ViewerWidget
 from PyQt4.QtGui import QPolygon, QPolygonF
 from PyQt4.QtCore import Qt, QPoint, QPointF
 import numpy
+from osgeo import ogr
 
 from .viewerLUT import MASK_IMAGE_VALUE
 
@@ -48,6 +49,12 @@ class ToolInfo(QPolygon):
             wldList.append(QPointF(wldx, wldy))
 
         return QPolygonF(wldList)
+
+    def getOGRGeometry(self):
+        """
+        Return a ogr.Geometry instance. Derived classes to implement
+        """
+        raise NotImplemetedError()
 
     def getDisplayData(self):
         """
@@ -122,6 +129,22 @@ class PolygonToolInfo(ToolInfo):
         selectMask[tly:bry, tlx:brx] = bboxmask
         return selectMask
 
+    def getOGRGeometry(self):
+        """
+        Return a ogr.Geometry instance
+        """
+        # Create ring
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        for pt in self:
+            wldx, wldy = self.layer.coordmgr.display2world(pt.x(), pt.y())
+            ring.AddPoint(wldx, wldy)
+
+        poly = ogr.Geometry(ogr.wkbPolygon)
+        poly.AddGeometry(ring)
+
+        return poly
+        
+
 class PolylineToolInfo(ToolInfo):
     """
     Class derived from ToolInfo that contains the polyline etc
@@ -185,6 +208,16 @@ class PolylineToolInfo(ToolInfo):
             profiledistance = distance
 
         return profiledata, profilemask, profiledistance
+
+    def getOGRGeometry(self):
+        """
+        Return a ogr.Geometry instance
+        """
+        geom = ogr.Geometry(ogr.wkbLineString)
+        for pt in self:
+            wldx, wldy = self.layer.coordmgr.display2world(pt.x(), pt.y())
+            geom.AddPoint(wldx, wldy)
+        return geom
 
 # the following stolen from 
 # http://code.activestate.com/recipes/578112-bresenhams-line-algorithm-in-n-dimensions/
