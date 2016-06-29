@@ -1568,11 +1568,7 @@ class LayerManager(QObject):
         extent = layer.coordmgr.getWorldExtent()
         self.queryPointLayer.coordmgr.setWorldExtent(extent)
 
-        layer.getImage()
-        self.layers.append(layer)
-        self.recalcFullExtent()
-        self.emit(SIGNAL("layersChanged()"))
-        self.updateTopFilename()
+        self.addLayer(layer)
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
                                 color=DEFAULT_VECTOR_COLOR, resultSet=False,
@@ -1591,12 +1587,7 @@ class LayerManager(QObject):
         layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
                                 resultSet, origSQL)
 
-        layer.getImage()
-        self.layers.append(layer)
-
-        self.recalcFullExtent()
-        self.emit(SIGNAL("layersChanged()"))
-        self.updateTopFilename()
+        self.addLayer(layer)
 
     def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
                                 width, height, color=DEFAULT_VECTOR_COLOR,
@@ -1614,6 +1605,12 @@ class LayerManager(QObject):
         layer.open(ogrDataSource, ogrLayer, ogrFeature, width, 
                             height, extent, color)
 
+        self.addLayer(layer)
+
+    def addLayer(self, layer):
+        """
+        Add the given layer
+        """
         layer.getImage()
         self.layers.append(layer)
 
