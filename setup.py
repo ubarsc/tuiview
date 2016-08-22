@@ -46,6 +46,11 @@ except ImportError:
 import tuiview
 MIN_GDAL_VERSION = '1.11.0'
 
+# Are we installing the command line scripts?
+# this is an experimental option for users who are
+# using the Python entry point feature of setuptools and Conda instead
+NO_INSTALL_CMDLINE = int(os.getenv('TUIVIEW_NOCMDLINE', '0')) > 0
+
 def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
@@ -110,13 +115,17 @@ if withExtensions:
 else:
     ext_modules = []
 
-# For windows also copy bat files, to run python scripts
-if sys.platform == 'win32':
-    scripts_list = ['bin/tuiview','bin/tuiview.bat',
-                     'bin/tuiviewwritetable','bin/tuiviewwritetable.bat']
+if NO_INSTALL_CMDLINE:
+    scripts_list = None
 else:
-    scripts_list = ['bin/tuiview',
+    # For windows also copy bat files, to run python scripts
+    if sys.platform == 'win32':
+        scripts_list = ['bin/tuiview','bin/tuiview.bat',
+                     'bin/tuiviewwritetable','bin/tuiviewwritetable.bat']
+    else:
+        scripts_list = ['bin/tuiview',
                      'bin/tuiviewwritetable']
+
 setup(name='TuiView', 
     version=tuiview.TUIVIEW_VERSION, 
     description='Simple Raster Viewer',
@@ -135,6 +144,7 @@ setup(name='TuiView',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.2',
           'Programming Language :: Python :: 3.3',
-          'Programming Language :: Python :: 3.4'])
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5'])
 
 
