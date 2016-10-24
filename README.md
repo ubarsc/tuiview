@@ -16,12 +16,12 @@ TuiView is a lightweight raster GIS with powerful raster attribute table manipul
 # Download #
 ## Binaries ##
 
-Binaries for Windows, Linux and Mac are available through [Conda](http://conda.pydata.org/index.html) on the "osgeo" channel:
+Binaries for Windows, Linux and Mac are available through [Conda](http://conda.pydata.org/index.html) on the "conda-forge" channel:
 
-1. Download and [install](http://docs.continuum.io/anaconda/install.html) the Python 3.4 installer for your platform from the [Miniconda](http://conda.pydata.org/miniconda.html#miniconda) site
-1. Bring up the command line and type "conda install -c osgeo tuiview"
-1. Type "tuiview"
-1. To upgrade when a new version is released, type "conda update -c osgeo tuiview"
+1. Download and [install](http://docs.continuum.io/anaconda/install.html) the Python 3.5 installer for your platform from the [Miniconda](http://conda.pydata.org/miniconda.html#miniconda) site and type the following commands on the command line.
+1. conda config --add channels conda-forge
+1. conda create -n myenv tuiview
+1. source activate myenv # omit 'source' on Windows
 
 ## Source ##
 
