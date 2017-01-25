@@ -23,7 +23,7 @@ and StretchDefaultsDialog classes
 from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
 from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
 from PyQt4.QtGui import QPushButton, QGroupBox, QDockWidget, QFileDialog
-from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox
+from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
 from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor, QMessageBox
 from PyQt4.QtCore import QSettings, SIGNAL, Qt
 import json
@@ -175,10 +175,24 @@ class StretchLayout(QFormLayout):
         # create the spin boxes for the std devs or hist min and max
         self.stretchParam1 = QDoubleSpinBox(parent)
         self.stretchParam1.setDecimals(3)
+        self.stretchParam1Stats = QCheckBox(parent)
+        self.stretchParam1Stats.setText("Statistics Min")
+
+        self.connect(self.stretchParam1Stats, SIGNAL("stateChanged(int)"),
+                    self.param1StatsChanged)
+
         self.stretchParam2 = QDoubleSpinBox(parent)
         self.stretchParam2.setDecimals(3)
+        self.stretchParam2Stats = QCheckBox(parent)
+        self.stretchParam2Stats.setText("Statistics Max")
+
+        self.connect(self.stretchParam2Stats, SIGNAL("stateChanged(int)"),
+                    self.param2StatsChanged)
+
         self.stretchLayout.addWidget(self.stretchParam1)
+        self.stretchLayout.addWidget(self.stretchParam1Stats)
         self.stretchLayout.addWidget(self.stretchParam2)
+        self.stretchLayout.addWidget(self.stretchParam2Stats)
 
         self.addRow("Stretch", self.stretchLayout)
 
@@ -209,6 +223,18 @@ class StretchLayout(QFormLayout):
 
         # set state of GUI for this stretch
         self.updateStretch(stretch)
+
+    def param1StatsChanged(self, state):
+        """
+        Called when the 'Statistics Min' box is checked
+        """
+        self.stretchParam1.setEnabled(state != Qt.Checked)
+
+    def param2StatsChanged(self, state):
+        """
+        Called when the 'Statistics Max' box is checked
+        """
+        self.stretchParam2.setEnabled(state != Qt.Checked)
 
     def updateStretch(self, stretch):
         """
@@ -264,11 +290,19 @@ class StretchLayout(QFormLayout):
 
         if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             self.stretchParam2.setEnabled(False)
+            self.stretchParam1Stats.setEnabled(False)
+            self.stretchParam2Stats.setEnabled(False)
+            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
             self.stretchParam1.setRange(0, 10)
             self.stretchParam1.setSingleStep(0.1)
             self.stretchParam1.setValue(stretch.stretchparam[0])
             self.stretchParam1.setToolTip("Number of Standard Deviations")
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
+            self.stretchParam1Stats.setEnabled(False)
+            self.stretchParam2Stats.setEnabled(False)
+            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
             self.stretchParam1.setRange(0, 1)
             self.stretchParam1.setSingleStep(0.005)
             self.stretchParam1.setValue(stretch.stretchparam[0])
@@ -278,27 +312,38 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setValue(stretch.stretchparam[1])
             self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
-            self.stretchParam1.setRange(-1, 2**32)
+            self.stretchParam1Stats.setEnabled(True)
+            self.stretchParam2Stats.setEnabled(True)
+            self.stretchParam1.setRange(-2**32, 2**32)
             self.stretchParam1.setSingleStep(1)
-            self.stretchParam1.setSpecialValueText("Statistics Min")
-            # need to do something cleverer here with the special value
+
             if stretch.stretchparam[0] is None:
-                self.stretchParam1.setValue(-1)
+                self.stretchParam1Stats.setCheckState(Qt.Checked)
             else:
                 self.stretchParam1.setValue(stretch.stretchparam[0])
+                self.stretchParam1Stats.setCheckState(Qt.Unchecked)
             self.stretchParam1.setToolTip("Minimum Value")
 
-            self.stretchParam2.setRange(-1, 2**32)
+            self.stretchParam2.setRange(-2**32, 2**32)
             self.stretchParam2.setSingleStep(1)
-            self.stretchParam2.setSpecialValueText("Statistics Max")
+
             if stretch.stretchparam[1] is None:
-                self.stretchParam2.setValue(-1)
+                self.stretchParam2Stats.setCheckState(Qt.Checked)
             else:
                 self.stretchParam2.setValue(stretch.stretchparam[1])
+                self.stretchParam2Stats.setCheckState(Qt.Unchecked)
+
             self.stretchParam2.setToolTip("Maximum Value")
         else:
+            # no stretch
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)
+            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam1Stats.setEnabled(False)
+            self.stretchParam2Stats.setEnabled(False)
+            self.stretchParam1.setToolTip("")
+            self.stretchParam2.setToolTip("")
 
         # nodata etc
         self.nodataButton.setColorAsRGBATuple(stretch.nodata_rgba)
@@ -408,10 +453,10 @@ class StretchLayout(QFormLayout):
         elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
             # need to do something cleverer here with the special value
             minVal = self.stretchParam1.value()
-            if minVal == -1:
+            if self.stretchParam1Stats.checkState() == Qt.Checked:
                 minVal = None
             maxVal = self.stretchParam2.value()
-            if maxVal == -1:
+            if self.stretchParam2Stats.checkState() == Qt.Checked:
                 maxVal = None
             obj.setLinearStretch(minVal, maxVal)
 
@@ -457,17 +502,23 @@ class StretchLayout(QFormLayout):
         if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(False)
+            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam1Stats.setEnabled(False)
+            self.stretchParam2Stats.setEnabled(False)
             self.stretchParam1.setRange(0, 10)
             self.stretchParam1.setSingleStep(0.1)
             # always set back to this default
             self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) 
             self.stretchParam1.setToolTip("Number of Standard Deviations")
             self.stretchParam2.setToolTip("")
-            self.stretchParam1.setSpecialValueText("")
-            self.stretchParam2.setSpecialValueText("")
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(True)
+            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam1Stats.setEnabled(False)
+            self.stretchParam2Stats.setEnabled(False)
             self.stretchParam1.setRange(0, 1)
             self.stretchParam1.setSingleStep(0.005)
             self.stretchParam1.setToolTip("Minimum Proportion of Histogram")
@@ -477,25 +528,28 @@ class StretchLayout(QFormLayout):
             # set back to these defaults
             self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) 
             self.stretchParam2.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
-            self.stretchParam1.setSpecialValueText("")
-            self.stretchParam2.setSpecialValueText("")
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(True)
-            self.stretchParam1.setRange(-1, 2**32)
+            self.stretchParam1Stats.setEnabled(True)
+            self.stretchParam2Stats.setEnabled(True)
+            self.stretchParam1.setRange(-2**32, 2**32)
             self.stretchParam1.setSingleStep(1)
             self.stretchParam1.setToolTip("Minimum Value")
-            self.stretchParam2.setRange(-1, 2**32)
+            self.stretchParam2.setRange(-2**32, 2**32)
             self.stretchParam2.setSingleStep(1)
             self.stretchParam2.setToolTip("Maximum Value")
-            self.stretchParam1.setValue(-1) # set back to these defaults
-            self.stretchParam2.setValue(-1)
-            # need to do something cleverer here with the special value
-            self.stretchParam1.setSpecialValueText("Statistics Min")
-            self.stretchParam2.setSpecialValueText("Statistics Max")
+            self.stretchParam1.setValue(0) # set back to these defaults
+            self.stretchParam2.setValue(0)
+            self.stretchParam1Stats.setCheckState(Qt.Checked)
+            self.stretchParam2Stats.setCheckState(Qt.Checked)
         else:
             self.stretchParam1.setEnabled(False)
             self.stretchParam2.setEnabled(False)
+            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
+            self.stretchParam1Stats.setEnabled(False)
+            self.stretchParam2Stats.setEnabled(False)
             self.stretchParam1.setToolTip("")
             self.stretchParam2.setToolTip("")
 
