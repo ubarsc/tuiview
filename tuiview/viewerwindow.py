@@ -39,7 +39,7 @@ from . import viewerwidget
 from . import viewererrors
 
 # set to True to see traceback when file open fails
-SHOW_TRACEBACK = False
+SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK','0') == '1')
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
