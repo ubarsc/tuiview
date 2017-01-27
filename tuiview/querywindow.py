@@ -108,8 +108,7 @@ class ThematicTableModel(QAbstractTableModel):
         topLeft = self.index(0, 0)
         bottomRight = self.index(self.columnCount(None) - 1,
                             self.rowCount(None) - 1)
-        self.emit(SIGNAL("dataChanged(const QModelIndex &,const QModelIndex &)"),
-                            topLeft, bottomRight)
+        self.dataChanged.emit(topLeft, bottomRight)
 
         # cache will be out of date
         self.attCache = self.attributes.getCacheObject(RAT_CACHE_CHUNKSIZE) 
@@ -117,8 +116,8 @@ class ThematicTableModel(QAbstractTableModel):
         if updateHorizHeader:
             self.saneColNames = self.attributes.getSaneColumnNames()
             self.colNames = self.attributes.getColumnNames()
-            self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
-                    Qt.Horizontal, 0, self.columnCount(None) - 1)
+            self.headerDataChanged.emit(Qt.Horizontal, 0, 
+                        self.columnCount(None) - 1)
 
     def setHighlightRow(self, row):
         """
@@ -126,8 +125,7 @@ class ThematicTableModel(QAbstractTableModel):
         the row that should be highlighted
         """
         self.highlightRow = row
-        self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
-                    Qt.Vertical, 0, self.rowCount(None) - 1)
+        self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
 
     def rowCount(self, parent):
         "returns the number of rows"
@@ -260,12 +258,11 @@ class ContinuousTableModel(QAbstractTableModel):
         topLeft = self.index(0, 0)
         bottomRight = self.index(self.columnCount(None) - 1, 
                         self.rowCount(None) - 1)
-        self.emit(SIGNAL("dataChanged(const QModelIndex &,const QModelIndex &)"),
-                            topLeft, bottomRight)
+        self.dataChanged.emit(topLeft, bottomRight)
 
         if updateHorizHeader:
-            self.emit(SIGNAL("headerDataChanged(Qt::Orientation, int, int)"), 
-                    Qt.Horizontal, 0, self.rowCount(None) - 1)
+            self.headerDataChanged.emit(Qt.Horizontal, 0, 
+                        self.rowCount(None) - 1)
 
     def rowCount(self, parent):
         "returns the number of rows"
@@ -539,6 +536,9 @@ class QueryDockWidget(QDockWidget):
     Image values for point are displayed thanks to locationSelected
     signal from ViewerWidget. 
     """
+    # signals
+    queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Query", parent)
         
@@ -554,16 +554,13 @@ class QueryDockWidget(QDockWidget):
         # connect to the collected polygon signal - only respond when
         # self.geogSelectAction.isChecked() so don't interfere with
         # other GUI elements that might as for a polygon
-        self.connect(self.viewwidget, 
-            SIGNAL("polygonCollected(PyQt_PyObject)"), self.newPolyGeogSelect)
+        self.viewwidget.polygonCollected.connect(self.newPolyGeogSelect)
         # same for polyline
-        self.connect(self.viewwidget, 
-            SIGNAL("polylineCollected(PyQt_PyObject)"), self.newLineGeogSelect)
+        self.viewwidget.polylineCollected.connect(self.newLineGeogSelect)
 
         # connect to the signal we get when tool changed. We can update
         # GUI if main window has selected tool etc
-        self.connect(self.viewwidget, 
-            SIGNAL("activeToolChanged(PyQt_PyObject)"), self.activeToolChanged)
+        self.viewwidget.activeToolChanged.connect(self.activeToolChanged)
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
@@ -576,14 +573,12 @@ class QueryDockWidget(QDockWidget):
         self.eastingEdit = QLineEdit(self.dockWidget)
         self.eastingEdit.setToolTip("Easting")
         self.eastingEdit.setValidator(self.coordValidator)
-        self.connect(self.eastingEdit, SIGNAL("returnPressed()"), 
-                                                        self.userNewCoord)
+        self.eastingEdit.returnPressed.connect(self.userNewCoord)
 
         self.northingEdit = QLineEdit(self.dockWidget)
         self.northingEdit.setToolTip("Northing")
         self.northingEdit.setValidator(self.coordValidator)
-        self.connect(self.northingEdit, SIGNAL("returnPressed()"), 
-                                                        self.userNewCoord)
+        self.northingEdit.returnPressed.connect(self.userNewCoord)
 
         self.coordLayout = QHBoxLayout()
         self.coordLayout.addWidget(self.eastingEdit)
@@ -706,113 +701,92 @@ class QueryDockWidget(QDockWidget):
         self.followAction.setCheckable(True)
         self.followAction.setChecked(True)
 
-        self.cursorColorAction = QAction(self)
+        self.cursorColorAction = QAction(self, triggered=self.changeCursorColor)
         self.cursorColorAction.setText("&Change Cursor Color")
         self.cursorColorAction.setStatusTip("Change Cursor Color")
         icon = self.getColorIcon(self.cursorColor)
         self.cursorColorAction.setIcon(icon)        
-        self.connect(self.cursorColorAction, SIGNAL("triggered()"), 
-                        self.changeCursorColor)
 
-        self.increaseCursorSizeAction = QAction(self)
+        self.increaseCursorSizeAction = QAction(self, 
+                        triggered=self.increaseCursorSize)
         self.increaseCursorSizeAction.setText("&Increase Cursor Size")
         self.increaseCursorSizeAction.setStatusTip("Increase Cursor Size")
         icon = QIcon(":/viewer/images/queryincrease.png")
         self.increaseCursorSizeAction.setIcon(icon)
-        self.connect(self.increaseCursorSizeAction, SIGNAL("triggered()"), 
-                        self.increaseCursorSize)
 
-        self.decreaseCursorSizeAction = QAction(self)
+        self.decreaseCursorSizeAction = QAction(self, 
+                        triggered=self.decreaseCursorSize)
         self.decreaseCursorSizeAction.setText("&Decrease Cursor Size")
         self.decreaseCursorSizeAction.setStatusTip("Decrease Cursor Size")
         icon = QIcon(":/viewer/images/querydecrease.png")
         self.decreaseCursorSizeAction.setIcon(icon)
-        self.connect(self.decreaseCursorSizeAction, SIGNAL("triggered()"), 
-                        self.decreaseCursorSize)
 
-        self.labelAction = QAction(self)
+        self.labelAction = QAction(self, toggled=self.changeLabel)
         self.labelAction.setText("&Display Plot Labels")
         self.labelAction.setStatusTip("Display Plot Labels")
         self.labelAction.setIcon(QIcon(":/viewer/images/label.png"))
         self.labelAction.setCheckable(True)
         self.labelAction.setChecked(True)
-        self.connect(self.labelAction, SIGNAL("toggled(bool)"), 
-                        self.changeLabel)
 
-        self.savePlotAction = QAction(self)
+        self.savePlotAction = QAction(self, triggered=self.savePlot)
         self.savePlotAction.setText("&Save Plot")
         self.savePlotAction.setStatusTip("Save Plot")
         self.savePlotAction.setIcon(QIcon(":/viewer/images/saveplot.png"))
-        self.connect(self.savePlotAction, SIGNAL("triggered()"), self.savePlot)
 
-        self.highlightAction = QAction(self)
+        self.highlightAction = QAction(self, toggled=self.highlight)
         self.highlightAction.setText("&Highlight Selection (CTRL+H)")
         self.highlightAction.setStatusTip("Highlight Selection")
         self.highlightAction.setIcon(QIcon(":/viewer/images/highlight.png"))
         self.highlightAction.setCheckable(True)
         self.highlightAction.setChecked(True)
         self.highlightAction.setShortcut("CTRL+H")
-        self.connect(self.highlightAction, SIGNAL("toggled(bool)"), 
-                        self.highlight)
 
-        self.highlightColorAction = QAction(self)
+        self.highlightColorAction = QAction(self, 
+                        triggered=self.changeHighlightColor)
         self.highlightColorAction.setText("Ch&ange Highlight Color")
         self.highlightColorAction.setStatusTip("Change Highlight Color")
         icon = self.getColorIcon(self.highlightColor)
         self.highlightColorAction.setIcon(icon)
-        self.connect(self.highlightColorAction, SIGNAL("triggered()"), 
-                        self.changeHighlightColor)
 
-        self.removeSelectionAction = QAction(self)
+        self.removeSelectionAction = QAction(self, 
+                        triggered=self.removeSelection)
         self.removeSelectionAction.setText("&Remove Current Selection")
         self.removeSelectionAction.setStatusTip("Remove Current Selection")
         icon = QIcon(":/viewer/images/removeselection.png")
         self.removeSelectionAction.setIcon(icon)
-        self.connect(self.removeSelectionAction, SIGNAL("triggered()"), 
-                        self.removeSelection)
 
-        self.selectAllAction = QAction(self)
+        self.selectAllAction = QAction(self, triggered=self.selectAll)
         self.selectAllAction.setText("Se&lect All")
         self.selectAllAction.setStatusTip("Select All Rows")
         icon = QIcon(":/viewer/images/selectall.png")
         self.selectAllAction.setIcon(icon)
-        self.connect(self.selectAllAction, SIGNAL("triggered()"), 
-                        self.selectAll)
 
-        self.expressionAction = QAction(self)
+        self.expressionAction = QAction(self, triggered=self.showUserExpression)
         self.expressionAction.setText("Select using an &Expression")
         self.expressionAction.setStatusTip("Select using an Expression")
         icon = QIcon(":/viewer/images/userexpression.png")
         self.expressionAction.setIcon(icon)
-        self.connect(self.expressionAction, SIGNAL("triggered()"), 
-                        self.showUserExpression)
 
-        self.unlockDatasetAction = QAction(self)
+        self.unlockDatasetAction = QAction(self, toggled=self.unlockDataset)
         self.unlockDatasetAction.setText("Toggle &updates to dataset")
         self.unlockDatasetAction.setStatusTip(
                         "Toggle whether updates are allowed to dataset")
         icon = QIcon(":/viewer/images/lock.png")
         self.unlockDatasetAction.setIcon(icon)
         self.unlockDatasetAction.setCheckable(True)
-        self.connect(self.unlockDatasetAction, SIGNAL("toggled(bool)"),
-                        self.unlockDataset)
 
-        self.addColumnAction = QAction(self)
+        self.addColumnAction = QAction(self, triggered=self.addColumn)
         self.addColumnAction.setText("Add C&olumn")
         self.addColumnAction.setStatusTip("Add Column")
         self.addColumnAction.setIcon(QIcon(":/viewer/images/addcolumn.png"))
-        self.connect(self.addColumnAction, SIGNAL("triggered()"), 
-                        self.addColumn)
 
-        self.saveColOrderAction = QAction(self)
+        self.saveColOrderAction = QAction(self, triggered=self.saveColOrder)
         self.saveColOrderAction.setText("Sa&ve Column Order")
         self.saveColOrderAction.setStatusTip("Save Column Order to file")
         icon =  QIcon(":/viewer/images/savecolumnorder.png")
         self.saveColOrderAction.setIcon(icon)
-        self.connect(self.saveColOrderAction, SIGNAL("triggered()"),
-                        self.saveColOrder)
 
-        self.geogSelectAction = QAction(self)
+        self.geogSelectAction = QAction(self, toggled=self.geogSelect)
         self.geogSelectAction.setText(
                             "&Geographic Selection by Polygon (ALT+G)")
         self.geogSelectAction.setStatusTip(
@@ -821,11 +795,10 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectAction.setIcon(icon)
         self.geogSelectAction.setCheckable(True)
         self.geogSelectAction.setShortcut("ALT+G")
-        self.connect(self.geogSelectAction, SIGNAL("toggled(bool)"),
-                        self.geogSelect)
         self.toolActions.append(self.geogSelectAction)
 
-        self.geogSelectLineAction = QAction(self)
+        self.geogSelectLineAction = QAction(self, 
+                    toggled=self.geogSelectLineAction)
         self.geogSelectLineAction.setText(
                                     "Geographic Selection by &Line (ALT+L)")
         self.geogSelectLineAction.setStatusTip(
@@ -834,11 +807,9 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectLineAction.setIcon(icon)
         self.geogSelectLineAction.setCheckable(True)
         self.geogSelectLineAction.setShortcut("ALT+L")
-        self.connect(self.geogSelectLineAction, SIGNAL("toggled(bool)"),
-                        self.geogLineSelect)
         self.toolActions.append(self.geogSelectLineAction)
 
-        self.geogSelectPointAction = QAction(self)
+        self.geogSelectPointAction = QAction(self, toggled=self.geogPointSelect)
         self.geogSelectPointAction.setText(
                                     "Geographic Selection by &Point (ALT+P)")
         self.geogSelectPointAction.setStatusTip(
@@ -847,27 +818,21 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectPointAction.setIcon(icon)
         self.geogSelectPointAction.setCheckable(True)
         self.geogSelectPointAction.setShortcut("ALT+P")
-        self.connect(self.geogSelectPointAction, SIGNAL("toggled(bool)"),
-                        self.geogPointSelect)
         self.toolActions.append(self.geogSelectPointAction)
 
-        self.plotScalingAction = QAction(self)
+        self.plotScalingAction = QAction(self, triggered=self.onPlotScaling)
         self.plotScalingAction.setText("Set Plot Scaling")
         self.plotScalingAction.setStatusTip("Set Plot Scaling")
         icon = QIcon(":/viewer/images/setplotscale.png")
         self.plotScalingAction.setIcon(icon)
-        self.connect(self.plotScalingAction, SIGNAL("triggered()"), 
-                        self.onPlotScaling)
                         
-        self.toggleCoordsAction = QAction(self)
+        self.toggleCoordsAction = QAction(self, toggled=self.toggleCoordsSelect)
         self.toggleCoordsAction.setText("Switch between map and pi&xel coordinates")
         self.toggleCoordsAction.setStatusTip(
                 "Switch display between map and pixel coordinates")
         icon = QIcon(":/viewer/images/toggle.png")
         self.toggleCoordsAction.setIcon(icon)
         self.toggleCoordsAction.setCheckable(True)
-        self.connect(self.toggleCoordsAction, SIGNAL("toggled(bool)"),
-                     self.toggleCoordsSelect)
 
     def setupToolbar(self):
         """
@@ -963,7 +928,8 @@ class QueryDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt4.QtGui import QPrinter, QPainter, QFileDialog
+        from PyQt5.QtGui import QPrinter, QPainter
+        from PyQt5.QtWidgets import QFileDialog
         fname = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
@@ -1056,8 +1022,7 @@ Use the special columns:
 'queryrow' is the currently queried row and
 'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
-        self.connect(dlg, SIGNAL("newExpression(QString)"), 
-                        self.newSelectUserExpression)
+        dlg.newExpression.connect(self.newSelectUserExpression)
         dlg.show()
 
     def unlockDataset(self, state):
@@ -1195,8 +1160,7 @@ Use the special columns:
 'isselected' for the currently selected rows and
 'queryrow' is the currently queried row"""
         dlg.setHint(hint)
-        self.connect(dlg, SIGNAL("newExpression(QString,int)"), 
-                        self.newEditUserExpression)
+        dlg.newExpression.connect(self.newEditUserExpression)
 
         # should be modal?
         dlg.show()
@@ -1334,7 +1298,7 @@ Use the special columns:
         Allows the user to set the number of decimal places for
         float columns
         """
-        from PyQt4.QtGui import QInputDialog
+        from PyQt5.QtWidgets import QInputDialog
         attributes = self.lastLayer.attributes
         currFormat = attributes.getFormat(colName)
         currDP = int(currFormat[2:-1]) # dodgy but should be ok
@@ -1372,7 +1336,7 @@ Use the special columns:
                 tablename = list(tables.keys())[0]
             else:
                 # need to ask them which one
-                from PyQt4.QtGui import QInputDialog
+                from PyQt5.QtWidgets import QInputDialog
                 (tablename, ok) = QInputDialog.getItem(self, MESSAGE_TITLE,
                     "Select color table", list(tables.keys()), editable=False)
                 if not ok:
@@ -1789,7 +1753,7 @@ Use the special columns:
         Window is being closed - inform parent window
         """
         self.viewwidget.removeQueryPoint(id(self))
-        self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
+        self.queryClosed.emit(self)
 
     def keyPressEvent(self, event):
         """

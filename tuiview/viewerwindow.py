@@ -145,15 +145,11 @@ class ViewerWindow(QMainWindow):
 
         # connect to the signals emmitted by the LUT/RAT via the LayerManager
         # so we can update our progress bar
-        #self.connect(self.viewwidget.layers, SIGNAL("newProgress(QString)"), 
-        #                                        self.newProgress)
-        #self.connect(self.viewwidget.layers, SIGNAL("endProgress()"), 
-        #                                        self.endProgress)
-        #self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
-        #                                        self.newPercent)
+        self.viewwidget.layers.newProgressSig.connect(self.newProgress)
+        self.viewwidget.layers.endProgressSig.connect(self.endProgress)
+        self.viewwidget.layers.newPercentSig.connect(self.newPercent)
         # so we can update the window title
-        #self.connect(self.viewwidget.layers, SIGNAL("topLayerChanged(PyQt_PyObject)"),
-        #                                        self.updateWindowTitle)
+        self.viewwidget.layers.topLayerChanged.connect(self.updateWindowTitle)
         # general messages from the widget
         self.viewwidget.showStatusMessage.connect(self.showStatusMessage)
         # the signal that gets sent when active tool changed so we can update
@@ -758,7 +754,7 @@ class ViewerWindow(QMainWindow):
         """
         Add a vector from a database - ask user for connection string
         """
-        from PyQt4.QtGui import QInputDialog
+        from PyQt5.QtWidgets import QInputDialog
         (con, ok) = QInputDialog.getText(self, MESSAGE_TITLE, 
                                 "Enter OGR connection string (without quotes)")
         if ok and con != "":
@@ -963,9 +959,7 @@ File will now be opened using default stretch""")
             # this works to prevent it trying to dock when dragging
             # but double click still works
             self.layerWindow.setAllowedAreas(Qt.NoDockWidgetArea) 
-            self.connect(self.layerWindow, 
-                                SIGNAL("layerWindowClosed(PyQt_PyObject)"), 
-                                self.layerWindowClosed)
+            self.layerWindow.layerWindowClosed.connect(self.layerWindowClosed)
         else:
             # remove
             self.removeDockWidget(self.layerWindow)
@@ -1122,9 +1116,7 @@ File will now be opened using default stretch""")
         Query dock window has been closed. Disconnect from
         locationSelected signal and decrement our count
         """
-        self.disconnect(self.viewwidget, 
-                            SIGNAL("locationSelected(PyQt_PyObject)"), 
-                            queryDock.locationSelected)
+        self.viewwidget.locationSelected.disconnect(queryDock.locationSelected)
         self.queryWindowCount -= 1
 
     def newQueryWindow(self):
@@ -1147,13 +1139,10 @@ File will now be opened using default stretch""")
         queryDock.move(x, y)
 
         # connect it to signals emitted by the viewerwidget
-        self.connect(self.viewwidget, 
-                                SIGNAL("locationSelected(PyQt_PyObject)"), 
-                                queryDock.locationSelected)
+        self.viewwidget.locationSelected.connect(queryDock.locationSelected)
 
         # grab the signal the queryDock sends when it is closed
-        self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), 
-                                                self.queryClosed)
+        queryDock.queryClosed.connect(self.queryClosed)
 
         # increment our count
         self.queryWindowCount += 1
@@ -1199,13 +1188,11 @@ File will now be opened using default stretch""")
         queryDock.move(x, y)
 
         # connect it to signals emitted by the viewerwidget
-        self.connect(self.viewwidget, 
-                            SIGNAL("vectorLocationSelected(PyQt_PyObject, PyQt_PyObject)"),
+        self.viewwidget.vectorLocationSelected.connect(
                             queryDock.vectorLocationSelected)
 
         # grab the signal the queryDock sends when it is closed
-        self.connect(queryDock, SIGNAL("queryClosed(PyQt_PyObject)"), 
-                                                self.vectorQueryClosed)
+        queryDock.queryClosed.connect(self.vectorQueryClosed)
 
         # increment our count
         self.vectorQueryWindowCount += 1
@@ -1219,9 +1206,8 @@ File will now be opened using default stretch""")
         Query dock window has been closed. Disconnect from
         vectorLocationSelected signal and decrement our count
         """
-        self.disconnect(self.viewwidget, 
-                            SIGNAL("vectorLocationSelected(PyQt_PyObject, PyQt_PyObject)"), 
-                            queryDock.vectorLocationSelected)
+        self.viewwidget.vectorLocationSelected.disconnect(
+                        queryDock.vectorLocationSelected)
         self.vectorQueryWindowCount -= 1
 
     def profile(self, checked):
@@ -1258,12 +1244,10 @@ File will now be opened using default stretch""")
         profileDock.move(x, y)
 
         # connect to the signal that provides our new line
-        self.connect(self.viewwidget, 
-            SIGNAL("polylineCollected(PyQt_PyObject)"), profileDock.newLine)
+        self.viewwidget.polylineCollected.connect(profileDock.newLine)
 
         # grab the signal the profileDock sends when it is closed
-        self.connect(profileDock, SIGNAL("profileClosed(PyQt_PyObject)"), 
-                                                self.profileClosed)
+        profileDock.profileClosed.connect(self.profileClosed)
 
         # increment our count
         self.profileWindowCount += 1
@@ -1273,9 +1257,7 @@ File will now be opened using default stretch""")
         Profile dock window has been closed. Disconnect from
         polylineCollected signal and decrement our count
         """
-        self.disconnect(self.viewwidget, 
-                            SIGNAL("polylineCollected(PyQt_PyObject)"), 
-                            profileDock.newLine)
+        self.viewwidget.polylineCollected.disconnect(profileDock.newLine)
         self.profileWindowCount -= 1
 
     def properties(self):
@@ -1315,7 +1297,7 @@ File will now be opened using default stretch""")
         Saves the current view as an image file as the file given
         """
         # first grab it out of the widget
-        from PyQt4.QtGui import QImage
+        from PyQt5.QtGui import QImage
         img = QImage(self.viewwidget.viewport().size(), QImage.Format_RGB32)
         self.viewwidget.viewport().render(img)
 

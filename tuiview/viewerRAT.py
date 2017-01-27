@@ -23,7 +23,7 @@ import keyword
 import numpy
 import json
 from osgeo import gdal
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from . import viewererrors
 
@@ -76,6 +76,11 @@ class ViewerRAT(QObject):
     Represents an attribute table in memory. Has method
     to read from GDAL. Also will apply a user expression.
     """
+    # signals
+    newProgress = pyqtSignal('QString', name='newProgress')
+    newPercent = pyqtSignal(int, name='newPercent')
+    endProgress = pyqtSignal(name='endProgress')
+
     def __init__(self):
         QObject.__init__(self)
         self.clear()
@@ -257,7 +262,7 @@ class ViewerRAT(QObject):
         self.clear()
         
         # have rat and thematic?
-        self.emit(SIGNAL("newProgress(QString)"), "Reading Attributes...")
+        self.newProgress.emit("Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
         thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
         if rat is not None and rat.GetRowCount() != 0 and thematic:
@@ -292,7 +297,7 @@ class ViewerRAT(QObject):
                 else:
                     self.columnFormats[colname] = DEFAULT_STRING_FMT
 
-                self.emit(SIGNAL("newPercent(int)"), col * percent_per_col)
+                self.newPercent.emit(col * percent_per_col)
 
             # read in a preferred column order (if any)
             prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
@@ -306,7 +311,7 @@ class ViewerRAT(QObject):
             # remember the lookup column if set (None if not)
             self.lookupColName = lookup
 
-        self.emit(SIGNAL("endProgress()"))
+        self.endProgress.emit()
 
     def findColorTableColumns(self):
         """
@@ -396,8 +401,7 @@ class ViewerRAT(QObject):
         An exception is raised if code is invalid, or does not return
         an array of bools.
         """
-        self.emit(SIGNAL("newProgress(QString)"), 
-                        "Evaluating User Expression...")
+        self.newProgress.emit("Evaluating User Expression...")
         cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
         nrows = self.getNumRows()
 
@@ -436,9 +440,9 @@ class ViewerRAT(QObject):
 
             result[currRow:currRow+length] = resultSub
             currRow += DEFAULT_CACHE_SIZE
-            self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
+            self.newPercent.emit(int((currRow / nrows) * 100))
 
-        self.emit(SIGNAL("endProgress()"))
+        self.endProgress.emit()
         return result
 
     def evaluateUserEditExpression(self, colName, expression, isselected, 
@@ -451,8 +455,7 @@ class ViewerRAT(QObject):
         namespace.
         An exception is raised if code is invalid.
         """
-        self.emit(SIGNAL("newProgress(QString)"), 
-                        "Evaluating User Expression...")
+        self.newProgress.emit("Evaluating User Expression...")
         cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
         nrows = self.getNumRows()
 
@@ -494,17 +497,16 @@ class ViewerRAT(QObject):
                     isScalar = True
 
             currRow += DEFAULT_CACHE_SIZE
-            self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
+            self.newPercent.emit(int((currRow / nrows) * 100))
 
-        self.emit(SIGNAL("endProgress()"))
+        self.endProgress.emit()
 
     def setColumnToConstant(self, colName, value, isselected):
         """
         Sets whole column to be a constant value (where isselected == True)
         for keyboard shortcuts etc
         """
-        self.emit(SIGNAL("newProgress(QString)"), 
-                        "Evaluating User Expression...")
+        self.newProgress.emit("Evaluating User Expression...")
         cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
         nrows = self.getNumRows()
 
@@ -520,9 +522,9 @@ class ViewerRAT(QObject):
                 cache.updateColumn(colName, value, isselected)
 
             currRow += DEFAULT_CACHE_SIZE
-            self.emit(SIGNAL("newPercent(int)"), int((currRow / nrows) * 100))
+            self.newPercent.emit(int((currRow / nrows) * 100))
 
-        self.emit(SIGNAL("endProgress()"))
+        self.endProgress.emit()
 
     def writeColumnOrderToGDAL(self, gdaldataset):
         """
