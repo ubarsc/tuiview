@@ -23,7 +23,7 @@ import keyword
 import numpy
 import json
 from osgeo import gdal
-from PyQt4.QtCore import QObject, SIGNAL
+from PyQt5.QtCore import QObject
 
 from . import viewererrors
 

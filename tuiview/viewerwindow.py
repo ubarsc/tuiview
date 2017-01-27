@@ -23,11 +23,12 @@ the ViewerWidget, menus, toolbars and status bars.
 import os
 import sys
 import traceback
-from PyQt4.QtGui import QMainWindow, QAction, QIcon, QFileDialog, QDialog
-from PyQt4.QtGui import QMessageBox, QProgressBar, QToolButton
-from PyQt4.QtGui import QMenu, QColor
-from PyQt4.QtCore import QSettings, QSize, QPoint, SIGNAL, Qt
-from PyQt4.QtCore import QCoreApplication, QEventLoop
+from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QDialog
+from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
+from PyQt5.QtWidgets import QMenu
+from PyQt5.QtGui import QIcon, QColor
+from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
+from PyQt5.QtCore import QCoreApplication, QEventLoop
 
 # different resource file needed on Python3
 if sys.version_info[0] == 3:
@@ -37,6 +38,7 @@ else:
 from . import archivereader
 from . import viewerwidget
 from . import viewererrors
+from . import querywindow
 
 # set to True to see traceback when file open fails
 SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK','0') == '1')
@@ -127,6 +129,15 @@ class ViewerWindow(QMainWindow):
     Main window for viewer application. The ViewerWidget is 
     contained in the 'viewwidget' attribute.
     """
+    # signals
+    newWindow = pyqtSignal(name='newWindow')
+    tileWindows = pyqtSignal(int, int, name='tileWindows')
+    newQueryWindow = pyqtSignal(querywindow.QueryDockWidget,
+                            name='newQueryWindow')
+    # Don't know how to specify file objects...
+    writeViewersState = pyqtSignal(object, name='writeViewersState')
+    readViewersState = pyqtSignal(object, name='readViewersState')
+
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle(MESSAGE_TITLE)
@@ -134,22 +145,20 @@ class ViewerWindow(QMainWindow):
 
         # connect to the signals emmitted by the LUT/RAT via the LayerManager
         # so we can update our progress bar
-        self.connect(self.viewwidget.layers, SIGNAL("newProgress(QString)"), 
-                                                self.newProgress)
-        self.connect(self.viewwidget.layers, SIGNAL("endProgress()"), 
-                                                self.endProgress)
-        self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
-                                                self.newPercent)
+        #self.connect(self.viewwidget.layers, SIGNAL("newProgress(QString)"), 
+        #                                        self.newProgress)
+        #self.connect(self.viewwidget.layers, SIGNAL("endProgress()"), 
+        #                                        self.endProgress)
+        #self.connect(self.viewwidget.layers, SIGNAL("newPercent(int)"), 
+        #                                        self.newPercent)
         # so we can update the window title
-        self.connect(self.viewwidget.layers, SIGNAL("topLayerChanged(PyQt_PyObject)"),
-                                                self.updateWindowTitle)
+        #self.connect(self.viewwidget.layers, SIGNAL("topLayerChanged(PyQt_PyObject)"),
+        #                                        self.updateWindowTitle)
         # general messages from the widget
-        self.connect(self.viewwidget, SIGNAL("showStatusMessage(QString)"),
-                                                self.showStatusMessage)
+        self.viewwidget.showStatusMessage.connect(self.showStatusMessage)
         # the signal that gets sent when active tool changed so we can update
         # gui if querywindow engages a tool
-        self.connect(self.viewwidget, 
-            SIGNAL("activeToolChanged(PyQt_PyObject)"), self.activeToolChanged)
+        self.viewwidget.activeToolChanged.connect(self.activeToolChanged)
 
         self.setCentralWidget(self.viewwidget)
 
@@ -702,7 +711,7 @@ class ViewerWindow(QMainWindow):
         Triggered when user wants a new window. Send signal
         to GeolinkedViewers class (if there is one!)
         """
-        self.emit(SIGNAL("newWindow()"))
+        self.newWindow.emit()
 
     def tileWindows(self):
         """
@@ -714,7 +723,7 @@ class ViewerWindow(QMainWindow):
         dlg = TileDialog(self)
         if dlg.exec_() == QDialog.Accepted:
             xnum, ynum = dlg.getValues()
-            self.emit(SIGNAL("tileWindows(int, int)"), xnum, ynum)
+            self.tileWindows.emit(xnum, ynum)
 
     def defaultStretch(self):
         """
@@ -1173,7 +1182,6 @@ File will now be opened using default stretch""")
         Create a new QueryDockWidget and connect signals
         and increment our count of these windows
         """
-        from . import querywindow
         queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
         # can't pass Qt.NoDockWidgetArea in here
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
@@ -1202,7 +1210,7 @@ File will now be opened using default stretch""")
 
         # emit the signal back to geolinked viewers so that 
         # any plugins can be informed
-        self.emit(SIGNAL("newQueryWindow(PyQt_PyObject)"), queryDock)
+        self.newQueryWindow.emit(queryDock)
 
     def vectorQuery(self, checked):
         """
@@ -1254,7 +1262,7 @@ File will now be opened using default stretch""")
 
         # emit the signal back to geolinked viewers so that 
         # any plugins can be informed
-        self.emit(SIGNAL("newQueryWindow(PyQt_PyObject)"), queryDock)
+        self.newQueryWindow.emit(queryDock)
 
     def vectorQueryClosed(self, queryDock):
         """
@@ -1513,7 +1521,7 @@ Numpy Version: %s<br></p>
 
         if fname != "":
             fileobj = open(fname, 'w')
-            self.emit(SIGNAL("writeViewersState(PyQt_PyObject)"), fileobj)
+            self.writeViewersState.emit(fileobj)
             fileobj.close()
 
     def loadViewersState(self):
@@ -1534,6 +1542,6 @@ Numpy Version: %s<br></p>
 
         if fname != "":
             fileobj = open(fname)
-            self.emit(SIGNAL("readViewersState(PyQt_PyObject)"), fileobj)
+            self.readViewersState.emit(fileobj)
             fileobj.close()
 

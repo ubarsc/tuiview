@@ -18,14 +18,14 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDockWidget, QTableView, QIcon
-from PyQt4.QtGui import QColorDialog, QPixmap, QBrush, QMenu, QDoubleValidator
-from PyQt4.QtGui import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
-from PyQt4.QtGui import QTabWidget, QLabel, QPen, QToolBar, QAction
-from PyQt4.QtGui import QFontMetrics, QColor, QMessageBox, QHeaderView
-from PyQt4.QtGui import QStyledItemDelegate, QStyle, QItemSelectionModel
-from PyQt4.QtCore import SIGNAL, Qt, QAbstractTableModel 
-from PyQt4.QtCore import QModelIndex
+from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
+from PyQt5.QtGui import QFontMetrics
+from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
+from PyQt5.QtWidgets import QLabel, QToolBar, QAction, QMessageBox, QHeaderView
+from PyQt5.QtWidgets import QStyledItemDelegate, QStyle
+from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
+from PyQt5.QtCore import QModelIndex, QItemSelectionModel
 import numpy
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE

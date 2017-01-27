@@ -19,9 +19,10 @@ Contains the UserExpressionDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
-from PyQt4.QtGui import QTextEdit, QPalette
-from PyQt4.QtCore import SIGNAL, Qt
+from PyQt5.QtWidgets import QTextEdit
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
+from PyQt5.QtGui import QPalette
+from PyQt5.QtCore import pyqtSignal, Qt
 
 class UserExpressionDialog(QDialog):
     """

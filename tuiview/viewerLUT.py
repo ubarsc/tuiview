@@ -23,8 +23,8 @@ amongst other things
 import sys
 import numpy
 import json
-from PyQt4.QtGui import QImage
-from PyQt4.QtCore import QObject, SIGNAL
+from PyQt5.QtGui import QImage
+from PyQt5.QtCore import QObject
 from osgeo import gdal
 from . import viewererrors
 from . import viewerstretch

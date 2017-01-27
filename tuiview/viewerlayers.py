@@ -27,8 +27,8 @@ import numpy
 from osgeo import gdal
 from osgeo import osr
 from osgeo import ogr
-from PyQt4.QtGui import QImage, QPainter, QPen
-from PyQt4.QtCore import QObject, SIGNAL
+from PyQt5.QtGui import QImage, QPainter, QPen
+from PyQt5.QtCore import QObject
 import threading
 if sys.version_info[0] < 3:
    import Queue as queue
