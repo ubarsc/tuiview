@@ -37,6 +37,7 @@ else:
 from . import archivereader
 from . import viewerwidget
 from . import viewererrors
+from .viewerstrings import MESSAGE_TITLE
 
 # set to True to see traceback when file open fails
 SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK','0') == '1')
@@ -48,7 +49,6 @@ DEFAULT_YPOS = 200
 
 MESSAGE_TIMEOUT = 2000
 DEFAULT_DRIVER = os.getenv('TUIVIEW_DFLT_DRIVER')
-MESSAGE_TITLE = 'TuiView'
 
 # Populate this list the first time the
 # file open dialog shown.

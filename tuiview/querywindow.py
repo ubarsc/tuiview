@@ -34,7 +34,7 @@ from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
 from .viewerwidget import  VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
-from .viewerwindow import MESSAGE_TITLE
+from .viewerstrings import MESSAGE_TITLE
 from . import plotwidget
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white

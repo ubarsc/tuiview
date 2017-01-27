@@ -24,7 +24,7 @@ from PyQt4.QtCore import SIGNAL
 import sys
 
 from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
-from .viewerwindow import MESSAGE_TITLE
+from .viewerstrings import MESSAGE_TITLE
 
 class AddColumnDialog(QDialog):
     """
