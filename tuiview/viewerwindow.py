@@ -39,6 +39,7 @@ from . import archivereader
 from . import viewerwidget
 from . import viewererrors
 from . import querywindow
+from .viewerstrings import MESSAGE_TITLE
 
 # set to True to see traceback when file open fails
 SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK','0') == '1')
@@ -50,7 +51,6 @@ DEFAULT_YPOS = 200
 
 MESSAGE_TIMEOUT = 2000
 DEFAULT_DRIVER = os.getenv('TUIVIEW_DFLT_DRIVER')
-MESSAGE_TITLE = 'TuiView'
 
 # Populate this list the first time the
 # file open dialog shown.
@@ -130,9 +130,9 @@ class ViewerWindow(QMainWindow):
     contained in the 'viewwidget' attribute.
     """
     # signals
-    newWindow = pyqtSignal(name='newWindow')
-    tileWindows = pyqtSignal(int, int, name='tileWindows')
-    newQueryWindow = pyqtSignal(querywindow.QueryDockWidget,
+    newWindowSig = pyqtSignal(name='newWindow')
+    tileWindowsSig = pyqtSignal(int, int, name='tileWindows')
+    newQueryWindowSig = pyqtSignal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
     # Don't know how to specify file objects...
     writeViewersState = pyqtSignal(object, name='writeViewersState')
@@ -316,39 +316,32 @@ class ViewerWindow(QMainWindow):
         """
         self.toolActions = []
 
-        self.addRasterAct = QAction(self)
+        self.addRasterAct = QAction(self, triggered=self.addRaster)
         self.addRasterAct.setText("&Add Raster")
         self.addRasterAct.setStatusTip("Open a GDAL supported image")
         self.addRasterAct.setShortcut("CTRL+O")
         self.addRasterAct.setIcon(QIcon(":/viewer/images/addraster.png"))
         self.addRasterAct.setIconVisibleInMenu(True)
-        self.connect(self.addRasterAct, SIGNAL("triggered()"), self.addRaster)
 
-        self.addVectorFileAct = QAction(self)
+        self.addVectorFileAct = QAction(self, triggered=self.addVectorFile)
         self.addVectorFileAct.setText("Add Vector &File")
         self.addVectorFileAct.setStatusTip("Open an OGR supported vector file")
         self.addVectorFileAct.setShortcut("CTRL+V")
         self.addVectorFileAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorFileAct.setIconVisibleInMenu(True)
-        self.connect(self.addVectorFileAct, SIGNAL("triggered()"), 
-                                                            self.addVectorFile)
 
-        self.addVectorDirAct = QAction(self)
+        self.addVectorDirAct = QAction(self, triggered=self.addVectorDir)
         self.addVectorDirAct.setText("Add Vector &Directory")
         self.addVectorDirAct.setStatusTip("Open an OGR supported vector directory")
         self.addVectorDirAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorDirAct.setIconVisibleInMenu(True)
-        self.connect(self.addVectorDirAct, SIGNAL("triggered()"), 
-                                                            self.addVectorDir)
 
-        self.addVectorDBAct = QAction(self)
+        self.addVectorDBAct = QAction(self, triggered=self.addVectorDB)
         self.addVectorDBAct.setText("Add Vector Data&base")
         self.addVectorDBAct.setStatusTip(
                                 "Open a layer from an OGR supported database")
         self.addVectorDBAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorDBAct.setIconVisibleInMenu(True)
-        self.connect(self.addVectorDBAct, SIGNAL("triggered()"), 
-                                                            self.addVectorDB)
 
         self.vectorMenu = QMenu()
         self.vectorMenu.setTitle("Add Vector")
@@ -356,92 +349,78 @@ class ViewerWindow(QMainWindow):
         self.vectorMenu.addAction(self.addVectorDirAct)
         self.vectorMenu.addAction(self.addVectorDBAct)
 
-        self.removeLayerAct = QAction(self)
+        self.removeLayerAct = QAction(self, triggered=self.removeLayer)
         self.removeLayerAct.setText("&Remove Layer")
         self.removeLayerAct.setStatusTip("Remove top layer")
         self.removeLayerAct.setShortcut("CTRL+R")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
         self.removeLayerAct.setIconVisibleInMenu(True)
-        self.connect(self.removeLayerAct, SIGNAL("triggered()"), 
-                                                        self.removeLayer)
 
-        self.newWindowAct = QAction(self)
+        self.newWindowAct = QAction(self, triggered=self.newWindow)
         self.newWindowAct.setText("&New Window")
         self.newWindowAct.setStatusTip("Create a new geo linked window")
         self.newWindowAct.setShortcut("CTRL+N")
         self.newWindowAct.setIcon(QIcon(":/viewer/images/newwindow.png"))
         self.newWindowAct.setIconVisibleInMenu(True)
-        self.connect(self.newWindowAct, SIGNAL("triggered()"), self.newWindow)
 
-        self.tileWindowsAct = QAction(self)
+        self.tileWindowsAct = QAction(self, triggered=self.tileWindows)
         self.tileWindowsAct.setText("&Tile Windows...")
         self.tileWindowsAct.setStatusTip("Tile all open windows")
         self.tileWindowsAct.setShortcut("CTRL+I")
-        self.connect(self.tileWindowsAct, SIGNAL("triggered()"), 
-                                                        self.tileWindows)
 
-        self.defaultStretchAct = QAction(self)
+        self.defaultStretchAct = QAction(self, triggered=self.defaultStretch)
         self.defaultStretchAct.setText("&Default Stretch...")
         self.defaultStretchAct.setStatusTip("Set default stretches")
         self.defaultStretchAct.setShortcut("CTRL+D")
-        self.connect(self.defaultStretchAct, SIGNAL("triggered()"), 
-                                                        self.defaultStretch)
 
-        self.stretchAct = QAction(self)
+        self.stretchAct = QAction(self, triggered=self.editStretch)
         self.stretchAct.setText("S&tretch")
         self.stretchAct.setStatusTip("Edit current stretch")
         self.stretchAct.setShortcut("CTRL+T")
         self.stretchAct.setEnabled(False) # until a file is opened
-        self.connect(self.stretchAct, SIGNAL("triggered()"), self.editStretch)
 
-        self.panAct = QAction(self)
+        self.panAct = QAction(self, toggled=self.pan)
         self.panAct.setText("&Pan")
         self.panAct.setStatusTip("Pan")
         self.panAct.setShortcut("CTRL+P")
         self.panAct.setCheckable(True)
         self.panAct.setIcon(QIcon(":/viewer/images/pan.png"))
         self.panAct.setIconVisibleInMenu(True)
-        self.connect(self.panAct, SIGNAL("toggled(bool)"), self.pan)
         self.toolActions.append(self.panAct)
 
-        self.zoomInAct = QAction(self)
+        self.zoomInAct = QAction(self, toggled=self.zoomIn)
         self.zoomInAct.setText("Zoom &In")
         self.zoomInAct.setStatusTip("Zoom In")
         self.zoomInAct.setShortcut("CTRL++")
         self.zoomInAct.setCheckable(True)
         self.zoomInAct.setIcon(QIcon(":/viewer/images/zoomin.png"))
         self.zoomInAct.setIconVisibleInMenu(True)
-        self.connect(self.zoomInAct, SIGNAL("toggled(bool)"), self.zoomIn)
         self.toolActions.append(self.zoomInAct)
 
-        self.zoomOutAct = QAction(self)
+        self.zoomOutAct = QAction(self, toggled=self.zoomOut)
         self.zoomOutAct.setText("Zoom &Out")
         self.zoomOutAct.setStatusTip("Zoom Out")
         self.zoomOutAct.setShortcut("CTRL+-")
         self.zoomOutAct.setCheckable(True)
         self.zoomOutAct.setIcon(QIcon(":/viewer/images/zoomout.png"))
         self.zoomOutAct.setIconVisibleInMenu(True)
-        self.connect(self.zoomOutAct, SIGNAL("toggled(bool)"), self.zoomOut)
         self.toolActions.append(self.zoomOutAct)
 
-        self.zoomNativeAct = QAction(self)
+        self.zoomNativeAct = QAction(self, triggered=self.zoomNative)
         self.zoomNativeAct.setText("Zoom to &Native")
         self.zoomNativeAct.setStatusTip("Zoom to Native Resolution")
         self.zoomNativeAct.setShortcut("CTRL+1")
         self.zoomNativeAct.setIcon(QIcon(":/viewer/images/zoomnative.png"))
         self.zoomNativeAct.setIconVisibleInMenu(True)
-        self.connect(self.zoomNativeAct, SIGNAL("triggered()"), self.zoomNative)
 
-        self.zoomFullExtAct = QAction(self)
+        self.zoomFullExtAct = QAction(self, triggered=self.zoomFullExtent)
         self.zoomFullExtAct.setText("Zoom to &Full Extent")
         self.zoomFullExtAct.setStatusTip("Zoom to Full Extent")
         self.zoomFullExtAct.setShortcut("CTRL+F")
         self.zoomFullExtAct.setIcon(QIcon(":/viewer/images/zoomfullextent.png"))
         self.zoomFullExtAct.setIconVisibleInMenu(True)
-        self.connect(self.zoomFullExtAct, SIGNAL("triggered()"), 
-                                                           self.zoomFullExtent)
 
-        self.followExtentAct = QAction(self)
+        self.followExtentAct = QAction(self, toggled=self.followExtent)
         self.followExtentAct.setText("Follow &Extent")
         self.followExtentAct.setStatusTip("Follow geolinked extent")
         self.followExtentAct.setShortcut("CTRL+E")
@@ -449,62 +428,52 @@ class ViewerWindow(QMainWindow):
         self.followExtentAct.setChecked(True) # by default to match viewerwidget
         self.followExtentAct.setIcon(QIcon(":/viewer/images/followextents.png"))
         self.followExtentAct.setIconVisibleInMenu(True)
-        self.connect(self.followExtentAct, SIGNAL("toggled(bool)"), 
-                                                            self.followExtent)
 
-        self.queryAct = QAction(self)
+        self.queryAct = QAction(self, toggled=self.query)
         self.queryAct.setText("&Query Tool")
         self.queryAct.setStatusTip("Start Query Tool")
         self.queryAct.setShortcut("CTRL+U")
         self.queryAct.setCheckable(True)
         self.queryAct.setIcon(QIcon(":/viewer/images/query.png"))
         self.queryAct.setIconVisibleInMenu(True)
-        self.connect(self.queryAct, SIGNAL("toggled(bool)"), self.query)
 
-        self.newQueryAct = QAction(self)
+        self.newQueryAct = QAction(self, triggered=self.newQueryWindow)
         self.newQueryAct.setText("New Query &Window")
         self.newQueryAct.setStatusTip("Open New Query Window")
         self.newQueryAct.setShortcut("CTRL+W")
-        self.connect(self.newQueryAct, SIGNAL("triggered()"), 
-                                                            self.newQueryWindow)
-        self.vectorQueryAct = QAction(self)
+
+        self.vectorQueryAct = QAction(self, toggled=self.vectorQuery)
         self.vectorQueryAct.setText("&Vector Query Tool")
         self.vectorQueryAct.setStatusTip("Start Vector Query Tool")
         self.vectorQueryAct.setShortcut("CTRL+C")
         self.vectorQueryAct.setCheckable(True)
         self.vectorQueryAct.setIcon(QIcon(":/viewer/images/queryvector.png"))
         self.vectorQueryAct.setIconVisibleInMenu(True)
-        self.connect(self.vectorQueryAct, SIGNAL("toggled(bool)"), 
-                                                            self.vectorQuery)
-        self.newVectorQueryAct = QAction(self)
+
+        self.newVectorQueryAct = QAction(self, 
+                                        triggered=self.newVectorQueryWindow)
         self.newVectorQueryAct.setText("New Vector Query &Window")
         self.newVectorQueryAct.setStatusTip("Open New Vector Query Window")
-        self.connect(self.newVectorQueryAct, SIGNAL("triggered()"), 
-                                                    self.newVectorQueryWindow)
 
-        self.queryOnlyDisplayedAct = QAction(self)
+        self.queryOnlyDisplayedAct = QAction(self, 
+                                        toggled=self.queryOnlyDisplayed)
         self.queryOnlyDisplayedAct.setText("&Query Only Displayed Layers")
         self.queryOnlyDisplayedAct.setCheckable(True)
         self.queryOnlyDisplayedAct.setShortcut("CTRL+B")
         self.queryOnlyDisplayedAct.setStatusTip(
             "Query Only Displayed Layers with Query Window")
-        self.connect(self.queryOnlyDisplayedAct, SIGNAL("toggled(bool)"),
-                                                    self.queryOnlyDisplayed)
 
-        self.exitAct = QAction(self)
+        self.exitAct = QAction(self, triggered=self.close)
         self.exitAct.setText("&Close")
         self.exitAct.setStatusTip("Close this window")
         self.exitAct.setShortcut("CTRL+Q")
-        self.connect(self.exitAct, SIGNAL("triggered()"), self.close)
 
-        self.preferencesAct = QAction(self)
+        self.preferencesAct = QAction(self, triggered=self.setPreferences)
         self.preferencesAct.setText("&Preferences")
         self.preferencesAct.setStatusTip("Edit Preferences")
         self.preferencesAct.setShortcut("CTRL+L")
-        self.connect(self.preferencesAct, SIGNAL("triggered()"), 
-                                                    self.setPreferences)
 
-        self.flickerAct = QAction(self)
+        self.flickerAct = QAction(self, triggered=self.flicker)
         self.flickerAct.setText("&Flicker")
         self.flickerAct.setStatusTip("Flicker top 2 layers")
         self.flickerAct.setShortcut("CTRL+K")
@@ -512,103 +481,84 @@ class ViewerWindow(QMainWindow):
         self.flickerAct.iconOff = QIcon(":/viewer/images/flickeroff.png")
         self.flickerAct.setIcon(self.flickerAct.iconOn)
         self.flickerAct.setIconVisibleInMenu(True)
-        self.connect(self.flickerAct, SIGNAL("triggered()"), self.flicker)
 
-        self.layerAct = QAction(self)
+        self.layerAct = QAction(self, triggered=self.arrangeLayers)
         self.layerAct.setText("Arrange La&yers")
         self.layerAct.setStatusTip("Arrange Layers")
         self.layerAct.setShortcut("CTRL+Y")
         self.layerAct.setIcon(QIcon(":/viewer/images/layers.png"))
         self.layerAct.setIconVisibleInMenu(True)
-        self.connect(self.layerAct, SIGNAL("triggered()"), self.arrangeLayers)
 
-        self.profileAct = QAction(self)
+        self.profileAct = QAction(self, toggled=self.profile)
         self.profileAct.setText("&Profile/Ruler")
         self.profileAct.setStatusTip("Start Profile/Ruler tool")
         self.profileAct.setShortcut("CTRL+A")
         self.profileAct.setCheckable(True)
         self.profileAct.setIcon(QIcon(":/viewer/images/profileruler.png"))
         self.profileAct.setIconVisibleInMenu(True)
-        self.connect(self.profileAct, SIGNAL("toggled(bool)"), self.profile)
         self.toolActions.append(self.profileAct)
 
-        self.newProfileAct = QAction(self)
+        self.newProfileAct = QAction(self, triggered=self.newProfile)
         self.newProfileAct.setText("New P&rofile/Ruler Window")
         self.newProfileAct.setStatusTip("Open New Profile/Ruler Window")
         self.newProfileAct.setShortcut("CTRL+S")
-        self.connect(self.newProfileAct, SIGNAL("triggered()"), 
-                                                    self.newProfile)
 
-        self.propertiesAct = QAction(self)
+        self.propertiesAct = QAction(self, triggered=self.properties)
         self.propertiesAct.setText("Properties")
         self.propertiesAct.setStatusTip("Show Properties of top layer")
         self.propertiesAct.setShortcut("CTRL+X")
         self.propertiesAct.setIcon(QIcon(":/viewer/images/properties.png"))
         self.propertiesAct.setIconVisibleInMenu(True)
-        self.connect(self.propertiesAct, SIGNAL("triggered()"), 
-                                                    self.properties)
 
-        self.timeseriesForwardAct = QAction(self)
+        self.timeseriesForwardAct = QAction(self, 
+                        triggered=self.viewwidget.timeseriesForward)
         self.timeseriesForwardAct.setShortcut(".")
         self.timeseriesForwardAct.setText("Timeseries Forward")
         self.timeseriesForwardAct.setStatusTip(
                                 "Go forward through timeseries of images")
-        self.connect(self.timeseriesForwardAct, SIGNAL("triggered()"),
-                                self.viewwidget.timeseriesForward)
 
-        self.timeseriesBackwardAct = QAction(self)
+        self.timeseriesBackwardAct = QAction(self, 
+                        triggered=self.viewwidget.timeseriesBackward)
         self.timeseriesBackwardAct.setShortcut(",")
         self.timeseriesBackwardAct.setText("Timeseries Backward")
         self.timeseriesBackwardAct.setStatusTip(
                                 "Go backward through timeseries of images")
-        self.connect(self.timeseriesBackwardAct, SIGNAL("triggered()"),
-                                self.viewwidget.timeseriesBackward)
 
-        self.saveCurrentViewAct = QAction(self)
+        self.saveCurrentViewAct = QAction(self, triggered=self.saveCurrentView)
         self.saveCurrentViewAct.setText("Save Current Display")
         self.saveCurrentViewAct.setStatusTip(
                     "Save the contents of the current display as an image file")
-        self.connect(self.saveCurrentViewAct, SIGNAL("triggered()"),
-                                self.saveCurrentView)
 
-        self.saveCurrentViewersState = QAction(self)
+        self.saveCurrentViewersState = QAction(self, 
+                            triggered=self.saveViewersState)
         self.saveCurrentViewersState.setText("Save State of All Viewers")
         self.saveCurrentViewersState.setStatusTip(
                 "Save state of Viewers to a file so they can be restored")
-        self.connect(self.saveCurrentViewersState, SIGNAL("triggered()"),
-                                self.saveViewersState)
 
-        self.loadCurrentViewersState = QAction(self)
+        self.loadCurrentViewersState = QAction(self, 
+                            triggered=self.loadViewersState)
         self.loadCurrentViewersState.setText("Load State of Viewers")
         self.loadCurrentViewersState.setStatusTip(
                 "Restore state of viewers previously saved")
-        self.connect(self.loadCurrentViewersState, SIGNAL("triggered()"),
-                                self.loadViewersState)
 
-        self.aboutAct = QAction(self)
+        self.aboutAct = QAction(self, triggered=self.about)
         self.aboutAct.setText("&About")
         self.aboutAct.setStatusTip("Show author and version information")
-        self.connect(self.aboutAct, SIGNAL("triggered()"), self.about)
-
 
 
         # Actions just for keyboard shortcuts
 
-        self.moveUpAct = QAction(self)
+        self.moveUpAct = QAction(self, triggered=self.moveUp)
         self.moveUpAct.setShortcut(Qt.CTRL + Qt.Key_Up)
-        self.connect(self.moveUpAct, SIGNAL("triggered()"), self.moveUp)
 
-        self.moveDownAct = QAction(self)
+        self.moveDownAct = QAction(self, triggered=self.moveDown)
         self.moveDownAct.setShortcut(Qt.CTRL + Qt.Key_Down)
-        self.connect(self.moveDownAct, SIGNAL("triggered()"), self.moveDown)
 
-        self.moveLeftAct = QAction(self)
+        self.moveLeftAct = QAction(self, triggered=self.moveLeft)
         self.moveLeftAct.setShortcut(Qt.CTRL + Qt.Key_Left)
-        self.connect(self.moveLeftAct, SIGNAL("triggered()"), self.moveLeft)
 
-        self.moveRightAct = QAction(self)
+        self.moveRightAct = QAction(self, triggered=self.moveRight)
         self.moveRightAct.setShortcut(Qt.CTRL + Qt.Key_Right)
-        self.connect(self.moveRightAct, SIGNAL("triggered()"), self.moveRight)
 
         self.addAction(self.moveUpAct)
         self.addAction(self.moveDownAct)
@@ -711,7 +661,7 @@ class ViewerWindow(QMainWindow):
         Triggered when user wants a new window. Send signal
         to GeolinkedViewers class (if there is one!)
         """
-        self.newWindow.emit()
+        self.newWindowSig.emit()
 
     def tileWindows(self):
         """
@@ -723,7 +673,7 @@ class ViewerWindow(QMainWindow):
         dlg = TileDialog(self)
         if dlg.exec_() == QDialog.Accepted:
             xnum, ynum = dlg.getValues()
-            self.tileWindows.emit(xnum, ynum)
+            self.tileWindowsSig.emit(xnum, ynum)
 
     def defaultStretch(self):
         """
@@ -1210,7 +1160,7 @@ File will now be opened using default stretch""")
 
         # emit the signal back to geolinked viewers so that 
         # any plugins can be informed
-        self.newQueryWindow.emit(queryDock)
+        self.newQueryWindowSig.emit(queryDock)
 
     def vectorQuery(self, checked):
         """
@@ -1262,7 +1212,7 @@ File will now be opened using default stretch""")
 
         # emit the signal back to geolinked viewers so that 
         # any plugins can be informed
-        self.newQueryWindow.emit(queryDock)
+        self.newQueryWindowSig.emit(queryDock)
 
     def vectorQueryClosed(self, queryDock):
         """
@@ -1403,7 +1353,7 @@ File will now be opened using default stretch""")
         Show author and version info
         """
         from . import TUIVIEW_VERSION
-        from PyQt4.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
+        from PyQt5.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
         from osgeo.gdal import __version__ as gdalVersion
         import sys
         from numpy import version as numpyVersion

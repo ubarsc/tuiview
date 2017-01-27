@@ -32,7 +32,7 @@ import os
 
 from . import viewerstretch
 from . import pseudocolor
-from .viewerwindow import MESSAGE_TITLE
+from .viewerstrings import MESSAGE_TITLE
 
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),

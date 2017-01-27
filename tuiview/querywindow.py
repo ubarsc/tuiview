@@ -34,7 +34,7 @@ from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
 from .viewerwidget import  VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
-from .viewerwindow import MESSAGE_TITLE
+from .viewerstrings import MESSAGE_TITLE
 from . import plotwidget
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
@@ -42,18 +42,18 @@ QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 # pixmaps for displaying in the 'band' column for RGB
-RED_PIXMAP = QPixmap(64, 24)
-RED_PIXMAP.fill(Qt.red)
+#RED_PIXMAP = QPixmap(64, 24)
+#RED_PIXMAP.fill(Qt.red)
 
-GREEN_PIXMAP = QPixmap(64, 24)
-GREEN_PIXMAP.fill(Qt.green)
+#GREEN_PIXMAP = QPixmap(64, 24)
+#GREEN_PIXMAP.fill(Qt.green)
 
-BLUE_PIXMAP = QPixmap(64, 24)
-BLUE_PIXMAP.fill(Qt.blue)
+#BLUE_PIXMAP = QPixmap(64, 24)
+#BLUE_PIXMAP.fill(Qt.blue)
 
 # for greyscale
-GREY_PIXMAP = QPixmap(64, 24)
-GREY_PIXMAP.fill(Qt.gray)
+#GREY_PIXMAP = QPixmap(64, 24)
+#GREY_PIXMAP.fill(Qt.gray)
 
 RAT_CACHE_CHUNKSIZE = 1000
 

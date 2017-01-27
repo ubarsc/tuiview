@@ -21,8 +21,9 @@ Plot widget
 from __future__ import division # ensure we are using Python 3 semantics
 import sys
 import numpy
-from PyQt4.QtGui import QWidget, QPainter, QPainterPath, QPen, QFontMetrics
-from PyQt4.QtCore import Qt, QSize, QSettings
+from PyQt5.QtGui import QPainter, QPainterPath, QPen, QFontMetrics
+from PyQt5.QtWidgets import QWidget
+from PyQt5.QtCore import Qt, QSize, QSettings
 
 DEFAULT_FONT_SIZE = 6
 try:

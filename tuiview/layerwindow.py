@@ -23,7 +23,7 @@ from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction, QAbstract
 from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
 
 from . import viewerlayers
-from .viewerwindow import MESSAGE_TITLE
+from .viewerstrings import MESSAGE_TITLE
 
 class LayerItemModel(QAbstractListModel):
     """
