@@ -97,10 +97,10 @@ Use the special column 'row' for the row number.""")
         "Sends a signal with the expression"
         expression = self.exprEdit.toPlainText()
         if self.col is None:
-            self.newExpression.emit(expression)
+            self.newExpression['QString'].emit(expression)
         else:
             # include column
-            self.newExpression.emit(expression, self.col)
+            self.newExpression['QString', int].emit(expression, self.col)
 
     def undo(self):
         "sends a signal with the undo object"

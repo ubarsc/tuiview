@@ -19,8 +19,9 @@ Module that contains the ProfileDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QPen, QAction, QIcon
+from PyQt5.QtGui import QPen, QIcon
 from PyQt5.QtWidgets import QDockWidget, QWidget, QToolBar, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QAction
 from PyQt5.QtCore import Qt, pyqtSignal, QLocale
 import numpy
 
@@ -111,8 +112,10 @@ class ProfileDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt5.QtWidgets import QPrinter, QPainter, QFileDialog
-        fname = QFileDialog.getSaveFileName(self, "Plot File", 
+        from PyQt5.QtPrintSupport import QPrinter
+        from PyQt5.QtWidgets import QFileDialog
+        from PyQt5.QtGui import QPainter
+        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()

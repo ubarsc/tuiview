@@ -19,8 +19,9 @@ Module that contains the LayerWindow class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
-from PyQt5.QtGui import QIcon, QAction
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDockWidget, QListView, QMenu, QAbstractItemView
+from PyQt5.QtWidgets import QAction
 from PyQt5.QtCore import QAbstractListModel, Qt, pyqtSignal
 
 from . import viewerlayers

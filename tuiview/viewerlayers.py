@@ -1448,7 +1448,9 @@ class LayerManager(QObject):
     Class that manages a list of layers
     """
     # signals
-    topLayerChanged = pyqtSignal(ViewerLayer, name='topLayerChanged')
+    # use object rather than ViewerLayer for topLayerChanged
+    # so we can pass None
+    topLayerChanged = pyqtSignal(object, name='topLayerChanged')
     layersChanged = pyqtSignal(name='layersChanged')
     newProgressSig = pyqtSignal('QString', name='newProgress')
     endProgressSig = pyqtSignal(name='endProgress')
@@ -1892,19 +1894,19 @@ class LayerManager(QObject):
         """
         Called when we are about to start a new progress
         """
-        self.newProgress.emit(string)
+        self.newProgressSig.emit(string)
 
     def endProgress(self):
         """
         Called when a progress run has finished
         """
-        self.endProgress.emit()
+        self.endProgressSig.emit()
 
     def newPercent(self, percent):
         """
         New progress value
         """
-        self.newPercent.emit(percent)
+        self.newPercentSig.emit(percent)
 
 
 def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra, 

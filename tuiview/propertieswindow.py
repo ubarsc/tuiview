@@ -18,9 +18,9 @@ Module that contains the PropertiesWindow class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import sys
-from PyQt5.QtWidget import QDialog, QVBoxLayout, QPushButton, QTextEdit
-from PyQt5.QtWidget import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
-from PyQt5.QtWidget import QComboBox
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QTextEdit
+from PyQt5.QtWidgets import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
+from PyQt5.QtWidgets import QComboBox
 
 from . import plotwidget
 

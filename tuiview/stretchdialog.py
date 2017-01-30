@@ -1042,7 +1042,7 @@ class StretchDockWidget(QDockWidget):
         """
         Export stretch and Lookup Table to JSON text
         """
-        fname = QFileDialog.getSaveFileName(self, 
+        fname, filter = QFileDialog.getSaveFileName(self, 
                     "Select file to save stretch and lookup table into",
                     os.getcwd(), STRETCH_FILTER)
         if fname != "":

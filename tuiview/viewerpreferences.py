@@ -22,7 +22,7 @@ Module that contains the ViewerPreferences class
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
 from PyQt5.QtWidgets import QPushButton, QGroupBox, QButtonGroup, QLabel
 from PyQt5.QtWidgets import QSpinBox, QCheckBox
-from PyQt5.QtCore import QColor
+from PyQt5.QtGui import QColor
 from PyQt5.QtCore import QSettings, pyqtSignal, Qt
 import sys
 from .stretchdialog import ColorButton

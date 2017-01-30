@@ -1287,7 +1287,7 @@ File will now be opened using default stretch""")
         Saves the current view as an image file
         """
         # now get a filename
-        fname = QFileDialog.getSaveFileName(self, "Image File", 
+        fname, filter = QFileDialog.getSaveFileName(self, "Image File", 
                         filter="Images (*.png *.xpm *.jpg *.tif)")
         if fname != '':
             self.saveCurrentViewInternal(fname)
@@ -1448,7 +1448,8 @@ Numpy Version: %s<br></p>
         else:
             # or cwd
             dir = os.getcwd()
-        fname = QFileDialog.getSaveFileName(self, "Select file to save state into",
+        fname, filter= QFileDialog.getSaveFileName(self, 
+                    "Select file to save state into",
                     dir, "TuiView State .tuiview (*.tuiview)")
 
         if fname != "":

@@ -23,7 +23,7 @@ from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QLabel, QToolBar, QAction, QMessageBox, QHeaderView
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyle
+from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
 from PyQt5.QtCore import QModelIndex, QItemSelectionModel
 import numpy
@@ -40,20 +40,6 @@ from . import plotwidget
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
-
-# pixmaps for displaying in the 'band' column for RGB
-#RED_PIXMAP = QPixmap(64, 24)
-#RED_PIXMAP.fill(Qt.red)
-
-#GREEN_PIXMAP = QPixmap(64, 24)
-#GREEN_PIXMAP.fill(Qt.green)
-
-#BLUE_PIXMAP = QPixmap(64, 24)
-#BLUE_PIXMAP.fill(Qt.blue)
-
-# for greyscale
-#GREY_PIXMAP = QPixmap(64, 24)
-#GREY_PIXMAP.fill(Qt.gray)
 
 RAT_CACHE_CHUNKSIZE = 1000
 
@@ -250,6 +236,20 @@ class ContinuousTableModel(QAbstractTableModel):
         self.stretch = stretch
         self.colNames = ["Band", "Name", "Value"]
 
+        # pixmaps for displaying in the 'band' column for RGB
+        self.redPixmap = QPixmap(64, 24)
+        self.redPixmap.fill(Qt.red)
+
+        self.greenPixmap = QPixmap(64, 24)
+        self.greenPixmap.fill(Qt.green)
+
+        self.bluePixmap = QPixmap(64, 24)
+        self.bluePixmap.fill(Qt.blue)
+
+        # for greyscale
+        self.greyPixmap = QPixmap(64, 24)
+        self.greyPixmap.fill(Qt.gray)
+
     def doUpdate(self, updateHorizHeader=False):
         """
         Called by the parent window when the data has changed.
@@ -303,16 +303,16 @@ class ContinuousTableModel(QAbstractTableModel):
             if (self.stretch.mode == VIEWER_MODE_RGB and 
                             band in self.stretch.bands):
                 if band == self.stretch.bands[0]:
-                    return RED_PIXMAP
+                    return self.redPixmap
                 elif band == self.stretch.bands[1]:
-                    return GREEN_PIXMAP
+                    return self.greenPixmap
                 elif band == self.stretch.bands[2]:
-                    return BLUE_PIXMAP
+                    return self.bluePixmap
                 else:
                     return None
             elif (self.stretch.mode == VIEWER_MODE_GREYSCALE 
                     and band == self.stretch.bands[0]):
-                return GREY_PIXMAP
+                return self.greyPixmap
 
             else:
                 return None
@@ -566,8 +566,6 @@ class QueryDockWidget(QDockWidget):
         self.dockWidget = QWidget()
 
         self.toolBar = QToolBar(self.dockWidget)
-        self.setupActions()
-        self.setupToolbar()
 
         self.coordValidator = QDoubleValidator()
         self.eastingEdit = QLineEdit(self.dockWidget)
@@ -623,17 +621,6 @@ class QueryDockWidget(QDockWidget):
         # text entered via keypad since last return
         self.keyboardData = None
 
-        layer = viewwidget.layers.getTopRasterLayer()
-        if layer is not None:
-            if (len(layer.stretch.bands) == 1 and 
-                        layer.attributes.hasAttributes()):
-                self.setupTableThematic(None, layer)
-            else:
-                self.setupTableContinuous(None, layer)
-
-        # now update UI to show unlock state is false
-        self.setUIUpdateState(False)
-
         # now make sure the size of the rows matches the font we are using
         font = self.tableView.viewOptions().font
         fm = QFontMetrics(font)
@@ -673,6 +660,22 @@ class QueryDockWidget(QDockWidget):
         # that tool being enabled. As oppossed to user unclicking
         # the tool
         self.suppressToolReset = False
+
+        # do these last - some slots are called than need the above
+        # variables.
+        self.setupActions()
+        self.setupToolbar()
+
+        layer = viewwidget.layers.getTopRasterLayer()
+        if layer is not None:
+            if (len(layer.stretch.bands) == 1 and 
+                        layer.attributes.hasAttributes()):
+                self.setupTableThematic(None, layer)
+            else:
+                self.setupTableContinuous(None, layer)
+
+        # now update UI to show unlock state is false
+        self.setUIUpdateState(False)
 
     def storeLastSelection(self):
         "Take a copy of self.selectionArray and store it"
@@ -798,7 +801,7 @@ class QueryDockWidget(QDockWidget):
         self.toolActions.append(self.geogSelectAction)
 
         self.geogSelectLineAction = QAction(self, 
-                    toggled=self.geogSelectLineAction)
+                    toggled=self.geogLineSelect)
         self.geogSelectLineAction.setText(
                                     "Geographic Selection by &Line (ALT+L)")
         self.geogSelectLineAction.setStatusTip(
@@ -928,9 +931,10 @@ class QueryDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt5.QtGui import QPrinter, QPainter
+        from PyQt5.QtGui import QPainter
+        from PyQt5.QtPrintSupport import QPrinter
         from PyQt5.QtWidgets import QFileDialog
-        fname = QFileDialog.getSaveFileName(self, "Plot File", 
+        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
@@ -1022,7 +1026,7 @@ Use the special columns:
 'queryrow' is the currently queried row and
 'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
-        dlg.newExpression.connect(self.newSelectUserExpression)
+        dlg.newExpression['QString'].connect(self.newSelectUserExpression)
         dlg.show()
 
     def unlockDataset(self, state):
@@ -1160,7 +1164,7 @@ Use the special columns:
 'isselected' for the currently selected rows and
 'queryrow' is the currently queried row"""
         dlg.setHint(hint)
-        dlg.newExpression.connect(self.newEditUserExpression)
+        dlg.newExpression['QString', int].connect(self.newEditUserExpression)
 
         # should be modal?
         dlg.show()
