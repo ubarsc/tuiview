@@ -1,10 +1,36 @@
 #!/usr/bin/env python
 """
-Setup script for TuiView. Use like this for Unix:
+Setup script for TuiView. 
+
+Installation
+------------
+
+Use like this:
 
 $ python setup.py install
 
-GDAL devel files need to be installed along with a C compiler
+GDAL devel files need to be installed along with a C compiler.
+numpy and pyqt also required.
+
+export TUIVIEW_NOCMDLINE=1
+
+First to prevent the command line scripts from being installed which
+is useful when using Python entry points instead.
+
+Creating Source Packages
+------------------------
+
+Use like this:
+
+$ python setup.py sdist --formats=gztar,zip
+
+The packages will be created in the 'dist' subdirectory.
+
+export INCLUDE_WINDOWS_BAT=1
+
+First to include the .bat files needed for Windows installation.
+(these aren't included in packages created on non-Windows platforms
+by default).
 
 """
 # This file is part of 'TuiView' - a simple Raster viewer
@@ -50,6 +76,10 @@ MIN_GDAL_VERSION = '1.11.0'
 # this is an experimental option for users who are
 # using the Python entry point feature of setuptools and Conda instead
 NO_INSTALL_CMDLINE = int(os.getenv('TUIVIEW_NOCMDLINE', '0')) > 0
+
+# When building the sdist on Linux we want the extra .bat
+# files that are need for the Windows install. 
+INCLUDE_WINDOWS_BAT = int(os.getenv('TUIVIEW_INCLUDEBAT', '0')) > 0
 
 def getGDALFlags():
     """
@@ -119,7 +149,7 @@ if NO_INSTALL_CMDLINE:
     scripts_list = None
 else:
     # For windows also copy bat files, to run python scripts
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' or INCLUDE_WINDOWS_BAT:
         scripts_list = ['bin/tuiview','bin/tuiview.bat',
                      'bin/tuiviewwritetable','bin/tuiviewwritetable.bat']
     else:
@@ -142,9 +172,8 @@ setup(name='TuiView',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.2',
-          'Programming Language :: Python :: 3.3',
           'Programming Language :: Python :: 3.4',
-          'Programming Language :: Python :: 3.5'])
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6'])
 
 

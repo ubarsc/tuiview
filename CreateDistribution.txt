@@ -1,0 +1,23 @@
+How to create a distribution of TuiView. 
+
+1. Ensure that you have fetched and committed everything which needs to go in.
+2. Change the version number in the tuiview/__init__.py. Version number
+   is of the form a.b.c, as discussed below. 
+   DON'T FORGET TO COMMIT THIS, BEFORE THE NEXT STEP!!!!
+3. Use "hg tag" to add a version number tag, e.g.
+    hg tag tuiview-1.1.9
+4. Create the distribution tarball, using
+    TUIVIEW_INCLUDEBAT=1 python setup.py sdist --formats=gztar,zip
+   This creates both a tar.gz and a zip, under a subdirectory called dist
+   This also ensures that the .bat files needed on Windows are included
+   when creating the tarball on Linux.
+5. Upload these to bitbucket, under the downloads tab. 
+
+
+Version Numbers.
+The TuiView number is structured as A.B.C. 
+- The A number should change for major alterations, most particularly those 
+  which break backward compatability, or which involve major restructuring of 
+  code or data structures. 
+- The B number should change for introduction of significant new features
+- The C number should change for bug fixes or very minor changes. 
