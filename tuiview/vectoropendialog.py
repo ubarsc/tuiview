@@ -17,10 +17,10 @@ Module that contains the VectorOpenDialog class
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
-from PyQt4.QtGui import QButtonGroup, QComboBox, QTextEdit, QPushButton
-from PyQt4.QtGui import QFontMetrics
-from PyQt4.QtCore import SIGNAL
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
+from PyQt5.QtWidgets import QButtonGroup, QComboBox, QTextEdit, QPushButton
+from PyQt5.QtGui import QFontMetrics
+from PyQt5.QtCore import pyqtSignal
 
 NUM_SQL_ROWS = 4
 
@@ -56,7 +56,7 @@ class VectorOpenDialog(QDialog):
         fm = QFontMetrics(self.sqlText.font())
         self.sqlText.setFixedHeight(NUM_SQL_ROWS * fm.lineSpacing())
         
-        self.connect(self.layerNameRadio, SIGNAL("toggled(bool)"), self.typeToggled)
+        self.layerNameRadio.toggled.connect(self.typeToggled)
         self.sqlLayout.addWidget(self.sqlText)
 
         self.mainLayout.addLayout(self.sqlLayout)
@@ -65,11 +65,11 @@ class VectorOpenDialog(QDialog):
         self.okButton = QPushButton(self)
         self.okButton.setText("OK")
         self.okButton.setDefault(True)
-        self.connect(self.okButton, SIGNAL("clicked()"), self.accept)
+        self.okButton.clicked.connect(self.accept)
 
         self.cancelButton = QPushButton(self)
         self.cancelButton.setText("Cancel")
-        self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.cancelButton.clicked.connect(self.reject)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.okButton)

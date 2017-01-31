@@ -19,9 +19,10 @@ Module that contains the ProfileDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDockWidget, QWidget, QToolBar, QVBoxLayout
-from PyQt4.QtGui import QPen, QLabel, QAction, QIcon
-from PyQt4.QtCore import Qt, SIGNAL, QLocale
+from PyQt5.QtGui import QPen, QIcon
+from PyQt5.QtWidgets import QDockWidget, QWidget, QToolBar, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QAction
+from PyQt5.QtCore import Qt, pyqtSignal, QLocale
 import numpy
 
 from . import plotwidget
@@ -30,6 +31,9 @@ class ProfileDockWidget(QDockWidget):
     """
     Dockable window that is a combined profile and ruler
     """
+    # signals
+    profileClosed = pyqtSignal(QDockWidget, name='profileClosed')
+
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Profile", parent)
         self.viewwidget = viewwidget
@@ -84,19 +88,16 @@ class ProfileDockWidget(QDockWidget):
         self.followAction.setCheckable(True)
         self.followAction.setChecked(True)
 
-        self.savePlotAction = QAction(self)
+        self.savePlotAction = QAction(self, triggered=self.savePlot)
         self.savePlotAction.setText("&Save Plot")
         self.savePlotAction.setStatusTip("Save Plot")
         self.savePlotAction.setIcon(QIcon(":/viewer/images/saveplot.png"))
-        self.connect(self.savePlotAction, SIGNAL("triggered()"), self.savePlot)
 
-        self.plotScalingAction = QAction(self)
+        self.plotScalingAction = QAction(self, triggered=self.onPlotScaling)
         self.plotScalingAction.setText("Set Plot Scaling")
         self.plotScalingAction.setStatusTip("Set Plot Scaling")
         icon = QIcon(":/viewer/images/setplotscale.png")
         self.plotScalingAction.setIcon(icon)
-        self.connect(self.plotScalingAction, SIGNAL("triggered()"), 
-                        self.onPlotScaling)
 
     def setupToolbar(self):
         """
@@ -111,8 +112,10 @@ class ProfileDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt4.QtGui import QPrinter, QPainter, QFileDialog
-        fname = QFileDialog.getSaveFileName(self, "Plot File", 
+        from PyQt5.QtPrintSupport import QPrinter
+        from PyQt5.QtWidgets import QFileDialog
+        from PyQt5.QtGui import QPainter
+        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
@@ -251,5 +254,4 @@ class ProfileDockWidget(QDockWidget):
         """
         Window is being closed - inform parent window
         """
-        self.emit(SIGNAL("profileClosed(PyQt_PyObject)"), self)
-
+        self.profileClosed.emit(self)

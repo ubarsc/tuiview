@@ -27,8 +27,8 @@ import numpy
 from osgeo import gdal
 from osgeo import osr
 from osgeo import ogr
-from PyQt4.QtGui import QImage, QPainter, QPen
-from PyQt4.QtCore import QObject, SIGNAL
+from PyQt5.QtGui import QImage, QPainter, QPen
+from PyQt5.QtCore import QObject, pyqtSignal
 import threading
 if sys.version_info[0] < 3:
    import Queue as queue
@@ -313,19 +313,13 @@ class ViewerRasterLayer(ViewerLayer):
         self.image = None
 
         # connect the signals from the RAT and LUT back to the layermanager
-        layermanager.connect(self.lut, SIGNAL("newProgress(QString)"), 
-                                                    layermanager.newProgress)
-        layermanager.connect(self.lut, SIGNAL("endProgress()"), 
-                                                    layermanager.endProgress)
-        layermanager.connect(self.lut, SIGNAL("newPercent(int)"), 
-                                                    layermanager.newPercent)
+        self.lut.newProgress.connect(layermanager.newProgress)
+        self.lut.endProgress.connect(layermanager.endProgress)
+        self.lut.newPercent.connect(layermanager.newPercent)
 
-        layermanager.connect(self.attributes, SIGNAL("newProgress(QString)"), 
-                                                    layermanager.newProgress)
-        layermanager.connect(self.attributes, SIGNAL("endProgress()"), 
-                                                    layermanager.endProgress)
-        layermanager.connect(self.attributes, SIGNAL("newPercent(int)"), 
-                                                    layermanager.newPercent)
+        self.attributes.newProgress.connect(layermanager.newProgress)
+        self.attributes.endProgress.connect(layermanager.endProgress)
+        self.attributes.newPercent.connect(layermanager.newPercent)
 
     def toFile(self, fileobj):
         """
@@ -1453,6 +1447,15 @@ class LayerManager(QObject):
     """
     Class that manages a list of layers
     """
+    # signals
+    # use object rather than ViewerLayer for topLayerChanged
+    # so we can pass None
+    topLayerChanged = pyqtSignal(object, name='topLayerChanged')
+    layersChanged = pyqtSignal(name='layersChanged')
+    newProgressSig = pyqtSignal('QString', name='newProgress')
+    endProgressSig = pyqtSignal(name='endProgress')
+    newPercentSig = pyqtSignal(int, name='newPercent')
+
     def __init__(self):
         QObject.__init__(self)
         self.layers = []
@@ -1486,7 +1489,7 @@ class LayerManager(QObject):
 
         if not newTopLayer is self.topLayer:
             self.topLayer = newTopLayer
-            self.emit(SIGNAL("topLayerChanged(PyQt_PyObject)"), self.topLayer)
+            self.topLayerChanged.emit(self.topLayer)
 
     def getFullExtent(self):
         """
@@ -1615,7 +1618,7 @@ class LayerManager(QObject):
         self.layers.append(layer)
 
         self.recalcFullExtent()
-        self.emit(SIGNAL("layersChanged()"))
+        self.layersChanged.emit()
         self.updateTopFilename()
 
     def removeTopLayer(self):
@@ -1625,7 +1628,7 @@ class LayerManager(QObject):
         if len(self.layers) > 0:
             self.layers.pop()
             self.recalcFullExtent()
-            self.emit(SIGNAL("layersChanged()"))
+            self.layersChanged.emit()
         self.updateTopFilename()
 
     def removeLayer(self, layer):
@@ -1634,7 +1637,7 @@ class LayerManager(QObject):
         """
         self.layers.remove(layer)
         self.recalcFullExtent()
-        self.emit(SIGNAL("layersChanged()"))
+        self.layersChanged.emit()
         self.updateTopFilename()
 
     def moveLayerUp(self, layer):
@@ -1646,7 +1649,7 @@ class LayerManager(QObject):
         if index < len(self.layers) - 1:
             self.layers.pop(index)
             self.layers.insert(index + 1, layer)
-            self.emit(SIGNAL("layersChanged()"))
+            self.layersChanged.emit()
         self.updateTopFilename()
 
     def moveLayerDown(self, layer):
@@ -1658,7 +1661,7 @@ class LayerManager(QObject):
         if index > 0:
             self.layers.pop(index)
             self.layers.insert(index - 1, layer)
-            self.emit(SIGNAL("layersChanged()"))
+            self.layersChanged.emit()
         self.updateTopFilename()
 
     def moveLayerToTop(self, layer):
@@ -1670,7 +1673,7 @@ class LayerManager(QObject):
         if index < len(self.layers) - 1:
             self.layers.pop(index)
             self.layers.append(layer)
-            self.emit(SIGNAL("layersChanged()"))
+            self.layersChanged.emit()
         self.updateTopFilename()
 
     def setDisplayedState(self, layer, state):
@@ -1681,7 +1684,7 @@ class LayerManager(QObject):
         """
         layer.displayed = state
         self.updateTopFilename()
-        self.emit(SIGNAL("layersChanged()"))
+        self.layersChanged.emit()
 
     def timeseriesForward(self):
         """
@@ -1691,7 +1694,7 @@ class LayerManager(QObject):
         for layer in reversed(self.layers):
             if layer.displayed:
                 self.setDisplayedState(layer, False)
-                self.emit(SIGNAL("layersChanged()"))
+                self.layersChanged.emit()
                 break
 
     def timeseriesBackward(self):
@@ -1707,7 +1710,7 @@ class LayerManager(QObject):
             prevLayer = layer
         if prevLayer is not None:
             self.setDisplayedState(prevLayer, True)
-            self.emit(SIGNAL("layersChanged()"))
+            self.layersChanged.emit()
                     
     def getTopLayer(self):
         "Returns the very top layer which may be raster or vector"
@@ -1879,7 +1882,7 @@ class LayerManager(QObject):
             else:
                 raise ValueError('unsupported layer type')
 
-        self.emit(SIGNAL("layersChanged()"))
+        self.layersChanged.emit()
         self.updateTopFilename()
 
 
@@ -1891,19 +1894,19 @@ class LayerManager(QObject):
         """
         Called when we are about to start a new progress
         """
-        self.emit(SIGNAL("newProgress(QString)"), string)
+        self.newProgressSig.emit(string)
 
     def endProgress(self):
         """
         Called when a progress run has finished
         """
-        self.emit(SIGNAL("endProgress()"))
+        self.endProgressSig.emit()
 
     def newPercent(self, percent):
         """
         New progress value
         """
-        self.emit(SIGNAL("newPercent(int)"), percent)
+        self.newPercentSig.emit(percent)
 
 
 def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra, 

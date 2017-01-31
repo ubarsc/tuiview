@@ -19,10 +19,11 @@ Module that contains the ViewerPreferences class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
-from PyQt4.QtGui import QPushButton, QGroupBox, QButtonGroup, QLabel, QColor
-from PyQt4.QtGui import QSpinBox, QCheckBox
-from PyQt4.QtCore import QSettings, SIGNAL, Qt
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
+from PyQt5.QtWidgets import QPushButton, QGroupBox, QButtonGroup, QLabel
+from PyQt5.QtWidgets import QSpinBox, QCheckBox
+from PyQt5.QtGui import QColor
+from PyQt5.QtCore import QSettings, pyqtSignal, Qt
 import sys
 from .stretchdialog import ColorButton
 from .plotwidget import DEFAULT_FONT_SIZE
@@ -118,11 +119,11 @@ class ViewerPreferencesDialog(QDialog):
         self.okButton = QPushButton(self)
         self.okButton.setText("OK")
         self.okButton.setDefault(True)
-        self.connect(self.okButton, SIGNAL("clicked()"), self.onOK)
+        self.okButton.clicked.connect(self.onOK)
 
         self.cancelButton = QPushButton(self)
         self.cancelButton.setText("Cancel")
-        self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.cancelButton.clicked.connect(self.reject)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.okButton)

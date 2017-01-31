@@ -19,8 +19,8 @@ Supporting classes for tools in the ViewerWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QPolygon, QPolygonF
-from PyQt4.QtCore import Qt, QPoint, QPointF
+from PyQt5.QtGui import QPolygon, QPolygonF
+from PyQt5.QtCore import Qt, QPoint, QPointF
 import numpy
 from osgeo import ogr
 

@@ -20,19 +20,20 @@ and StretchDefaultsDialog classes
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QFormLayout, QGridLayout, QVBoxLayout, QIcon
-from PyQt4.QtGui import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
-from PyQt4.QtGui import QPushButton, QGroupBox, QDockWidget, QFileDialog
-from PyQt4.QtGui import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
-from PyQt4.QtGui import QToolButton, QPixmap, QColorDialog, QColor, QMessageBox
-from PyQt4.QtCore import QSettings, SIGNAL, Qt
+from PyQt5.QtWidgets import QDialog, QFormLayout, QGridLayout, QVBoxLayout
+from PyQt5.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
+from PyQt5.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
+from PyQt5.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
+from PyQt5.QtWidgets import QToolButton, QColorDialog, QMessageBox
+from PyQt5.QtGui import QIcon, QPixmap, QColor
+from PyQt5.QtCore import QSettings, Qt
 import json
 import sys
 import os
 
 from . import viewerstretch
 from . import pseudocolor
-from .viewerwindow import MESSAGE_TITLE
+from .viewerstrings import MESSAGE_TITLE
 
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),
@@ -129,8 +130,7 @@ class StretchLayout(QFormLayout):
             self.modeCombo.addItem(text, code)
 
         # callback so we can set the state of other items when changed
-        self.connect(self.modeCombo, SIGNAL("currentIndexChanged(int)"), 
-                            self.modeChanged)
+        self.modeCombo.currentIndexChanged.connect(self.modeChanged)
 
         self.rampCombo = QComboBox(parent)
 
@@ -167,8 +167,7 @@ class StretchLayout(QFormLayout):
         for text, code in STRETCH_DATA:
             self.stretchCombo.addItem(text, code)
         # callback so we can set the state of other items when changed
-        self.connect(self.stretchCombo, SIGNAL("currentIndexChanged(int)"), 
-                        self.stretchChanged)
+        self.stretchCombo.currentIndexChanged.connect(self.stretchChanged)
 
         self.stretchLayout.addWidget(self.stretchCombo)
 
@@ -178,16 +177,14 @@ class StretchLayout(QFormLayout):
         self.stretchParam1Stats = QCheckBox(parent)
         self.stretchParam1Stats.setText("Statistics Min")
 
-        self.connect(self.stretchParam1Stats, SIGNAL("stateChanged(int)"),
-                    self.param1StatsChanged)
+        self.stretchParam1Stats.stateChanged.connect(self.param1StatsChanged)
 
         self.stretchParam2 = QDoubleSpinBox(parent)
         self.stretchParam2.setDecimals(3)
         self.stretchParam2Stats = QCheckBox(parent)
         self.stretchParam2Stats.setText("Statistics Max")
 
-        self.connect(self.stretchParam2Stats, SIGNAL("stateChanged(int)"),
-                    self.param2StatsChanged)
+        self.stretchParam2Stats.stateChanged.connect(self.param2StatsChanged)
 
         self.stretchLayout.addWidget(self.stretchParam1)
         self.stretchLayout.addWidget(self.stretchParam1Stats)
@@ -647,18 +644,17 @@ class StretchDefaultsDialog(QDialog):
         # new and delete buttons
         self.newBeforeButton = QPushButton(self)
         self.newBeforeButton.setText("New Rule Before")
-        self.connect(self.newBeforeButton, SIGNAL("clicked()"), 
-                            self.onNewBefore)
+        self.newBeforeButton.clicked.connect(self.onNewBefore)
 
         self.newAfterButton = QPushButton(self)
         self.newAfterButton.setText("New Rule After")
-        self.connect(self.newAfterButton, SIGNAL("clicked()"), self.onNewAfter)
+        self.newAfterButton.clicked.connect(self.onNewAfter)
 
         self.deleteRuleButton = QPushButton(self)
         self.deleteRuleButton.setText("Delete This Rule")
         if len(ruleList) <= 1:
             self.deleteRuleButton.setEnabled(False)
-        self.connect(self.deleteRuleButton, SIGNAL("clicked()"), self.onDelete)
+        self.deleteRuleButton.clicked.connect(self.onDelete)
 
         self.newDeleteLayout = QHBoxLayout()
         self.newDeleteLayout.addWidget(self.newBeforeButton)
@@ -671,11 +667,11 @@ class StretchDefaultsDialog(QDialog):
         self.okButton = QPushButton(self)
         self.okButton.setText("OK")
         self.okButton.setDefault(True)
-        self.connect(self.okButton, SIGNAL("clicked()"), self.onOK)
+        self.okButton.clicked.connect(self.onOK)
 
         self.cancelButton = QPushButton(self)
         self.cancelButton.setText("Cancel")
-        self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.cancelButton.clicked.connect(self.reject)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.okButton)
@@ -916,8 +912,7 @@ class StretchDockWidget(QDockWidget):
 
         # make sure we get notified if the layers change so
         # we can close if needed
-        self.connect(viewwidget.layers, SIGNAL("layersChanged()"), 
-                                    self.onLayersChanged)
+        viewwidget.layers.layersChanged.connect(self.onLayersChanged)
 
     def onLayersChanged(self):
         """
@@ -931,18 +926,15 @@ class StretchDockWidget(QDockWidget):
         """
         Create the actions to be shown on the toolbar
         """
-        self.applyAllAction = QAction(self)
+        self.applyAllAction = QAction(self, triggered=self.onApplyAll)
         self.applyAllAction.setText("&Apply Stretch to All Open Files")
         self.applyAllAction.setStatusTip("Apply Stretch to All Open Files")
         self.applyAllAction.setIcon(QIcon(":/viewer/images/applyall.png"))
-        self.connect(self.applyAllAction, SIGNAL("triggered()"),
-                     self.onApplyAll)
         
-        self.applyAction = QAction(self)
+        self.applyAction = QAction(self, triggered=self.onApply)
         self.applyAction.setText("&Apply Stretch")
         self.applyAction.setStatusTip("Apply Stretch")
         self.applyAction.setIcon(QIcon(":/viewer/images/apply.png"))
-        self.connect(self.applyAction, SIGNAL("triggered()"), self.onApply)
 
         self.localAction = QAction(self)
         self.localAction.setText("&Local Stretch")
@@ -951,46 +943,38 @@ class StretchDockWidget(QDockWidget):
         self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
         self.localAction.setCheckable(True)
 
-        self.saveAction = QAction(self)
+        self.saveAction = QAction(self, triggered=self.onSave)
         self.saveAction.setText("&Save Stretch and Lookup Table")
         self.saveAction.setStatusTip(
                     "Save Stretch and Lookup Table to current File")
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
-        self.connect(self.saveAction, SIGNAL("triggered()"), self.onSave)
 
-        self.deleteAction = QAction(self)
+        self.deleteAction = QAction(self, triggered=self.onDelete)
         self.deleteAction.setText("&Delete Stretch and Lookup Table")
         self.deleteAction.setStatusTip(
                     "Delete Stretch and Lookup Table from current File")
         self.deleteAction.setIcon(QIcon(":/viewer/images/deletesaved.png"))
-        self.connect(self.deleteAction, SIGNAL("triggered()"), self.onDelete)
 
-        self.exportToTextAction = QAction(self)
+        self.exportToTextAction = QAction(self, triggered=self.exportToText)
         self.exportToTextAction.setText(
                     "&Export Stretch and Lookup Table to Text file")    
         self.exportToTextAction.setStatusTip(
                     "Export current Stretch and Lookup Table to Text file")
         self.exportToTextAction.setIcon(QIcon(":/viewer/images/savetext.png"))
-        self.connect(self.exportToTextAction, SIGNAL("triggered()"), 
-                                self.exportToText)
 
-        self.importFromGDALAction = QAction(self)
+        self.importFromGDALAction = QAction(self, triggered=self.importFromGDAL)
         self.importFromGDALAction.setText(
                     "&Import Stretch and Lookup Table from GDAL file and apply")
         self.importFromGDALAction.setStatusTip(
             "Import Stretch and Lookup Table saved in GDAL file and apply")
         self.importFromGDALAction.setIcon(QIcon(":/viewer/images/open.png"))
-        self.connect(self.importFromGDALAction, SIGNAL("triggered()"),
-                                self.importFromGDAL)
 
-        self.importFromTextAction = QAction(self)
+        self.importFromTextAction = QAction(self, triggered=self.importFromText)
         self.importFromTextAction.setText(
                     "I&mport Stretch and Lookup Table from Text file")
         self.importFromTextAction.setStatusTip(
                 "Import Stretch and Lookup Table saved in text file and apply")
         self.importFromTextAction.setIcon(QIcon(":/viewer/images/opentext.png"))
-        self.connect(self.importFromTextAction,  SIGNAL("triggered()"),
-                                self.importFromText)
 
     def setupToolbar(self):
         """
@@ -1058,7 +1042,7 @@ class StretchDockWidget(QDockWidget):
         """
         Export stretch and Lookup Table to JSON text
         """
-        fname = QFileDialog.getSaveFileName(self, 
+        fname, filter = QFileDialog.getSaveFileName(self, 
                     "Select file to save stretch and lookup table into",
                     os.getcwd(), STRETCH_FILTER)
         if fname != "":

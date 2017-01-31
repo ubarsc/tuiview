@@ -18,9 +18,8 @@ Contains the AddColumnDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QFormLayout, QComboBox, QLineEdit
-from PyQt4.QtGui import QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox
-from PyQt4.QtCore import SIGNAL
+from PyQt5.QtWidgets import QDialog, QFormLayout, QComboBox, QLineEdit
+from PyQt5.QtWidgets import QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox
 import sys
 
 from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
@@ -50,11 +49,11 @@ class AddColumnDialog(QDialog):
 
         self.okButton = QPushButton()
         self.okButton.setText("OK")
-        self.connect(self.okButton, SIGNAL("clicked()"), self.onOK)
+        self.okButton.clicked.connect(self.onOK)
 
         self.cancelButton = QPushButton()
         self.cancelButton.setText("Cancel")
-        self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.cancelButton.clicked.connect(self.reject)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.okButton)

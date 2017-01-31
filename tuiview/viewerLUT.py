@@ -23,8 +23,8 @@ amongst other things
 import sys
 import numpy
 import json
-from PyQt4.QtGui import QImage
-from PyQt4.QtCore import QObject, SIGNAL
+from PyQt5.QtGui import QImage
+from PyQt5.QtCore import QObject, pyqtSignal
 from osgeo import gdal
 from . import viewererrors
 from . import viewerstretch
@@ -72,7 +72,7 @@ def GDALProgressFunc(value, string, lutobject):
     stats or histogram.
     """
     percent = int(value * 100)
-    lutobject.emit(SIGNAL("newPercent(int)"), percent)
+    lutobject.newPercent.emit(percent)
 
 class BandLUTInfo(object):
     """
@@ -117,6 +117,11 @@ class ViewerLUT(QObject):
     used for transformation between raw
     data and stretched data
     """
+    # signals
+    newProgress = pyqtSignal('QString', name='newProgress')
+    newPercent = pyqtSignal(int, name='newPercent')
+    endProgress = pyqtSignal(name='endProgress')
+
     def __init__(self):
         QObject.__init__(self) # so we can emit signal
         # array shape [lutsize,4] for color table and greyscale
@@ -520,20 +525,19 @@ class ViewerLUT(QObject):
 
             # copy in from RAT
             names = rat.getColumnNames()
-            self.emit(SIGNAL("newProgress(QString)"), 
-                    "Reading Colors...")
+            self.newProgress.emit("Reading Colors...")
 
             redCol = rat.getEntireAttribute(names[rat.redColumnIdx])
-            self.emit(SIGNAL("newPercent(int)"), 25)
+            self.newPercent.emit(25)
 
             greenCol = rat.getEntireAttribute(names[rat.greenColumnIdx])
-            self.emit(SIGNAL("newPercent(int)"), 50)
+            self.newPercent.emit(50)
 
             blueCol = rat.getEntireAttribute(names[rat.blueColumnIdx])
-            self.emit(SIGNAL("newPercent(int)"), 75)
+            self.newPercent.emit(75)
 
             alphaCol = rat.getEntireAttribute(names[rat.alphaColumnIdx])
-            self.emit(SIGNAL("endProgress()"))
+            self.endProgress.emit()
 
             cols = [redCol, greenCol, blueCol, alphaCol]
             for (col, code) in zip(cols, RGBA_CODES):
@@ -694,11 +698,10 @@ class ViewerLUT(QObject):
             if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
                 # need to actually calculate them
                 gdal.ErrorReset()
-                self.emit(SIGNAL("newProgress(QString)"), 
-                        "Calculating Statistics...")
+                self.newProgress.emit("Calculating Statistics...")
                 # TODO: find a way of ignoring NaNs
                 stats = gdalband.ComputeStatistics(0, GDALProgressFunc, self)
-                self.emit(SIGNAL("endProgress()"))
+                self.endProgress.emit()
 
                 if (stats == [0, 0, 0, -1] or 
                         gdal.GetLastErrorNo() != gdal.CE_None):
@@ -785,8 +788,7 @@ class ViewerLUT(QObject):
 
             if histo is None:
                 # no suitable histo - call GDAL and do progress
-                self.emit(SIGNAL("newProgress(QString)"), 
-                            "Calculating Histogram...")
+                self.newProgress.emit("Calculating Histogram...")
 
                 histo = gdalband.GetHistogram(min=minVal, max=maxVal, 
                         buckets=numBins, 
@@ -794,7 +796,7 @@ class ViewerLUT(QObject):
                         callback=GDALProgressFunc, 
                         callback_data=self)
 
-                self.emit(SIGNAL("endProgress()"))
+                self.endProgress.emit()
         else:
             # local stats - use numpy on localdata
             histo, bins = numpy.histogram(localdata, numBins)

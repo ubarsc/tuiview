@@ -23,12 +23,13 @@ zooming and panning etc.
 from __future__ import division # ensure we are using Python 3 semantics
 import json
 import numpy
-from PyQt4.QtGui import QAbstractScrollArea, QPainter, QRubberBand, QCursor, QApplication
-from PyQt4.QtGui import QPixmap, QPainterPath, QPen
-from PyQt4.QtCore import Qt, QRect, QSize, QPoint, SIGNAL
+from PyQt5.QtWidgets import QAbstractScrollArea, QRubberBand, QApplication
+from PyQt5.QtGui import QPainter, QCursor, QPixmap, QPainterPath, QPen
+from PyQt5.QtCore import Qt, QRect, QSize, QPoint, pyqtSignal
 
 from . import viewererrors
 from . import viewerlayers
+from .viewertoolclasses import PolygonToolInfo, PolylineToolInfo
 
 VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
                             # on zoom out/ zoom in with mouse wheel
@@ -99,6 +100,25 @@ class ViewerWidget(QAbstractScrollArea):
     other applications. See the open() function for loading
     images.
     """
+    # signals
+    geolinkMove = pyqtSignal(GeolinkInfo, name='geolinkMove')
+    geolinkQueryPoint = pyqtSignal(GeolinkInfo, 
+                                name='geolinkQueryPoint')
+    # can't use ViewerWidget - use base class instead
+    layerAdded = pyqtSignal(QAbstractScrollArea, name='layerAdded')
+    showStatusMessage = pyqtSignal('QString', 
+                                name='showStatusMessage')
+    activeToolChanged = pyqtSignal(ActiveToolChangedInfo,
+                                name='activeToolChanged')
+    polygonCollected = pyqtSignal(PolygonToolInfo,
+                                name='polygonCollected')
+    polylineCollected = pyqtSignal(PolylineToolInfo,
+                                name='polylineCollected')
+    vectorLocationSelected = pyqtSignal(list,
+                                viewerlayers.ViewerVectorLayer,
+                                name='vectorLocationSelected')
+    locationSelected = pyqtSignal(QueryInfo, name='locationSelected')
+
     def __init__(self, parent):
         QAbstractScrollArea.__init__(self, parent)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -209,7 +229,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.viewport().update()
         self.updateScrollBars()
 
-        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+        self.layerAdded.emit(self)
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, color=None, 
                                resultSet=False, origSQL=None, quiet=False):
@@ -226,7 +246,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.viewport().update()
         self.updateScrollBars()
 
-        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+        self.layerAdded.emit(self)
 
     def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
                                     color=None, quiet=None):
@@ -242,7 +262,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.viewport().update()
         self.updateScrollBars()
 
-        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+        self.layerAdded.emit(self)
 
     def addLayersFromJSONFile(self, fileobj, nlayers):
         """
@@ -255,7 +275,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.viewport().update()
         self.updateScrollBars()
 
-        self.emit(SIGNAL("layerAdded(PyQt_PyObject)"), self)
+        self.layerAdded.emit(self)
 
     def removeLayer(self):
         """
@@ -474,14 +494,14 @@ class ViewerWidget(QAbstractScrollArea):
             self.viewport().setCursor(self.polygonCursor)
             msg = ('Left click adds a point, middle to remove last,' +
                         ' right click to end')
-            self.emit(SIGNAL("showStatusMessage(QString)"), msg)
+            self.showStatusMessage.emit(msg)
 
         elif tool == VIEWER_TOOL_NONE:
             # change back
             self.viewport().setCursor(Qt.ArrowCursor)
 
         obj = ActiveToolChangedInfo(self.activeTool, senderid)
-        self.emit(SIGNAL("activeToolChanged(PyQt_PyObject)"), obj)
+        self.activeToolChanged.emit(obj)
 
     def setNewStretch(self, newstretch, layer, local=False):
         """
@@ -698,11 +718,10 @@ class ViewerWidget(QAbstractScrollArea):
             elif button == Qt.RightButton and self.toolPoints is not None:
                 # finished
                 # create object for signal
-                from .viewertoolclasses import PolygonToolInfo
                 layer = self.layers.getTopRasterLayer()
                 modifiers = event.modifiers()
                 obj = PolygonToolInfo(self.toolPoints, layer, modifiers)
-                self.emit(SIGNAL("polygonCollected(PyQt_PyObject)"), obj)
+                self.polygonCollected.emit(obj)
 
                 self.toolPointsFinished = True # done, but still display
 
@@ -729,14 +748,13 @@ class ViewerWidget(QAbstractScrollArea):
             elif button == Qt.RightButton and self.toolPoints is not None:
                 # finished
                 # create object for signal
-                from .viewertoolclasses import PolylineToolInfo
                 if self.queryOnlyDisplayed:
                     layer = self.layers.getTopDisplayedRasterLayer()
                 else:
                     layer = self.layers.getTopRasterLayer()
                 modifiers = event.modifiers()
                 obj = PolylineToolInfo(self.toolPoints, layer, modifiers)
-                self.emit(SIGNAL("polylineCollected(PyQt_PyObject)"), obj)
+                self.polylineCollected.emit(obj)
 
                 self.toolPointsFinished = True # done, but still display
 
@@ -907,7 +925,7 @@ class ViewerWidget(QAbstractScrollArea):
 
         # emit the geolinked query point signal
         obj = GeolinkInfo(id(self), easting, northing)
-        self.emit(SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), obj )
+        self.geolinkQueryPoint.emit(obj)
 
     def newVectorQueryPoint(self, dspX, dspY, modifiers=None):
         """
@@ -933,9 +951,7 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.setCursor(oldCursor)
 
-        self.emit(SIGNAL(
-            "vectorLocationSelected(PyQt_PyObject, PyQt_PyObject)"), 
-            results, layer)
+        self.vectorLocationSelected.emit(results, layer)
 
     def updateQueryPoint(self, easting, northing, column, row, modifiers):
         """
@@ -965,7 +981,7 @@ class ViewerWidget(QAbstractScrollArea):
                 qi = QueryInfo(easting, northing, column, row, data, 
                                         layer, modifiers)
                 # emit the signal - handled by the QueryDockWidget
-                self.emit(SIGNAL("locationSelected(PyQt_PyObject)"), qi)
+                self.locationSelected.emit(qi)
 
     def doGeolinkQueryPoint(self, easting, northing):
         """
@@ -1022,6 +1038,6 @@ class ViewerWidget(QAbstractScrollArea):
         info = self.getGeolinkInfo()
         if info is not None:
             # emit the signal
-            self.emit(SIGNAL("geolinkMove(PyQt_PyObject)"), info )
+            self.geolinkMove.emit(info)
 
 

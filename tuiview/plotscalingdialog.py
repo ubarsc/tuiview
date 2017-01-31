@@ -19,9 +19,9 @@ Module that contains the PlotScalingDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QFormLayout, QHBoxLayout, QCheckBox
-from PyQt4.QtGui import QSpinBox, QDoubleSpinBox, QPushButton, QVBoxLayout
-from PyQt4.QtCore import Qt, SIGNAL
+from PyQt5.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QCheckBox
+from PyQt5.QtWidgets import QSpinBox, QDoubleSpinBox, QPushButton, QVBoxLayout
+from PyQt5.QtCore import Qt
 import numpy
 
 class PlotScalingDialog(QDialog):
@@ -52,8 +52,7 @@ class PlotScalingDialog(QDialog):
         else:
             self.minValueSpin = QSpinBox()
             self.minValueSpin.setRange(info.min, info.max)
-        self.connect(self.minAutoCheck, SIGNAL("stateChanged(int)"), 
-                    self.onMinAuto)
+        self.minAutoCheck.stateChanged.connect(self.onMinAuto)
 
         if minScale is None:
             self.minAutoCheck.setCheckState(Qt.Checked)
@@ -76,8 +75,7 @@ class PlotScalingDialog(QDialog):
         else:
             self.maxValueSpin = QSpinBox()
             self.maxValueSpin.setRange(info.min, info.max)
-        self.connect(self.maxAutoCheck, SIGNAL("stateChanged(int)"), 
-                    self.onMaxAuto)
+        self.maxAutoCheck.stateChanged.connect(self.onMaxAuto)
 
         if maxScale is None:
             self.maxAutoCheck.setCheckState(Qt.Checked)
@@ -93,11 +91,11 @@ class PlotScalingDialog(QDialog):
 
         self.okButton = QPushButton()
         self.okButton.setText("OK")
-        self.connect(self.okButton, SIGNAL("clicked()"), self.accept)
+        self.okButton.clicked.connect(self.accept)
 
         self.cancelButton = QPushButton()
         self.cancelButton.setText("Cancel")
-        self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.cancelButton.clicked.connect(self.reject)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.okButton)

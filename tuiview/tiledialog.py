@@ -19,9 +19,9 @@ Contains the TileDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QFormLayout, QHBoxLayout, QPushButton
-from PyQt4.QtGui import QSpinBox
-from PyQt4.QtCore import SIGNAL
+from PyQt5.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QPushButton
+from PyQt5.QtWidgets import QSpinBox
+from PyQt5.QtCore import pyqtSignal
 
 class TileDialog(QDialog):
     """
@@ -56,8 +56,8 @@ class TileDialog(QDialog):
         self.buttonLayout.addWidget(self.cancelButton)
         self.formLayout.addRow(self.buttonLayout)
 
-        self.connect(self.okButton, SIGNAL("clicked()"), self.accept)
-        self.connect(self.cancelButton, SIGNAL("clicked()"), self.reject)
+        self.okButton.clicked.connect(self.accept)
+        self.cancelButton.clicked.connect(self.reject)
         self.setLayout(self.formLayout)
 
     def getValues(self):
