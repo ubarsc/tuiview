@@ -700,7 +700,7 @@ class ViewerLUT(QObject):
                 gdal.ErrorReset()
                 self.newProgress.emit("Calculating Statistics...")
                 # TODO: find a way of ignoring NaNs
-                stats = gdalband.ComputeStatistics(0, GDALProgressFunc, self)
+                stats = gdalband.ComputeStatistics(False, GDALProgressFunc, self)
                 self.endProgress.emit()
 
                 if (stats == [0, 0, 0, -1] or 
