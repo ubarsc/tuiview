@@ -697,7 +697,14 @@ class ViewerLUT(QObject):
                 self.emit(SIGNAL("newProgress(QString)"), 
                         "Calculating Statistics...")
                 # TODO: find a way of ignoring NaNs
-                stats = gdalband.ComputeStatistics(False, GDALProgressFunc, self)
+
+                # A workaround for broken progress support in GDAL 2.2.0
+                # see https://trac.osgeo.org/gdal/ticket/6927
+                if gdal.__version__ == '2.2.0':
+                    stats = gdalband.ComputeStatistics(False)
+                else:
+                    stats = gdalband.ComputeStatistics(False, GDALProgressFunc, self)
+
                 self.emit(SIGNAL("endProgress()"))
 
                 if (stats == [0, 0, 0, -1] or 
