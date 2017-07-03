@@ -19,14 +19,17 @@ Module that contains the VectorQueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDockWidget, QAction, QIcon, QWidget, QToolBar
-from PyQt4.QtGui import QVBoxLayout, QTreeWidget, QTreeWidgetItem
-from PyQt4.QtCore import SIGNAL
+from PyQt5.QtWidgets import QDockWidget, QAction, QWidget, QToolBar
+from PyQt5.QtWidgets import QVBoxLayout, QTreeWidget, QTreeWidgetItem
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import pyqtSignal
 
 class VectorQueryDockWidget(QDockWidget):
     """
     Dockable window that is a combined profile and ruler
     """
+    queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+
     def __init__(self, parent):
         QDockWidget.__init__(self, "Vector Query", parent)
 
@@ -91,4 +94,4 @@ class VectorQueryDockWidget(QDockWidget):
         """
         Window is being closed - inform parent window
         """
-        self.emit(SIGNAL("queryClosed(PyQt_PyObject)"), self)
+        self.queryClosed.emit(self)

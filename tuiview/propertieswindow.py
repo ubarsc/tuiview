@@ -18,10 +18,9 @@ Module that contains the PropertiesWindow class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import sys
-from PyQt4.QtGui import QDialog, QVBoxLayout, QPushButton, QTextEdit
-from PyQt4.QtGui import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
-from PyQt4.QtGui import QComboBox
-from PyQt4.QtCore import SIGNAL
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QTextEdit
+from PyQt5.QtWidgets import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
+from PyQt5.QtWidgets import QComboBox
 
 from . import plotwidget
 
@@ -103,8 +102,7 @@ class PropertiesWindow(QDialog):
         self.layerSelCombo.setEnabled(len(info.bandNames) > 1)
 
         self.layerSelLayout.addWidget(self.layerSelCombo, 0, 1)
-        self.connect(self.layerSelCombo, SIGNAL('currentIndexChanged(int)'),
-                                self.layerChanged)
+        self.layerSelCombo.currentIndexChanged.connect(self.layerChanged)
 
         self.layerLayout.addLayout(self.layerSelLayout)
         self.layerLayout.addWidget(self.layerTab)
@@ -134,7 +132,7 @@ class PropertiesWindow(QDialog):
 
         self.closeButton = QPushButton()
         self.closeButton.setText("Close")
-        self.connect(self.closeButton, SIGNAL("clicked()"), self.accept)
+        self.closeButton.clicked.connect(self.accept)
 
         self.mainLayout.addWidget(self.closeButton)
 

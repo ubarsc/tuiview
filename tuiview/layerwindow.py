@@ -19,8 +19,10 @@ Module that contains the LayerWindow class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
-from PyQt4.QtGui import QDockWidget, QListView, QIcon, QMenu, QAction, QAbstractItemView
-from PyQt4.QtCore import QAbstractListModel, Qt, SIGNAL
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QDockWidget, QListView, QMenu, QAbstractItemView
+from PyQt5.QtWidgets import QAction
+from PyQt5.QtCore import QAbstractListModel, Qt, pyqtSignal
 
 from . import viewerlayers
 from .viewerstrings import MESSAGE_TITLE
@@ -115,74 +117,60 @@ class LayerListView(QListView):
 
     def setupActions(self):
         "Set up the actions for the popup menu"
-        self.layerExtentAct = QAction(self)
+        self.layerExtentAct = QAction(self, triggered=self.zoomLayer)
         self.layerExtentAct.setText("&Zoom to Layer Extent")
         self.layerExtentAct.setStatusTip("Zoom to Layer Extent")
         self.layerExtentAct.setIcon(QIcon(":/viewer/images/zoomlayer.png"))
         self.layerExtentAct.setIconVisibleInMenu(True)
-        self.connect(self.layerExtentAct, SIGNAL("triggered()"), self.zoomLayer)
 
-        self.removeLayerAct = QAction(self)
+        self.removeLayerAct = QAction(self, triggered=self.removeLayers)
         self.removeLayerAct.setText("&Remove Selected Layer(s)")
         self.removeLayerAct.setStatusTip("Remove selected layer(s)")
         self.removeLayerAct.setIcon(QIcon(":/viewer/images/removelayer.png"))
         self.removeLayerAct.setIconVisibleInMenu(True)
-        self.connect(self.removeLayerAct, SIGNAL("triggered()"), 
-                                                        self.removeLayers)
 
-        self.moveUpAct = QAction(self)
+        self.moveUpAct = QAction(self, triggered=self.moveUp)
         self.moveUpAct.setText("Move &Up")
         self.moveUpAct.setStatusTip("Move selected layer up in list")
         self.moveUpAct.setIcon(QIcon(":/viewer/images/arrowup.png"))
         self.moveUpAct.setIconVisibleInMenu(True)
-        self.connect(self.moveUpAct, SIGNAL("triggered()"), self.moveUp)
 
-        self.moveDownAct = QAction(self)
+        self.moveDownAct = QAction(self, triggered=self.moveDown)
         self.moveDownAct.setText("Move &Down")
         self.moveDownAct.setStatusTip("Move selected layer down in list")
         self.moveDownAct.setIcon(QIcon(":/viewer/images/arrowdown.png"))
         self.moveDownAct.setIconVisibleInMenu(True)
-        self.connect(self.moveDownAct, SIGNAL("triggered()"), self.moveDown)
 
-        self.moveToTopAct = QAction(self)
+        self.moveToTopAct = QAction(self, triggered=self.moveToTop)
         self.moveToTopAct.setText("Move To &Top")
         self.moveToTopAct.setStatusTip("Move selected layer top top")
-        self.connect(self.moveToTopAct, SIGNAL("triggered()"), self.moveToTop)
         
-        self.changeColorAct = QAction(self)
+        self.changeColorAct = QAction(self, triggered=self.changeColor)
         self.changeColorAct.setText("Change &Color")
         self.changeColorAct.setStatusTip("Change color of vector layer")
-        self.connect(self.changeColorAct,  SIGNAL("triggered()"), 
-                                                            self.changeColor)
-                                                            
-        self.setSQLAct = QAction(self)
+
+        self.setSQLAct = QAction(self, triggered=self.setSQL)
         self.setSQLAct.setText("Set &attribute filter")
         self.setSQLAct.setStatusTip("Set attribute filter via SQL")
-        self.connect(self.setSQLAct, SIGNAL("triggered()"), self.setSQL)
 
-        self.setLineWidthAct = QAction(self)
+        self.setLineWidthAct = QAction(self, triggered=self.setLineWidth)
         self.setLineWidthAct.setText("Set &Line width")
         self.setLineWidthAct.setStatusTip("Set line width of rendered features")
-        self.connect(self.setLineWidthAct, SIGNAL("triggered()"), self.setLineWidth)
 
-        self.setFillAct = QAction(self)
+        self.setFillAct = QAction(self, toggled=self.toggleFill)
         self.setFillAct.setText("Fill Polygons")
         self.setFillAct.setStatusTip("Toggle the fill status of polygons")
         self.setFillAct.setCheckable(True)
-        self.connect(self.setFillAct, SIGNAL("toggled(bool)"), self.toggleFill)
 
-        self.editStretchAct = QAction(self)
+        self.editStretchAct = QAction(self, triggered=self.editStretch)
         self.editStretchAct.setText("&Edit Stretch")
         self.editStretchAct.setStatusTip("Edit Stretch of raster layer")
-        self.connect(self.editStretchAct, SIGNAL("triggered()"), 
-                                                    self.editStretch)
 
-        self.propertiesAct = QAction(self)
+        self.propertiesAct = QAction(self, triggered=self.properties)
         self.propertiesAct.setText("&Properties")
         self.propertiesAct.setStatusTip("Show properties of file")
         self.propertiesAct.setIcon(QIcon(":/viewer/images/properties.png"))
         self.propertiesAct.setIconVisibleInMenu(True)
-        self.connect(self.propertiesAct, SIGNAL("triggered()"), self.properties)
 
     def setupMenu(self):
         "Create the popup menus"
@@ -299,7 +287,8 @@ class LayerListView(QListView):
             
     def changeColor(self):
         "Change the color of the vector layer"
-        from PyQt4.QtGui import QColorDialog, QColor
+        from PyQt5.QtWidgets import QColorDialog
+        from PyQt5.QtGui import QColor
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -319,7 +308,7 @@ class LayerListView(QListView):
                 
     def setSQL(self):
         "Set the attribute filter for vector layers"
-        from PyQt4.QtGui import QInputDialog
+        from PyQt5.QtWidgets import QInputDialog
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -344,7 +333,7 @@ class LayerListView(QListView):
 
     def setLineWidth(self):
         "Set the line width for vector layers"
-        from PyQt4.QtGui import QInputDialog
+        from PyQt5.QtWidgets import QInputDialog
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -406,6 +395,9 @@ class LayerWindow(QDockWidget):
     Our dock window that shows the layers. 
     Contains a list view
     """
+    # signals
+    layerWindowClosed = pyqtSignal('QDockWidget', name='layerWindowClosed')
+
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Layers", parent)
         self.viewwidget = viewwidget
@@ -421,8 +413,7 @@ class LayerWindow(QDockWidget):
         self.setWidget(self.listView)
 
         # connect so we get told when layers added and removed
-        self.connect(viewwidget.layers, SIGNAL("layersChanged()"), 
-                                        self.layersChanged)
+        viewwidget.layers.layersChanged.connect(self.layersChanged)
 
     def layersChanged(self):
         """
@@ -437,4 +428,4 @@ class LayerWindow(QDockWidget):
         """
         Window is being closed - inform parent window
         """
-        self.emit(SIGNAL("layerWindowClosed(PyQt_PyObject)"), self)
+        self.layerWindowClosed.emit(self)

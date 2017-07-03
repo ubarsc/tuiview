@@ -19,15 +19,22 @@ Contains the UserExpressionDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt4.QtGui import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
-from PyQt4.QtGui import QTextEdit, QPalette
-from PyQt4.QtCore import SIGNAL, Qt
+from PyQt5.QtWidgets import QTextEdit
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
+from PyQt5.QtGui import QPalette
+from PyQt5.QtCore import pyqtSignal, Qt
 
 class UserExpressionDialog(QDialog):
     """
     Allows user to enter a expression and have it applied.
     Sends a signal with the expresson on Apply
     """
+    # signals
+    newExpression = pyqtSignal(['QString'], ['QString', int], 
+                        name='newExpression')
+    # not used?
+    undoEdit = pyqtSignal('QObject', int, name='undoEdit')
+
     def __init__(self, parent, col=None, undoObject=None):
         QDialog.__init__(self, parent)
         # if this is not none col included in signal
@@ -69,7 +76,7 @@ Use the special column 'row' for the row number.""")
             self.undoButton = QPushButton(self)
             self.undoButton.setText("Undo")
             self.buttonLayout.addWidget(self.undoButton)
-            self.connect(self.undoButton, SIGNAL("clicked()"), self.undo)
+            self.undoButton.clicked.connect(self.undo)
 
         self.buttonLayout.addWidget(self.closeButton)
 
@@ -79,9 +86,8 @@ Use the special column 'row' for the row number.""")
         self.mainLayout.addLayout(self.buttonLayout)
         self.setLayout(self.mainLayout)
 
-        self.connect(self.closeButton, SIGNAL("clicked()"), self.close)
-        self.connect(self.applyButton, SIGNAL("clicked()"), 
-                                    self.applyExpression)
+        self.closeButton.clicked.connect(self.close)
+        self.applyButton.clicked.connect(self.applyExpression)
 
     def setHint(self, hint):
         "set the hint displayed"
@@ -91,13 +97,11 @@ Use the special column 'row' for the row number.""")
         "Sends a signal with the expression"
         expression = self.exprEdit.toPlainText()
         if self.col is None:
-            self.emit(SIGNAL("newExpression(QString)"), expression)
+            self.newExpression['QString'].emit(expression)
         else:
             # include column
-            self.emit(SIGNAL("newExpression(QString,int)"), 
-                            expression, self.col)
+            self.newExpression['QString', int].emit(expression, self.col)
 
     def undo(self):
         "sends a signal with the undo object"
-        self.emit(SIGNAL("undoEdit(PyQt_PyObject,int)"), self.undoObject, 
-                                                        self.col)
+        self.undoEdit.emit(self.undoObject, self.col)

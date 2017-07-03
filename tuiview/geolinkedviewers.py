@@ -21,8 +21,8 @@ Contains the GeolinkedViewers class.
 
 import math
 import json
-from PyQt4.QtCore import QObject, QTimer, SIGNAL, Qt, QEventLoop, QRect
-from PyQt4.QtGui import QApplication, QMessageBox
+from PyQt5.QtCore import QObject, QTimer, Qt, QEventLoop, QRect, pyqtSignal
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from . import viewerwindow
 from . import pluginmanager
@@ -32,6 +32,10 @@ class GeolinkedViewers(QObject):
     Class that manages a collection of ViewerWindows
     that have their widgets geolinked.
     """
+    # signals
+    newViewerCreated = pyqtSignal(viewerwindow.ViewerWindow, 
+                        name='newViewerCreated')
+
     def __init__(self, loadPlugins=True):
         QObject.__init__(self)
         # need to keep a reference to keep the python objects alive
@@ -53,7 +57,7 @@ class GeolinkedViewers(QObject):
         # Usually, in PyQt you don't have such a 'dynamic' 
         # number of sub windows. 
         self.timer = QTimer(self)
-        self.connect(self.timer, SIGNAL("timeout()"), self.cleanUp)
+        self.timer.timeout.connect(self.cleanUp)
         self.timer.start(10000) # 10 secs
 
     @staticmethod
@@ -133,7 +137,7 @@ class GeolinkedViewers(QObject):
                 pluginmanager.PLUGIN_ACTION_NEWVIEWER, newviewer)
 
         # emit a signal so that application can do any customisation
-        self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
+        self.newViewerCreated.emit(newviewer)
 
         # return it
         return newviewer
@@ -144,26 +148,20 @@ class GeolinkedViewers(QObject):
         """
         # connect to the signal the widget sends when moved
         # sends new easting, northing and id() of the widget. 
-        self.connect(newviewer.viewwidget, 
-                    SIGNAL("geolinkMove(PyQt_PyObject)"), self.onMove)
+        newviewer.viewwidget.geolinkMove.connect(self.onMove)
         # the signal when a new query point is chosen
         # on a widget. Sends easting, northing and id() of the widget
-        self.connect(newviewer.viewwidget, 
-                    SIGNAL("geolinkQueryPoint(PyQt_PyObject)"), self.onQuery)
+        newviewer.viewwidget.geolinkQueryPoint.connect(self.onQuery)
         # signal for request for new window
-        self.connect(newviewer, SIGNAL("newWindow()"), self.onNewWindow)
+        newviewer.newWindowSig.connect(self.onNewWindow)
         # signal for request for windows to be tiled
-        self.connect(newviewer, SIGNAL("tileWindows(int, int)"), 
-                    self.onTileWindows)
+        newviewer.tileWindowsSig.connect(self.onTileWindows)
         # signal for new query window been opened
-        self.connect(newviewer, SIGNAL("newQueryWindow(PyQt_PyObject)"), 
-                    self.onNewQueryWindow)
+        newviewer.newQueryWindowSig.connect(self.onNewQueryWindow)
         # signal for request to write viewers state to a file
-        self.connect(newviewer, SIGNAL("writeViewersState(PyQt_PyObject)"),
-                    self.writeViewersState)
+        newviewer.writeViewersState.connect(self.writeViewersState)
         # signal for request to read viewers state from file
-        self.connect(newviewer, SIGNAL("readViewersState(PyQt_PyObject)"),
-                    self.readViewersState)
+        newviewer.readViewersState.connect(self.readViewersState)
 
     def onNewWindow(self):
         """
@@ -183,7 +181,7 @@ class GeolinkedViewers(QObject):
                 pluginmanager.PLUGIN_ACTION_NEWVIEWER, newviewer)
 
         # emit a signal so that application can do any customisation
-        self.emit(SIGNAL("newViewerCreated(PyQt_PyObject)"), newviewer)
+        self.newViewerCreated.emit(newviewer)
 
         return newviewer
 
