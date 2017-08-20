@@ -1470,7 +1470,7 @@ Numpy Version: %s<br></p>
         else:
             # or cwd
             dir = os.getcwd()
-        fname = QFileDialog.getOpenFileName(self, "Select file to restore state from",
+        fname, filter = QFileDialog.getOpenFileName(self, "Select file to restore state from",
                     dir, "TuiView State .tuiview (*.tuiview)")
 
         if fname != "":

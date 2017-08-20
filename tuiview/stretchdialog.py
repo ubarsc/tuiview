@@ -1087,7 +1087,7 @@ class StretchDockWidget(QDockWidget):
         """
         Import stretch and lookup table from text file saved by exportToText()
         """
-        fname = QFileDialog.getOpenFileName(self, 
+        fname, filter = QFileDialog.getOpenFileName(self, 
                     "Select file containing stretch and lookup table",
                     os.getcwd(), STRETCH_FILTER)
         if fname != "":
