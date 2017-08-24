@@ -593,20 +593,22 @@ class ViewerWidget(QAbstractScrollArea):
         """
         layer = self.layers.getTopRasterLayer()
         if layer is not None:
+            delta = event.angleDelta().y()
+
             # Shift scrolling will move you forward and backwards through the time series
             if QApplication.keyboardModifiers() == Qt.ShiftModifier: 
-                if event.delta() > 0:
+                if delta > 0:
                     self.timeseriesBackward()
-                else:
+                elif delta < 0:
                     self.timeseriesForward()
 
             elif self.mouseWheelZoom:
                 (wldX, wldY) = layer.coordmgr.getWorldCenter()
 
                 impixperwinpix = layer.coordmgr.imgPixPerWinPix
-                if event.delta() > 0:
+                if delta > 0:
                     impixperwinpix *= 1.0 - VIEWER_ZOOM_WHEEL_FRACTION
-                elif event.delta() < 0:
+                elif delta < 0:
                     impixperwinpix *= 1.0 + VIEWER_ZOOM_WHEEL_FRACTION
                 layer.coordmgr.setZoomFactor(impixperwinpix)
                 layer.coordmgr.setWorldCenter(wldX, wldY)
@@ -618,12 +620,8 @@ class ViewerWidget(QAbstractScrollArea):
                 self.updateScrollBars()
                 self.viewport().update()
             else:
-                dx = 0
-                dy = 0
-                if event.orientation() == Qt.Horizontal:
-                    dx = event.delta()
-                else:
-                    dy = event.delta()
+                dx = event.angleDelta().x()
+                dy = delta
                 self.scrollContentsBy(dx, dy)
         
             # geolink
