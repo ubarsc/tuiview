@@ -49,19 +49,15 @@ by default).
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+from __future__ import print_function
 
-# If we fail to import the numpy version of setup, still try to proceed, as it is possibly
-# because we are being run by ReadTheDocs, and so we just need to be able to generate documentation. 
-try:
-    from numpy.distutils.core import setup, Extension
-    withExtensions = True
-except ImportError:
-    from distutils.core import setup
-    withExtensions = False
-    
-from distutils.version import LooseVersion
 import os
 import sys
+from numpy.distutils.core import setup, Extension
+from distutils.version import LooseVersion
+
+# don't build extensions if we are in readthedocs
+withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
 
 try:
     from osgeo import gdal
