@@ -166,6 +166,7 @@ setup(name='TuiView',
     ext_package = 'tuiview',
     ext_modules = ext_modules,
     license='LICENSE.txt',
+    data_files=[('', ['LICENSE.txt'])], # add this to tarball
     url='https://bitbucket.org/chchrsc/tuiview',
     classifiers=['Intended Audience :: Developers',
           'Operating System :: OS Independent',
