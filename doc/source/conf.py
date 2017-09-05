@@ -21,7 +21,8 @@ import tuiview # for version info
 import mock
 
 MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal', 'tuiview.vectorrasterizer',
-        'PyQt4', 'PyQt4.QtCore', 'PyQt4.QtGui']
+        'PyQt4', 'PyQt4.QtCore', 'PyQt4.QtGui', 'PyQt5', 'PyQt5.QtWidgets',
+        'PyQt5.QtGui', 'PyQt5.QtCore']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
