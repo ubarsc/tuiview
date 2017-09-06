@@ -25,8 +25,7 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal', 'tuiview.vectorrasterizer',
-        'PyQt5', 'PyQt5.QtWidgets', 'PyQt5.QtGui', 'PyQt5.QtCore']
+MOCK_MODULES = ['numpy','osgeo','gdal','osgeo.gdal', 'tuiview.vectorrasterizer']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
