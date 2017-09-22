@@ -91,10 +91,7 @@ class LayerItemModel(QAbstractListModel):
         Set the data back. Only bother with CheckStateRole
         """
         if role == Qt.CheckStateRole:
-            if sys.version_info[0] >= 3:
-                state = value
-            else:
-                state = value.toInt()[0]
+            state = value
             layer = self.getLayer(index)
             state = state == Qt.Checked
             self.viewwidget.layers.setDisplayedState(layer, state)

@@ -75,10 +75,7 @@ class AddColumnDialog(QDialog):
     def getColumnType(self):
         index = self.typeCombo.currentIndex()
         userdata = self.typeCombo.itemData(index)
-        if sys.version_info[0] >= 3:
-            return int(userdata)
-        else:
-            return userdata.toInt()[0]
+        return int(userdata)
 
     def getColumnName(self):
         return str(self.nameEdit.text())

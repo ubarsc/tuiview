@@ -24,15 +24,6 @@ from PyQt5.QtWidgets import QComboBox
 
 from . import plotwidget
 
-def VariantToInt(variant):
-    """
-    Action depends on which version of Python we are running
-    """
-    if sys.version_info[0] >= 3:
-        return variant # already is an int
-    else:
-        return variant.toInt()[0]
-
 class PropertiesWindow(QDialog):
     def __init__(self, parent, info):
         QDialog.__init__(self, parent)
@@ -146,7 +137,7 @@ class PropertiesWindow(QDialog):
         Called when the band changed - update GUI
         """
         # get the idx in the info object
-        idx = VariantToInt(self.layerSelCombo.itemData(comboIdx))
+        idx = self.layerSelCombo.itemData(comboIdx)
 
         if len(self.layerValueLabels) == 0:
             for rowCount, values in enumerate(self.info.bandInfo[idx]):

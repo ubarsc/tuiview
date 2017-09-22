@@ -52,15 +52,6 @@ MAX_BAND_NUMBER = 100 # for spin boxes
 
 STRETCH_FILTER = ".stretch Files (*.stretch)"
 
-def VariantToInt(variant):
-    """
-    Action depends on which version of Python we are running
-    """
-    if sys.version_info[0] >= 3:
-        return variant # already is an int
-    else:
-        return variant.toInt()[0]
-
 class ColorButton(QToolButton):
     """
     Class that is a button with a icon that displays
@@ -409,7 +400,7 @@ class StretchLayout(QFormLayout):
         else:
             index = widget.currentIndex()
             var = widget.itemData(index)
-            value = VariantToInt(var)
+            value = var
         return value
 
     def getStretch(self):
@@ -419,7 +410,7 @@ class StretchLayout(QFormLayout):
         """
         obj = viewerstretch.ViewerStretch()
         index = self.modeCombo.currentIndex()
-        obj.mode = VariantToInt(self.modeCombo.itemData(index))
+        obj.mode = self.modeCombo.itemData(index)
 
         bands = []
         value = self.getBandValue(self.redWidget)
@@ -434,12 +425,10 @@ class StretchLayout(QFormLayout):
         if obj.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR:
             idx = self.rampCombo.currentIndex()
             rampName = self.rampCombo.itemData(idx)
-            if sys.version_info[0] < 3:
-                rampName = rampName.toString()
             obj.setPseudoColor(str(rampName))
 
         index = self.stretchCombo.currentIndex()
-        obj.stretchmode = VariantToInt(self.stretchCombo.itemData(index))
+        obj.stretchmode = self.stretchCombo.itemData(index)
         if obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             value = self.stretchParam1.value()
             obj.setStdDevStretch(value)
@@ -468,7 +457,7 @@ class StretchLayout(QFormLayout):
         Called when user changed the mode. 
         Updates other GUI elements as needed
         """
-        mode = VariantToInt(self.modeCombo.itemData(index))
+        mode = self.modeCombo.itemData(index)
         greenredEnabled = (mode == viewerstretch.VIEWER_MODE_RGB)
         self.greenWidget.setEnabled(greenredEnabled)
         self.blueWidget.setEnabled(greenredEnabled)
@@ -495,7 +484,7 @@ class StretchLayout(QFormLayout):
         Called when user changed the stretch. 
         Updates other GUI elements as needed
         """
-        stretchmode = VariantToInt(self.stretchCombo.itemData(index))
+        stretchmode = self.stretchCombo.itemData(index)
         if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             self.stretchParam1.setEnabled(True)
             self.stretchParam2.setEnabled(False)
@@ -602,7 +591,7 @@ class RuleLayout(QGridLayout):
         Note: the stretch field will be None
         """
         index = self.compCombo.currentIndex()
-        comp = VariantToInt(self.compCombo.itemData(index))
+        comp = self.compCombo.itemData(index)
         value = self.numberBox.value()
         ctband = self.colorTableBox.value()
         if ctband == 0:
@@ -721,8 +710,6 @@ class StretchDefaultsDialog(QDialog):
         ruleList = []
 
         defaultRulesJSON = settings.value(DEFAULT_STRETCH_KEY)
-        if defaultRulesJSON is not None and sys.version_info[0] < 3:
-            defaultRulesJSON = str(defaultRulesJSON.toString())
 
         if defaultRulesJSON is None or defaultRulesJSON == '':
             # there isn't one, construct some defaults

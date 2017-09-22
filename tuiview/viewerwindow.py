@@ -274,17 +274,11 @@ class ViewerWindow(QMainWindow):
         settings = QSettings()
         settings.beginGroup('ViewerWindow')
 
-        # qvariant behaviour is different in Python3 so be careful
         defaultsize = QSize(DEFAULT_XSIZE, DEFAULT_YSIZE)
-        if sys.version_info[0] == 3:
-            self.resize(settings.value("size", defaultsize))
-        else:
-            self.resize(settings.value("size", defaultsize).toSize())
+        self.resize(settings.value("size", defaultsize))
+
         defaultpos = QPoint(DEFAULT_XPOS, DEFAULT_YPOS)
-        if sys.version_info[0] == 3:
-            self.move(settings.value("pos", defaultpos))
-        else:
-            self.move(settings.value("pos", defaultpos).toPoint())
+        self.move(settings.value("pos", defaultpos))
 
         settings.endGroup()
 
