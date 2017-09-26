@@ -24,7 +24,6 @@ from PyQt5.QtWidgets import QPushButton, QGroupBox, QButtonGroup, QLabel
 from PyQt5.QtWidgets import QSpinBox, QCheckBox
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import QSettings, pyqtSignal, Qt
-import sys
 from .stretchdialog import ColorButton
 from .plotwidget import DEFAULT_FONT_SIZE
 

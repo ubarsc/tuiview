@@ -20,7 +20,6 @@ Contains the AddColumnDialog class
 
 from PyQt5.QtWidgets import QDialog, QFormLayout, QComboBox, QLineEdit
 from PyQt5.QtWidgets import QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox
-import sys
 
 from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
 from .viewerstrings import MESSAGE_TITLE

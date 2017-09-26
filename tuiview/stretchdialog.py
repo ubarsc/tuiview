@@ -28,7 +28,6 @@ from PyQt5.QtWidgets import QToolButton, QColorDialog, QMessageBox
 from PyQt5.QtGui import QIcon, QPixmap, QColor
 from PyQt5.QtCore import QSettings, Qt
 import json
-import sys
 import os
 
 from . import viewerstretch

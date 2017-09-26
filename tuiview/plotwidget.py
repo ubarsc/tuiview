@@ -19,7 +19,6 @@ Plot widget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from __future__ import division # ensure we are using Python 3 semantics
-import sys
 import numpy
 from PyQt5.QtGui import QPainter, QPainterPath, QPen, QFontMetrics
 from PyQt5.QtWidgets import QWidget
