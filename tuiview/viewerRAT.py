@@ -609,6 +609,21 @@ class RATCache(object):
             if colName is None or name == colName:
                 data = self.gdalRAT.ReadAsArray(col, int(self.currStartRow), 
                             self.length)
+
+                # for some reason, with HFA this can return None
+                # fake some zero data
+                if data is None:
+                    coltype = self.gdalRAT.GetTypeOfCol(col)
+                    if coltype == gdal.GFT_Integer:
+                        data = numpy.zeros(self.length, dtype=numpy.integer)
+                    elif coltype == gdal.GFT_Real:
+                        data = numpy.zeros(self.length, dtype=numpy.float)
+                    else:
+                        data = numpy.zeros(self.length, dtype='S10')
+
+                    # write back to file
+                    self.gdalRAT.WriteArray(data, col, int(self.currStartRow))
+
                 self.cacheDict[name] = data
 
     def setStartRow(self, startRow, colName=None):
