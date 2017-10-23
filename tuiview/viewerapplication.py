@@ -21,11 +21,12 @@ Module contains the ViewerApplication class
 
 import sys
 import argparse
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from . import archivereader
 from . import geolinkedviewers
 from . import viewerstretch
+from .viewerstrings import MESSAGE_TITLE
 
 def getCmdargs():
     """
@@ -115,11 +116,14 @@ def getCmdargs():
         cmdargs.stretch.setBands(bandlist)
         cmdargs.bandsSet = True
     if cmdargs.stretchfromtext is not None:
-        cmdargs.stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(
+        try:
+            cmdargs.stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(
                                 cmdargs.stretchfromtext)
-        cmdargs.modeSet = True
-        cmdargs.stretchModeSet = True
-        cmdargs.bandsSet = True
+            cmdargs.modeSet = True
+            cmdargs.stretchModeSet = True
+            cmdargs.bandsSet = True
+        except Exception as e:
+            QMessageBox.critical(None, MESSAGE_TITLE, str(e))
     if cmdargs.stretchfromgdal is not None:
         cmdargs.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(
                                 cmdargs.stretchfromgdal)
@@ -176,9 +180,13 @@ class ViewerApplication(QApplication):
 
         # saved state
         if cmdargs.savedstate is not None:
-            fileobj = open(cmdargs.savedstate)
-            self.viewers.readViewersState(fileobj)
-            fileobj.close()
+            try:
+                fileobj = open(cmdargs.savedstate)
+                self.viewers.readViewersState(fileobj)
+                fileobj.close()
+            except Exception as e:
+                QMessageBox.critical(None, MESSAGE_TITLE, str(e))
+                self.viewers.newViewer()
 
         # open vectors in all viewer windows
         if cmdargs.vectors is not None:

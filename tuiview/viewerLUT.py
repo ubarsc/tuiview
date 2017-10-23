@@ -28,6 +28,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from osgeo import gdal
 from . import viewererrors
 from . import viewerstretch
+from .viewerstrings import MESSAGE_TITLE
 
 gdal.UseExceptions()
 
@@ -847,27 +848,31 @@ class ViewerLUT(QObject):
             localdatalist = (None, None, None)
 
         # are we loading the LUT from an external file instead?
-        if stretch.readLUTFromText is not None:
-            # first line describes the stretch - ignore
-            fileobj = open(stretch.readLUTFromText)
-            fileobj.readline()
-            lut = self.createFromFile(fileobj, stretch)
-            fileobj.close()
-            if lut is None:
-                msg = 'No stretch and lookup table in this file'
-                raise viewererrors.InvalidDataset(msg)
-            self.lut = lut.lut
-            self.bandinfo = lut.bandinfo
-            return
-        elif stretch.readLUTFromGDAL is not None:
-            gdaldataset = gdal.Open(stretch.readLUTFromGDAL)
-            lut = self.createFromGDAL(gdaldataset, stretch)
-            del gdaldataset
-            if lut is None:
-                msg = 'No stretch and lookup table in this file'
-                raise viewererrors.InvalidDataset(msg)
-            self.lut = lut.lut
-            self.bandinfo = lut.bandinfo
+        try:
+            if stretch.readLUTFromText is not None:
+                # first line describes the stretch - ignore
+                fileobj = open(stretch.readLUTFromText)
+                fileobj.readline()
+                lut = self.createFromFile(fileobj, stretch)
+                fileobj.close()
+                if lut is None:
+                    msg = 'No stretch and lookup table in this file'
+                    raise viewererrors.InvalidDataset(msg)
+                self.lut = lut.lut
+                self.bandinfo = lut.bandinfo
+                return
+            elif stretch.readLUTFromGDAL is not None:
+                gdaldataset = gdal.Open(stretch.readLUTFromGDAL)
+                lut = self.createFromGDAL(gdaldataset, stretch)
+                del gdaldataset
+                if lut is None:
+                    msg = 'No stretch and lookup table in this file'
+                    raise viewererrors.InvalidDataset(msg)
+                self.lut = lut.lut
+                self.bandinfo = lut.bandinfo
+                return
+        except Exception as e:
+            QMessageBox.critical(None, MESSAGE_TITLE, str(e))
             return
 
         # decide what to do based on the code

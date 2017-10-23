@@ -29,6 +29,7 @@ from osgeo import osr
 from osgeo import ogr
 from PyQt5.QtGui import QImage, QPainter, QPen
 from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtWidgets import QMessageBox
 import threading
 if sys.version_info[0] < 3:
    import Queue as queue
@@ -40,6 +41,7 @@ from . import viewerLUT
 from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
+from .viewerstrings import MESSAGE_TITLE
 
 # number of threads to call layer.getImage on - only raster layers supported
 NUM_GETIMAGE_THREADS = os.getenv('TUIVIEW_GETIMAGE_THREADS','1')
@@ -657,14 +659,17 @@ class ViewerRasterLayer(ViewerLayer):
         Exports the current stretch and lookup table to a 
         JSON formatted text file
         """
-        fileobj = open(fname, 'w')
+        try:
+            fileobj = open(fname, 'w')
 
-        stretchstr = self.stretch.toString()
-        fileobj.write("%s\n" % stretchstr)
+            stretchstr = self.stretch.toString()
+            fileobj.write("%s\n" % stretchstr)
 
-        self.lut.saveToFile(fileobj)
+            self.lut.saveToFile(fileobj)
 
-        fileobj.close()
+            fileobj.close()
+        except Exception as e:
+            QMessageBox.critical(None, MESSAGE_TITLE, str(e))
 
     def changeUpdateAccess(self, update):
         """

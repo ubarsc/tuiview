@@ -929,6 +929,7 @@ File will now be opened using default stretch""")
             self.viewwidget.addLayersFromJSONFile(fileobj, nlayers)
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+        self.stretchAct.setEnabled(True)
 
     def removeLayer(self):
         """
