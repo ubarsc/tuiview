@@ -348,7 +348,7 @@ class ViewerRasterLayer(ViewerLayer):
         self.quiet = dict['quiet']
         self.displayed = dict['displayed']
 
-        ds = gdal.Open(filename, gdal.GA_Update)
+        ds = gdal.Open(filename)
 
         stretch = viewerstretch.ViewerStretch.fromString(dict['stretch'])
         lut = viewerLUT.ViewerLUT.createFromFile(fileobj, stretch)
