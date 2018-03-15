@@ -47,7 +47,7 @@ class PlotCurve(object):
         self.xdata = xdata
         self.ydata = ydata
         if xdata.size == 0 or ydata.size != xdata.size:
-            raise ValueError('inavlid data')
+            raise ValueError('invalid data')
         self.pen = pen
         if self.pen is None:
             self.pen = QPen()
