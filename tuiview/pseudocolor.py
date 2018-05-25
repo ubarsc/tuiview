@@ -2,7 +2,7 @@
 """
 Module that deals with color ramps
 
-This product includes color specifications and designs developed by 
+This product includes color specifications and designs developed by
 Cynthia Brewer (http://colorbrewer.org/).
 
 This file uses the minify function, available from
@@ -88,10 +88,36 @@ RAMP['YlOrRd']['description'] = {}
 RAMP['YlOrRd']['description']['red'] = '255 255 254 254 253 252 227 189 128'
 RAMP['YlOrRd']['description']['green'] = '255 237 217 178 141 78 26 0 0'
 RAMP['YlOrRd']['description']['blue'] = '204 160 118 76 60 42 28 38 38'
+# Viridis palettes
+RAMP['viridis'] = {'author' : ' Stefan van der Walt and Nathaniel Smith', 'comments' : '', 'type' : 'Diverging'}
+RAMP['viridis']['description'] = {}
+RAMP['viridis']['description']['red'] = '68 72 67 56 45 37 30 43 81 133 194 253'
+RAMP['viridis']['description']['green'] = '1 33 62 89 112 133 155 176 197 213 223 231'
+RAMP['viridis']['description']['blue'] = '84 115 133 140 142 142 138 127 106 74 35 37'
+RAMP['magma'] = {'author' : ' Stefan van der Walt and Nathaniel Smith', 'comments' : '', 'type' : 'Diverging'}
+RAMP['magma']['description'] = {}
+RAMP['magma']['description']['red'] = '0 18 51 90 125 163 200 233 249 254 254 252'
+RAMP['magma']['description']['green'] = '0 13 16 22 36 48 62 85 124 168 211 253'
+RAMP['magma']['description']['blue'] = '4 50 104 126 130 126 115 98 93 115 149 191'
+RAMP['plasma'] = {'author' : ' Stefan van der Walt and Nathaniel Smith', 'comments' : '', 'type' : 'Diverging'}
+RAMP['plasma']['description'] = {}
+RAMP['plasma']['description']['red'] = '13 62 99 135 166 192 213 231 245 253 252 240'
+RAMP['plasma']['description']['green'] = '8 4 0 7 32 58 84 111 140 173 210 249'
+RAMP['plasma']['description']['blue'] = '135 156 167 166 152 131 110 90 70 50 37 33'
+RAMP['inferno'] = {'author' : ' Stefan van der Walt and Nathaniel Smith', 'comments' : '', 'type' : 'Diverging'}
+RAMP['inferno']['description'] = {}
+RAMP['inferno']['description']['red'] = '0 20 58 96 133 169 203 230 247 252 245 252'
+RAMP['inferno']['description']['green'] = '0 11 9 19 33 46 65 93 131 173 219 255'
+RAMP['inferno']['description']['blue'] = '4 53 99 110 107 94 73 47 17 18 75 164'
+RAMP['cividis'] = {'author' : ' Stefan van der Walt and Nathaniel Smith', 'comments' : '', 'type' : 'Diverging'}
+RAMP['cividis']['description'] = {}
+RAMP['cividis']['description']['red'] = '0 0 42 72 94 114 135 158 182 208 234 255'
+RAMP['cividis']['description']['green'] = '32 48 64 82 98 115 132 150 169 190 211 234'
+RAMP['cividis']['description']['blue'] = '77 111 108 107 110 116 121 119 113 103 87 70'
 
 def HEXtoRGB(colorstring):
-    """ 
-    Converts #RRGGBB to an (R, G, B) tuple, 
+    """
+    Converts #RRGGBB to an (R, G, B) tuple,
     from http://code.activestate.com/recipes/266466-html-colors-tofrom-rgb-tuples/
     """
     colorstring = colorstring.strip()
@@ -102,20 +128,20 @@ def HEXtoRGB(colorstring):
     r, g, b = colorstring[:2], colorstring[2:4], colorstring[4:]
     r, g, b = [int(n, 16) for n in (r, g, b)]
     return (r, g, b)
-    
+
 def getRampsFromFile(fname):
     """
     Read extra color ramps into our global RAMPS dictionary
     from specified file
     """
-    from minify_json import json_minify 
+    from minify_json import json_minify
     # Read palette file
     palettesFobj = open(fname, "r")
     # Minify file contents
     palsMinified = json_minify(palettesFobj.read())
     # Loads palettes in a dict
     pals = json.loads(palsMinified)
-    
+
     # For each palette that's been detected
     for pal in pals:
         # Check name is present and unique
@@ -125,12 +151,12 @@ def getRampsFromFile(fname):
             # Quit - invalid colour scheme structure
             msg = 'Invalid colour ramp structure'
             raise viewererrors.ColorRampException(msg)
-        
+
         if cur_name in RAMP.keys():
             # Quit - invalid colour scheme name
             msg = 'Duplicated colour ramp name'
             raise viewererrors.ColorRampException(msg)
-        
+
         # Check red, green and blue fields are present
         if "description" in pal:
             # Parsing description of the colour ramp
@@ -145,9 +171,9 @@ def getRampsFromFile(fname):
                 greens = pal["description"]["green"]
                 blues = pal["description"]["blue"]
             else:
-                # Else look for HEX 
+                # Else look for HEX
                 if isHex:
-                    # Convert HEX to RGB 
+                    # Convert HEX to RGB
                     colrgb = numpy.array([HEXtoRGB(col) for col in pal["description"]["hex"].split()])
                     # Add RGB values to palette decription
                     reds = " ".join(map(str,colrgb[:,0]))
@@ -161,24 +187,24 @@ def getRampsFromFile(fname):
             # Quit - invalid colour scheme
             msg = 'Invalid colour ramp structure'
             raise viewererrors.ColorRampException(msg)
-        
-        # Other fields optional 
+
+        # Other fields optional
         # not sure what we'll be doing with this yet
         if "author" in pal:
             cur_author = pal["author"]
         else:
             cur_author = ''
-        
+
         if "comments" in pal:
             cur_comments = pal["comments"]
         else:
             cur_comments = ''
-        
+
         if "type" in pal:
             cur_type = pal["type"]
         else:
             cur_type = ''
-        
+
         # Assembling dictionary entry
         RAMP[cur_name] = {'author' : cur_author, 'comments' : cur_comments, 'type' : cur_type, 'description' : {}}
         # Add decsription fields
@@ -189,7 +215,7 @@ def getRampsFromFile(fname):
 def loadExtraRamps():
     """
     Try to load extra colour ramps
-    from file spcified by EXTRA_RAMP_VAR env variable. 
+    from file spcified by EXTRA_RAMP_VAR env variable.
     Checks that we haven't done it before so we don't have
     duplicates
     """
@@ -252,4 +278,3 @@ def getLUTForRamp(code, name, lutsize):
     yinterp = numpy.interp(xinterp, xobs, yobs)
     # return as 8 bit int
     return yinterp.astype(numpy.uint8)
-
