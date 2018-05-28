@@ -41,6 +41,8 @@ def getCmdargs():
         help="Display image in greyscale")
     p.add_argument('-r', '--rgb', action="store_true", default=False,
         help="use 3 bands to create RGB image")
+    p.add_argument('-p', '--pseudocolor', nargs=1, metavar=('name',),
+        help="Display image using a pseudocolor ramp")
     p.add_argument('-n', '--nostretch', action="store_true", default=False, 
         help="do no stretch on data")
     p.add_argument('-l', '--linear', nargs=2, metavar=('minVal', 'maxVal'),
@@ -86,6 +88,10 @@ def getCmdargs():
         cmdargs.modeSet = True
     if cmdargs.rgb:
         cmdargs.stretch.setRGB()
+        cmdargs.modeSet = True
+    if cmdargs.pseudocolor is not None:
+        ramp = cmdargs.pseudocolor[0]
+        cmdargs.stretch.setPseudoColor(ramp)
         cmdargs.modeSet = True
 
     if cmdargs.nostretch:
