@@ -28,7 +28,7 @@ from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
 from PyQt5.QtWidgets import QMenu
 from PyQt5.QtGui import QIcon, QColor
 from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
-from PyQt5.QtCore import QCoreApplication, QEventLoop
+from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
 
 # different resource file needed on Python3
 if sys.version_info[0] == 3:
@@ -134,6 +134,7 @@ class ViewerWindow(QMainWindow):
     tileWindowsSig = pyqtSignal(int, int, name='tileWindows')
     newQueryWindowSig = pyqtSignal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
+    closeAllWindowsSig = pyqtSignal(name='closeAllWindows')
     # Don't know how to specify file objects...
     writeViewersState = pyqtSignal(object, name='writeViewersState')
     readViewersState = pyqtSignal(object, name='readViewersState')
@@ -458,6 +459,11 @@ class ViewerWindow(QMainWindow):
         self.exitAct.setStatusTip("Close this window")
         self.exitAct.setShortcut("CTRL+Q")
 
+        self.closeAllWindows = QAction(self, triggered=self.closeAll)
+        self.closeAllWindows.setText("C&lose All")
+        self.closeAllWindows.setStatusTip("Close all windows")
+        self.closeAllWindows.setShortcut("SHIFT+CTRL+Q")
+
         self.preferencesAct = QAction(self, triggered=self.setPreferences)
         self.preferencesAct.setText("&Preferences")
         self.preferencesAct.setStatusTip("Edit Preferences")
@@ -573,6 +579,7 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.loadCurrentViewersState)
         fileMenu.addAction(self.propertiesAct)
         fileMenu.addAction(self.exitAct)
+        fileMenu.addAction(self.closeAllWindows)
         fileMenu.insertSeparator(self.exitAct)
 
         editMenu = self.menuBar().addMenu("&Edit")
@@ -1384,6 +1391,23 @@ Numpy Version: %s<br></p>
         settings.endGroup()
 
         event.accept()
+
+    def closeAllOnTimer(self):
+        """
+        See closeAll() below. Does the actual work when
+        called by the single shot timer.
+        """
+        self.closeAllWindowsSig.emit()
+
+    def closeAll(self):
+        """
+        Send a signal to geolinked viewers close all windows.
+        For some reason, doing this right now causes a crash.
+        Seems safest to wait until GUI is idle (using a single 
+        shot timer with a timeout of 0) then call closeAllOnTimer()
+        to do the actual work.
+        """
+        QTimer.singleShot(0, self.closeAllOnTimer)
 
     def dragEnterEvent(self, event):
         """

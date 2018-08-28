@@ -84,7 +84,7 @@ class GeolinkedViewers(QObject):
 
     def closeAll(self):
         """
-        Call this to close all geonlinked viewers
+        Call this to close all geolinked viewers
         """
         for viewer in self.viewers:
             viewer.close()
@@ -158,6 +158,8 @@ class GeolinkedViewers(QObject):
         newviewer.tileWindowsSig.connect(self.onTileWindows)
         # signal for new query window been opened
         newviewer.newQueryWindowSig.connect(self.onNewQueryWindow)
+        # signal for closing all windows
+        newviewer.closeAllWindowsSig.connect(self.closeAll)
         # signal for request to write viewers state to a file
         newviewer.writeViewersState.connect(self.writeViewersState)
         # signal for request to read viewers state from file
