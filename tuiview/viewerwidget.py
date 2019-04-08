@@ -815,8 +815,8 @@ class ViewerWidget(QAbstractScrollArea):
 
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
                     # the smaller the area the larger the zoom
-                    wldX, wldY = layer.coordmgr.display2world(
-                                            selection.left(), selection.top())
+                    center = selection.center()
+                    wldX, wldY = layer.coordmgr.display2world(center.x(), center.y())
                     layer.coordmgr.setZoomFactor(
                                     layer.coordmgr.imgPixPerWinPix / fraction)
                     layer.coordmgr.setWorldCenter(wldX, wldY)
