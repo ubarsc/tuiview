@@ -931,7 +931,11 @@ class ViewerRasterLayer(ViewerLayer):
         driverString = "%s/%s" % (driver.ShortName, driver.LongName)
         info.addFileInfo('Driver:', driverString)
 
-        fileString = " ".join(self.gdalDataset.GetFileList())
+        fileList = self.gdalDataset.GetFileList()
+        if fileList is not None:
+            fileString = " ".join(fileList)
+        else:
+            fileString = 'none associated'
         info.addFileInfo('Files:', fileString)
 
         info.addFileInfo('Number of Bands:', '%d' % self.gdalDataset.RasterCount)
