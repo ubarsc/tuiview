@@ -695,19 +695,21 @@ class ViewerLUT(QObject):
         if localdata is None:
             # calculate stats for whole image
             gdal.ErrorReset()
-            stats = gdalband.GetStatistics(0, 0)
+            # allow approxstats
+            stats = gdalband.GetStatistics(1, 0)
             if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
                 # need to actually calculate them
                 gdal.ErrorReset()
                 self.newProgress.emit("Calculating Statistics...")
                 # TODO: find a way of ignoring NaNs
 
+                # When calculating stats on the fly, use approxstats (much faster)
                 # A workaround for broken progress support in GDAL 2.2.0
                 # see https://trac.osgeo.org/gdal/ticket/6927
                 if gdal.__version__ == '2.2.0':
-                    stats = gdalband.ComputeStatistics(False)
+                    stats = gdalband.ComputeStatistics(True)
                 else:
-                    stats = gdalband.ComputeStatistics(False, GDALProgressFunc, self)
+                    stats = gdalband.ComputeStatistics(True, GDALProgressFunc, self)
 
                 self.endProgress.emit()
 
