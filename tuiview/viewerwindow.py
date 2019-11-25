@@ -1344,8 +1344,8 @@ File will now be opened using default stretch""")
 
         msg = """<p align='center'>TuiView<br><br>
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, <br>
-Pierre Roudier, Tony Gill, Robin Wilson, Dan Clewley, Dale Peters<br>
-and Terry Cain.<br><br>
+Pierre Roudier, Tony Gill, Robin Wilson, Dan Clewley, Dale Peters,<br>
+Terry Cain and Ben Jolly<br><br>
 
 Development funded by Landcare Research NZ Ltd.<br><br>
 
