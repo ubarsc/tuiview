@@ -779,13 +779,20 @@ class ViewerWidget(QAbstractScrollArea):
 
             layer = self.layers.getTopRasterLayer()
             if layer is not None:
-                if selectionsize == 0:
-                    fraction = 0.5 # they just clicked
+                if selectionsize < 9:  
+                    # this is practically a '0' size selection on a 4K screen and
+                    # an improbably small selection on an HD screen so assume user
+                    # has just clicked the image and set fraction to 0.5
+                    fraction = 0.5 
                 else:
                     fraction = numpy.sqrt(selectionsize / geomsize)
 
                 if self.activeTool == VIEWER_TOOL_ZOOMIN:
-                    if selectionsize == 0:
+                    if selectionsize < 9:
+                        # user 'just clicked' (see if statement above). 
+                        # NOTE: this fixes issues with 0 or negative dimensions
+                        #  inside else: below that used ot hard-crash tuiview
+                        
                         wldX, wldY = layer.coordmgr.display2world(
                                             selection.left(), selection.top())
                         layer.coordmgr.setZoomFactor(
