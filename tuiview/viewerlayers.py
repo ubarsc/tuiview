@@ -1943,8 +1943,8 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra,
     row, col = numpy.mgrid[dspTopExtra:rowCount-dspBottomExtra, 
                         dspLeftExtra:colCount-dspRightExtra]
     # try to be a little frugal with memory
-    numpy.multiply(row, nrows / float(rowCount), out=row)
-    numpy.multiply(col, ncols / float(colCount), out=col)
+    numpy.multiply(row, nrows / float(rowCount), out=row, casting='unsafe')
+    numpy.multiply(col, ncols / float(colCount), out=col, casting='unsafe')
     # need to index with ints
     row = row.astype(numpy.int32)
     col = col.astype(numpy.int32)
