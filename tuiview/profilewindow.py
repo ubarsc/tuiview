@@ -77,6 +77,10 @@ class ProfileDockWidget(QDockWidget):
         # last polyLine so we can quickly resraw if plot scale changes
         self.lastPolyLine = None
 
+        # connect if the layers have changed and we can close if our layer
+        # no longer exists
+        self.viewwidget.layers.layersChanged.connect(self.layersChanged)
+
     def setupActions(self):
         """
         Create the actions to be shown on the toolbar
@@ -255,3 +259,16 @@ class ProfileDockWidget(QDockWidget):
         Window is being closed - inform parent window
         """
         self.profileClosed.emit(self)
+        
+    def layersChanged(self):
+        """
+        Layers have changed - if polyLine.layer no
+        longer in our list of layers then close this
+        window. 
+        """
+        if self.lastPolyLine is not None:
+            if self.lastPolyLine.layer not in self.viewwidget.layers.layers:
+                # remove reference
+                self.lastPolyLine = None
+                # close window
+                self.close()

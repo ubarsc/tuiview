@@ -284,7 +284,20 @@ class ViewerWidget(QAbstractScrollArea):
         Removes the top later
         """
         self.layers.removeTopLayer()
-        # get rid off tool points
+        # get rid of tool points
+        self.toolPoints = None
+        self.toolPointsFinished = True
+        self.viewport().update()
+        self.updateScrollBars()
+        
+    def removeLayers(self, layers):
+        """
+        Remove the given list of layers
+        """
+        for layer in layers:
+            self.layers.removeLayer(layer)
+            
+        # get rid of tool points
         self.toolPoints = None
         self.toolPointsFinished = True
         self.viewport().update()

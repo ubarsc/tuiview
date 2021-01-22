@@ -561,6 +561,10 @@ class QueryDockWidget(QDockWidget):
         # connect to the signal we get when tool changed. We can update
         # GUI if main window has selected tool etc
         self.viewwidget.activeToolChanged.connect(self.activeToolChanged)
+        
+        # connect if the layers have changed and we can close if our layer
+        # no longer exists
+        self.viewwidget.layers.layersChanged.connect(self.layersChanged)
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()
@@ -1391,6 +1395,21 @@ Use the special columns:
             for tool in self.toolActions:
                 tool.setChecked(False)
             self.suppressToolReset = False
+            
+    def layersChanged(self):
+        """
+        Called in response to layersChanged signal from 
+        viewerlayers. We check to see if our lastLayer has been
+        removed and if so, close.
+        """
+        if self.lastLayer is not None:
+            if self.lastLayer not in self.viewwidget.layers.layers:
+                # closing doesn't actually delete straight away
+                # so decref the layer so file can be accessed elsewhere
+                self.lastLayer = None
+                # this also has a reference to the layer
+                self.lastqi = None
+                self.close()
 
     def newPolyGeogSelect(self, polyInfo):
         """

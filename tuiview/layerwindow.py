@@ -243,10 +243,7 @@ class LayerListView(QListView):
             model = self.model()
             layers = [model.getLayer(layer) for layer in selected]
 
-            for layer in layers:
-                model.viewwidget.layers.removeLayer(layer)
-
-            model.viewwidget.viewport().update()
+            model.viewwidget.removeLayers(layers)
 
     def moveUp(self):
         "Move the selected layer up in order"
