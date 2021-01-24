@@ -36,6 +36,7 @@ from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
 from .viewerstrings import MESSAGE_TITLE
 from . import plotwidget
+from .viewerRAT import GDAL_COLTYPE_LOOKUP, GDAL_COLUSAGE_LOOKUP
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
@@ -147,6 +148,28 @@ class ThematicTableModel(QAbstractTableModel):
                     return self.lookupColIcon
                 else:
                     return None
+            elif role == Qt.ToolTipRole:
+                tooltip = ""
+                if section != -1:
+                    # not the color col, should be some info for it
+                    name = self.colNames[section]
+                    dtype = self.attributes.getType(name)
+                    if dtype in GDAL_COLTYPE_LOOKUP:
+                        dtypeStr = GDAL_COLTYPE_LOOKUP[dtype]
+                    else:
+                        dtypeStr = "Unknown"
+                        
+                    usage = self.attributes.getUsage(name)
+                    if usage in GDAL_COLUSAGE_LOOKUP:
+                        usageStr = GDAL_COLUSAGE_LOOKUP[usage]
+                    else:
+                        usageStr = "Unknown"
+                        
+                    tooltip = "Type : %s\nUsage : %s\n\n" % (dtypeStr, usageStr)
+                
+                # always add this right click text even if color menu
+                tooltip = tooltip + "Right click for menu"
+                return tooltip
             else:
                 return None
                 
@@ -467,7 +490,7 @@ class ThematicHorizontalHeader(QHeaderView):
         self.colorPopup = QMenu(self)
         self.colorPopup.addAction(self.setColorAction)
 
-        self.setToolTip("Right click for menu")
+        # Tooltip handled by ThematicTableModel.headerData
 
     def setThematicMode(self, mode):
         "Set the mode (True or False) for context menu"

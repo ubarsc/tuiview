@@ -40,6 +40,23 @@ VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
 
 DEFAULT_CACHE_SIZE = 10000
 
+GDAL_COLTYPE_LOOKUP = {gdal.GFT_Integer : "Integer", 
+        gdal.GFT_Real : "Floating point", gdal.GFT_String : "String"}
+GDAL_COLUSAGE_LOOKUP = {gdal.GFU_Generic : "General purpose field",
+        gdal.GFU_PixelCount : "Histogram pixel count",
+        gdal.GFU_Name : "Class name", gdal.GFU_Min : "Class range minimum",
+        gdal.GFU_Max : "Class range maximum", gdal.GFU_MinMax : "Class value",
+        gdal.GFU_Red : "Red class color", gdal.GFU_Green : "Green class color",
+        gdal.GFU_Blue : "Blue class color", gdal.GFU_Alpha : "Alpha",
+        gdal.GFU_RedMin : "Color Range Red Minimum",
+        gdal.GFU_GreenMin : "Color Range Green Minimum",
+        gdal.GFU_BlueMin : "Color Range Blue Minimum",
+        gdal.GFU_AlphaMin : "Color Range Alpha Minimum",
+        gdal.GFU_RedMax : "Color Range Red Maximum",
+        gdal.GFU_GreenMax : "Color Range Green Maximum",
+        gdal.GFU_BlueMax : "Color Range Blue Maximum",
+        gdal.GFU_AlphaMax : "Color Range Alpha Maximum"}
+
 def formatException(code):
     """
     Formats an exception for display and returns string
