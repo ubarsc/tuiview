@@ -542,8 +542,9 @@ class ViewerRasterLayer(ViewerLayer):
         Highlight selected rows in the LUT
         """
         self.lut.highlightRows(color, selectionArray)
-        # re-apply the lut to the data from last time
-        self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
+        # re-apply the lut to the data from last time (if there was a last time)
+        if hasattr(self.image, 'viewerdata'):
+            self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
                                                 self.image.viewermask)
 
     def setColorTableLookup(self, lookupArray=None, colName=None, 
@@ -553,8 +554,9 @@ class ViewerRasterLayer(ViewerLayer):
         """
         self.lut.setColorTableLookup(lookupArray, colName, surrogateLUT, 
                                                     surrogateName)
-        # re-apply the lut to the data from last time
-        self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
+        # re-apply the lut to the data from last time (if there was a last time)
+        if hasattr(self.image, 'viewerdata'):
+            self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
                                                 self.image.viewermask)
 
     def setNewStretch(self, newstretch, local=False):
