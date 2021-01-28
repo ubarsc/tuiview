@@ -1932,6 +1932,10 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra,
     """
     (ysize, xsize) = outarr.shape
     (nrows, ncols) = arr.shape
+    if nrows == 0 or ncols == 0:
+        # avoid divide by zero
+        return numpy.zeros_like(outarr)
+    
     nRptsX = float(xsize + dspLeftExtra + dspRightExtra) / float(ncols)
     nRptsY = float(ysize + dspTopExtra + dspBottomExtra) / float(nrows)
 
