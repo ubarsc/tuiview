@@ -37,6 +37,9 @@ from . import viewererrors
 EXTRA_RAMP_VAR = 'TUIVIEW_EXTRA_RAMP'
 HAVE_LOADED_EXTRA_RAMPS = False
 
+RANDOM_NAME = 'RANDOM'
+RANDOM_DISPLAY = 'Random'
+
 # init our dictionary of data
 # longest list of colors for each name
 # from http://colorbrewer.org/
@@ -255,26 +258,37 @@ def getRampsForDisplay():
         for name in rampDict[rampType]:
             title = "%s (%s)" % (name, rampType)
             display.append((name, title))
+            
+    # add our 'special' Random ramp
+    display.append((RANDOM_NAME, RANDOM_DISPLAY))
+            
     return display
 
 def getLUTForRamp(code, name, lutsize):
     """
     Returns an LUT for the specified color and name
     """
-    # get the data as string
-    colstr = RAMP[name]['description'][code]
-    # turn it into a list of floats
-    # numpy.interp() needs floats
-    colList = [float(x) for x in colstr.split()]
-    # the x-values of the observations
-    # evenly spaced 0-255 with len(colList) obs
-    xobs = numpy.linspace(0, 255, len(colList))
-    # create an array from our list
-    yobs = numpy.array(colList)
-    # values to interpolate at 0-255
-    # same size as the lut
-    xinterp = numpy.linspace(0, 255, lutsize)
-    # do the interp
-    yinterp = numpy.interp(xinterp, xobs, yobs)
-    # return as 8 bit int
-    return yinterp.astype(numpy.uint8)
+    if name == RANDOM_NAME:
+        # just get some random lut data for this band
+        return numpy.random.randint(0, 255, size=lutsize, dtype=numpy.uint8)
+    
+    else:
+        # interpolate the given coloramp over lutsize
+    
+        # get the data as string
+        colstr = RAMP[name]['description'][code]
+        # turn it into a list of floats
+        # numpy.interp() needs floats
+        colList = [float(x) for x in colstr.split()]
+        # the x-values of the observations
+        # evenly spaced 0-255 with len(colList) obs
+        xobs = numpy.linspace(0, 255, len(colList))
+        # create an array from our list
+        yobs = numpy.array(colList)
+        # values to interpolate at 0-255
+        # same size as the lut
+        xinterp = numpy.linspace(0, 255, lutsize)
+        # do the interp
+        yinterp = numpy.interp(xinterp, xobs, yobs)
+        # return as 8 bit int
+        return yinterp.astype(numpy.uint8)
