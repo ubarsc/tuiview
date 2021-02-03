@@ -579,7 +579,7 @@ class ViewerLUT(QObject):
             # just a linear stretch between 0 and 255
             # for the range of possible values
             lut = numpy.linspace(0, 255, num=lutsize).astype(numpy.uint8)
-            bandinfo = BandLUTInfo(1.0, 0.0, lutsize, 0, 255)
+            bandinfo = BandLUTInfo(1.0, 0.0, lutsize, 0, lutsize)
             return lut, bandinfo
 
         # other methods below require statistics
