@@ -671,8 +671,13 @@ class ViewerLUT(QObject):
                 # hack for invalid data
                 stretchMax = stretchMin + 1
             stretchRange = stretchMax - stretchMin
-            lut[stretchMin:stretchMax] = numpy.linspace(0, 255, 
+            try:
+                lut[stretchMin:stretchMax] = numpy.linspace(0, 255, 
                                                 num=stretchRange)
+            except ValueError:
+                # make more useful error message
+                msg = "Length of Attribute Table doesn't match range of data"
+                raise ValueError(msg)
             # 0 and 255 outside this range
             lut[0:stretchMin] = 0
             lut[stretchMax:] = 255
