@@ -931,6 +931,7 @@ class ViewerLUT(QObject):
             lut = numpy.append(lut, [0, 0, 0])
             self.bandinfo.nodata_index = lutsize
             self.bandinfo.background_index = lutsize + 1
+            self.bandinfo.nan_index = lutsize + 2
 
             # copy to all bands
             for code in RGB_CODES:
