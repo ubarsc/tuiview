@@ -991,6 +991,7 @@ class ViewerLUT(QObject):
             # we will make space for thses
             self.bandinfo.nodata_index = lutsize
             self.bandinfo.background_index = lutsize + 1
+            self.bandinfo.nan_index = lutsize + 2
 
             # now obtain for each band and copy
             for code in RGB_CODES:

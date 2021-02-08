@@ -117,6 +117,10 @@ RAMP['cividis']['description'] = {}
 RAMP['cividis']['description']['red'] = '0 0 42 72 94 114 135 158 182 208 234 255'
 RAMP['cividis']['description']['green'] = '32 48 64 82 98 115 132 150 169 190 211 234'
 RAMP['cividis']['description']['blue'] = '77 111 108 107 110 116 121 119 113 103 87 70'
+RAMP['rainbow'] = {'type' : 'Sequential', 'description' : {}}
+RAMP['rainbow']['description']['red'] = '255 0 0'
+RAMP['rainbow']['description']['green'] = '0 255 0'
+RAMP['rainbow']['description']['blue'] = '0 0 255'
 
 def HEXtoRGB(colorstring):
     """

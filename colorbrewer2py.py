@@ -21,6 +21,8 @@ the basis of pseudocolor.py
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+from __future__ import print_function
 import sys
 
 # Fixed metadata for the ColorBrewer color ramps
@@ -96,7 +98,7 @@ def emitPythonCode(infoDict):
     for key in sorted(infoDict.keys()):
         (name, type) = key.split('_')
         if name in wantList:
-            print "RAMP['%s'] = {'author' : '%s', 'comments' : '%s', 'type' : '%s'}" % (name, author, comments, type)
+            print("RAMP['%s'] = {'author' : '%s', 'comments' : '%s', 'type' : '%s'}" % (name, author, comments, type))
             # turn r,g,b tuples into list
             redList = []
             greenList = []
@@ -108,10 +110,10 @@ def emitPythonCode(infoDict):
             redstr = ' '.join(redList)
             greenstr = ' '.join(greenList)
             bluestr = ' '.join(blueList)
-            print "RAMP['%s']['description'] = {}" % name
-            print "RAMP['%s']['description']['red'] = '%s'" % (name, redstr)
-            print "RAMP['%s']['description']['green'] = '%s'" % (name, greenstr)
-            print "RAMP['%s']['description']['blue'] = '%s'" % (name, bluestr)
+            print("RAMP['%s']['description'] = {}" % name)
+            print("RAMP['%s']['description']['red'] = '%s'" % (name, redstr))
+            print("RAMP['%s']['description']['green'] = '%s'" % (name, greenstr))
+            print("RAMP['%s']['description']['blue'] = '%s'" % (name, bluestr))
 
 if __name__ == '__main__':
     info = readData(sys.argv[1])
