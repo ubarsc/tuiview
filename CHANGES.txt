@@ -1,0 +1,10 @@
+
+Version 1.2.7 (2020-02-15)
+--------------------------
+
+* Fix for newer numpy with float images
+* Ensure Query and Profile windows remove their reference to the dataset when layer is closed
+* New tooltip information on column types in the Query Window
+* Fix situation where Query window is open for an image that hasn't been shown yet
+* Add Random and Rainbow Pseudocolor ramps
+* Fix problem with low values displaying incorrectly with Pseudocolor and Greyscale when there is a RAT
