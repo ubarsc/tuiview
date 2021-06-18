@@ -1693,7 +1693,7 @@ class LayerManager(QObject):
         layer.displayed = state
         self.updateTopFilename()
         self.layersChanged.emit()
-
+        
     def timeseriesForward(self):
         """
         Assume images are a stacked timeseries oldest
@@ -1702,15 +1702,34 @@ class LayerManager(QObject):
         for layer in reversed(self.layers):
             if layer.displayed:
                 self.setDisplayedState(layer, False)
-                self.layersChanged.emit()
                 break
 
+        # now do a check to see if we need to 'reset'
+        # are we all turned off?
+        needReset = True
+        for l in self.layers:
+            if l.displayed:
+                needReset = False
+                break
+                
+        # then turn on again
+        if needReset:
+            for l in self.layers:
+                l.displayed = True
+            self.updateTopFilename()
+
+        # layers have changed whatever above
+        self.layersChanged.emit()
+                    
     def timeseriesBackward(self):
         """
         Assume images are a stacked timeseries oldest
         to newest. Turn on the previous one to the current
         topmost displayed
         """
+        # bit tricky to work out when we need to reset - store the displayed
+        # states at the beginning.
+        start = [l.displayed for l in self.layers]
         prevLayer = None
         for layer in reversed(self.layers):
             if layer.displayed:
@@ -1718,7 +1737,21 @@ class LayerManager(QObject):
             prevLayer = layer
         if prevLayer is not None:
             self.setDisplayedState(prevLayer, True)
-            self.layersChanged.emit()
+
+        self.layersChanged.emit()
+
+        # now displayed states at the end.
+        end = [l.displayed for l in self.layers]
+        if start == end and len(self.layers) > 0:
+            # hasn't changed. Turn all off
+            for l in self.layers:
+                l.displayed = False
+            # display the top one again
+            self.layers[0].displayed = True
+            self.updateTopFilename()
+
+        # layers have changed whatever
+        self.layersChanged.emit()
                     
     def getTopLayer(self):
         "Returns the very top layer which may be raster or vector"
