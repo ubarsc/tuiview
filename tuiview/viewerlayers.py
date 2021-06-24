@@ -1727,32 +1727,28 @@ class LayerManager(QObject):
         to newest. Turn on the previous one to the current
         topmost displayed
         """
-        # bit tricky to work out when we need to reset - store the displayed
-        # states at the beginning.
-        start = [l.displayed for l in self.layers]
-        prevLayer = None
-        for layer in reversed(self.layers):
-            if layer.displayed:
+        allOn = True
+        for layer in self.layers:
+            if not layer.displayed:
+                allOn = False
                 break
-            prevLayer = layer
-        if prevLayer is not None:
-            self.setDisplayedState(prevLayer, True)
-
-        self.layersChanged.emit()
-
-        # now displayed states at the end.
-        end = [l.displayed for l in self.layers]
-        if start == end and len(self.layers) > 0:
-            # hasn't changed. Turn all off
+                
+        if allOn and len(self.layers) > 0:
+            # special case - reset to just top on
             for l in self.layers:
                 l.displayed = False
             # display the top one again
-            self.layers[0].displayed = True
-            self.updateTopFilename()
+            self.setDisplayedState(self.layers[0], True)
+            
+        else:
+            prevLayer = None
+            for layer in reversed(self.layers):
+                if layer.displayed:
+                    break
+                prevLayer = layer
+            if prevLayer is not None:
+                self.setDisplayedState(prevLayer, True)
 
-        # layers have changed whatever
-        self.layersChanged.emit()
-                    
     def getTopLayer(self):
         "Returns the very top layer which may be raster or vector"
         layer = None
