@@ -22,10 +22,11 @@ the ViewerWidget, menus, toolbars and status bars.
 
 import os
 import sys
+import glob
 import traceback
 from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QDialog
 from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
-from PyQt5.QtWidgets import QMenu
+from PyQt5.QtWidgets import QMenu, QLineEdit, QPushButton
 from PyQt5.QtGui import QIcon, QColor
 from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
 from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
@@ -123,6 +124,51 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
         # Now add non-GDAL filters
         for qfilter in NON_GDAL_FILTERS.values():
             GDAL_FILTERS.append(qfilter)
+            
+class WildcardFileDialog(QFileDialog):
+    """
+    Our version of the Qt Filedialog thathas an "Expand Wildcards" button.
+    """
+    def __init__(self, parent):
+        QFileDialog.__init__(self, parent)
+        
+        # create our button
+        self.expandButton = QPushButton("&Expand Wildcards", self)
+        self.expandButton.clicked.connect(self.expandWildcards)
+        
+        # add another row with the button in it on the right hand side
+        layout = self.layout()
+        layout.addWidget(self.expandButton, layout.rowCount(), 
+                        layout.columnCount() - 1)
+
+        # search for the line edit widgets for the filenames
+        # For some reason, selectFile() doesn't work when called 
+        # from a keyboard shortcut
+        self.fnameTextWidget = None
+        for row in range(layout.rowCount()):
+            for col in range(layout.columnCount()):
+                item = layout.itemAtPosition(row, col)
+                if item is not None:
+                    widget = item.widget()
+                    if isinstance(widget, QLineEdit):
+                        self.fnameTextWidget = widget
+        
+    def expandWildcards(self):
+        """
+        Expand Wildcard button has been clicked. 
+        """
+        fileList = self.selectedFiles()
+        expandedList = []
+        for fname in fileList:
+            expanded = glob.iglob(fname)
+            # quote every string
+            expanded = ['"' + os.path.basename(e) + '"' for e in expanded]
+            expandedList.extend(expanded)
+         
+        # for some reason, selectFile() doesn't work when called 
+        # from a keyboard shortcut so set the 
+        if self.fnameTextWidget is not None:
+            self.fnameTextWidget.setText(' '.join(expandedList))
 
 class ViewerWindow(QMainWindow):
     """
@@ -686,7 +732,8 @@ class ViewerWindow(QMainWindow):
         dialog and open file
         """
         populateFilters()
-        dlg = QFileDialog(self)
+        # Note: use our modified dialog with wildcard support
+        dlg = WildcardFileDialog(self)
         dlg.setNameFilters(GDAL_FILTERS)
         dlg.setFileMode(QFileDialog.ExistingFiles)
         # set last dir
@@ -702,7 +749,7 @@ class ViewerWindow(QMainWindow):
         dlg.setDirectory(dir)
 
         if dlg.exec_() == QDialog.Accepted:
-            file_list = map(str, dlg.selectedFiles())
+            file_list = dlg.selectedFiles()
             for fname in archivereader.file_list_to_archive_strings(file_list):
                 self.addRasterInternal(fname)
 
