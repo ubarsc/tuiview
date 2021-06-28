@@ -131,6 +131,9 @@ class WildcardFileDialog(QFileDialog):
     """
     def __init__(self, parent):
         QFileDialog.__init__(self, parent)
+        # On Windows etc, ensure that the Qt dialog is used 
+        # so our logic for working with widgets works...
+        self.setOption(QFileDialog.DontUseNativeDialog)
         
         # create our button
         self.expandButton = QPushButton("&Expand Wildcards", self)
