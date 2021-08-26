@@ -1168,8 +1168,9 @@ File will now be opened using default stretch""")
         Query dock window has been closed. Disconnect from
         locationSelected signal and decrement our count
         """
-        self.viewwidget.locationSelected.disconnect(queryDock.locationSelected)
-        self.queryWindowCount -= 1
+        if self.queryWindowCount > 0:
+            self.viewwidget.locationSelected.disconnect(queryDock.locationSelected)
+            self.queryWindowCount -= 1
 
     def newQueryWindow(self):
         """
