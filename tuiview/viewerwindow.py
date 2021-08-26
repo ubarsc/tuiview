@@ -1209,9 +1209,10 @@ File will now be opened using default stretch""")
         Query dock window has been closed. Disconnect from
         vectorLocationSelected signal and decrement our count
         """
-        self.viewwidget.vectorLocationSelected.disconnect(
+        if self.vectorQueryWindowCount > 0:
+            self.viewwidget.vectorLocationSelected.disconnect(
                         queryDock.vectorLocationSelected)
-        self.vectorQueryWindowCount -= 1
+            self.vectorQueryWindowCount -= 1
 
     def profile(self, checked):
         """
@@ -1260,8 +1261,9 @@ File will now be opened using default stretch""")
         Profile dock window has been closed. Disconnect from
         polylineCollected signal and decrement our count
         """
-        self.viewwidget.polylineCollected.disconnect(profileDock.newLine)
-        self.profileWindowCount -= 1
+        if self.profileWindowCount > 0:
+            self.viewwidget.polylineCollected.disconnect(profileDock.newLine)
+            self.profileWindowCount -= 1
 
     def properties(self):
         """
