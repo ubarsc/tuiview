@@ -163,7 +163,7 @@ class WildcardFileDialog(QFileDialog):
         fileList = self.selectedFiles()
         expandedList = []
         for fname in fileList:
-            expanded = glob.iglob(fname)
+            expanded = sorted(glob.iglob(fname))
             # quote every string
             expanded = ['"' + os.path.basename(e) + '"' for e in expanded]
             expandedList.extend(expanded)
