@@ -65,8 +65,11 @@ def getCmdargs():
                             " 'easting,northing,factor' where factor is meters"+
                             " per window pixel.")
     p.add_argument('-v', '--vector', action='append', dest="vectors",
-                            help="overlay vector file on top of rasters." +
-                            " Can be specified multple times")
+                            help="overlay vector file on top of all rasters." +
+                            " Can be specified multiple times")
+    p.add_argument('--vectorlayer', action='append', dest="vectorlayers",
+                            help="vector layer name(s) to use with --vector." +
+                                "Can be specified multiple times")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
     p.add_argument('filenames', nargs='*')
@@ -166,6 +169,11 @@ class ViewerApplication(QApplication):
             msg = ('Stretch incomplete. Must specify one of [-c|-g|-r] and' + 
                 ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
             raise SystemExit(msg)
+            
+        if (cmdargs.vectors is not None and cmdargs.vectorlayers is not None 
+                and len(cmdargs.vectors) != len(cmdargs.vectorlayers)):
+            msg = 'If specified, you must pass --vectorlayer per --vector'
+            raise SystemExit(msg)
 
         if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
@@ -196,9 +204,16 @@ class ViewerApplication(QApplication):
 
         # open vectors in all viewer windows
         if cmdargs.vectors is not None:
+            layername = None # reset if cmdargs.vectorlayer exists
+            # otherwise carries the first one selected through to all the viewers
+            sql = None # not used if cmdargs.vectorlayer exists, otherwise 
+                        # carries first one through to all the viewers
             for viewer in self.viewers.viewers:
-                for vector in cmdargs.vectors:
-                    viewer.addVectorInternal(vector)
+                for idx, vector in enumerate(cmdargs.vectors):
+                    if cmdargs.vectorlayers is not None:
+                        layername = cmdargs.vectorlayers[idx]
+                    layername, sql = viewer.addVectorInternal(vector, 
+                                        layername=layername, sql=sql)
 
         # goto a location
         if cmdargs.goto is not None:
