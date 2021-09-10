@@ -187,6 +187,14 @@ class ViewerApplication(QApplication):
                 and len(cmdargs.vectors) != len(cmdargs.vectorsqls)):
             msg = 'If specified, you must pass one --vectorsql per --vector'
             raise SystemExit(msg)
+            
+        if cmdargs.vectorlayers is not None and cmdargs.vectors is None:
+            msg = 'When specifying --vectorlayer you must also specify --vector'
+            raise SystemExit(msg)
+
+        if cmdargs.vectorsqls is not None and cmdargs.vectors is None:
+            msg = 'When specifying --vectorsql you must also specify --vector'
+            raise SystemExit(msg)
 
         if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
@@ -221,6 +229,7 @@ class ViewerApplication(QApplication):
             # otherwise carries the first one selected through to all the viewers
             sql = None # not used if cmdargs.vectorsqls/cmdargs.vectorlayer exists, otherwise 
                         # carries first one through to all the viewers
+            userCancel = False
             for viewer in self.viewers.viewers:
                 for idx, vector in enumerate(cmdargs.vectors):
                     if cmdargs.vectorlayers is not None:
@@ -229,6 +238,12 @@ class ViewerApplication(QApplication):
                         sql = cmdargs.vectorsqls[idx]
                     layername, sql = viewer.addVectorInternal(vector, 
                                         layername=layername, sql=sql)
+                    if layername is None and sql is None:
+                        # they canceled... break out of loop
+                        userCancel = True
+                        break
+                if userCancel:
+                    break
 
         # goto a location
         if cmdargs.goto is not None:
