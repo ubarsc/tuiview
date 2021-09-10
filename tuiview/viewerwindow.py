@@ -968,7 +968,7 @@ File will now be opened using default stretch""")
                                 raise IOError("Invalid SQL")                                
                             isResultSet = True
                     else:
-                        return
+                        return None, None
                 
             self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet,
                                         origSQL=sql)
@@ -977,6 +977,8 @@ File will now be opened using default stretch""")
             if SHOW_TRACEBACK:
                 traceback.print_exc()
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            layername = None
+            sql = None
             
         # return layername and sql so viewerapplication can use this for all 
         # viewers if needed
