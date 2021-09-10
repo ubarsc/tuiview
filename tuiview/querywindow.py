@@ -44,6 +44,9 @@ QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 RAT_CACHE_CHUNKSIZE = 1000
 
+# Qt seems to have issues with tables bigger than this
+MAX_ROW_COUNT = 100000000
+
 def safeCreateColor(r, g, b, a=255):
     """
     Same as QColor constructor but ensures vales
@@ -111,12 +114,15 @@ class ThematicTableModel(QAbstractTableModel):
         Called by setupTableThematic to indicate 
         the row that should be highlighted
         """
+        if row >= MAX_ROW_COUNT:
+            print('Selected row is', row)
+            row = MAX_ROW_COUNT - 1
         self.highlightRow = row
         self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
 
     def rowCount(self, parent):
         "returns the number of rows"
-        return self.attributes.getNumRows()
+        return min(self.attributes.getNumRows(), MAX_ROW_COUNT)
 
     def columnCount(self, parent):
         "number of columns"
