@@ -1639,6 +1639,12 @@ Use the special columns:
             self.lastAttributeCount = layer.attributes.count
             self.lastAttributeid = id(layer.attributes)
             self.lastLayer = layer
+            
+            # display warning so the user knows what is happening
+            if layer.attributes.getNumRows() > MAX_ROW_COUNT:
+                msg = ('The Attribute table is larger than {} rows. ' +
+                        'It will be truncated.').format(MAX_ROW_COUNT)
+                QMessageBox.information(self, MESSAGE_TITLE, msg)
 
             self.tableModel = ThematicTableModel(layer.attributes, self)
             self.tableView.setModel(self.tableModel)
