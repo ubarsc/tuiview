@@ -68,12 +68,13 @@ def getCmdargs():
                             help="overlay vector file on top of all rasters." +
                             " Can be specified multiple times")
     p.add_argument('--vectorlayer', action='append', dest="vectorlayers",
-                            help="vector layer name(s) to use with --vector." +
-                                "Can be specified multiple times")
+                            help="vector layer name(s) to use with --vector. " +
+                                "Can't be specified if --vectorsql is used. " +
+                                "Can be specified multiple times - once for each vector")
     p.add_argument('--vectorsql', action='append', dest="vectorsqls",
-                            help="vector SQL statement(s) to use with --vector." +
-                                "Can't be specified if --vectorlayer is used. "
-                                "Can be specified multiple times")
+                            help="vector SQL statement(s) to use with --vector. " +
+                                "Can't be specified if --vectorlayer is used. " +
+                                "Can be specified multiple times - once for each vector")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
     p.add_argument('filenames', nargs='*')
