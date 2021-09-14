@@ -65,8 +65,16 @@ def getCmdargs():
                             " 'easting,northing,factor' where factor is meters"+
                             " per window pixel.")
     p.add_argument('-v', '--vector', action='append', dest="vectors",
-                            help="overlay vector file on top of rasters." +
-                            " Can be specified multple times")
+                            help="overlay vector file on top of all rasters." +
+                            " Can be specified multiple times")
+    p.add_argument('--vectorlayer', action='append', dest="vectorlayers",
+                            help="vector layer name(s) to use with --vector. " +
+                                "Can't be specified if --vectorsql is used. " +
+                                "Can be specified multiple times - once for each vector")
+    p.add_argument('--vectorsql', action='append', dest="vectorsqls",
+                            help="vector SQL statement(s) to use with --vector. " +
+                                "Can't be specified if --vectorlayer is used. " +
+                                "Can be specified multiple times - once for each vector")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
     p.add_argument('filenames', nargs='*')
@@ -166,6 +174,28 @@ class ViewerApplication(QApplication):
             msg = ('Stretch incomplete. Must specify one of [-c|-g|-r] and' + 
                 ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
             raise SystemExit(msg)
+            
+        if cmdargs.vectorlayers is not None and cmdargs.vectorsqls is not None:
+            msg = 'Specify only one of --vectorlayer and --vectorsql'
+            raise SystemExit(msg)
+            
+        if (cmdargs.vectors is not None and cmdargs.vectorlayers is not None 
+                and len(cmdargs.vectors) != len(cmdargs.vectorlayers)):
+            msg = 'If specified, you must pass one --vectorlayer per --vector'
+            raise SystemExit(msg)
+
+        if (cmdargs.vectors is not None and cmdargs.vectorsqls is not None 
+                and len(cmdargs.vectors) != len(cmdargs.vectorsqls)):
+            msg = 'If specified, you must pass one --vectorsql per --vector'
+            raise SystemExit(msg)
+            
+        if cmdargs.vectorlayers is not None and cmdargs.vectors is None:
+            msg = 'When specifying --vectorlayer you must also specify --vector'
+            raise SystemExit(msg)
+
+        if cmdargs.vectorsqls is not None and cmdargs.vectors is None:
+            msg = 'When specifying --vectorsql you must also specify --vector'
+            raise SystemExit(msg)
 
         if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
@@ -196,9 +226,25 @@ class ViewerApplication(QApplication):
 
         # open vectors in all viewer windows
         if cmdargs.vectors is not None:
+            layername = None # reset if cmdargs.vectorsqls/cmdargs.vectorlayer exists
+            # otherwise carries the first one selected through to all the viewers
+            sql = None # not used if cmdargs.vectorsqls/cmdargs.vectorlayer exists, otherwise 
+                        # carries first one through to all the viewers
+            userCancel = False
             for viewer in self.viewers.viewers:
-                for vector in cmdargs.vectors:
-                    viewer.addVectorInternal(vector)
+                for idx, vector in enumerate(cmdargs.vectors):
+                    if cmdargs.vectorlayers is not None:
+                        layername = cmdargs.vectorlayers[idx]
+                    elif cmdargs.vectorsqls is not None:
+                        sql = cmdargs.vectorsqls[idx]
+                    layername, sql = viewer.addVectorInternal(vector, 
+                                        layername=layername, sql=sql)
+                    if layername is None and sql is None:
+                        # they canceled... break out of loop
+                        userCancel = True
+                        break
+                if userCancel:
+                    break
 
         # goto a location
         if cmdargs.goto is not None:

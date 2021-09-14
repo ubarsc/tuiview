@@ -925,14 +925,13 @@ File will now be opened using default stretch""")
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
 
-    def addVectorInternal(self, path, layername=None):
+    def addVectorInternal(self, path, layername=None, sql=None):
         """
         Open OGR dataset and layer and tell widget to add it 
         to the list of layers
         """
         from osgeo import ogr
         isResultSet = False
-        origSQL = None
         try:
             ds = ogr.Open(str(path))
             if ds is None:
@@ -940,7 +939,12 @@ File will now be opened using default stretch""")
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return
                 
-            if layername is None:
+            if layername is not None:
+                lyr = ds.GetLayerByName(layername)
+            elif sql is not None:
+                 lyr = ds.ExecuteSQL(sql)
+               
+            else:
                 # ask them
                 numLayers = ds.GetLayerCount()
                 if numLayers == 0:
@@ -955,28 +959,30 @@ File will now be opened using default stretch""")
                     dlg = vectoropendialog.VectorOpenDialog(self, layerNames)
                     if dlg.exec_() == QDialog.Accepted:
                         if dlg.isNamedLayer():
-                            name = dlg.getSelectedLayer()
-                            lyr = ds.GetLayerByName(str(name))
+                            layername = dlg.getSelectedLayer()
+                            lyr = ds.GetLayerByName(layername)
                         else:
                             sql = dlg.getSQL()
-                            origSQL = str(sql)
-                            lyr = ds.ExecuteSQL(origSQL)
+                            lyr = ds.ExecuteSQL(sql)
                             if lyr is None:
                                 raise IOError("Invalid SQL")                                
                             isResultSet = True
                     else:
-                        return
-
-            else:
-                lyr = ds.GetLayerByName(layername)
+                        return None, None
                 
             self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet,
-                                        origSQL=origSQL)
+                                        origSQL=sql)
 
         except Exception as e:
             if SHOW_TRACEBACK:
                 traceback.print_exc()
             QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            layername = None
+            sql = None
+            
+        # return layername and sql so viewerapplication can use this for all 
+        # viewers if needed
+        return layername, sql
 
     def addLayersFromJSONFile(self, fileobj, nlayers):
         """
