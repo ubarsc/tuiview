@@ -18,6 +18,7 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import os
 from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
@@ -1641,8 +1642,11 @@ Use the special columns:
             self.lastLayer = layer
             
             # display warning so the user knows what is happening
-            if layer.attributes.getNumRows() > MAX_ROW_COUNT:
-                msg = ('The Attribute table is larger than {} rows. ' +
+            # have an env var so we can disable this check from eg. plugin
+            # (which is why we check it each time)
+            if (layer.attributes.getNumRows() > MAX_ROW_COUNT and 
+                    os.getenv('TUIVIEW_DISABLE_ROW_WARNING', default='0') != '1'):
+                msg = ('The Attribute Table is larger than {} rows. ' +
                         'It will be truncated.').format(MAX_ROW_COUNT)
                 QMessageBox.information(self, MESSAGE_TITLE, msg)
 
