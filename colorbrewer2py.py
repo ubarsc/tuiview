@@ -91,29 +91,25 @@ def findMaxColors(infoDict):
     return retDict
 
 def emitPythonCode(infoDict):
-    # ones we use , so far
-    wantList = ['Blues','Reds','Greys','Greens','YlGnBu','YlOrRd',
-            'Spectral','RdYlGn','RdYlBu','RdBu', 'BuGn']
 
     for key in sorted(infoDict.keys()):
         (name, type) = key.split('_')
-        if name in wantList:
-            print("RAMP['%s'] = {'author' : '%s', 'comments' : '%s', 'type' : '%s'}" % (name, author, comments, type))
-            # turn r,g,b tuples into list
-            redList = []
-            greenList = []
-            blueList = []
-            for (r,g,b) in infoDict[key]:
-                redList.append(r)
-                greenList.append(g)
-                blueList.append(b)
-            redstr = ' '.join(redList)
-            greenstr = ' '.join(greenList)
-            bluestr = ' '.join(blueList)
-            print("RAMP['%s']['description'] = {}" % name)
-            print("RAMP['%s']['description']['red'] = '%s'" % (name, redstr))
-            print("RAMP['%s']['description']['green'] = '%s'" % (name, greenstr))
-            print("RAMP['%s']['description']['blue'] = '%s'" % (name, bluestr))
+        print("RAMP['%s'] = {'author' : '%s', 'comments' : '%s', 'type' : '%s'}" % (name, author, comments, type))
+        # turn r,g,b tuples into list
+        redList = []
+        greenList = []
+        blueList = []
+        for (r,g,b) in infoDict[key]:
+            redList.append(r)
+            greenList.append(g)
+            blueList.append(b)
+        redstr = ' '.join(redList)
+        greenstr = ' '.join(greenList)
+        bluestr = ' '.join(blueList)
+        print("RAMP['%s']['description'] = {}" % name)
+        print("RAMP['%s']['description']['red'] = '%s'" % (name, redstr))
+        print("RAMP['%s']['description']['green'] = '%s'" % (name, greenstr))
+        print("RAMP['%s']['description']['blue'] = '%s'" % (name, bluestr))
 
 if __name__ == '__main__':
     info = readData(sys.argv[1])
