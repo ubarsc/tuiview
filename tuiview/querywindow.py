@@ -18,6 +18,7 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import os
 from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
@@ -43,6 +44,9 @@ QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 RAT_CACHE_CHUNKSIZE = 1000
+
+# Qt seems to have issues with tables bigger than this
+MAX_ROW_COUNT = 100000000
 
 def safeCreateColor(r, g, b, a=255):
     """
@@ -111,12 +115,15 @@ class ThematicTableModel(QAbstractTableModel):
         Called by setupTableThematic to indicate 
         the row that should be highlighted
         """
+        if row >= MAX_ROW_COUNT:
+            print('Selected row is', row)
+            row = MAX_ROW_COUNT - 1
         self.highlightRow = row
         self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
 
     def rowCount(self, parent):
         "returns the number of rows"
-        return self.attributes.getNumRows()
+        return min(self.attributes.getNumRows(), MAX_ROW_COUNT)
 
     def columnCount(self, parent):
         "number of columns"
@@ -1633,6 +1640,15 @@ Use the special columns:
             self.lastAttributeCount = layer.attributes.count
             self.lastAttributeid = id(layer.attributes)
             self.lastLayer = layer
+            
+            # display warning so the user knows what is happening
+            # have an env var so we can disable this check from eg. plugin
+            # (which is why we check it each time)
+            if (layer.attributes.getNumRows() > MAX_ROW_COUNT and 
+                    os.getenv('TUIVIEW_DISABLE_ROW_WARNING', default='0') != '1'):
+                msg = ('The Attribute Table is larger than {} rows. ' +
+                        'It will be truncated.').format(MAX_ROW_COUNT)
+                QMessageBox.information(self, MESSAGE_TITLE, msg)
 
             self.tableModel = ThematicTableModel(layer.attributes, self)
             self.tableView.setModel(self.tableModel)
