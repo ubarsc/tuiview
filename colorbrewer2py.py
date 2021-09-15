@@ -92,8 +92,8 @@ def findMaxColors(infoDict):
 
 def emitPythonCode(infoDict):
     # ones we use , so far
-    wantList = ['Blues','Reds','Greys','YlGnBu','YlOrRd',
-            'Spectral','RdYlGn','RdYlBu','RdBu']
+    wantList = ['Blues','Reds','Greys','Greens','YlGnBu','YlOrRd',
+            'Spectral','RdYlGn','RdYlBu','RdBu', 'BuGn']
 
     for key in sorted(infoDict.keys()):
         (name, type) = key.split('_')
