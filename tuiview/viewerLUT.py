@@ -1143,6 +1143,7 @@ class ViewerLUT(QObject):
             surrogatedata = olddata.clip(0, self.surrogateLookupArray.size - 1)
             # do the lookup
             lookup = self.surrogateLookupArray[surrogatedata]
+            lookup = lookup.clip(0, self.surrogateLUT.shape[0] - 1)
             # create the bgra for the surrogate
             surrogatebgra = self.surrogateLUT[lookup]
             # only apply when != and not no data, background etc
