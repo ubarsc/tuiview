@@ -1,3 +1,14 @@
+Version 1.2.8 (2021-09-21)
+--------------------------
+
+* Add the ability to "rollover" when running through a timeseries and start again.
+* Fix various crashes
+* Add "expand wildcard" functionality to the raster file open dialog.
+* When adding vectors from the command line, only show layer dialog once
+* Add --vectorlayer and --vectorsql command line options to prevent vector layer dialog being shown
+* Include all colorbrewer2.org ramps
+* Allow float columns to be used as lookups into surrogate colour tables (not just restricted to integers)
+
 
 Version 1.2.7 (2020-02-15)
 --------------------------
