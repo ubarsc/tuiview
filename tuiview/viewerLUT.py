@@ -193,8 +193,8 @@ class ViewerLUT(QObject):
 
         if lookupArray is not None:
             if numpy.issubdtype(lookupArray.dtype, numpy.floating):
-                msg = 'lookup must be integer'
-                raise viewererrors.InvalidColorTable(msg)
+                # round to int
+                lookupArray = lookupArray.round().astype(numpy.integer)
 
         self.surrogateLookupArray = lookupArray
         self.surrogateLookupArrayName = colName

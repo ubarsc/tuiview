@@ -469,6 +469,7 @@ class ThematicHorizontalHeader(QHeaderView):
         self.setLookupAction = QAction(self)
         self.setLookupAction.setText("Set column as Color Table L&ookup")
         self.setLookupAction.setStatusTip("Set column as Color Table Lookup")
+        self.setLookupAction.setCheckable(True)
         
         self.setKeyboardEditAction = QAction(self)
         self.setKeyboardEditAction.setText(
@@ -486,7 +487,7 @@ class ThematicHorizontalHeader(QHeaderView):
         self.popup.addAction(self.moveLeftMostAction)
         self.popup.addAction(self.moveRightMostAction)
         self.popup.addAction(self.setDPAction) # enabled when float col
-        self.popup.addAction(self.setLookupAction) # enabled when int col
+        self.popup.addAction(self.setLookupAction) # enabled when int or float col
         self.popup.addAction(self.setKeyboardEditAction)
 
         self.setColorAction = QAction(self)
@@ -506,10 +507,11 @@ class ThematicHorizontalHeader(QHeaderView):
     def contextMenuEvent(self, event):
         "Respond to context menu event"
         if self.thematic:
-            from osgeo.gdal import GFT_Real, GFT_Integer
+            from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
             col = self.logicalIndexAt(event.pos())
+            attributes = self.parent.lastLayer.attributes
 
-            if self.parent.lastLayer.attributes.hasColorTable:
+            if attributes.hasColorTable:
                 if col == 0:
                     # do special handling for color column
                     action = self.colorPopup.exec_(event.globalPos())
@@ -519,10 +521,11 @@ class ThematicHorizontalHeader(QHeaderView):
                 col -= 1 # to ignore color col for below
 
             # work out whether this is float column
-            colName = self.parent.lastLayer.attributes.getColumnNames()[col]
-            colType = self.parent.lastLayer.attributes.getType(colName)
+            colName = attributes.getColumnNames()[col]
+            colType = attributes.getType(colName)
             self.setDPAction.setEnabled(colType == GFT_Real)
-            self.setLookupAction.setEnabled(colType == GFT_Integer)
+            self.setLookupAction.setEnabled(colType != GFT_String)
+            self.setLookupAction.setChecked(colName == attributes.lookupColName)
             colGotKeyboard = self.parent.keyboardEditColumn == colName
             self.setKeyboardEditAction.setChecked(colGotKeyboard)
 
