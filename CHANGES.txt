@@ -8,6 +8,7 @@ Version 1.2.8 (2021-09-21)
 * Add --vectorlayer and --vectorsql command line options to prevent vector layer dialog being shown
 * Include all colorbrewer2.org ramps
 * Allow float columns to be used as lookups into surrogate colour tables (not just restricted to integers)
+* Apply workaround to limit RAT to 100million rows - seems to be a limiation of Qt.
 
 
 Version 1.2.7 (2020-02-15)
