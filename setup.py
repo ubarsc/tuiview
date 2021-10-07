@@ -54,7 +54,6 @@ from __future__ import print_function
 import os
 import sys
 from numpy.distutils.core import setup, Extension
-from distutils.version import LooseVersion
 
 # don't build extensions if we are in readthedocs
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
@@ -66,7 +65,6 @@ except ImportError:
         raise SystemExit("GDAL with Python bindings must be installed first")
 
 import tuiview
-MIN_GDAL_VERSION = '1.11.0'
 
 # Are we installing the command line scripts?
 # this is an experimental option for users who are
@@ -111,22 +109,7 @@ def getGDALFlags():
             raise SystemExit("can't find gdal-config - GDAL development files need to be installed")
     return extraargs
 
-def checkGDALVersion():
-    """
-    Checks the installed GDAL version (via the Python bindings) 
-    and exits with message if it is too old.
-    """
-    gdalVersion = None
-    if hasattr(gdal, '__version__'):
-        gdalVersion = gdal.__version__
-
-    if gdalVersion is None or LooseVersion(gdalVersion) < LooseVersion(MIN_GDAL_VERSION):
-        msg = "This version of TuiView requires GDAL Version %s or later" % MIN_GDAL_VERSION
-        raise SystemExit(msg)
-
 if withExtensions:
-    # check the version
-    checkGDALVersion()
 
     # get the flags for GDAL
     gdalargs = getGDALFlags()
