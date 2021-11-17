@@ -22,7 +22,8 @@ Contains the PluginManager class.
 from __future__ import print_function
 import os
 import sys
-import imp
+import importlib.util
+import importlib.machinery
 
 PLUGINS_ENV = 'TUIVIEW_PLUGINS_PATH'
 PLUGINS_SUBDIR = 'plugins'
@@ -42,7 +43,6 @@ PLUGIN_ACTION_NEWQUERY = 2
 class PluginManager(object):
     def __init__(self):
         self.plugins = {}
-        self.pysuffixes = self.getSuffixes()
         self.pluginNameIndex = 1
 
     def callAction(self, actioncode, param):
@@ -109,12 +109,13 @@ class PluginManager(object):
     def loadPluginsFromDir(self, directory):
         """
         Attempt to load all the files in the given 
-        directory that match the Python suffix (.py)
+        directory that match the Python suffix 
         """
         for fname in os.listdir(directory):
-            if fname.endswith(self.pysuffixes[0]):
-                path = os.path.join(directory, fname)
-                self.loadPluginFromPath(path)
+            for suffix in importlib.machinery.SOURCE_SUFFIXES:
+                if fname.endswith(suffix):
+                    path = os.path.join(directory, fname)
+                    self.loadPluginFromPath(path)
 
     def loadPluginFromPath(self, path):
         """
@@ -122,39 +123,32 @@ class PluginManager(object):
         put into self.plugins with the key being the name
         the module describes itself as
         """
+        # make up a name to keep Python happy
+        name = 'tuiview.plugin%d' % self.pluginNameIndex
+        self.pluginNameIndex += 1
+
         try:
-            fileobj = open(path, self.pysuffixes[1])
+            spec = importlib.util.spec_from_file_location(name, path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
 
-            # make up a name to keep Python happy
-            name = 'tuiview.plugin%d' % self.pluginNameIndex
-            self.pluginNameIndex += 1
-
-            try:
-                mod = imp.load_module(name, fileobj, path, self.pysuffixes)
-                # all required fns?
-                for fn in PLUGIN_REQUIRED_FNS:
-                    if not hasattr(mod, fn):
-                        msg = 'Plugin %s does not have required functions'
-                        print(msg % path)
-                        return
-
-                # must be ok. Get name and save it
-                try:
-                    name = getattr(mod, PLUGIN_NAME_FN)
-                    modname = name()
-                except Exception as e:
-                    self.printTraceback(modname)
+            # all required fns?
+            for fn in PLUGIN_REQUIRED_FNS:
+                if not hasattr(mod, fn):
+                    msg = 'Plugin %s does not have required functions'
+                    print(msg % path)
                     return
-                self.plugins[modname] = mod
-                print('loaded plugin %s' % modname)
-            except ImportError as e:
-                print('Unable to import %s' % path)
-                print(str(e))
-            finally:
-                fileobj.close()
 
-        except IOError:
-            print('Unable to read %s' % path)
-
-
+            # must be ok. Get name and save it
+            try:
+                name = getattr(mod, PLUGIN_NAME_FN)
+                modname = name()
+            except Exception as e:
+                self.printTraceback(modname)
+                return
+            self.plugins[modname] = mod
+            print('loaded plugin %s' % modname)
+        except ImportError as e:
+            print('Unable to import %s' % path)
+            print(str(e))
 
