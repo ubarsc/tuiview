@@ -145,7 +145,6 @@ setup(name='TuiView',
     ext_package = 'tuiview',
     ext_modules = ext_modules,
     license='LICENSE.txt',
-    data_files=[('', ['LICENSE.txt', 'CHANGES.txt'])], # add this to tarball
     url='http://tuiview.org/',
     classifiers=['Intended Audience :: Developers',
           'Operating System :: OS Independent',
@@ -153,6 +152,7 @@ setup(name='TuiView',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
-          'Programming Language :: Python :: 3.9'])
+          'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10'])
 
 
