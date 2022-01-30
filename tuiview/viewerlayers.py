@@ -32,9 +32,9 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
 import threading
 if sys.version_info[0] < 3:
-   import Queue as queue
+    import Queue as queue
 else:
-   import queue
+    import queue
 
 from . import viewerRAT
 from . import viewerLUT
@@ -44,7 +44,7 @@ from . import viewererrors
 from .viewerstrings import MESSAGE_TITLE
 
 # number of threads to call layer.getImage on - only raster layers supported
-NUM_GETIMAGE_THREADS = os.getenv('TUIVIEW_GETIMAGE_THREADS','1')
+NUM_GETIMAGE_THREADS = os.getenv('TUIVIEW_GETIMAGE_THREADS', '1')
 # convert to int with care
 try:
     NUM_GETIMAGE_THREADS = int(NUM_GETIMAGE_THREADS)
@@ -52,7 +52,7 @@ except ValueError:
     NUM_GETIMAGE_THREADS = 1
 
 # Check if data without geospatial information is allowed
-ALLOW_NOGEO = os.getenv('TUIVIEW_ALLOW_NOGEO','NO')
+ALLOW_NOGEO = os.getenv('TUIVIEW_ALLOW_NOGEO', 'NO')
 if ALLOW_NOGEO.upper() == 'YES':
     ALLOW_NOGEO = True
 else:
@@ -65,15 +65,16 @@ gdal.UseExceptions()
 # Note that ambiguities are resolved by the order - the first one found
 # is the one chosen.
 dataTypeMapping = [
-    (numpy.uint8,gdal.GDT_Byte),
-    (numpy.bool,gdal.GDT_Byte),
-    (numpy.int16,gdal.GDT_Int16),
-    (numpy.uint16,gdal.GDT_UInt16),
-    (numpy.int32,gdal.GDT_Int32),
-    (numpy.uint32,gdal.GDT_UInt32),
-    (numpy.single,gdal.GDT_Float32),
-    (numpy.float,gdal.GDT_Float64)
+    (numpy.uint8, gdal.GDT_Byte),
+    (numpy.bool, gdal.GDT_Byte),
+    (numpy.int16, gdal.GDT_Int16),
+    (numpy.uint16, gdal.GDT_UInt16),
+    (numpy.int32, gdal.GDT_Int32),
+    (numpy.uint32, gdal.GDT_UInt32),
+    (numpy.single, gdal.GDT_Float32),
+    (numpy.float, gdal.GDT_Float64)
 ]
+
 
 def GDALTypeToNumpyType(gdaltype):
     """
@@ -85,6 +86,7 @@ def GDALTypeToNumpyType(gdaltype):
             return numpy_type
     raise viewererrors.TypeConversionError("Unknown GDAL datatype: %s"%gdaltype)
 
+
 def NumpyTypeToGDALType(numpytype):
     """
     For a given numpy data type returns the matching
@@ -95,6 +97,7 @@ def NumpyTypeToGDALType(numpytype):
             return gdaltype
     msg = "Unknown numpy datatype: %s" % numpytype
     raise viewererrors.TypeConversionError(msg)
+
 
 def _callGetImage(q):
     """
@@ -108,6 +111,7 @@ def _callGetImage(q):
 
     return None
 
+
 class OverviewInfo(object):
     """
     Stores size and index of an overview
@@ -117,6 +121,7 @@ class OverviewInfo(object):
         self.ysize = ysize
         self.fullrespixperpix = fullrespixperpix
         self.index = index
+
 
 class OverviewManager(object):
     """
@@ -172,7 +177,7 @@ class OverviewManager(object):
                 # should do both ways?
                 # remember index 0 is full res so all real overviews are +1
                 ovi = OverviewInfo(ov.XSize, ov.YSize, fullrespixperpix, 
-                                            index + 1)
+                    index + 1)
                 self.overviews.append(ovi)
 
         # make sure they are sorted by area - biggest first
@@ -185,14 +190,16 @@ class OverviewManager(object):
         selectedovi = self.overviews[0]
         for ovi in self.overviews[1:]:
             if ovi.fullrespixperpix > imgpixperwinpix:
-                break # gone too far, selectedovi is selected
+                break  # gone too far, selectedovi is selected
             else:
                 # got here overview must be ok, but keep going
                 selectedovi = ovi
 
         return selectedovi
 
+
 NOTSET_STRING = 'Not Set'
+
 
 class PropertyInfo(object):
     """
@@ -200,11 +207,10 @@ class PropertyInfo(object):
     """
     def __init__(self):
         self.fileInfo = []  # list of tuples
-        self.sr = None # SpatialReference
-        self.bandInfo = [] # list of lists of tuples
-        self.bandNames = [] # list of strings
-        self.histograms = {} # dictionary of min, max, data tuples
-                            # keyed on bandName
+        self.sr = None  # SpatialReference
+        self.bandInfo = []  # list of lists of tuples
+        self.bandNames = []  # list of strings
+        self.histograms = {}  # dictionary of min, max, data tuples keyed on bandName
 
     def addFileInfo(self, name, value):
         "Add a file info"
@@ -264,6 +270,7 @@ class PropertyInfo(object):
         """
         self.histograms[bandName] = histInfo
 
+
 class ViewerLayer(object):
     """
     Base class for a type of layer
@@ -271,9 +278,9 @@ class ViewerLayer(object):
     def __init__(self):
         self.image = None
         self.filename = None
-        self.title = None # basename of filename
-        self.displayed = True # use LayerManager.setDisplayedState
-        self.quiet = False # not displayed in title bar. Set when calling add*()
+        self.title = None  # basename of filename
+        self.displayed = True  # use LayerManager.setDisplayedState
+        self.quiet = False  # not displayed in title bar. Set when calling add*()
 
     def getImage(self):
         "return a QImage with the data in it"
@@ -293,7 +300,9 @@ class ViewerLayer(object):
         """
         raise NotImplementedError("Must implement in derived class")
 
-VIEWER_NONSQUARE_PIXEL_THRESHOLD = 0.001 # 0.1%
+
+VIEWER_NONSQUARE_PIXEL_THRESHOLD = 0.001  # 0.1%
+
 
 class ViewerRasterLayer(ViewerLayer):
     """
@@ -806,26 +815,25 @@ class ViewerRasterLayer(ViewerLayer):
             (dspRastAbsRight, dspRastAbsBottom) = (
                     self.coordmgr.pixel2display(
                     numpy.ceil(pixRight), numpy.ceil(pixBottom)))
-            dspLeftExtra = ((dspRastLeft - dspRastAbsLeft) 
-                                    / fullrespixperovpix)
-            dspTopExtra = ((dspRastTop - dspRastAbsTop) 
-                                    / fullrespixperovpix)
-            dspRightExtra = ((dspRastAbsRight - dspRastRight) 
-                                    / fullrespixperovpix)
-            dspBottomExtra = ((dspRastAbsBottom - dspRastBottom) 
-                                    / fullrespixperovpix)
+            dspLeftExtra = ((dspRastLeft - dspRastAbsLeft) /
+                fullrespixperovpix)
+            dspTopExtra = ((dspRastTop - dspRastAbsTop) /
+                fullrespixperovpix)
+            dspRightExtra = ((dspRastAbsRight - dspRastRight) /
+                fullrespixperovpix)
+            dspBottomExtra = ((dspRastAbsBottom - dspRastBottom) / 
+                fullrespixperovpix)
             # be aware rounding errors
             dspRightExtra = max(dspRightExtra, 0)
             dspBottomExtra = max(dspBottomExtra, 0)
 
-
         # only need to do the mask once
         mask = numpy.empty((self.coordmgr.dspHeight, self.coordmgr.dspWidth), dtype=numpy.uint8)
-        mask.fill(viewerLUT.MASK_BACKGROUND_VALUE) # set to background
+        mask.fill(viewerLUT.MASK_BACKGROUND_VALUE)  # set to background
         
-        dataslice = (slice(dspRastTop, dspRastTop+dspRastYSize),
-            slice(dspRastLeft, dspRastLeft+dspRastXSize))
-        mask[dataslice] = viewerLUT.MASK_IMAGE_VALUE # 0 where there is data
+        dataslice = (slice(dspRastTop, dspRastTop + dspRastYSize),
+            slice(dspRastLeft, dspRastLeft + dspRastXSize))
+        mask[dataslice] = viewerLUT.MASK_IMAGE_VALUE  # 0 where there is data
         nodata_mask = None
 
         if len(self.stretch.bands) == 3:
@@ -858,11 +866,11 @@ class ViewerRasterLayer(ViewerLayer):
                             dspBottomExtra)
                     
                 # do the no data test
-                nodata_value = self.noDataValues[bandnum-1]
+                nodata_value = self.noDataValues[bandnum - 1]
                 if nodata_value is not None:
                     inimage_and_nodata = numpy.logical_and(
-                            mask == viewerLUT.MASK_IMAGE_VALUE, 
-                            data == nodata_value)
+                        mask == viewerLUT.MASK_IMAGE_VALUE, 
+                        data == nodata_value)
                     if nodata_mask is None:
                         nodata_mask = inimage_and_nodata
                     else:
@@ -875,7 +883,7 @@ class ViewerRasterLayer(ViewerLayer):
             # apply the no data
             if nodata_mask is not None:
                 mask = numpy.where(nodata_mask, viewerLUT.MASK_NODATA_VALUE, 
-                                        mask)
+                    mask)
 
             # apply LUT
             self.image = self.lut.applyLUTRGB(datalist, mask)
@@ -910,11 +918,11 @@ class ViewerRasterLayer(ViewerLayer):
             if nodata_value is not None:
             
                 inimage_and_nodata = numpy.logical_and(
-                        mask == viewerLUT.MASK_IMAGE_VALUE, 
-                        data == nodata_value)
+                    mask == viewerLUT.MASK_IMAGE_VALUE, 
+                    data == nodata_value)
                 mask = numpy.where(inimage_and_nodata, 
-                        viewerLUT.MASK_NODATA_VALUE, 
-                        mask)
+                    viewerLUT.MASK_NODATA_VALUE, 
+                    mask)
                         
             # apply LUT
             self.image = self.lut.applyLUTSingle(data, mask)
@@ -949,7 +957,7 @@ class ViewerRasterLayer(ViewerLayer):
         info.addFileInfo('Overviews:', overviewString)
 
         sizeString = '%d, %d' % (self.gdalDataset.RasterXSize, 
-                                    self.gdalDataset.RasterYSize)
+            self.gdalDataset.RasterYSize)
         info.addFileInfo('Size:', sizeString)
 
         pixelSizeString = '%f, %f' % (self.transform[1], self.transform[5])
@@ -962,16 +970,16 @@ class ViewerRasterLayer(ViewerLayer):
         (urx, ury) = self.coordmgr.pixel2world(self.gdalDataset.RasterXSize, 0)
         info.addFileInfo('Upper Right', '%f, %f' % (urx, ury))
         (lrx, lry) = self.coordmgr.pixel2world(self.gdalDataset.RasterXSize, 
-                                                self.gdalDataset.RasterYSize)
+                self.gdalDataset.RasterYSize)
         info.addFileInfo('Lower Right', '%f, %f' % (lrx, lry))
         (cx, cy) = self.coordmgr.pixel2world(
-                                        self.gdalDataset.RasterXSize / 2.0, 
-                                        self.gdalDataset.RasterYSize / 2.0)
+            self.gdalDataset.RasterXSize / 2.0, 
+            self.gdalDataset.RasterYSize / 2.0)
         info.addFileInfo('Center', '%f, %f' % (cx, cy))
 
         for nband in range(self.gdalDataset.RasterCount):
             bandInfo = []
-            band = self.gdalDataset.GetRasterBand(nband+1)
+            band = self.gdalDataset.GetRasterBand(nband + 1)
             metadata = band.GetMetadata()
 
             if 'LAYER_TYPE' in metadata:
@@ -1063,12 +1071,14 @@ class ViewerRasterLayer(ViewerLayer):
 
         return info
 
-QUERY_CURSOR_HALFSIZE = 8 # number of pixels
-QUERY_CURSOR_WIDTH = 1 # in pixels
+
+QUERY_CURSOR_HALFSIZE = 8  # number of pixels
+QUERY_CURSOR_WIDTH = 1  # in pixels
 
 # types of cursor
 CURSOR_CROSS = 0
 CURSOR_CROSSHAIR = 1
+
 
 class ViewerQueryPointLayer(ViewerLayer):
     """
@@ -1081,7 +1091,7 @@ class ViewerQueryPointLayer(ViewerLayer):
         self.image = None
 
     def setQueryPoint(self, senderid, easting, northing, color,
-                            size=None, cursor=None):
+                size=None, cursor=None):
         """
         Add/replace a query point based on the id() of the requesting object
         """
@@ -1113,7 +1123,7 @@ class ViewerQueryPointLayer(ViewerLayer):
             paint = QPainter(self.image)
             for senderid in self.queryPoints:
                 (easting, northing, color, size, cursor) = (
-                                                self.queryPoints[senderid])
+                    self.queryPoints[senderid])
                 display = self.coordmgr.world2display(easting, northing)
                 if display is not None:
                     (dspX, dspY) = display
@@ -1131,10 +1141,12 @@ class ViewerQueryPointLayer(ViewerLayer):
                         paint.drawLine(dspX, dspY - size, dspX, dspY - 2)
                         paint.drawLine(dspX, dspY + 2, dspX, dspY + size)
                         paint.drawArc(dspX - size, dspY - size, 
-                                        size * 2, size * 2, 0, 16 * 360)
+                            size * 2, size * 2, 0, 16 * 360)
             paint.end()
+
                 
 DEFAULT_VECTOR_COLOR = (255, 255, 0, 255)
+
 
 class ViewerVectorLayer(ViewerLayer):
     """
@@ -1144,14 +1156,14 @@ class ViewerVectorLayer(ViewerLayer):
     def __init__(self):
         ViewerLayer.__init__(self)
         self.ogrDataSource = None
-        self.ogrLayer = None # must have both dataset and lyr for ref counts
+        self.ogrLayer = None  # must have both dataset and lyr for ref counts
         self.coordmgr = coordinatemgr.VectorCoordManager()
         # we use a mini LUT to convert the 1's and zeros to colours
         # we leave the first index blank to it is black/invisible
         self.lut = numpy.zeros((2, 4), numpy.uint8)
         self.image = None
         self.filename = None
-        self.origSQL = None # if query, not layer name (isResultSet = True)
+        self.origSQL = None  # if query, not layer name (isResultSet = True)
         self.sql = None
         self.linewidth = 1
         self.isResultSet = False
@@ -1163,17 +1175,17 @@ class ViewerVectorLayer(ViewerLayer):
         # but is when the user removes the layer
         # perhaps we can do something better here
         if (self.isResultSet and self.ogrDataSource is not None and 
-                    self.ogrLayer is not None):
+                self.ogrLayer is not None):
             self.ogrDataSource.ReleaseResultSet(self.ogrLayer)
 
     def toFile(self, fileobj):
         "write information to re-create layer as JSON"
-        dict = {'type' : 'vector'}
+        dict = {'type': 'vector'}
         fileobj.write(json.dumps(dict) + '\n')
 
-        dict = {'filename' : self.filename, 'displayed' : self.displayed,
-            'quiet' : self.quiet, 'filterSQL': self.sql, 
-            'linewidth':self.linewidth,}
+        dict = {'filename': self.filename, 'displayed': self.displayed,
+            'quiet': self.quiet, 'filterSQL': self.sql, 
+            'linewidth': self.linewidth}
         # the values out of getColorAsRGBATuple are numpy.uint8's
         # which confuses json. Convert to ints
         dict['color'] = [int(x) for x in self.getColorAsRGBATuple()]
@@ -1211,7 +1223,7 @@ class ViewerVectorLayer(ViewerLayer):
         colour = dict['color']
 
         self.open(ds, lyr, width, height, color=colour, resultSet=isResultSet,
-                    origSQL=origSQL)
+            origSQL=origSQL)
 
         sql = dict['filterSQL']
         if sql is not None:
@@ -1249,7 +1261,7 @@ class ViewerVectorLayer(ViewerLayer):
         rgba = []
         for code in viewerLUT.RGBA_CODES:
             lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
-            value = self.lut[1,lutindex]
+            value = self.lut[1, lutindex]
             rgba.append(value)
         return tuple(rgba)
 
@@ -1259,10 +1271,10 @@ class ViewerVectorLayer(ViewerLayer):
         """
         for value, code in zip(color, viewerLUT.RGBA_CODES):
             lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
-            self.lut[1,lutindex] = value
+            self.lut[1, lutindex] = value
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
-                    color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None):
+            color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None):
         """
         Use the supplied datasource and layer for accessing vector data
         keeps a reference to the datasource and layer
@@ -1377,12 +1389,12 @@ class ViewerVectorLayer(ViewerLayer):
         info.addFileInfo('Files:', self.filename)
 
         layerInfo = []
-        geomTypes = {ogr.wkbUnknown:'Unknown', ogr.wkbPoint:'Point',
-            ogr.wkbLineString:'Line String', ogr.wkbPolygon:'Polygon',
-            ogr.wkbMultiPoint:'Multi Point', 
-            ogr.wkbMultiLineString:'Multi Line String',
-            ogr.wkbMultiPolygon:'Polygon', 
-            ogr.wkbGeometryCollection:'Geometry Collection'}
+        geomTypes = {ogr.wkbUnknown: 'Unknown', ogr.wkbPoint: 'Point',
+            ogr.wkbLineString: 'Line String', ogr.wkbPolygon: 'Polygon',
+            ogr.wkbMultiPoint: 'Multi Point', 
+            ogr.wkbMultiLineString: 'Multi Line String',
+            ogr.wkbMultiPolygon: 'Polygon', 
+            ogr.wkbGeometryCollection: 'Geometry Collection'}
         geomCode = self.ogrLayer.GetGeomType()
         geomType = geomTypes[geomCode]
         layerInfo.append(('Layer Type:', geomType))
@@ -1391,6 +1403,7 @@ class ViewerVectorLayer(ViewerLayer):
         info.addBandInfo(layerName, layerInfo)
 
         return info
+
 
 class ViewerFeatureVectorLayer(ViewerVectorLayer):
     """
@@ -1413,10 +1426,10 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         raise NotImplementedError()
 
     def open(self, ogrDataSource, ogrLayer, ogrFeature, width, height, 
-                    extent=None, color=DEFAULT_VECTOR_COLOR):
+            extent=None, color=DEFAULT_VECTOR_COLOR):
         "Set Data source, plus first feature to rasterize"
         ViewerVectorLayer.open(self, ogrDataSource, ogrLayer, width, height, 
-                                extent, color)
+            extent, color)
         self.ogrFeature = ogrFeature
 
     def getImage(self):
@@ -1477,8 +1490,8 @@ class LayerManager(QObject):
             # start the threads
             for i in range(NUM_GETIMAGE_THREADS):
                 t = threading.Thread(target=_callGetImage,
-                                            args=(self.queue, ))
-                t.daemon = True # so program exits even when threads running
+                    args=(self.queue, ))
+                t.daemon = True  # so program exits even when threads running
                 t.start()
         else:
             self.queue = None
@@ -1495,7 +1508,7 @@ class LayerManager(QObject):
                 # don't break since we want the last layer
                 # - top one is displayed
 
-        if not newTopLayer is self.topLayer:
+        if newTopLayer is not self.topLayer:
             self.topLayer = newTopLayer
             self.topLayerChanged.emit(self.topLayer)
 
@@ -1551,7 +1564,7 @@ class LayerManager(QObject):
         return bool(sr1.IsSame(sr2))
 
     def addRasterLayer(self, gdalDataset, width, height, stretch, lut=None,
-                        ignoreProjectionMismatch=False, quiet=False):
+            ignoreProjectionMismatch=False, quiet=False):
         """
         Add a new raster layer with given display width and height, stretch
         and optional lut.
@@ -1582,8 +1595,8 @@ class LayerManager(QObject):
         self.addLayer(layer)
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
-                                color=DEFAULT_VECTOR_COLOR, resultSet=False,
-                                origSQL=None, quiet=False):
+            color=DEFAULT_VECTOR_COLOR, resultSet=False,
+            origSQL=None, quiet=False):
         """
         Add a vector layer. See ViewerVectorLayer.open for more info on params
         """
@@ -1596,13 +1609,13 @@ class LayerManager(QObject):
         layer = ViewerVectorLayer()
         layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
-                                resultSet, origSQL)
+            resultSet, origSQL)
 
         self.addLayer(layer)
 
     def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
-                                width, height, color=DEFAULT_VECTOR_COLOR,
-                                quiet=False):
+            width, height, color=DEFAULT_VECTOR_COLOR,
+            quiet=False):
         """
         Add a vector feature layer
         """
@@ -1614,7 +1627,7 @@ class LayerManager(QObject):
         layer = ViewerFeatureVectorLayer()
         layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, ogrFeature, width, 
-                            height, extent, color)
+            height, extent, color)
 
         self.addLayer(layer)
 
@@ -1707,15 +1720,15 @@ class LayerManager(QObject):
         # now do a check to see if we need to 'reset'
         # are we all turned off?
         needReset = True
-        for l in self.layers:
-            if l.displayed:
+        for lyr in self.layers:
+            if lyr.displayed:
                 needReset = False
                 break
                 
         # then turn on again
         if needReset:
-            for l in self.layers:
-                l.displayed = True
+            for lyr in self.layers:
+                lyr.displayed = True
             self.updateTopFilename()
 
         # layers have changed whatever above
@@ -1735,8 +1748,8 @@ class LayerManager(QObject):
                 
         if allOn and len(self.layers) > 0:
             # special case - reset to just top on
-            for l in self.layers:
-                l.displayed = False
+            for lyr in self.layers:
+                lyr.displayed = False
             # display the top one again
             self.setDisplayedState(self.layers[0], True)
             
@@ -1787,7 +1800,7 @@ class LayerManager(QObject):
         """
         for layer in self.layers:
             if isinstance(layer, ViewerRasterLayer):
-               layer.setNewStretch(local=local, newstretch=stretch)
+                layer.setNewStretch(local=local, newstretch=stretch)
 
     def getTopVectorLayer(self):
         """
@@ -1838,7 +1851,7 @@ class LayerManager(QObject):
         extent = reflayer.coordmgr.getWorldExtent()        
 
         for layer in self.layers:
-            if not reflayer is layer:
+            if reflayer is not layer:
                 layer.coordmgr.setWorldExtent(extent)
         self.queryPointLayer.coordmgr.setWorldExtent(extent)
 
@@ -1922,11 +1935,11 @@ class LayerManager(QObject):
         self.layersChanged.emit()
         self.updateTopFilename()
 
-
     # the following functions are needed as this class
     # acts as a 'proxy' between the RAT and LUT's inside
     # the individual layers and anything wanting to listen
     # to the progress (the window in this case)
+    
     def newProgress(self, string):
         """
         Called when we are about to start a new progress
@@ -1947,7 +1960,7 @@ class LayerManager(QObject):
 
 
 def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra, 
-                            dspBottomExtra):
+        dspBottomExtra):
     """
     Replicate the data in the given 2-d array so that it increases
     in size to be (ysize, xsize). 
@@ -1975,8 +1988,8 @@ def replicateArray(arr, outarr, dspLeftExtra, dspTopExtra, dspRightExtra,
     # using the complex number stuff in numpy.mgrid
     # doesn't work too well since you end up with unevenly
     # spaced divisions...
-    row, col = numpy.mgrid[dspTopExtra:rowCount-dspBottomExtra, 
-                        dspLeftExtra:colCount-dspRightExtra]
+    row, col = numpy.mgrid[dspTopExtra:rowCount - dspBottomExtra, 
+                        dspLeftExtra:colCount - dspRightExtra]
     # try to be a little frugal with memory
     numpy.multiply(row, nrows / float(rowCount), out=row, casting='unsafe')
     numpy.multiply(col, ncols / float(colCount), out=col, casting='unsafe')
