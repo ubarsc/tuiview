@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import QSpinBox, QDoubleSpinBox, QPushButton, QVBoxLayout
 from PyQt5.QtCore import Qt
 import numpy
 
+
 class PlotScalingDialog(QDialog):
     """
     Dialog that allows the user to set the scale for the X axis

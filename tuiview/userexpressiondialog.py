@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtGui import QPalette
 from PyQt5.QtCore import pyqtSignal, Qt
 
+
 class UserExpressionDialog(QDialog):
     """
     Allows user to enter a expression and have it applied.

@@ -336,12 +336,12 @@ class ViewerRasterLayer(ViewerLayer):
         """
         Write all the information needed to re-open this layer
         """
-        dict = {'type' : 'raster'}
+        dict = {'type': 'raster'}
         fileobj.write(json.dumps(dict) + '\n')
 
-        dict = {'filename' : self.filename, 'update' : self.updateAccess,
-            'stretch' : self.stretch.toString(), 'displayed' : self.displayed,
-            'quiet' : self.quiet}
+        dict = {'filename': self.filename, 'update': self.updateAccess,
+            'stretch': self.stretch.toString(), 'displayed': self.displayed,
+            'quiet': self.quiet}
         fileobj.write(json.dumps(dict) + '\n')
         self.lut.saveToFile(fileobj)
 
@@ -363,7 +363,7 @@ class ViewerRasterLayer(ViewerLayer):
         lut = viewerLUT.ViewerLUT.createFromFile(fileobj, stretch)
 
         self.open(ds, width, height, stretch, lut)
-        self.changeUpdateAccess(dict['update']) # won't do anything if already ro
+        self.changeUpdateAccess(dict['update'])  # won't do anything if already ro
 
     def open(self, gdalDataset, width, height, stretch, lut=None):
         """
@@ -395,10 +395,10 @@ class ViewerRasterLayer(ViewerLayer):
                              transform[2],
                              transform[3],
                              transform[4],
-                             transform[5]*-1)
+                             transform[5] * -1)
             else:
                 msg = 'Only north-up images allowed. ' \
-                     'To disable this check set:\n"TUIVIEW_ALLOW_NOGEO=YES"'
+                    'To disable this check set:\n"TUIVIEW_ALLOW_NOGEO=YES"'
                 raise viewererrors.InvalidDataset(msg)
 
         if transform[2] != 0 or transform[4] != 0:
@@ -423,7 +423,7 @@ class ViewerRasterLayer(ViewerLayer):
         firstoverview = self.overviews.getFullRes()
         self.coordmgr.setDisplaySize(width, height)
         self.coordmgr.setGeoTransformAndSize(transform, firstoverview.xsize, 
-                                                firstoverview.ysize)
+            firstoverview.ysize)
         # This may be changed by the LayerManager if there are other layers
         self.coordmgr.setTopLeftPixel(0, 0)  
         self.coordmgr.calcZoomFactor(firstoverview.xsize, firstoverview.ysize)
@@ -460,11 +460,11 @@ class ViewerRasterLayer(ViewerLayer):
         """
         bandNames = []
         for n in range(self.gdalDataset.RasterCount):
-            band = self.gdalDataset.GetRasterBand(n+1)
+            band = self.gdalDataset.GetRasterBand(n + 1)
             name = band.GetDescription()
             if name == '':
                 # in case the name is missing
-                name = 'Band %d' % (n+1)
+                name = 'Band %d' % (n + 1)
             bandNames.append(name)
         return bandNames
 
@@ -491,7 +491,7 @@ class ViewerRasterLayer(ViewerLayer):
         """
 
         # Wavelength units to strip off metadata
-        wavelength_units = ['nm','um']
+        wavelength_units = ['nm', 'um']
 
         wavelengths = []
         ok = False
@@ -505,14 +505,14 @@ class ViewerRasterLayer(ViewerLayer):
             # go through each band
             for n in range(self.gdalDataset.RasterCount):
                 # get the metadata item based on band name
-                metaname = "Band_%d" % (n+1)
+                metaname = "Band_%d" % (n + 1)
                 if metaname in meta:
                     item = meta[metaname]
                     # Try to replace wavelength units
                     # Do this rather than stripping off letters
                     # as metadata might not be a wavelength
                     for wl_unit in wavelength_units:
-                        item = item.replace(wl_unit,'')
+                        item = item.replace(wl_unit, '')
                     # If wavelengths are stored as:
                     #    951.20 (951.20)
                     # subset to before bracket
@@ -541,8 +541,8 @@ class ViewerRasterLayer(ViewerLayer):
         """
         noData = []
         for n in range(self.gdalDataset.RasterCount):
-            band = self.gdalDataset.GetRasterBand(n+1)
-            value = band.GetNoDataValue() # returns None if not set
+            band = self.gdalDataset.GetRasterBand(n + 1)
+            value = band.GetNoDataValue()  # returns None if not set
             noData.append(value)
         return noData
 
@@ -557,12 +557,12 @@ class ViewerRasterLayer(ViewerLayer):
                                                 self.image.viewermask)
 
     def setColorTableLookup(self, lookupArray=None, colName=None, 
-                                surrogateLUT=None, surrogateName=None):
+            surrogateLUT=None, surrogateName=None):
         """
         Use array as a lookup to color table
         """
         self.lut.setColorTableLookup(lookupArray, colName, surrogateLUT, 
-                                                    surrogateName)
+            surrogateName)
         # re-apply the lut to the data from last time (if there was a last time)
         if hasattr(self.image, 'viewerdata'):
             self.image = self.lut.applyLUTSingle(self.image.viewerdata, 
@@ -599,7 +599,7 @@ class ViewerRasterLayer(ViewerLayer):
             # getData to get the new bands loaded. Now
             # we can get the stats and apply the stretch locally
             self.lut.createLUT(self.gdalDataset, newstretch, self.attributes, 
-                                                                self.image)
+                self.image)
             self.getImage()
 
     def saveStretchToFile(self, stretch):
@@ -756,7 +756,7 @@ class ViewerRasterLayer(ViewerLayer):
         # find the best overview based on imgpixperwinpix
         imgpix = self.coordmgr.imgPixPerWinPix
         selectedovi = self.overviews.findBestOverview(imgpix)
-        #print(selectedovi.index)
+        # print(selectedovi.index)
 
         # if this layer isn't anywhere near where we currently are
         # don't even bother reading - just create a empty QImage
@@ -768,11 +768,11 @@ class ViewerRasterLayer(ViewerLayer):
             self.image = QImage()
             return
         elif (self.coordmgr.pixLeft > self.gdalDataset.RasterXSize and 
-                    self.coordmgr.pixRight > self.gdalDataset.RasterXSize):
+                self.coordmgr.pixRight > self.gdalDataset.RasterXSize):
             self.image = QImage()
             return
         elif (self.coordmgr.pixTop > self.gdalDataset.RasterYSize and 
-                    self.coordmgr.pixBottom > self.gdalDataset.RasterYSize):
+                self.coordmgr.pixBottom > self.gdalDataset.RasterYSize):
             self.image = QImage()
             return
         
@@ -797,9 +797,9 @@ class ViewerRasterLayer(ViewerLayer):
         # is (0, 0), but need not be if there is blank area left/above the 
         # raster data
         (dspRastLeft, dspRastTop) = self.coordmgr.pixel2displayF(
-                                                        pixLeft, pixTop)
+            pixLeft, pixTop)
         (dspRastRight, dspRastBottom) = self.coordmgr.pixel2displayF(
-                                                        pixRight, pixBottom)
+            pixRight, pixBottom)
         dspRastLeft = int(numpy.round(dspRastLeft))
         dspRastTop = int(numpy.round(dspRastTop))
         dspRastRight = int(numpy.round(dspRastRight))
@@ -811,9 +811,9 @@ class ViewerRasterLayer(ViewerLayer):
             # need to calc 'extra' around the edge as we have partial pixels
             # GDAL reads in full pixels
             (dspRastAbsLeft, dspRastAbsTop) = self.coordmgr.pixel2display(
-                                    numpy.floor(pixLeft), numpy.floor(pixTop))
+                numpy.floor(pixLeft), numpy.floor(pixTop))
             (dspRastAbsRight, dspRastAbsBottom) = (
-                    self.coordmgr.pixel2display(
+                self.coordmgr.pixel2display(
                     numpy.ceil(pixRight), numpy.ceil(pixBottom)))
             dspLeftExtra = ((dspRastLeft - dspRastAbsLeft) /
                 fullrespixperovpix)

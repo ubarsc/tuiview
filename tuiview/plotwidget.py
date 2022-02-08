@@ -18,7 +18,7 @@ Plot widget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from __future__ import division # ensure we are using Python 3 semantics
+from __future__ import division  # ensure we are using Python 3 semantics
 import numpy
 from PyQt5.QtGui import QPainter, QPainterPath, QPen, QFontMetrics
 from PyQt5.QtWidgets import QWidget
@@ -37,6 +37,7 @@ except TypeError:
     DEFAULT_LABEL_FLAGS = 0
 TICK_SIZE = 2  # pixels
 
+
 class PlotCurve(object):
     """
     Pass instances of these to PlotLineWidget.addCurve()
@@ -53,6 +54,7 @@ class PlotCurve(object):
             self.pen = QPen()
             self.pen.setWidth(1)
             self.pen.setColor(Qt.white)
+
 
 class PlotBars(object):
     """
@@ -73,6 +75,7 @@ class PlotBars(object):
             self.pen.setColor(Qt.white)
         self.fillColor = fillColor
 
+
 class PlotLabel(object):
     """
     Pass instances of these to PlotWidget.addLabel()
@@ -82,7 +85,7 @@ class PlotLabel(object):
     If pen not given will be white, 1 pixel wide
     """
     def __init__(self, xloc, yloc, txt, flags=DEFAULT_LABEL_FLAGS, 
-                            pen=None):
+            pen=None):
         self.xloc = xloc
         self.yloc = yloc
         self.txt = txt
@@ -92,6 +95,7 @@ class PlotLabel(object):
             self.pen = QPen()
             self.pen.setWidth(1)
             self.pen.setColor(Qt.white)
+
 
 class PlotTick(object):
     """
@@ -105,6 +109,7 @@ class PlotTick(object):
         self.txt = txt
         self.flags = flags
         self.pen = pen
+
 
 class PlotWidget(QWidget):
     """
@@ -130,17 +135,17 @@ class PlotWidget(QWidget):
         # yticks
         self.yticks = None
 
-        # text labels list of PlotTexts
+        #  text labels list of PlotTexts
         self.labels = []
 
-        # fontmetrics
+        #  fontmetrics
         self.fontMetrics = QFontMetrics(self.font())
 
     def haveData(self):
         """
         Returns True if data has been set 
         """
-        raise NotImplmentedError('haveData() must be implemented')
+        raise NotImplementedError('haveData() must be implemented')
 
     def getSettingsFontSize(self):
         "Get the default font size from settings"
@@ -341,7 +346,7 @@ class PlotWidget(QWidget):
                 yloc = (tick.loc - minYData) * yscale + yoffset
 
                 if tick.pen is not None:
-                    oldPen = paint.pen() # save it
+                    oldPen = paint.pen()  # save it
                     paint.setPen(tick.pen)
 
                 flags = DEFAULT_YTICK_FLAGS
@@ -351,12 +356,11 @@ class PlotWidget(QWidget):
                 self.drawText(paint, txtwidth, yloc, tick.txt, flags)
 
                 if tick.pen is not None:
-                    paint.setPen(oldPen) # restore
+                    paint.setPen(oldPen)  # restore
 
                 # draw tick
                 paint.drawLine(txtwidth, yloc, txtwidth + TICK_SIZE, yloc)
     
-
         return txtwidth + TICK_SIZE
 
     def drawXTicks(self, paint, minXData, maxXData, xoffset, xscale, width, height):
@@ -381,7 +385,7 @@ class PlotWidget(QWidget):
                 nIntervals = int(width / txtwidth)
                 # had to make it nIntervals+1 otherwise ended up
                 # with infinite loop for long labels for some reason...
-                finished = len(intervals) <= nIntervals+1
+                finished = len(intervals) <= (nIntervals + 1)
                 
             for interval in intervals:
                 if interval < minXData:
@@ -395,14 +399,14 @@ class PlotWidget(QWidget):
 
                 # draw tick
                 paint.drawLine(xloc, height, xloc, 
-                                height + TICK_SIZE)
+                    height + TICK_SIZE)
         else:
             # user supplied ticks
             for tick in self.xticks:
                 xloc = (tick.loc - minXData) * xscale + xoffset
 
                 if tick.pen is not None:
-                    oldPen = paint.pen() # save it
+                    oldPen = paint.pen()  # save it
                     paint.setPen(tick.pen)
 
                 flags = DEFAULT_XTICK_FLAGS
@@ -412,10 +416,10 @@ class PlotWidget(QWidget):
                 self.drawText(paint, xloc, height, tick.txt, flags)
 
                 if tick.pen is not None:
-                    paint.setPen(oldPen) # restore
+                    paint.setPen(oldPen)  # restore
                 # draw tick
                 paint.drawLine(xloc, height, xloc, 
-                                height + TICK_SIZE)
+                    height + TICK_SIZE)
 
     def drawLabels(self, paint, minXData, minYData, xoffset, xscale, yoffset, yscale):
         """
@@ -443,7 +447,7 @@ class PlotWidget(QWidget):
         plotheight = size.height() - axes_ysize
 
         yoffset = size.height() - axes_ysize
-        axes_xsize = axes_ysize # in case there no data, we still have axes drawn ok
+        axes_xsize = axes_ysize  # in case there no data, we still have axes drawn ok
 
         # do we have data?
         if self.haveData():
@@ -469,7 +473,7 @@ class PlotWidget(QWidget):
                 xscale = plotwidth / xrange
 
                 self.drawXTicks(paint, minXData, maxXData, xoffset, 
-                                    xscale, plotwidth, plotheight)
+                    xscale, plotwidth, plotheight)
 
                 # delegate to sublass
                 self.paintData(paint, minXData, minYData, xoffset, xscale, yoffset, yscale)
@@ -481,7 +485,7 @@ class PlotWidget(QWidget):
         paint.setPen(self.axesPen)
         paint.drawLine(axes_xsize, 0, axes_xsize, size.height() - axes_ysize)
         paint.drawLine(axes_xsize, size.height() - axes_ysize, size.width(), 
-                        size.height() - axes_ysize)
+            size.height() - axes_ysize)
 
         paint.end()
 
@@ -496,6 +500,7 @@ class PlotWidget(QWidget):
         This has to be implemented otherwise plot is very small!
         """
         return QSize(400, 400)
+
 
 class PlotLineWidget(PlotWidget):
     """
@@ -680,7 +685,7 @@ class PlotBarWidget(PlotWidget):
         heights = (self.bars.data - minYData) * yscale + yoffset
         tlxs = numpy.linspace(self.bars.minVal, self.bars.maxVal, self.bars.data.size)
         tlxs = (tlxs - minXData) * xscale + xoffset
-        tlxs += 1 # otherwise left most bar gets clobbered by axis
+        tlxs += 1  # otherwise left most bar gets clobbered by axis
         width = int(tlxs[1] - tlxs[0])
         if width < 1:
             width = 1
