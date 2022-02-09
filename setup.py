@@ -59,7 +59,7 @@ from numpy.distutils.core import setup, Extension
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
 
 try:
-    from osgeo import gdal
+    from osgeo import gdal  # noqa
 except ImportError:
     if withExtensions:
         raise SystemExit("GDAL with Python bindings must be installed first")
@@ -74,6 +74,7 @@ NO_INSTALL_CMDLINE = int(os.getenv('TUIVIEW_NOCMDLINE', '0')) > 0
 # When building the sdist on Linux we want the extra .bat
 # files that are need for the Windows install. 
 INCLUDE_WINDOWS_BAT = int(os.getenv('TUIVIEW_INCLUDEBAT', '0')) > 0
+
 
 def getGDALFlags():
     """
@@ -109,13 +110,15 @@ def getGDALFlags():
             raise SystemExit("can't find gdal-config - GDAL development files need to be installed")
     return extraargs
 
+
 if withExtensions:
 
     # get the flags for GDAL
     gdalargs = getGDALFlags()
 
     # create our vector extension
-    vecextkwargs = {'name':'vectorrasterizer', 'sources':['src/vectorrasterizer.c']}
+    vecextkwargs = {'name': 'vectorrasterizer', 
+        'sources': ['src/vectorrasterizer.c']}
     # add gdalargs
     vecextkwargs.update(gdalargs)
 
@@ -129,11 +132,11 @@ if NO_INSTALL_CMDLINE:
 else:
     # For windows also copy bat files, to run python scripts
     if sys.platform == 'win32' or INCLUDE_WINDOWS_BAT:
-        scripts_list = ['bin/tuiview','bin/tuiview.bat',
-                     'bin/tuiviewwritetable','bin/tuiviewwritetable.bat']
+        scripts_list = ['bin/tuiview', 'bin/tuiview.bat',
+            'bin/tuiviewwritetable', 'bin/tuiviewwritetable.bat']
     else:
         scripts_list = ['bin/tuiview',
-                     'bin/tuiviewwritetable']
+            'bin/tuiviewwritetable']
 
 setup(name='TuiView', 
     version=tuiview.TUIVIEW_VERSION, 
@@ -142,8 +145,8 @@ setup(name='TuiView',
     author_email='gillingham.sam@gmail.com',
     scripts=scripts_list,
     packages=['tuiview'],
-    ext_package = 'tuiview',
-    ext_modules = ext_modules,
+    ext_package='tuiview',
+    ext_modules=ext_modules,
     license='LICENSE.txt',
     url='http://tuiview.org/',
     classifiers=['Intended Audience :: Developers',

@@ -29,6 +29,7 @@ import sys
 author = 'Cynthia Brewer'
 comments = 'Colours from www.colorbrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.'
 
+
 def readData(fname):
     """
     Reads the data out of the CSV and makes it into
@@ -45,7 +46,7 @@ def readData(fname):
         if count != 0:
             arr = line.strip().split(',')
             if ''.join(arr) == '':
-                break # end of data
+                break  # end of data
             (name, numColors, ua, ub, uc, ud, r, g, b, type) = arr
 
             if name != '':
@@ -57,12 +58,13 @@ def readData(fname):
 
             key = '_'.join([lastName, lastNumColors, lastType])
             if key in infoDict:
-                infoDict[key].append((r,g,b))
+                infoDict[key].append((r, g, b))
             else:
-                infoDict[key] = [(r,g,b)]
+                infoDict[key] = [(r, g, b)]
 
         count += 1
     return infoDict
+
 
 def findMaxColors(infoDict):
     """
@@ -90,16 +92,17 @@ def findMaxColors(infoDict):
 
     return retDict
 
+
 def emitPythonCode(infoDict):
 
     for key in sorted(infoDict.keys()):
         (name, type) = key.split('_')
-        print("RAMP['%s'] = {'author' : '%s', 'comments' : '%s', 'type' : '%s'}" % (name, author, comments, type))
+        print("RAMP['%s'] = {'author': '%s', 'comments': '%s', 'type': '%s'}" % (name, author, comments, type))
         # turn r,g,b tuples into list
         redList = []
         greenList = []
         blueList = []
-        for (r,g,b) in infoDict[key]:
+        for (r, g, b) in infoDict[key]:
             redList.append(r)
             greenList.append(g)
             blueList.append(b)
@@ -110,6 +113,7 @@ def emitPythonCode(infoDict):
         print("RAMP['%s']['description']['red'] = '%s'" % (name, redstr))
         print("RAMP['%s']['description']['green'] = '%s'" % (name, greenstr))
         print("RAMP['%s']['description']['blue'] = '%s'" % (name, bluestr))
+
 
 if __name__ == '__main__':
     info = readData(sys.argv[1])
