@@ -4,7 +4,6 @@ on: [push, pull_request]
 
 jobs:
   do-flake8:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -14,4 +13,4 @@ jobs:
       uses: actions/setup-python@v1
     - name: Lint with flake8
       uses: py-actions/flake8@v2
-      
+     
