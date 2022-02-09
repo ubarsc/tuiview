@@ -27,6 +27,7 @@ import numpy
 
 from . import plotwidget
 
+
 class ProfileDockWidget(QDockWidget):
     """
     Dockable window that is a combined profile and ruler
@@ -147,7 +148,7 @@ class ProfileDockWidget(QDockWidget):
         # go all the way to the end
         changeidx = numpy.append(changeidx, mask.size)
 
-        lastidx = 0 # start at the beginning of the array
+        lastidx = 0  # start at the beginning of the array
         for idx in changeidx:
             if mask[lastidx]:
                 # we are in a run of True's

@@ -31,6 +31,11 @@ from PyQt5.QtGui import QIcon, QColor
 from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
 from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
 
+# different resource file needed on Python3
+if sys.version_info[0] == 3:
+    from . import viewerresources3  # noqa
+else:
+    from . import viewerresources2  # noqa
 from . import archivereader
 from . import viewerwidget
 from . import viewererrors

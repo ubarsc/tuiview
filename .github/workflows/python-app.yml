@@ -1,27 +1,17 @@
-name: Python application
+name: Flake8 Lint
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 
 jobs:
-  build:
+  do-flake8:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: conda-incubator/setup-miniconda@v2
-      with:
-        miniforge-version: latest
-        miniforge-variant: Mambaforge
-    - name: Install dependencies
-      shell: bash -l {0}
-      run: |
-        conda install flake8
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v1
     - name: Lint with flake8
-      shell: bash -l {0}
-      run: |
-        flake8
+      uses: py-actions/flake8@v2
+      

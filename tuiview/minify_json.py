@@ -13,7 +13,7 @@ import re
 
 
 def json_minify(json, strip_space=True):
-    tokenizer=re.compile(r'"|(/\*)|(\*/)|(//)|\n|\r')
+    tokenizer=re.compile('"|(/\*)|(\*/)|(//)|\n|\r')  # noqa
     in_string = False
     in_multiline_comment = False
     in_singleline_comment = False
