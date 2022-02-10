@@ -34,11 +34,12 @@ PLUGIN_AUTHOR_FN = 'author'
 PLUGIN_DESC_FN = 'description'
 
 PLUGIN_REQUIRED_FNS = (PLUGIN_NAME_FN, PLUGIN_ACTION_FN, PLUGIN_AUTHOR_FN, 
-                        PLUGIN_DESC_FN)
+    PLUGIN_DESC_FN)
 
 PLUGIN_ACTION_INIT = 0
 PLUGIN_ACTION_NEWVIEWER = 1
 PLUGIN_ACTION_NEWQUERY = 2
+
 
 class PluginManager(object):
     def __init__(self):
@@ -55,7 +56,7 @@ class PluginManager(object):
             try:
                 action = getattr(mod, PLUGIN_ACTION_FN)
                 action(actioncode, param)
-            except Exception as e:
+            except Exception:
                 self.printTraceback(mod)
 
     @staticmethod
@@ -66,18 +67,6 @@ class PluginManager(object):
         stack = traceback.extract_tb(tb)
         trace = '\n'.join(traceback.format_list(stack))
         print(trace, ttype.__name__, ':', value)
-
-    @staticmethod
-    def getSuffixes():
-        suffixes = None
-        for (suffix, mode, type) in imp.get_suffixes():
-            if type == imp.PY_SOURCE:
-                suffixes = (suffix, mode, type)
-                break
-
-        if suffixes is None:
-            raise ValueError('Unable to find suffix for Python source')
-        return suffixes
 
     def loadPlugins(self):
         """
@@ -143,7 +132,7 @@ class PluginManager(object):
             try:
                 name = getattr(mod, PLUGIN_NAME_FN)
                 modname = name()
-            except Exception as e:
+            except Exception:
                 self.printTraceback(modname)
                 return
             self.plugins[modname] = mod

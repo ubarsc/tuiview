@@ -23,9 +23,10 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
 from PyQt5.QtWidgets import QPushButton, QGroupBox, QButtonGroup, QLabel
 from PyQt5.QtWidgets import QSpinBox, QCheckBox
 from PyQt5.QtGui import QColor
-from PyQt5.QtCore import QSettings, pyqtSignal, Qt
+from PyQt5.QtCore import QSettings, Qt
 from .stretchdialog import ColorButton
 from .plotwidget import DEFAULT_FONT_SIZE
+
 
 class ViewerPreferencesDialog(QDialog):
     """
@@ -43,7 +44,7 @@ class ViewerPreferencesDialog(QDialog):
         # Scroll Wheel
         self.mouseGroup = QGroupBox("Scroll Wheel Behaviour")
         self.mouseLayout = QHBoxLayout()
-        self.mouseButtonGroup = QButtonGroup() # enforces exclusivity
+        self.mouseButtonGroup = QButtonGroup()  # enforces exclusivity
         
         self.mouseZoom = QRadioButton("Zooms")
         self.mousePan = QRadioButton("Pans")
@@ -174,8 +175,8 @@ class ViewerPreferencesDialog(QDialog):
         self.settingMouseWheelZoom = self.mouseZoom.isChecked()
         self.settingBackgroundColor = self.backgroundColorButton.color
         self.settingPlotFontSize = self.plotFontSizeSpin.value()
-        self.settingQueryOnlyDisplayed = (self.startupQueryCheck.checkState() 
-                                            == Qt.Checked)
+        self.settingQueryOnlyDisplayed = (
+            self.startupQueryCheck.checkState() == Qt.Checked)
         self.settingArrangeLayersOpen = (
             self.startupArrangeLayersCheck.checkState() == Qt.Checked)
 

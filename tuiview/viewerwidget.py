@@ -20,7 +20,7 @@ zooming and panning etc.
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from __future__ import division # ensure we are using Python 3 semantics
+from __future__ import division  # ensure we are using Python 3 semantics
 import json
 import numpy
 from PyQt5.QtWidgets import QAbstractScrollArea, QRubberBand, QApplication
@@ -31,10 +31,11 @@ from . import viewererrors
 from . import viewerlayers
 from .viewertoolclasses import PolygonToolInfo, PolylineToolInfo
 
-VIEWER_ZOOM_WHEEL_FRACTION = 0.1 # viewport increased/decreased by the fraction
-                            # on zoom out/ zoom in with mouse wheel
-MIN_SELECTION_SIZE_PX = 9 # minimum number of pixels (on display) for a 'valid' 
-                            # (non-zero) selection
+VIEWER_ZOOM_WHEEL_FRACTION = 0.1  # viewport increased/decreased by the fraction
+# on zoom out/ zoom in with mouse wheel
+MIN_SELECTION_SIZE_PX = 9  # minimum number of pixels (on display) for a 'valid' 
+# (non-zero) selection
+
 
 class QueryInfo(object):
     """
@@ -49,6 +50,7 @@ class QueryInfo(object):
         self.data = data
         self.layer = layer
         self.modifiers = modifiers
+
 
 class GeolinkInfo(object):
     """
@@ -65,8 +67,8 @@ class GeolinkInfo(object):
         """
         Return as json
         """
-        dict = {'easting' : self.easting, 'northing' : self.northing, 
-            'metresperwinpix' : self.metresperwinpix}
+        dict = {'easting': self.easting, 'northing': self.northing, 
+            'metresperwinpix': self.metresperwinpix}
         return json.dumps(dict)
 
     @staticmethod
@@ -79,6 +81,7 @@ class GeolinkInfo(object):
                 dict['metresperwinpix'])
         return obj
 
+
 class ActiveToolChangedInfo(object):
     """
     Container class for info pass in the activeToolChanged signal
@@ -86,6 +89,7 @@ class ActiveToolChangedInfo(object):
     def __init__(self, newTool, senderid):
         self.newTool = newTool
         self.senderid = senderid
+
 
 VIEWER_TOOL_NONE = 0
 VIEWER_TOOL_ZOOMIN = 1
@@ -95,6 +99,7 @@ VIEWER_TOOL_QUERY = 4
 VIEWER_TOOL_POLYGON = 5
 VIEWER_TOOL_POLYLINE = 6
 VIEWER_TOOL_VECTORQUERY = 7
+
 
 class ViewerWidget(QAbstractScrollArea):
     """
@@ -133,7 +138,7 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.layers = viewerlayers.LayerManager()
 
-        self.paintPoint = QPoint() # normally 0,0 unless we are panning
+        self.paintPoint = QPoint()  # normally 0,0 unless we are panning
 
         # when moving the scroll bars
         # events get fired that we wish to ignore
@@ -155,10 +160,10 @@ class ViewerWidget(QAbstractScrollArea):
         self.polygonCursor = None
         self.activeTool = VIEWER_TOOL_NONE
         self.panOrigin = None
-        self.toolPoints = None # for line and polygon tools - list of points
-        self.toolPointsFinished = True # True if we finished collecting
-                                # with line and poly tools
-        self.toolPen = QPen() # for drawing the toolPoints
+        self.toolPoints = None  # for line and polygon tools - list of points
+        self.toolPointsFinished = True  # True if we finished collecting
+        # with line and poly tools
+        self.toolPen = QPen()  # for drawing the toolPoints
         self.toolPen.setWidth(1)
         self.toolPen.setColor(Qt.yellow)
         self.toolPen.setDashPattern([5, 5, 5, 5])
@@ -234,7 +239,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.layerAdded.emit(self)
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, color=None, 
-                               resultSet=False, origSQL=None, quiet=False):
+            resultSet=False, origSQL=None, quiet=False):
         """
         Add the vector given by the ogrDataSource and its dependent 
         ogrLayer to the stack of images.
@@ -251,7 +256,7 @@ class ViewerWidget(QAbstractScrollArea):
         self.layerAdded.emit(self)
 
     def addVectorFeatureLayer(self, ogrDataSource, ogrLayer, ogrFeature, 
-                                    color=None, quiet=None):
+            color=None, quiet=None):
         """
         Just a single feature vector
         """
@@ -305,7 +310,7 @@ class ViewerWidget(QAbstractScrollArea):
 
     # query point functions
     def setQueryPoint(self, senderid, easting, northing, color, 
-                        size=None, cursor=None):
+            size=None, cursor=None):
         """
         Sets/Updates query point keyed on the id() of the sender
         """
@@ -508,7 +513,7 @@ class ViewerWidget(QAbstractScrollArea):
                                   "       +.+      "]))
             self.viewport().setCursor(self.polygonCursor)
             msg = ('Left click adds a point, middle to remove last,' +
-                        ' right click to end')
+                ' right click to end')
             self.showStatusMessage.emit(msg)
 
         elif tool == VIEWER_TOOL_NONE:
@@ -686,7 +691,7 @@ class ViewerWidget(QAbstractScrollArea):
         pos = event.pos()
 
         if (self.activeTool == VIEWER_TOOL_ZOOMIN or 
-                    self.activeTool == VIEWER_TOOL_ZOOMOUT):
+                self.activeTool == VIEWER_TOOL_ZOOMOUT):
             if self.rubberBand is None:
                 self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
             self.rubberBand.setGeometry(QRect(pos, QSize()))
@@ -736,7 +741,7 @@ class ViewerWidget(QAbstractScrollArea):
                 obj = PolygonToolInfo(self.toolPoints, layer, modifiers)
                 self.polygonCollected.emit(obj)
 
-                self.toolPointsFinished = True # done, but still display
+                self.toolPointsFinished = True  # done, but still display
 
             # redraw so paint() gets called
             self.viewport().update()
@@ -769,7 +774,7 @@ class ViewerWidget(QAbstractScrollArea):
                 obj = PolylineToolInfo(self.toolPoints, layer, modifiers)
                 self.polylineCollected.emit(obj)
 
-                self.toolPointsFinished = True # done, but still display
+                self.toolPointsFinished = True  # done, but still display
 
             # redraw so paint() gets called
             self.viewport().update()
@@ -809,9 +814,9 @@ class ViewerWidget(QAbstractScrollArea):
                         #  inside else: below that used ot hard-crash tuiview
                         
                         wldX, wldY = layer.coordmgr.display2world(
-                                            selection.left(), selection.top())
+                            selection.left(), selection.top())
                         layer.coordmgr.setZoomFactor(
-                                    layer.coordmgr.imgPixPerWinPix * fraction)
+                            layer.coordmgr.imgPixPerWinPix * fraction)
                         layer.coordmgr.setWorldCenter(wldX, wldY)
                         # not sure why we need this but get black strips 
                         # around otherwise
@@ -823,24 +828,23 @@ class ViewerWidget(QAbstractScrollArea):
                         dspBottom = selection.bottom()
                         dspRight = selection.right()
                         (rastLeft, rastTop) = layer.coordmgr.display2pixel(
-                                                            dspLeft, dspTop)
+                            dspLeft, dspTop)
                         (rastRight, rastBottom) = layer.coordmgr.display2pixel(
-                                                        dspRight, dspBottom)
-                        #print layer.coordmgr
+                            dspRight, dspBottom)
+                        # print layer.coordmgr
                         layer.coordmgr.setTopLeftPixel(rastLeft, rastTop)
                         layer.coordmgr.calcZoomFactor(rastRight, rastBottom)
                         # not sure why we need this but get black strips 
                         # around otherwise
                         layer.coordmgr.recalcBottomRight() 
-                        #print layer.coordmgr
-
+                        # print layer.coordmgr
 
                 elif self.activeTool == VIEWER_TOOL_ZOOMOUT:
                     # the smaller the area the larger the zoom
                     center = selection.center()
                     wldX, wldY = layer.coordmgr.display2world(center.x(), center.y())
                     layer.coordmgr.setZoomFactor(
-                                    layer.coordmgr.imgPixPerWinPix / fraction)
+                        layer.coordmgr.imgPixPerWinPix / fraction)
                     layer.coordmgr.setWorldCenter(wldX, wldY)
                     # not sure why we need this but get black strips 
                     # around otherwise
@@ -865,11 +869,11 @@ class ViewerWidget(QAbstractScrollArea):
                 dspYmove = -self.paintPoint.y()
                 (pixNewX, pixNewY) = layer.coordmgr.display2pixel(dspXmove, 
                                                                 dspYmove)
-                #print 'panning'
-                #print layer.coordmgr
+                # print 'panning'
+                # print layer.coordmgr
                 layer.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
                 layer.coordmgr.recalcBottomRight()
-                #print layer.coordmgr
+                # print layer.coordmgr
                 # reset
                 self.paintPoint.setX(0)
                 self.paintPoint.setY(0)
@@ -880,7 +884,6 @@ class ViewerWidget(QAbstractScrollArea):
                 self.updateScrollBars()
                 # geolink
                 self.emitGeolinkMoved()
-
 
     def mouseMoveEvent(self, event):
         """
@@ -908,8 +911,7 @@ class ViewerWidget(QAbstractScrollArea):
 
     # query point routines
     def newQueryPoint(self, easting=None, northing=None, 
-                                dspY=None, dspX=None, 
-                                column=None, row=None, modifiers=None):
+            dspY=None, dspX=None, column=None, row=None, modifiers=None):
         """
         This viewer has recorded a new query point. Or
         user has entered new coords in querywindow.
@@ -926,8 +928,8 @@ class ViewerWidget(QAbstractScrollArea):
             return
 
         if ((easting is None or northing is None) and 
-            (dspX is None or dspY is None) and
-            (column is None or row is None)):
+                (dspX is None or dspY is None) and
+                (column is None or row is None)):
             msg = ("must provide one of [easting,northing] or [dspX,dspY] " +
                    "or [column, row]")
             raise ValueError(msg)
@@ -961,7 +963,7 @@ class ViewerWidget(QAbstractScrollArea):
             return
 
         (easting, northing) = layer.coordmgr.display2world(dspX, dspY)
-        tolerance = layer.coordmgr.metersperpix * 3 # maybe should be a pref?
+        tolerance = layer.coordmgr.metersperpix * 3  # maybe should be a pref?
 
         # show hourglass while query running
         oldCursor = self.cursor()
@@ -999,7 +1001,7 @@ class ViewerWidget(QAbstractScrollArea):
                     data = numpy.array([data])
 
                 qi = QueryInfo(easting, northing, column, row, data, 
-                                        layer, modifiers)
+                    layer, modifiers)
                 # emit the signal - handled by the QueryDockWidget
                 self.locationSelected.emit(qi)
 
@@ -1047,7 +1049,7 @@ class ViewerWidget(QAbstractScrollArea):
         if layer is not None:
             easting, northing = layer.coordmgr.getWorldCenter()
             metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
-                                        layer.coordmgr.geotransform[1])
+                layer.coordmgr.geotransform[1])
             info = GeolinkInfo(id(self), easting, northing, metresperwinpix)
         return info
 

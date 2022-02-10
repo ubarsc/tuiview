@@ -20,9 +20,9 @@ Module that contains the VectorOpenDialog class
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
 from PyQt5.QtWidgets import QButtonGroup, QComboBox, QTextEdit, QPushButton
 from PyQt5.QtGui import QFontMetrics
-from PyQt5.QtCore import pyqtSignal
 
 NUM_SQL_ROWS = 4
+
 
 class VectorOpenDialog(QDialog):
     def __init__(self, parent, layerList):
@@ -30,12 +30,12 @@ class VectorOpenDialog(QDialog):
         self.setWindowTitle('Open Vector Layer')
         self.layerList = layerList
 
-        self.layerTypeButtonGroup = QButtonGroup() # enforces exclusivity
+        self.layerTypeButtonGroup = QButtonGroup()  # enforces exclusivity
         self.layerNameRadio = QRadioButton("Layer Name")
         self.layerSQLRadio = QRadioButton("SQL")
         self.layerTypeButtonGroup.addButton(self.layerNameRadio)
         self.layerTypeButtonGroup.addButton(self.layerSQLRadio)
-        self.layerNameRadio.setChecked(True) # the default
+        self.layerNameRadio.setChecked(True)  # the default
 
         self.mainLayout = QVBoxLayout()
 

@@ -28,6 +28,7 @@ from . import geolinkedviewers
 from . import viewerstretch
 from .viewerstrings import MESSAGE_TITLE
 
+
 def getCmdargs():
     """
     Get commandline arguments
@@ -56,25 +57,25 @@ def getCmdargs():
         help="Load stretch and lookup table from text file")
     p.add_argument('--stretchfromgdal', 
         help="Load stretch and lookup table from GDAL file" + 
-                            " that contains saved stretch and lookup table")
+        " that contains saved stretch and lookup table")
     p.add_argument('--noplugins', action="store_false", default=True, 
         dest='loadplugins', help="Don't load plugins")
     p.add_argument('--separate', action="store_true", default=False,
         help="load multiple files into separate windows")
     p.add_argument('--goto', help="Zoom to a location. Format is:"+
-                            " 'easting,northing,factor' where factor is meters"+
-                            " per window pixel.")
+        " 'easting,northing,factor' where factor is meters"+
+        " per window pixel.")
     p.add_argument('-v', '--vector', action='append', dest="vectors",
-                            help="overlay vector file on top of all rasters." +
-                            " Can be specified multiple times")
+        help="overlay vector file on top of all rasters." +
+        " Can be specified multiple times")
     p.add_argument('--vectorlayer', action='append', dest="vectorlayers",
-                            help="vector layer name(s) to use with --vector. " +
-                                "Can't be specified if --vectorsql is used. " +
-                                "Can be specified multiple times - once for each vector")
+        help="vector layer name(s) to use with --vector. " +
+            "Can't be specified if --vectorsql is used. " +
+            "Can be specified multiple times - once for each vector")
     p.add_argument('--vectorsql', action='append', dest="vectorsqls",
-                            help="vector SQL statement(s) to use with --vector. " +
-                                "Can't be specified if --vectorlayer is used. " +
-                                "Can be specified multiple times - once for each vector")
+        help="vector SQL statement(s) to use with --vector. " +
+            "Can't be specified if --vectorlayer is used. " +
+            "Can be specified multiple times - once for each vector")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
     p.add_argument('filenames', nargs='*')
@@ -132,7 +133,7 @@ def getCmdargs():
     if cmdargs.stretchfromtext is not None:
         try:
             cmdargs.stretch = viewerstretch.ViewerStretch.fromTextFileWithLUT(
-                                cmdargs.stretchfromtext)
+                cmdargs.stretchfromtext)
             cmdargs.modeSet = True
             cmdargs.stretchModeSet = True
             cmdargs.bandsSet = True
@@ -140,12 +141,13 @@ def getCmdargs():
             QMessageBox.critical(None, MESSAGE_TITLE, str(e))
     if cmdargs.stretchfromgdal is not None:
         cmdargs.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(
-                                cmdargs.stretchfromgdal)
+            cmdargs.stretchfromgdal)
         cmdargs.modeSet = True
         cmdargs.stretchModeSet = True
         cmdargs.bandsSet = True
 
     return cmdargs
+
 
 class ViewerApplication(QApplication):
     """
@@ -165,12 +167,12 @@ class ViewerApplication(QApplication):
         self.viewers = geolinkedviewers.GeolinkedViewers(loadplugins)
 
         stretch = None
-        if (cmdargs.modeSet and cmdargs.stretchModeSet 
-                    and cmdargs.bandsSet):
+        if (cmdargs.modeSet and cmdargs.stretchModeSet and
+                cmdargs.bandsSet):
             # use the stretch they have constructed
             stretch = cmdargs.stretch
-        elif (cmdargs.modeSet or cmdargs.stretchModeSet 
-                        or cmdargs.bandsSet):
+        elif (cmdargs.modeSet or cmdargs.stretchModeSet or
+                cmdargs.bandsSet):
             msg = ('Stretch incomplete. Must specify one of [-c|-g|-r] and' + 
                 ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
             raise SystemExit(msg)
@@ -179,13 +181,13 @@ class ViewerApplication(QApplication):
             msg = 'Specify only one of --vectorlayer and --vectorsql'
             raise SystemExit(msg)
             
-        if (cmdargs.vectors is not None and cmdargs.vectorlayers is not None 
-                and len(cmdargs.vectors) != len(cmdargs.vectorlayers)):
+        if (cmdargs.vectors is not None and cmdargs.vectorlayers is not None and
+                len(cmdargs.vectors) != len(cmdargs.vectorlayers)):
             msg = 'If specified, you must pass one --vectorlayer per --vector'
             raise SystemExit(msg)
 
-        if (cmdargs.vectors is not None and cmdargs.vectorsqls is not None 
-                and len(cmdargs.vectors) != len(cmdargs.vectorsqls)):
+        if (cmdargs.vectors is not None and cmdargs.vectorsqls is not None and
+                len(cmdargs.vectors) != len(cmdargs.vectorsqls)):
             msg = 'If specified, you must pass one --vectorsql per --vector'
             raise SystemExit(msg)
             
@@ -208,7 +210,7 @@ class ViewerApplication(QApplication):
                 # load into one viewer
                 viewer = None
                 for filename in archivereader.file_list_to_archive_strings(
-                                        cmdargs.filenames):
+                        cmdargs.filenames):
                     if viewer is None:
                         viewer = self.viewers.newViewer(filename, stretch)
                     else:
@@ -226,10 +228,10 @@ class ViewerApplication(QApplication):
 
         # open vectors in all viewer windows
         if cmdargs.vectors is not None:
-            layername = None # reset if cmdargs.vectorsqls/cmdargs.vectorlayer exists
+            layername = None  # reset if cmdargs.vectorsqls/cmdargs.vectorlayer exists
             # otherwise carries the first one selected through to all the viewers
-            sql = None # not used if cmdargs.vectorsqls/cmdargs.vectorlayer exists, otherwise 
-                        # carries first one through to all the viewers
+            sql = None  # not used if cmdargs.vectorsqls/cmdargs.vectorlayer exists, otherwise 
+            # carries first one through to all the viewers
             userCancel = False
             for viewer in self.viewers.viewers:
                 for idx, vector in enumerate(cmdargs.vectors):
@@ -273,6 +275,7 @@ class ViewerApplication(QApplication):
         Call.
         """
         self.pluginHandlers.append(handler)
+
 
 def run():
     """

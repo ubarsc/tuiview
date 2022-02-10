@@ -21,7 +21,7 @@ in the raster
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from __future__ import division
-import math
+
 
 class CoordManager(object):
     """
@@ -81,6 +81,7 @@ class CoordManager(object):
         extents = (left + diffX, top + diffY, right + diffX, bottom + diffY)
         self.setWorldExtent(extents)
 
+
 class VectorCoordManager(CoordManager):
     """
     Manages coords for a vector layer
@@ -108,7 +109,7 @@ class VectorCoordManager(CoordManager):
         if self.extent is not None:
             (left, top, right, bottom) = self.extent
             self.extent = (left, top, left + self.metersperpix * width, 
-                                top - self.metersperpix * height)
+                top - self.metersperpix * height)
 
     def getWorldExtent(self):
         "Get extent in world coords"
@@ -159,6 +160,7 @@ class VectorCoordManager(CoordManager):
     def recalcBottomRight(self):
         "I don't think we need to do anything here"
         pass
+
 
 class RasterCoordManager(CoordManager):
     """
@@ -317,7 +319,6 @@ class RasterCoordManager(CoordManager):
         y = (row - self.pixTop) / self.imgPixPerWinPix
         return (x, y)
 
-    
     def pixel2world(self, col, row):
         """
         Convert raster row/col to world coordinate system. Returns a
@@ -384,6 +385,6 @@ class RasterCoordManager(CoordManager):
         4 element tuple.
         """
         (left, top) = self.pixel2world(0, 0)
-        (right, bottom) = self.pixel2world(self.datasetSizeX-1, 
-                                self.datasetSizeY-1)
+        (right, bottom) = self.pixel2world(self.datasetSizeX - 1, 
+            self.datasetSizeY - 1)
         return (left, top, right, bottom)

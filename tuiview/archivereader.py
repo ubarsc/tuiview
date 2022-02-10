@@ -28,6 +28,7 @@ import zipfile
 
 ALLOWED_FILE_EXTENSIONS = ('.bil', '.bsq', '.bin', '.env', '.dem', '.tif', '.asc', '.img')
 
+
 def file_list_to_archive_strings(filenames):
     """
     Modifies any archive filenames in the list to allow them to be opened using a GDAL virtual filesystem.
@@ -41,7 +42,7 @@ def file_list_to_archive_strings(filenames):
     output_filename_list = []
 
     for filename in filenames:
-        if filename.endswith('.gz') and filename.find(".tar.gz") == -1: # can process gz files but opening tar files in python (tarfile) takes ages
+        if filename.endswith('.gz') and filename.find(".tar.gz") == -1:  # can process gz files but opening tar files in python (tarfile) takes ages
             output_filename_list.append(gz_to_file(filename))
         elif filename.endswith('.zip'):
             output_filename_list.extend(zip_to_file(filename))
@@ -49,6 +50,7 @@ def file_list_to_archive_strings(filenames):
             output_filename_list.append(filename)
 
     return output_filename_list
+
 
 def gz_to_file(filepath):
     """
@@ -61,6 +63,7 @@ def gz_to_file(filepath):
     :rtype: str
     """
     return "/vsigzip/" + filepath
+
 
 def zip_to_file(filepath):
     """

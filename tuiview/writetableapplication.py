@@ -32,6 +32,7 @@ from osgeo import gdal
 from tuiview.viewerLUT import ViewerLUT
 from tuiview.viewerRAT import ViewerRAT
 
+
 def getCmdargs():
     """
     Get commandline arguments
@@ -51,7 +52,7 @@ def getCmdargs():
     writeArgs = [cmdargs.source, cmdargs.name, cmdargs.dest]
     writeValid = [x is not None for x in writeArgs]
     if (cmdargs.printct is None and cmdargs.remove is None and
-		any(writeValid) and not all(writeValid)):
+            any(writeValid) and not all(writeValid)):
         msg = "Must specify all of --source, --name and --dest for writing"
         raise SystemExit(msg)
 
@@ -68,10 +69,11 @@ def getCmdargs():
         raise SystemExit(msg)
 
     if not cmdargs.printct and not any(writeValid):
-            p.print_help()
-            sys.exit(0)
+        p.print_help()
+        sys.exit(0)
 
     return cmdargs
+
 
 def printTables(fname):
     """
@@ -94,6 +96,7 @@ def printTables(fname):
             print("%s\t%s" % (name, size))
 
     del ds
+
 
 def addTable(source, name, dest):
     """
@@ -125,13 +128,14 @@ def addTable(source, name, dest):
     tables = ViewerLUT.readSurrogateColorTables(destds)
 
     # what to do if already exists? Dunno.
-    tables[name] = lut[:-2] # strip off the nodata and background
+    tables[name] = lut[:-2]  # strip off the nodata and background
 
     # write out
     ViewerLUT.writeSurrogateColorTables(destds, tables)
 
     del sourceds
     del destds
+
 
 def removeTable(fname, tablename):
 
@@ -153,6 +157,7 @@ def removeTable(fname, tablename):
     ViewerLUT.writeSurrogateColorTables(destds, tables)
 
     del destds
+
 
 def run():
     """

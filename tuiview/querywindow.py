@@ -23,7 +23,7 @@ from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
-from PyQt5.QtWidgets import QLabel, QToolBar, QAction, QMessageBox, QHeaderView
+from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
 from PyQt5.QtCore import QModelIndex, QItemSelectionModel
@@ -32,7 +32,7 @@ import numpy
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 from .viewerstretch import VIEWER_MODE_COLORTABLE
 from .viewerwidget import VIEWER_TOOL_POLYGON, VIEWER_TOOL_QUERY
-from .viewerwidget import  VIEWER_TOOL_POLYLINE
+from .viewerwidget import VIEWER_TOOL_POLYLINE
 from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
 from .viewerstrings import MESSAGE_TITLE
@@ -47,6 +47,7 @@ RAT_CACHE_CHUNKSIZE = 1000
 
 # Qt seems to have issues with tables bigger than this
 MAX_ROW_COUNT = 100000000
+
 
 def safeCreateColor(r, g, b, a=255):
     """
@@ -74,6 +75,7 @@ def safeCreateColor(r, g, b, a=255):
         a = 255
 
     return QColor(r, g, b, a)
+
 
 class ThematicTableModel(QAbstractTableModel):
     """
@@ -141,7 +143,7 @@ class ThematicTableModel(QAbstractTableModel):
             if self.attributes.hasColorTable:
                 if role == Qt.DisplayRole and section == 0:
                     return "Color"
-                section -= 1 # for below, to ignore the color col
+                section -= 1  # for below, to ignore the color col
 
             if role == Qt.DisplayRole:
                 name = self.saneColNames[section]
@@ -230,8 +232,8 @@ class ThematicTableModel(QAbstractTableModel):
             column = index.column()
             if self.attributes.hasColorTable:
                 if column == 0:
-                    return None # no text
-                column -= 1 # for below to ignore the color col
+                    return None  # no text
+                column -= 1  # for below to ignore the color col
 
             name = self.attributes.getColumnNames()[column]
             # scroll to row
@@ -253,6 +255,7 @@ class ThematicTableModel(QAbstractTableModel):
 
         else:
             return None
+
 
 class ContinuousTableModel(QAbstractTableModel):
     """
@@ -331,7 +334,7 @@ class ContinuousTableModel(QAbstractTableModel):
             # icon column
             band = row + 1
             if (self.stretch.mode == VIEWER_MODE_RGB and 
-                            band in self.stretch.bands):
+                    band in self.stretch.bands):
                 if band == self.stretch.bands[0]:
                     return self.redPixmap
                 elif band == self.stretch.bands[1]:
@@ -340,8 +343,8 @@ class ContinuousTableModel(QAbstractTableModel):
                     return self.bluePixmap
                 else:
                     return None
-            elif (self.stretch.mode == VIEWER_MODE_GREYSCALE 
-                    and band == self.stretch.bands[0]):
+            elif (self.stretch.mode == VIEWER_MODE_GREYSCALE and
+                    band == self.stretch.bands[0]):
                 return self.greyPixmap
 
             else:
@@ -352,12 +355,13 @@ class ContinuousTableModel(QAbstractTableModel):
             return self.bandNames[row]
 
         elif (column == 2 and role == Qt.DisplayRole and 
-                            self.banddata is not None):
+                self.banddata is not None):
             # band values column
             return "%s" % self.banddata[row]
 
         else:
             return None
+
 
 class ThematicSelectionModel(QItemSelectionModel):
     """
@@ -397,7 +401,7 @@ class ThematicSelectionModel(QItemSelectionModel):
         # toggle all the indexes
         for idx in unique_rows:
             self.parent.selectionArray[idx] = (
-                    not self.parent.selectionArray[idx])
+                not self.parent.selectionArray[idx])
 
         self.parent.updateToolTip()
 
@@ -408,6 +412,7 @@ class ThematicSelectionModel(QItemSelectionModel):
         # update the view
         self.parent.tableModel.doUpdate(True)
         # note: the behaviour still not right....
+
 
 class ThematicItemDelegate(QStyledItemDelegate):
     """
@@ -420,17 +425,19 @@ class ThematicItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         "Paint method - paint as selected if needed"
-        if (self.parent.selectionArray is not None 
-                and self.parent.selectionArray[index.row()]):
+        if (self.parent.selectionArray is not None and
+                self.parent.selectionArray[index.row()]):
             option.state |= QStyle.State_Selected
         # shouldn't have to un-select as nothing should be selected
         # according to the model
         QStyledItemDelegate.paint(self, painter, option, index)
 
+
 MOVE_LEFT = 0
 MOVE_RIGHT = 1
 MOVE_LEFTMOST = 2
 MOVE_RIGHTMOST = 3
+
 
 class ThematicHorizontalHeader(QHeaderView):
     """
@@ -473,9 +480,9 @@ class ThematicHorizontalHeader(QHeaderView):
         
         self.setKeyboardEditAction = QAction(self)
         self.setKeyboardEditAction.setText(
-                                    "Set column to receive &keyboard edits")
+            "Set column to receive &keyboard edits")
         self.setKeyboardEditAction.setStatusTip(
-                                        "Set column to receive keyboard edits")
+            "Set column to receive keyboard edits")
         self.setKeyboardEditAction.setCheckable(True)
         
         # don't connect signal - will grab directly below so we can pass
@@ -486,8 +493,8 @@ class ThematicHorizontalHeader(QHeaderView):
         self.popup.addAction(self.moveRightAction)
         self.popup.addAction(self.moveLeftMostAction)
         self.popup.addAction(self.moveRightMostAction)
-        self.popup.addAction(self.setDPAction) # enabled when float col
-        self.popup.addAction(self.setLookupAction) # enabled when int or float col
+        self.popup.addAction(self.setDPAction)  # enabled when float col
+        self.popup.addAction(self.setLookupAction)  # enabled when int or float col
         self.popup.addAction(self.setKeyboardEditAction)
 
         self.setColorAction = QAction(self)
@@ -507,7 +514,7 @@ class ThematicHorizontalHeader(QHeaderView):
     def contextMenuEvent(self, event):
         "Respond to context menu event"
         if self.thematic:
-            from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
+            from osgeo.gdal import GFT_Real, GFT_String
             col = self.logicalIndexAt(event.pos())
             attributes = self.parent.lastLayer.attributes
 
@@ -518,7 +525,7 @@ class ThematicHorizontalHeader(QHeaderView):
                     if action is self.setColorAction:
                         self.parent.editColor()
                     return
-                col -= 1 # to ignore color col for below
+                col -= 1  # to ignore color col for below
 
             # work out whether this is float column
             colName = attributes.getColumnNames()[col]
@@ -546,6 +553,7 @@ class ThematicHorizontalHeader(QHeaderView):
                 self.parent.setColumnAsLookup(colName)
             elif action is self.setKeyboardEditAction:
                 self.parent.setColumnKeyboardEdit(colName)
+
 
 class QueryTableView(QTableView):
     """
@@ -582,7 +590,7 @@ class QueryDockWidget(QDockWidget):
         self.cursorColor = QUERYWIDGET_DEFAULT_CURSORCOLOR
         self.cursorSize = QUERYWIDGET_DEFAULT_CURSORSIZE
         self.highlightColor = QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR
-        self.displayPixelCoords = False # display pixel or map coordinates.
+        self.displayPixelCoords = False  # display pixel or map coordinates.
 
         # connect to the collected polygon signal - only respond when
         # self.geogSelectAction.isChecked() so don't interfere with
@@ -706,7 +714,7 @@ class QueryDockWidget(QDockWidget):
         layer = viewwidget.layers.getTopRasterLayer()
         if layer is not None:
             if (len(layer.stretch.bands) == 1 and 
-                        layer.attributes.hasAttributes()):
+                    layer.attributes.hasAttributes()):
                 self.setupTableThematic(None, layer)
             else:
                 self.setupTableContinuous(None, layer)
@@ -782,14 +790,14 @@ class QueryDockWidget(QDockWidget):
         self.highlightAction.setShortcut("CTRL+H")
 
         self.highlightColorAction = QAction(self, 
-                        triggered=self.changeHighlightColor)
+            triggered=self.changeHighlightColor)
         self.highlightColorAction.setText("Ch&ange Highlight Color")
         self.highlightColorAction.setStatusTip("Change Highlight Color")
         icon = self.getColorIcon(self.highlightColor)
         self.highlightColorAction.setIcon(icon)
 
         self.removeSelectionAction = QAction(self, 
-                        triggered=self.removeSelection)
+            triggered=self.removeSelection)
         self.removeSelectionAction.setText("&Remove Current Selection")
         self.removeSelectionAction.setStatusTip("Remove Current Selection")
         icon = QIcon(":/viewer/images/removeselection.png")
@@ -810,7 +818,7 @@ class QueryDockWidget(QDockWidget):
         self.unlockDatasetAction = QAction(self, toggled=self.unlockDataset)
         self.unlockDatasetAction.setText("Toggle &updates to dataset")
         self.unlockDatasetAction.setStatusTip(
-                        "Toggle whether updates are allowed to dataset")
+            "Toggle whether updates are allowed to dataset")
         icon = QIcon(":/viewer/images/lock.png")
         self.unlockDatasetAction.setIcon(icon)
         self.unlockDatasetAction.setCheckable(True)
@@ -823,14 +831,14 @@ class QueryDockWidget(QDockWidget):
         self.saveColOrderAction = QAction(self, triggered=self.saveColOrder)
         self.saveColOrderAction.setText("Sa&ve Column Order")
         self.saveColOrderAction.setStatusTip("Save Column Order to file")
-        icon =  QIcon(":/viewer/images/savecolumnorder.png")
+        icon = QIcon(":/viewer/images/savecolumnorder.png")
         self.saveColOrderAction.setIcon(icon)
 
         self.geogSelectAction = QAction(self, toggled=self.geogSelect)
         self.geogSelectAction.setText(
-                            "&Geographic Selection by Polygon (ALT+G)")
+            "&Geographic Selection by Polygon (ALT+G)")
         self.geogSelectAction.setStatusTip(
-                                    "Select rows by geographic selection")
+            "Select rows by geographic selection")
         icon = QIcon(":/viewer/images/geographicselect.png")
         self.geogSelectAction.setIcon(icon)
         self.geogSelectAction.setCheckable(True)
@@ -840,9 +848,9 @@ class QueryDockWidget(QDockWidget):
         self.geogSelectLineAction = QAction(self, 
                     toggled=self.geogLineSelect)
         self.geogSelectLineAction.setText(
-                                    "Geographic Selection by &Line (ALT+L)")
+            "Geographic Selection by &Line (ALT+L)")
         self.geogSelectLineAction.setStatusTip(
-                            "Select rows by geographic selection with Line")
+            "Select rows by geographic selection with Line")
         icon = QIcon(":/viewer/images/geographiclineselect.png")
         self.geogSelectLineAction.setIcon(icon)
         self.geogSelectLineAction.setCheckable(True)
@@ -851,9 +859,9 @@ class QueryDockWidget(QDockWidget):
 
         self.geogSelectPointAction = QAction(self, toggled=self.geogPointSelect)
         self.geogSelectPointAction.setText(
-                                    "Geographic Selection by &Point (ALT+P)")
+            "Geographic Selection by &Point (ALT+P)")
         self.geogSelectPointAction.setStatusTip(
-                            "Select rows by geographic selection with Point")
+            "Select rows by geographic selection with Point")
         icon = QIcon(":/viewer/images/geographicpointselect.png")
         self.geogSelectPointAction.setIcon(icon)
         self.geogSelectPointAction.setCheckable(True)
@@ -869,7 +877,7 @@ class QueryDockWidget(QDockWidget):
         self.toggleCoordsAction = QAction(self, toggled=self.toggleCoordsSelect)
         self.toggleCoordsAction.setText("Switch between map and pi&xel coordinates")
         self.toggleCoordsAction.setStatusTip(
-                "Switch display between map and pixel coordinates")
+            "Switch display between map and pixel coordinates")
         icon = QIcon(":/viewer/images/toggle.png")
         self.toggleCoordsAction.setIcon(icon)
         self.toggleCoordsAction.setCheckable(True)
@@ -897,7 +905,6 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.labelAction)
         self.toolBar.addAction(self.savePlotAction)
         self.toolBar.addAction(self.plotScalingAction)
-
 
     def changeCursorColor(self):
         """
@@ -1074,7 +1081,7 @@ Use the special columns:
             self.lastLayer.changeUpdateAccess(state)
             self.tableModel.doUpdate(True)
             self.setUIUpdateState(state)
-        except IOError as e:
+        except IOError:
             msg = """TuiView was unable to re-open the dataset
 The file no longer exists or is inaccessible.
 The application will now exit."""
@@ -1102,7 +1109,7 @@ The application will now exit."""
     def scrollToFirstSelected(self):
         "scroll to the first selected row"
         # find the first selected index and scroll to it
-        selectedIdx = self.selectionArray.nonzero()[0] # first axis
+        selectedIdx = self.selectionArray.nonzero()[0]  # first axis
         if selectedIdx.size != 0:
             # scroll to the new index - remembering the existing horizontal 
             # scroll value
@@ -1183,11 +1190,6 @@ The application will now exit."""
         """
         User has requested to edit a column
         """
-        # create an undo opject which is a copy
-        # of that column before any editing
-        attributes = self.lastLayer.attributes
-        colName = attributes.getColumnNames()[col]
-
         dlg = UserExpressionDialog(self, col=col)
         hint = """Hint: Enter an expression using column names 
 (ie 'col_a * 2.1'). Or a scalar (ie '3').
@@ -1216,7 +1218,7 @@ Use the special columns:
             return
 
         # get the colour of the first selected one
-        selectedIdx = self.selectionArray.nonzero()[0][0] # first axis first elem
+        selectedIdx = self.selectionArray.nonzero()[0][0]  # first axis first elem
         attributes = self.lastLayer.attributes
 
         # instantiate our own cache since the first selected might not
@@ -1230,7 +1232,7 @@ Use the special columns:
         redVal = cache.getValueFromCol(redname, selectedIdx)
 
         greenname = names[attributes.greenColumnIdx]
-        greenVal  = cache.getValueFromCol(greenname, selectedIdx)
+        greenVal = cache.getValueFromCol(greenname, selectedIdx)
 
         bluename = names[attributes.blueColumnIdx]
         blueVal = cache.getValueFromCol(bluename, selectedIdx)
@@ -1270,7 +1272,6 @@ Use the special columns:
             # causes lut to be updated
             self.viewwidget.setNewStretch(stretch, self.lastLayer)
 
-
     def newEditUserExpression(self, expression, col):
         """
         Called in reponse to signal from UserExpressionDialog
@@ -1285,7 +1286,7 @@ Use the special columns:
             attributes = self.lastLayer.attributes
             queryRow = self.tableModel.highlightRow
             colname = attributes.getColumnNames()[col]
-            result = attributes.evaluateUserEditExpression(colname, 
+            attributes.evaluateUserEditExpression(colname, 
                     str(expression), self.selectionArray, queryRow)
 
             # so we repaint and new values get shown
@@ -1316,7 +1317,6 @@ Use the special columns:
         columnNames = attributes.getColumnNames()
         # remove the one we are interested in 
         colName = columnNames.pop(col)
-        oldcol = col
 
         if code == MOVE_LEFT and col > 0:
             col -= 1
@@ -1342,9 +1342,9 @@ Use the special columns:
         from PyQt5.QtWidgets import QInputDialog
         attributes = self.lastLayer.attributes
         currFormat = attributes.getFormat(colName)
-        currDP = int(currFormat[2:-1]) # dodgy but should be ok
+        currDP = int(currFormat[2:-1])  # dodgy but should be ok
         (newDP, ok) = QInputDialog.getInt(self, MESSAGE_TITLE,
-                    "Number of Decimal Places", currDP, 0, 100)
+            "Number of Decimal Places", currDP, 0, 100)
         if ok:
             newFormat = "%%.%df" % newDP
             attributes.setFormat(colName, newFormat)
@@ -1521,7 +1521,6 @@ Use the special columns:
         # so keyboard entry etc works
         self.activateWindow()
 
-    
     def toggleCoordsSelect(self, checked):
         """
         toggle the displayPixelCoords flag.
@@ -1622,9 +1621,9 @@ Use the special columns:
                     layer.stretch, self)
         self.tableView.setModel(self.tableModel)
 
-        self.selectionArray = None # no selections
+        self.selectionArray = None  # no selections
 
-        self.tableView.setToolTip("") # disable toolip
+        self.tableView.setToolTip("")  # disable toolip
 
     def setupTableThematic(self, data, layer):
         """
@@ -1650,7 +1649,7 @@ Use the special columns:
             if (layer.attributes.getNumRows() > MAX_ROW_COUNT and 
                     os.getenv('TUIVIEW_DISABLE_ROW_WARNING', default='0') != '1'):
                 msg = ('The Attribute Table is larger than {} rows. ' +
-                        'It will be truncated.').format(MAX_ROW_COUNT)
+                    'It will be truncated.').format(MAX_ROW_COUNT)
                 QMessageBox.information(self, MESSAGE_TITLE, msg)
 
             self.tableModel = ThematicTableModel(layer.attributes, self)
@@ -1663,9 +1662,9 @@ Use the special columns:
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
-                                    numpy.bool)
+                numpy.bool)
             self.lastSelectionArray = None
-            self.selectionArray.fill(False) # none selected by default
+            self.selectionArray.fill(False)  # none selected by default
 
         # set the highlight row if there is data
         if data is not None:
@@ -1685,7 +1684,6 @@ Use the special columns:
         # so the items get redrawn and old highlight areas get removed
         self.tableModel.doUpdate(True)
         
-
     def locationSelected(self, qi):
         """
         The ViewerWidget has told us it has a new coordinate from
@@ -1758,13 +1756,13 @@ Use the special columns:
 
         if qi.layer.wavelengths is None:
             # no wavelengths stored with data - just use band number
-            xdata = numpy.arange(1, nbands+1, 1)
+            xdata = numpy.arange(1, nbands + 1, 1)
         else:
             xdata = numpy.array(qi.layer.wavelengths)
 
         curve = plotwidget.PlotCurve(xdata, qi.data, pen)
         self.plotWidget.addCurve(curve)
-        self.plotWidget.setXRange(xmin=xdata[0]) # just plot the range of the data
+        self.plotWidget.setXRange(xmin=xdata[0])  # just plot the range of the data
 
         # Calculate the interval for x-axis labels and plot labels
         # so that if there are more than 10 bands not all are labeled.

@@ -21,11 +21,12 @@ Contains the GeolinkedViewers class.
 
 import math
 import json
-from PyQt5.QtCore import QObject, QTimer, Qt, QEventLoop, QRect, pyqtSignal
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtCore import QObject, QTimer, Qt, QEventLoop, pyqtSignal
+from PyQt5.QtWidgets import QApplication
 
 from . import viewerwindow
 from . import pluginmanager
+
 
 class GeolinkedViewers(QObject):
     """
@@ -48,7 +49,7 @@ class GeolinkedViewers(QObject):
             self.pluginmanager.loadPlugins()
             # do the init action
             self.pluginmanager.callAction(pluginmanager.PLUGIN_ACTION_INIT, 
-                                            self)
+                self)
         else:
             self.pluginmanager = None
 
@@ -58,7 +59,7 @@ class GeolinkedViewers(QObject):
         # number of sub windows. 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.cleanUp)
-        self.timer.start(10000) # 10 secs
+        self.timer.start(10000)  # 10 secs
 
     @staticmethod
     def getViewerList():
@@ -67,8 +68,8 @@ class GeolinkedViewers(QObject):
         """
         viewers = []
         for viewer in QApplication.topLevelWidgets():
-            if (isinstance(viewer, viewerwindow.ViewerWindow) 
-                    and viewer.isVisible()):
+            if (isinstance(viewer, viewerwindow.ViewerWindow) and
+                    viewer.isVisible()):
                 viewers.append(viewer)
         return viewers
 
@@ -80,7 +81,7 @@ class GeolinkedViewers(QObject):
         # (they must have been closed)
         # they should now be cleaned up by Python and memory released
         self.viewers = [viewer for viewer in self.viewers 
-                                if viewer in activeviewers]
+            if viewer in activeviewers]
 
     def closeAll(self):
         """
@@ -99,13 +100,13 @@ class GeolinkedViewers(QObject):
             viewer.viewwidget.setActiveTool(tool, senderid)
 
     def setQueryPointAll(self, senderid, easting, northing, color, 
-                                    size=None, cursor=None):
+            size=None, cursor=None):
         """
         Calls setQueryPoint on all the widgets
         """
         for viewer in self.viewers:
             viewer.viewwidget.setQueryPoint(senderid, easting, northing, color,
-                                                    size, cursor)
+                size, cursor)
 
     def removeQueryPointAll(self, senderid):
         """
@@ -321,8 +322,8 @@ class GeolinkedViewers(QObject):
                 geolinkStr = info.toString()
                 break
         
-        s = json.dumps({'name':'tuiview', 'nviewers':len(viewers), 
-                        'geolink':geolinkStr}) + '\n'
+        s = json.dumps({'name': 'tuiview', 'nviewers': len(viewers), 
+                        'geolink': geolinkStr}) + '\n'
         fileobj.write(s)
         for viewer in viewers:
             pos = viewer.pos()
@@ -334,8 +335,8 @@ class GeolinkedViewers(QObject):
                         not isinstance(layer, ViewerFeatureVectorLayer)):
                     nlayers += 1
 
-            viewerDict = {'nlayers':nlayers, 'x':pos.x(), 'y':pos.y(), 
-                    'width':viewer.width(), 'height':viewer.height()}
+            viewerDict = {'nlayers': nlayers, 'x': pos.x(), 'y': pos.y(), 
+                'width': viewer.width(), 'height': viewer.height()}
             s = json.dumps(viewerDict) + '\n'
             fileobj.write(s)
 

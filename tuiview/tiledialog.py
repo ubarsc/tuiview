@@ -21,7 +21,7 @@ Contains the TileDialog class
 
 from PyQt5.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QPushButton
 from PyQt5.QtWidgets import QSpinBox
-from PyQt5.QtCore import pyqtSignal
+
 
 class TileDialog(QDialog):
     """

@@ -17,41 +17,55 @@ Exception classes for use in Viewer
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+
 class ViewerException(Exception):
     "Base class for all Viewer exceptions"
+
 
 class InvalidDataset(ViewerException):
     "Dataset was invalid for some reason"
 
+
 class ProjectionMismatch(ViewerException):
     "Projection for the dataset does not match that of the current viewer"
+
 
 class InvalidParameters(ViewerException):
     "Invalid parameters passed to function"
 
+
 class InvalidColorTable(ViewerException):
     "A color table was requested but does not exist"
+
 
 class InvalidStretch(ViewerException):
     "The requested stretch is invalid"
 
+
 class StatisticsError(ViewerException):
     "Unable to retrieve statistics"
+
 
 class TypeConversionError(ViewerException):
     "Problem with the type of the dataset"
 
+
 class AttributeTableTypeError(ViewerException):
     "Problem with the type of attribute"
+
 
 class UserExpressionError(ViewerException):
     "A problem was encountered in user supplies code"
 
+
 class UserExpressionSyntaxError(UserExpressionError):
     "Syntax error in user supplied code"
 
+
 class UserExpressionTypeError(UserExpressionError):
     "The result of user supplied code was the wrong type"
+
     
 class ColorRampException(ViewerException):
     "The customised colour ramps file is not valid"

@@ -26,6 +26,7 @@ from PyQt5.QtCore import QAbstractListModel, Qt, pyqtSignal
 from . import viewerlayers
 from .viewerstrings import MESSAGE_TITLE
 
+
 class LayerItemModel(QAbstractListModel):
     """
     This class provides the data to the list view by 
@@ -100,6 +101,7 @@ class LayerItemModel(QAbstractListModel):
 
             return True
         return False
+
 
 class LayerListView(QListView):
     """
@@ -295,7 +297,7 @@ class LayerListView(QListView):
                             QColorDialog.ShowAlphaChannel)
             if newCol.isValid():
                 rgba = (newCol.red(), newCol.green(), newCol.blue(), 
-                                                        newCol.alpha())
+                    newCol.alpha())
                 layer.updateColor(rgba)
                 model.viewwidget.viewport().update()
                 
@@ -382,6 +384,7 @@ class LayerListView(QListView):
             dlg = propertieswindow.PropertiesWindow(self, info)
             dlg.setWindowTitle(layer.title)
             dlg.show()
+
 
 class LayerWindow(QDockWidget):
     """

@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSignal
 
+
 class VectorQueryDockWidget(QDockWidget):
     """
     Dockable window that is a combined profile and ruler

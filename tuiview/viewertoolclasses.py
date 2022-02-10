@@ -26,6 +26,7 @@ from osgeo import ogr
 
 from .viewerLUT import MASK_IMAGE_VALUE
 
+
 class ToolInfo(QPolygon):
     """
     Class derived from QPolygon that contains the poly
@@ -33,8 +34,8 @@ class ToolInfo(QPolygon):
     """
     def __init__(self, pointList, layer, modifiers):
         QPolygon.__init__(self, pointList)
-        self.layer = layer # topmost raster
-        self.modifiers = modifiers # input modifiers
+        self.layer = layer  # topmost raster
+        self.modifiers = modifiers  # input modifiers
 
     def getInputModifiers(self):
         return self.modifiers
@@ -54,7 +55,7 @@ class ToolInfo(QPolygon):
         """
         Return a ogr.Geometry instance. Derived classes to implement
         """
-        raise NotImplemetedError()
+        raise NotImplementedError()
 
     def getDisplayData(self):
         """
@@ -70,6 +71,7 @@ class ToolInfo(QPolygon):
         """
         mask = self.layer.image.viewermask
         return mask == MASK_IMAGE_VALUE
+
 
 class PolygonToolInfo(ToolInfo):
     """
@@ -219,6 +221,7 @@ class PolylineToolInfo(ToolInfo):
             geom.AddPoint(wldx, wldy)
         return geom
 
+
 # the following stolen from 
 # http://code.activestate.com/recipes/578112-bresenhams-line-algorithm-in-n-dimensions/
 def _bresenhamline_nslope(slope):
@@ -243,6 +246,7 @@ def _bresenhamline_nslope(slope):
     normalizedslope = numpy.array(slope, dtype=numpy.double) / scale
     normalizedslope[zeroslope] = numpy.zeros(slope[0].shape)
     return normalizedslope
+
 
 def _bresenhamlines(start, end, max_iter):
     """
@@ -284,6 +288,7 @@ def _bresenhamlines(start, end, max_iter):
 
     # Approximate to nearest int
     return numpy.array(numpy.rint(bline), dtype=start.dtype)
+
 
 def bresenhamline(start, end, max_iter=5):
     """

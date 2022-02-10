@@ -33,9 +33,9 @@ from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
 
 # different resource file needed on Python3
 if sys.version_info[0] == 3:
-    from . import viewerresources3
+    from . import viewerresources3  # noqa
 else:
-    from . import viewerresources2
+    from . import viewerresources2  # noqa
 from . import archivereader
 from . import viewerwidget
 from . import viewererrors
@@ -43,7 +43,7 @@ from . import querywindow
 from .viewerstrings import MESSAGE_TITLE
 
 # set to True to see traceback when file open fails
-SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK','0') == '1')
+SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK', '0') == '1')
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -58,10 +58,11 @@ DEFAULT_DRIVER = os.getenv('TUIVIEW_DFLT_DRIVER')
 GDAL_FILTERS = None
 
 # Set up a dictionary of filters not in GDAL (ENVI files with various extensions)
-NON_GDAL_FILTERS = {'BIL' : 'ENVI BIL (*.bil)',
-                    'BSQ' : 'ENVI BSQ (*.bsq)',
-                    'DEM' : 'ENVI DEM (*.dem)',
-                    'RAW' : 'ENVI RAW (*.raw)'}
+NON_GDAL_FILTERS = {'BIL': 'ENVI BIL (*.bil)',
+                    'BSQ': 'ENVI BSQ (*.bsq)',
+                    'DEM': 'ENVI DEM (*.dem)',
+                    'RAW': 'ENVI RAW (*.raw)'}
+
 
 def createFilter(driver):
     """
@@ -83,6 +84,7 @@ def createFilter(driver):
         qfilter = drivermeta[DMD_EXTENSION]
     return "%s (*.%s)" % (name, qfilter)
 
+
 def populateFilters(defaultDriver=DEFAULT_DRIVER):
     """
     Create a list of file filters for QFileDialog for
@@ -96,7 +98,7 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
         GDAL_FILTERS = []
 
         # if we have a default driver do it first
-        if not defaultDriver is None:
+        if defaultDriver is not None:
             driver = gdal.GetDriverByName(defaultDriver)
             if driver is not None:
                 qfilter = createFilter(driver)
@@ -124,7 +126,8 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
         # Now add non-GDAL filters
         for qfilter in NON_GDAL_FILTERS.values():
             GDAL_FILTERS.append(qfilter)
-            
+
+
 class WildcardFileDialog(QFileDialog):
     """
     Our version of the Qt Filedialog thathas an "Expand Wildcards" button.
@@ -172,6 +175,7 @@ class WildcardFileDialog(QFileDialog):
         # from a keyboard shortcut so set the 
         if self.fnameTextWidget is not None:
             self.fnameTextWidget.setText(' '.join(expandedList))
+
 
 class ViewerWindow(QMainWindow):
     """
@@ -263,7 +267,7 @@ class ViewerWindow(QMainWindow):
         called in response to the topLayerChanged(PyQt_PyObject) signal
         from the layers to say the top displayed layer has changed
         """
-        if not layer is None:
+        if layer is not None:
             # just display the layer title
             self.setWindowTitle(layer.title)
         else:
@@ -379,7 +383,7 @@ class ViewerWindow(QMainWindow):
         self.addVectorDBAct = QAction(self, triggered=self.addVectorDB)
         self.addVectorDBAct.setText("Add Vector Data&base")
         self.addVectorDBAct.setStatusTip(
-                                "Open a layer from an OGR supported database")
+            "Open a layer from an OGR supported database")
         self.addVectorDBAct.setIcon(QIcon(":/viewer/images/addvector.png"))
         self.addVectorDBAct.setIconVisibleInMenu(True)
 
@@ -417,7 +421,7 @@ class ViewerWindow(QMainWindow):
         self.stretchAct.setText("S&tretch")
         self.stretchAct.setStatusTip("Edit current stretch")
         self.stretchAct.setShortcut("CTRL+T")
-        self.stretchAct.setEnabled(False) # until a file is opened
+        self.stretchAct.setEnabled(False)  # until a file is opened
 
         self.panAct = QAction(self, toggled=self.pan)
         self.panAct.setText("&Pan")
@@ -465,7 +469,7 @@ class ViewerWindow(QMainWindow):
         self.followExtentAct.setStatusTip("Follow geolinked extent")
         self.followExtentAct.setShortcut("CTRL+E")
         self.followExtentAct.setCheckable(True)
-        self.followExtentAct.setChecked(True) # by default to match viewerwidget
+        self.followExtentAct.setChecked(True)  # by default to match viewerwidget
         self.followExtentAct.setIcon(QIcon(":/viewer/images/followextents.png"))
         self.followExtentAct.setIconVisibleInMenu(True)
 
@@ -560,36 +564,35 @@ class ViewerWindow(QMainWindow):
         self.timeseriesForwardAct.setShortcut(".")
         self.timeseriesForwardAct.setText("Timeseries Forward")
         self.timeseriesForwardAct.setStatusTip(
-                                "Go forward through timeseries of images")
+            "Go forward through timeseries of images")
 
         self.timeseriesBackwardAct = QAction(self, 
                         triggered=self.viewwidget.timeseriesBackward)
         self.timeseriesBackwardAct.setShortcut(",")
         self.timeseriesBackwardAct.setText("Timeseries Backward")
         self.timeseriesBackwardAct.setStatusTip(
-                                "Go backward through timeseries of images")
+            "Go backward through timeseries of images")
 
         self.saveCurrentViewAct = QAction(self, triggered=self.saveCurrentView)
         self.saveCurrentViewAct.setText("Save Current Display")
         self.saveCurrentViewAct.setStatusTip(
-                    "Save the contents of the current display as an image file")
+            "Save the contents of the current display as an image file")
 
         self.saveCurrentViewersState = QAction(self, 
                             triggered=self.saveViewersState)
         self.saveCurrentViewersState.setText("Save State of All Viewers")
         self.saveCurrentViewersState.setStatusTip(
-                "Save state of Viewers to a file so they can be restored")
+            "Save state of Viewers to a file so they can be restored")
 
         self.loadCurrentViewersState = QAction(self, 
                             triggered=self.loadViewersState)
         self.loadCurrentViewersState.setText("Load State of Viewers")
         self.loadCurrentViewersState.setStatusTip(
-                "Restore state of viewers previously saved")
+            "Restore state of viewers previously saved")
 
         self.aboutAct = QAction(self, triggered=self.about)
         self.aboutAct.setText("&About")
         self.aboutAct.setStatusTip("Show author and version information")
-
 
         # Actions just for keyboard shortcuts
 
@@ -656,7 +659,6 @@ class ViewerWindow(QMainWindow):
 
         helpMenu = self.menuBar().addMenu("&Help")
         helpMenu.addAction(self.aboutAct)
-
 
     def setupToolbars(self):
         """
@@ -797,7 +799,7 @@ class ViewerWindow(QMainWindow):
 
         dir = QFileDialog.getExistingDirectory(self, "Choose vector directory",
             directory=olddir,
-            options=QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks)
+            options=QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
         if dir != "":
             self.addVectorInternal(dir)
 
@@ -833,7 +835,6 @@ class ViewerWindow(QMainWindow):
         if showError is True a message box will be displayed with any error
         if false an exception will be raised.
         """
-        fname = str(fname) # was QString
         lut = None
         # first open the dataset
         from osgeo import gdal
@@ -844,7 +845,7 @@ class ViewerWindow(QMainWindow):
             if SHOW_TRACEBACK:
                 traceback.print_exc()
             if showError:
-                msg = "Unable to open %s\n%s" % (fname,err)
+                msg = "Unable to open %s\n%s" % (fname, err)
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return
             else:
@@ -862,7 +863,6 @@ class ViewerWindow(QMainWindow):
                 from . import viewerLUT
                 lut = viewerLUT.ViewerLUT.createFromGDAL(gdaldataset, stretch)
 
-
             # couldn't find anything. Tell user and
             # open default stretch dialog
             if stretch is None:
@@ -876,7 +876,7 @@ class ViewerWindow(QMainWindow):
         # now open it for real
         try:
             self.viewwidget.addRasterLayer(gdaldataset, stretch, lut)
-        except viewererrors.ProjectionMismatch as e:
+        except viewererrors.ProjectionMismatch:
             # as the user if they really want to go ahead
             btn = QMessageBox.question(self, MESSAGE_TITLE, 
                 """Projection is different to existing file(s). 
@@ -891,10 +891,10 @@ Results may be incorrect. Do you wish to go ahead anyway?""",
                     if SHOW_TRACEBACK:
                         traceback.print_exc()
                     if showError:
-                        QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+                        QMessageBox.critical(self, MESSAGE_TITLE, str(e))
                     else:
                         raise
-        except viewererrors.InvalidStretch as e:
+        except viewererrors.InvalidStretch:
             # probably band referred to in stretch no longer exists
             # display error and fall back on default stretch
             QMessageBox.information(self, MESSAGE_TITLE,
@@ -918,7 +918,7 @@ File will now be opened using default stretch""")
             if SHOW_TRACEBACK:
                 traceback.print_exc()
             if showError:
-                QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
             else:
                 raise
 
@@ -942,8 +942,7 @@ File will now be opened using default stretch""")
             if layername is not None:
                 lyr = ds.GetLayerByName(layername)
             elif sql is not None:
-                 lyr = ds.ExecuteSQL(sql)
-               
+                lyr = ds.ExecuteSQL(sql)
             else:
                 # ask them
                 numLayers = ds.GetLayerCount()
@@ -976,7 +975,7 @@ File will now be opened using default stretch""")
         except Exception as e:
             if SHOW_TRACEBACK:
                 traceback.print_exc()
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
             layername = None
             sql = None
             
@@ -991,7 +990,7 @@ File will now be opened using default stretch""")
         try:
             self.viewwidget.addLayersFromJSONFile(fileobj, nlayers)
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
         self.stretchAct.setEnabled(True)
 
     def removeLayer(self):
@@ -1031,7 +1030,7 @@ File will now be opened using default stretch""")
         # should it just be visible layers?
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is None:
-            QMessageBox.critical(self, MESSAGE_TITLE, "No raster layer available" )
+            QMessageBox.critical(self, MESSAGE_TITLE, "No raster layer available")
         else:
             stretchDock = stretchdialog.StretchDockWidget(self, 
                                 self.viewwidget, layer)
@@ -1045,7 +1044,7 @@ File will now be opened using default stretch""")
         Disable all tool actions apart from ignoreTool
         """
         tools = (self.panAct, self.zoomInAct, self.zoomOutAct, 
-                        self.queryAct, self.profileAct, self.vectorQueryAct)
+            self.queryAct, self.profileAct, self.vectorQueryAct)
         for tool in tools:
             if tool is not ignoreTool:
                 tool.setChecked(False)
@@ -1098,11 +1097,11 @@ File will now be opened using default stretch""")
             # stop panning and move viewport
             (pixNewX, pixNewY) = layer.coordmgr.display2pixel(xdist, 
                                                             ydist)
-            #print 'panning'
-            #print layer.coordmgr
+            # print 'panning'
+            # print layer.coordmgr
             layer.coordmgr.setTopLeftPixel(pixNewX, pixNewY)
             layer.coordmgr.recalcBottomRight()
-            #print layer.coordmgr
+            # print layer.coordmgr
             # reset
             self.viewwidget.paintPoint.setX(0)
             self.viewwidget.paintPoint.setY(0)
@@ -1133,7 +1132,7 @@ File will now be opened using default stretch""")
         try:
             self.viewwidget.zoomNativeResolution()
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def zoomFullExtent(self):
         """
@@ -1142,7 +1141,7 @@ File will now be opened using default stretch""")
         try:
             self.viewwidget.zoomFullExtent()
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def followExtent(self, state):
         """
@@ -1186,7 +1185,7 @@ File will now be opened using default stretch""")
         queryDock = querywindow.QueryDockWidget(self, self.viewwidget)
         # can't pass Qt.NoDockWidgetArea in here
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
-        queryDock.setFloating(True) # detach so it isn't docked by default
+        queryDock.setFloating(True)  # detach so it isn't docked by default
         # this works to prevent it trying to dock when dragging
         # but double click still works
         queryDock.setAllowedAreas(Qt.NoDockWidgetArea) 
@@ -1235,7 +1234,7 @@ File will now be opened using default stretch""")
         from . import vectorquerywindow
         queryDock = vectorquerywindow.VectorQueryDockWidget(self)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
-        queryDock.setFloating(True) # detach so it isn't docked by default
+        queryDock.setFloating(True)  # detach so it isn't docked by default
         # this works to prevent it trying to dock when dragging
         # but double click still works
         queryDock.setAllowedAreas(Qt.NoDockWidgetArea) 
@@ -1248,7 +1247,7 @@ File will now be opened using default stretch""")
 
         # connect it to signals emitted by the viewerwidget
         self.viewwidget.vectorLocationSelected.connect(
-                            queryDock.vectorLocationSelected)
+            queryDock.vectorLocationSelected)
 
         # grab the signal the queryDock sends when it is closed
         queryDock.queryClosed.connect(self.vectorQueryClosed)
@@ -1267,7 +1266,7 @@ File will now be opened using default stretch""")
         """
         if self.vectorQueryWindowCount > 0:
             self.viewwidget.vectorLocationSelected.disconnect(
-                        queryDock.vectorLocationSelected)
+                queryDock.vectorLocationSelected)
             self.vectorQueryWindowCount -= 1
 
     def profile(self, checked):
@@ -1292,7 +1291,7 @@ File will now be opened using default stretch""")
         from . import profilewindow
         profileDock = profilewindow.ProfileDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, profileDock)
-        profileDock.setFloating(True) # detach so it isn't docked by default
+        profileDock.setFloating(True)  # detach so it isn't docked by default
         # this works to prevent it trying to dock when dragging
         # but double click still works
         profileDock.setAllowedAreas(Qt.NoDockWidgetArea) 
@@ -1374,9 +1373,9 @@ File will now be opened using default stretch""")
                 layer = self.viewwidget.layers.getTopRasterLayer()
                 if layer is not None:
                     metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
-                                    layer.coordmgr.geotransform[1])
+                        layer.coordmgr.geotransform[1])
                     (left, top, right, bottom) = (
-                                     layer.coordmgr.getWorldExtent())
+                        layer.coordmgr.getWorldExtent())
 
                     worldfObj = open(worldfname, 'w')
                     worldfObj.write("%f\n" % metresperwinpix)
@@ -1384,9 +1383,9 @@ File will now be opened using default stretch""")
                     worldfObj.write("%f\n" % -metresperwinpix)
                     worldfObj.write("%f\n" % (left + (metresperwinpix / 2.0)))
                     worldfObj.write("%f\n" % (top + (metresperwinpix / 2.0)))
-            except IOError as e:
+            except IOError:
                 QMessageBox.critical(self, MESSAGE_TITLE,
-                    "Unable to save world file: %s" % s)
+                    "Unable to save world file: %s" % worldfname)
             finally:
                 if worldfObj is not None:
                     worldfObj.close()
@@ -1398,7 +1397,6 @@ File will now be opened using default stretch""")
         from . import TUIVIEW_VERSION
         from PyQt5.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
         from osgeo.gdal import __version__ as gdalVersion
-        import sys
         from numpy import version as numpyVersion
 
         msg = """<p align='center'>TuiView<br><br>
@@ -1436,7 +1434,6 @@ Numpy Version: %s<br></p>
             centredMsgs.append(centred)
 
         QMessageBox.about(self, MESSAGE_TITLE, "\n".join(centredMsgs))
-
 
     def closeEvent(self, event):
         """
@@ -1489,7 +1486,7 @@ Numpy Version: %s<br></p>
                 try:
                     # try raster first
                     self.addRasterInternal(fname, showError=False)
-                except Exception as e:
+                except Exception:
                     # then vector 
                     self.addVectorInternal(fname)
 

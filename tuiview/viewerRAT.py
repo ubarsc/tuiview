@@ -40,22 +40,23 @@ VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
 
 DEFAULT_CACHE_SIZE = 10000
 
-GDAL_COLTYPE_LOOKUP = {gdal.GFT_Integer : "Integer", 
-        gdal.GFT_Real : "Floating point", gdal.GFT_String : "String"}
-GDAL_COLUSAGE_LOOKUP = {gdal.GFU_Generic : "General purpose field",
-        gdal.GFU_PixelCount : "Histogram pixel count",
-        gdal.GFU_Name : "Class name", gdal.GFU_Min : "Class range minimum",
-        gdal.GFU_Max : "Class range maximum", gdal.GFU_MinMax : "Class value",
-        gdal.GFU_Red : "Red class color", gdal.GFU_Green : "Green class color",
-        gdal.GFU_Blue : "Blue class color", gdal.GFU_Alpha : "Alpha",
-        gdal.GFU_RedMin : "Color Range Red Minimum",
-        gdal.GFU_GreenMin : "Color Range Green Minimum",
-        gdal.GFU_BlueMin : "Color Range Blue Minimum",
-        gdal.GFU_AlphaMin : "Color Range Alpha Minimum",
-        gdal.GFU_RedMax : "Color Range Red Maximum",
-        gdal.GFU_GreenMax : "Color Range Green Maximum",
-        gdal.GFU_BlueMax : "Color Range Blue Maximum",
-        gdal.GFU_AlphaMax : "Color Range Alpha Maximum"}
+GDAL_COLTYPE_LOOKUP = {gdal.GFT_Integer: "Integer", 
+        gdal.GFT_Real: "Floating point", gdal.GFT_String: "String"}
+GDAL_COLUSAGE_LOOKUP = {gdal.GFU_Generic: "General purpose field",
+        gdal.GFU_PixelCount: "Histogram pixel count",
+        gdal.GFU_Name: "Class name", gdal.GFU_Min: "Class range minimum",
+        gdal.GFU_Max: "Class range maximum", gdal.GFU_MinMax: "Class value",
+        gdal.GFU_Red: "Red class color", gdal.GFU_Green: "Green class color",
+        gdal.GFU_Blue: "Blue class color", gdal.GFU_Alpha: "Alpha",
+        gdal.GFU_RedMin: "Color Range Red Minimum",
+        gdal.GFU_GreenMin: "Color Range Green Minimum",
+        gdal.GFU_BlueMin: "Color Range Blue Minimum",
+        gdal.GFU_AlphaMin: "Color Range Alpha Minimum",
+        gdal.GFU_RedMax: "Color Range Red Maximum",
+        gdal.GFU_GreenMax: "Color Range Green Maximum",
+        gdal.GFU_BlueMax: "Color Range Blue Maximum",
+        gdal.GFU_AlphaMax: "Color Range Alpha Maximum"}
+
 
 def formatException(code):
     """
@@ -88,6 +89,7 @@ def formatException(code):
     trace = '%s\n%s: %s' % (trace, ttype.__name__, value)
     return trace
 
+
 class ViewerRAT(QObject):
     """
     Represents an attribute table in memory. Has method
@@ -101,8 +103,8 @@ class ViewerRAT(QObject):
     def __init__(self):
         QObject.__init__(self)
         self.clear()
-        self.count = 0 # is incremented each time attributes read into class
-                    # so querywindow can tell if it is new data or not
+        self.count = 0  # is incremented each time attributes read into class
+        # so querywindow can tell if it is new data or not
 
     def hasAttributes(self):
         """
@@ -199,19 +201,18 @@ class ViewerRAT(QObject):
         """
         Removes attributes from this class
         """
-        self.columnNames = None # list
-        self.columnTypes = None # dict
-        self.columnUsages = None # dict
-        self.columnFormats = None # dict
-        self.lookupColName = None # string
-        self.gdalRAT = None # object
+        self.columnNames = None  # list
+        self.columnTypes = None  # dict
+        self.columnUsages = None  # dict
+        self.columnFormats = None  # dict
+        self.lookupColName = None  # string
+        self.gdalRAT = None  # object
 
-        self.redColumnIdx = None # int
-        self.greenColumnIdx = None # int
-        self.blueColumnIdx = None # int
-        self.alphaColumnIdx = None # int
+        self.redColumnIdx = None  # int
+        self.greenColumnIdx = None  # int
+        self.blueColumnIdx = None  # int
+        self.alphaColumnIdx = None  # int
         self.hasColorTable = False
-
 
     def addColumn(self, colname, coltype):
         """
@@ -409,7 +410,7 @@ class ViewerRAT(QObject):
         return globaldict
 
     def evaluateUserSelectExpression(self, expression, isselected, queryRow, 
-                                                    lastselected):
+            lastselected):
         """
         Evaluate a user expression for selection. 
         It is expected that a fragment
@@ -432,9 +433,9 @@ class ViewerRAT(QObject):
             cache.setStartRow(currRow)
             length = cache.getLength()
 
-            isselectedSub = isselected[currRow:currRow+length]
+            isselectedSub = isselected[currRow:currRow + length]
             if lastselected is not None:
-                lastselectedSub = lastselected[currRow:currRow+length]
+                lastselectedSub = lastselected[currRow:currRow + length]
             else:
                 lastselectedSub = None
             globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
@@ -455,7 +456,7 @@ class ViewerRAT(QObject):
                 msg = 'must return a boolean array'
                 raise viewererrors.UserExpressionTypeError(msg)
 
-            result[currRow:currRow+length] = resultSub
+            result[currRow:currRow + length] = resultSub
             currRow += DEFAULT_CACHE_SIZE
             self.newPercent.emit(int((currRow / nrows) * 100))
 
@@ -463,7 +464,7 @@ class ViewerRAT(QObject):
         return result
 
     def evaluateUserEditExpression(self, colName, expression, isselected, 
-                                    queryRow):
+            queryRow):
         """
         Evaluate a user expression for editing and apply result to rat
         where isselected == True
@@ -478,14 +479,13 @@ class ViewerRAT(QObject):
 
         currRow = 0
         done = False
-        isScalar = False # user code returns a scalar - we 
-                        # can take shortcuts since not all the cols need to
-                        # be read
+        isScalar = False  # user code returns a scalar - we 
+        # can take shortcuts since not all the cols need to be read
 
         while currRow < nrows and not done:
 
             # guess the length
-            isselectedSub = isselected[currRow:currRow+DEFAULT_CACHE_SIZE]
+            isselectedSub = isselected[currRow:currRow + DEFAULT_CACHE_SIZE]
             if isselectedSub.any():
 
                 if isScalar:
@@ -495,7 +495,7 @@ class ViewerRAT(QObject):
                 length = cache.getLength()
 
                 # re do with correct length
-                isselectedSub = isselected[currRow:currRow+length]
+                isselectedSub = isselected[currRow:currRow + length]
                 globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
                                 queryRow)
 
@@ -532,7 +532,7 @@ class ViewerRAT(QObject):
 
         while currRow < nrows and not done:
             # guess size
-            isselectedSub = isselected[currRow:currRow+DEFAULT_CACHE_SIZE]
+            isselectedSub = isselected[currRow:currRow + DEFAULT_CACHE_SIZE]
             if isselectedSub.any():
                 cache.setStartRow(currRow, colName)
 
@@ -579,6 +579,7 @@ class ViewerRAT(QObject):
         if string is not None and string != '':
             name = string
         return columns, name
+
 
 class RATCache(object):
     """
@@ -686,7 +687,7 @@ class RATCache(object):
             raise viewererrors.AttributeTableTypeError(msg)
 
         selectionArraySubset = selectionArray[
-                    self.currStartRow:self.currStartRow+self.length]
+            self.currStartRow:self.currStartRow + self.length]
 
         if not selectionArraySubset.any():
             # nothing to be updated

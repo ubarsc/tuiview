@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox
 from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
 from .viewerstrings import MESSAGE_TITLE
 
+
 class AddColumnDialog(QDialog):
     """
     Dialog that allows a user to select type of new RAT

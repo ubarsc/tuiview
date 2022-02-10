@@ -17,11 +17,12 @@ Module that contains the PropertiesWindow class
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QTextEdit
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton
 from PyQt5.QtWidgets import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
 from PyQt5.QtWidgets import QComboBox
 
 from . import plotwidget
+
 
 class PropertiesWindow(QDialog):
     def __init__(self, parent, info):
@@ -53,10 +54,10 @@ class PropertiesWindow(QDialog):
         self.fileProjWidget.setLayout(self.fileProjWidgetLayout)
 
         coordInfo = [('Projection', info.getProjection()), 
-                        ('Datum', info.getDatum()),
-                        ('Spheroid', info.getSpheroid()),
-                        ('Units', info.getUnits()),
-                        ('UTM Zone', info.getUTMZone())]
+            ('Datum', info.getDatum()),
+            ('Spheroid', info.getSpheroid()),
+            ('Units', info.getUnits()),
+            ('UTM Zone', info.getUTMZone())]
         for rowCount, values in enumerate(coordInfo):
             name, value = values
             nameLabel = QLabel()
@@ -77,7 +78,6 @@ class PropertiesWindow(QDialog):
         self.fileGroup = QGroupBox('File')
         self.fileGroup.setLayout(self.fileLayout)
         self.mainLayout.addWidget(self.fileGroup)
-
 
         self.layerLayout = QVBoxLayout()
         self.layerTab = QTabWidget()
@@ -101,9 +101,9 @@ class PropertiesWindow(QDialog):
         self.plotWidget = plotwidget.PlotBarWidget(self)
 
         self.layerInfoLayout = QGridLayout()
-        self.layerValueLabels = {} # so we can just update what we need
-        self.layerChanged(0) # fill it in
-        self.layerSelCombo.setCurrentIndex(0) # make sure we are at first one
+        self.layerValueLabels = {}  # so we can just update what we need
+        self.layerChanged(0)  # fill it in
+        self.layerSelCombo.setCurrentIndex(0)  # make sure we are at first one
         self.layerInfoWidget.setLayout(self.layerInfoLayout)
 
         self.layerTab.addTab(self.layerInfoWidget, 'Layer Information')
@@ -114,7 +114,6 @@ class PropertiesWindow(QDialog):
         self.layerGroup.setLayout(self.layerLayout)
 
         self.mainLayout.addWidget(self.layerGroup)
-
 
         self.bandInfoLayout = QGridLayout()
 
@@ -129,7 +128,6 @@ class PropertiesWindow(QDialog):
         self.setLayout(self.mainLayout)
         self.setSizeGripEnabled(True)
         self.resize(500, 600)
-        
 
     def layerChanged(self, comboIdx):
         """

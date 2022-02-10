@@ -35,7 +35,7 @@ VIEWER_MODE_PSEUDOCOLOR = 4
 
 # how to stretch an image
 VIEWER_STRETCHMODE_DEFAULT = 0
-VIEWER_STRETCHMODE_NONE = 1 # color table, or pre stretched data
+VIEWER_STRETCHMODE_NONE = 1  # color table, or pre stretched data
 VIEWER_STRETCHMODE_LINEAR = 2
 VIEWER_STRETCHMODE_STDDEV = 3
 VIEWER_STRETCHMODE_HIST = 4
@@ -49,6 +49,7 @@ VIEWER_DEFAULT_HISTMIN = 0.025
 VIEWER_DEFAULT_HISTMAX = 0.01
 
 VIEWER_DEFAULT_NOCOLOR = (0, 0, 0, 0)
+
 
 class ViewerStretch(object):
     """
@@ -65,13 +66,13 @@ class ViewerStretch(object):
         self.nodata_rgba = VIEWER_DEFAULT_NOCOLOR
         self.background_rgba = VIEWER_DEFAULT_NOCOLOR
         self.nan_rgba = VIEWER_DEFAULT_NOCOLOR
-        self.attributeTableSize = None # override with size of attribute table 
-                                    # if one exists
-                                    # LUT will then be created with this size
-        self.readLUTFromText = None # if not None, path to text 
-                                    # file to read LUT out of
-        self.readLUTFromGDAL = None # if not None, path to GDAL dataset 
-                                    # to read LUT out of
+        self.attributeTableSize = None  # override with size of attribute table 
+        # if one exists
+        # LUT will then be created with this size
+        self.readLUTFromText = None  # if not None, path to text 
+        # file to read LUT out of
+        self.readLUTFromGDAL = None  # if not None, path to GDAL dataset 
+        # to read LUT out of
 
     def setBands(self, bands):
         "Set the bands to use. bands should be a tuple of 1-based ints"
@@ -113,7 +114,7 @@ class ViewerStretch(object):
         self.stretchparam = (stddev,)
 
     def setHistStretch(self, minVal=VIEWER_DEFAULT_HISTMIN, 
-                            maxVal=VIEWER_DEFAULT_HISTMAX):
+            maxVal=VIEWER_DEFAULT_HISTMAX):
         "Do a histogram stretch"
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (minVal, maxVal)
@@ -150,11 +151,11 @@ class ViewerStretch(object):
         """
         Convert to a JSON encoded string
         """
-        rep = {'mode' : self.mode, 'stretchmode' : self.stretchmode,
-                'stretchparam' : self.stretchparam, 'bands' : self.bands,
-                'nodata_rgba' : self.nodata_rgba, 'rampname' : self.rampName,
-                'background_rgba' : self.background_rgba, 
-                'nan_rgba' : self.nan_rgba}
+        rep = {'mode': self.mode, 'stretchmode': self.stretchmode,
+            'stretchparam': self.stretchparam, 'bands': self.bands,
+            'nodata_rgba': self.nodata_rgba, 'rampname': self.rampName,
+            'background_rgba': self.background_rgba, 
+            'nan_rgba': self.nan_rgba}
         return json.dumps(rep)
 
     @staticmethod
@@ -243,9 +244,10 @@ class ViewerStretch(object):
 
 
 # Comparison constants to use in StretchRule
-VIEWER_COMP_LT = 0 # Less than
-VIEWER_COMP_GT = 1 # greater than
-VIEWER_COMP_EQ = 2 # equal
+VIEWER_COMP_LT = 0  # Less than
+VIEWER_COMP_GT = 1  # greater than
+VIEWER_COMP_EQ = 2  # equal
+
 
 class StretchRule(object):
     """
@@ -258,7 +260,7 @@ class StretchRule(object):
     def __init__(self, comp, value, ctband, stretch):
         self.comp = comp
         self.value = value
-        self.ctband = ctband # or None
+        self.ctband = ctband  # or None
         self.stretch = copy.copy(stretch) 
         # can reuse stretch object for something else
 
@@ -278,8 +280,8 @@ class StretchRule(object):
             msg = 'invalid value for comparison'
             raise viewererrors.InvalidParameters(msg)
 
-        if (match and self.ctband is not None 
-                and self.ctband <= gdaldataset.RasterCount):
+        if (match and self.ctband is not None and
+                self.ctband <= gdaldataset.RasterCount):
             # we match the number of bands
             # but we need to check there is a color 
             # table in the specified band
@@ -316,9 +318,9 @@ class StretchRule(object):
         """
         Convert to a JSON encoded string
         """
-        rep = {'comp' : self.comp, 
-                'value' : self.value, 'ctband' : self.ctband,
-                'stretch' : self.stretch.toString()}
+        rep = {'comp': self.comp, 
+            'value': self.value, 'ctband': self.ctband,
+            'stretch': self.stretch.toString()}
         return json.dumps(rep)
 
     @staticmethod

@@ -36,20 +36,21 @@ from .viewerstrings import MESSAGE_TITLE
 
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),
-                ("Greyscale", viewerstretch.VIEWER_MODE_GREYSCALE),
-                ("PseudoColor", viewerstretch.VIEWER_MODE_PSEUDOCOLOR),
-                ("RGB", viewerstretch.VIEWER_MODE_RGB))
+    ("Greyscale", viewerstretch.VIEWER_MODE_GREYSCALE),
+    ("PseudoColor", viewerstretch.VIEWER_MODE_PSEUDOCOLOR),
+    ("RGB", viewerstretch.VIEWER_MODE_RGB))
 
 STRETCH_DATA = (("None", viewerstretch.VIEWER_STRETCHMODE_NONE),
-                ("Linear", viewerstretch.VIEWER_STRETCHMODE_LINEAR),
-                ("Standard Deviation", viewerstretch.VIEWER_STRETCHMODE_STDDEV),
-                ("Histogram", viewerstretch.VIEWER_STRETCHMODE_HIST))
+    ("Linear", viewerstretch.VIEWER_STRETCHMODE_LINEAR),
+    ("Standard Deviation", viewerstretch.VIEWER_STRETCHMODE_STDDEV),
+    ("Histogram", viewerstretch.VIEWER_STRETCHMODE_HIST))
 
 DEFAULT_STRETCH_KEY = 'DefaultStretch'
 
-MAX_BAND_NUMBER = 100 # for spin boxes
+MAX_BAND_NUMBER = 100  # for spin boxes
 
 STRETCH_FILTER = ".stretch Files (*.stretch)"
+
 
 class ColorButton(QToolButton):
     """
@@ -60,7 +61,7 @@ class ColorButton(QToolButton):
         QToolButton.__init__(self, parent)
         if rgbatuple is not None:
             color = QColor(rgbatuple[0], rgbatuple[1], 
-                            rgbatuple[2], rgbatuple[3])
+                rgbatuple[2], rgbatuple[3])
         else:
             color = QColor(0, 0, 0, 0)
         self.setColor(color)
@@ -85,7 +86,7 @@ class ColorButton(QToolButton):
     def setColorAsRGBATuple(self, rgbatuple):
         "set the color as RGBA"
         color = QColor(rgbatuple[0], rgbatuple[1], 
-                        rgbatuple[2], rgbatuple[3])
+            rgbatuple[2], rgbatuple[3])
         self.setColor(color)
 
     def getColorAsRGBATuple(self):
@@ -524,7 +525,7 @@ class StretchLayout(QFormLayout):
             self.stretchParam2.setRange(-2**32, 2**32)
             self.stretchParam2.setSingleStep(1)
             self.stretchParam2.setToolTip("Maximum Value")
-            self.stretchParam1.setValue(0) # set back to these defaults
+            self.stretchParam1.setValue(0)  # set back to these defaults
             self.stretchParam2.setValue(0)
             self.stretchParam1Stats.setCheckState(Qt.Checked)
             self.stretchParam2Stats.setCheckState(Qt.Checked)
@@ -540,8 +541,9 @@ class StretchLayout(QFormLayout):
 
 
 RULE_DATA = (("Number of Bands Less than", viewerstretch.VIEWER_COMP_LT),
-                ("Number of Bands Greater than", viewerstretch.VIEWER_COMP_GT),
-                ("Number of Bands Equal to", viewerstretch.VIEWER_COMP_EQ))
+    ("Number of Bands Greater than", viewerstretch.VIEWER_COMP_GT),
+    ("Number of Bands Equal to", viewerstretch.VIEWER_COMP_EQ))
+
 
 class RuleLayout(QGridLayout):
     """
@@ -594,10 +596,11 @@ class RuleLayout(QGridLayout):
         value = self.numberBox.value()
         ctband = self.colorTableBox.value()
         if ctband == 0:
-            ctband = None # no color table required
+            ctband = None  # no color table required
 
         obj = viewerstretch.StretchRule(comp, value, ctband, None)
         return obj
+
 
 class StretchDefaultsDialog(QDialog):
     """
@@ -719,38 +722,38 @@ class StretchDefaultsDialog(QDialog):
             stretch.setBands((1,))
             # must be one band and band one must have a color table
             rule = viewerstretch.StretchRule(
-                        viewerstretch.VIEWER_COMP_EQ, 1, 1, stretch)
+                viewerstretch.VIEWER_COMP_EQ, 1, 1, stretch)
             ruleList.append(rule)
 
             # single band without color table
             stretch.setGreyScale()
             stretch.setStdDevStretch()
             rule = viewerstretch.StretchRule( 
-                        viewerstretch.VIEWER_COMP_EQ, 1, None, stretch)
+                viewerstretch.VIEWER_COMP_EQ, 1, None, stretch)
             ruleList.append(rule)
 
             # 2 bands
             rule = viewerstretch.StretchRule( 
-                        viewerstretch.VIEWER_COMP_EQ, 2, None, stretch)
+                viewerstretch.VIEWER_COMP_EQ, 2, None, stretch)
             ruleList.append(rule)
             
             # 3 bands
             stretch.setRGB()
             stretch.setBands((1, 2, 3))
             rule = viewerstretch.StretchRule(
-                        viewerstretch.VIEWER_COMP_EQ, 3, None, stretch)
+                viewerstretch.VIEWER_COMP_EQ, 3, None, stretch)
             ruleList.append(rule)
 
             # < 6 bands
             stretch.setBands((4, 3, 2))
             rule = viewerstretch.StretchRule(
-                        viewerstretch.VIEWER_COMP_LT, 6, None, stretch)
+                viewerstretch.VIEWER_COMP_LT, 6, None, stretch)
             ruleList.append(rule)
 
             # > 5 bands
             stretch.setBands((5, 4, 2))
             rule = viewerstretch.StretchRule(
-                        viewerstretch.VIEWER_COMP_GT, 5, None, stretch)
+                viewerstretch.VIEWER_COMP_GT, 5, None, stretch)
             ruleList.append(rule)
 
         else:
@@ -822,11 +825,11 @@ class StretchDefaultsDialog(QDialog):
 
         # create a new tab
         newWidget = self.createWidget(rule, stretch)
-        self.tabWidget.setUpdatesEnabled(False) # reduce flicker
+        self.tabWidget.setUpdatesEnabled(False)  # reduce flicker
         self.tabWidget.insertTab(currentIndex, newWidget, "new rule")
         self.deleteRuleButton.setEnabled(True)
-        self.renumberTabs() # make sure the numbers in order
-        self.tabWidget.setUpdatesEnabled(True) # reduce flicker
+        self.renumberTabs()  # make sure the numbers in order
+        self.tabWidget.setUpdatesEnabled(True)  # reduce flicker
 
     def onNewAfter(self):
         """
@@ -842,24 +845,25 @@ class StretchDefaultsDialog(QDialog):
 
         # create a new tab
         newWidget = self.createWidget(rule, stretch)
-        self.tabWidget.setUpdatesEnabled(False) # reduce flicker
+        self.tabWidget.setUpdatesEnabled(False)  # reduce flicker
         self.tabWidget.insertTab(currentIndex + 1, newWidget, "new rule")
         self.deleteRuleButton.setEnabled(True)
-        self.renumberTabs() # make sure the numbers in order
-        self.tabWidget.setUpdatesEnabled(True) # reduce flicker
+        self.renumberTabs()  # make sure the numbers in order
+        self.tabWidget.setUpdatesEnabled(True)  # reduce flicker
 
     def onDelete(self):
         """
         Delete the current page.
         """
         currentIndex = self.tabWidget.currentIndex()
-        self.tabWidget.setUpdatesEnabled(False) # reduce flicker
+        self.tabWidget.setUpdatesEnabled(False)  # reduce flicker
         self.tabWidget.removeTab(currentIndex)
         
         if self.tabWidget.count() <= 1:
             self.deleteRuleButton.setEnabled(False)
         self.renumberTabs()
-        self.tabWidget.setUpdatesEnabled(True) # reduce flicker
+        self.tabWidget.setUpdatesEnabled(True)  # reduce flicker
+
 
 class StretchDockWidget(QDockWidget):
     """
@@ -925,41 +929,41 @@ class StretchDockWidget(QDockWidget):
         self.localAction = QAction(self)
         self.localAction.setText("&Local Stretch")
         self.localAction.setStatusTip(
-                    "Calculate approximate local stretch on Apply")
+            "Calculate approximate local stretch on Apply")
         self.localAction.setIcon(QIcon(":/viewer/images/local.png"))
         self.localAction.setCheckable(True)
 
         self.saveAction = QAction(self, triggered=self.onSave)
         self.saveAction.setText("&Save Stretch and Lookup Table")
         self.saveAction.setStatusTip(
-                    "Save Stretch and Lookup Table to current File")
+            "Save Stretch and Lookup Table to current File")
         self.saveAction.setIcon(QIcon(":/viewer/images/save.png"))
 
         self.deleteAction = QAction(self, triggered=self.onDelete)
         self.deleteAction.setText("&Delete Stretch and Lookup Table")
         self.deleteAction.setStatusTip(
-                    "Delete Stretch and Lookup Table from current File")
+            "Delete Stretch and Lookup Table from current File")
         self.deleteAction.setIcon(QIcon(":/viewer/images/deletesaved.png"))
 
         self.exportToTextAction = QAction(self, triggered=self.exportToText)
         self.exportToTextAction.setText(
-                    "&Export Stretch and Lookup Table to Text file")    
+            "&Export Stretch and Lookup Table to Text file")    
         self.exportToTextAction.setStatusTip(
-                    "Export current Stretch and Lookup Table to Text file")
+            "Export current Stretch and Lookup Table to Text file")
         self.exportToTextAction.setIcon(QIcon(":/viewer/images/savetext.png"))
 
         self.importFromGDALAction = QAction(self, triggered=self.importFromGDAL)
         self.importFromGDALAction.setText(
-                    "&Import Stretch and Lookup Table from GDAL file and apply")
+            "&Import Stretch and Lookup Table from GDAL file and apply")
         self.importFromGDALAction.setStatusTip(
             "Import Stretch and Lookup Table saved in GDAL file and apply")
         self.importFromGDALAction.setIcon(QIcon(":/viewer/images/open.png"))
 
         self.importFromTextAction = QAction(self, triggered=self.importFromText)
         self.importFromTextAction.setText(
-                    "I&mport Stretch and Lookup Table from Text file")
+            "I&mport Stretch and Lookup Table from Text file")
         self.importFromTextAction.setStatusTip(
-                "Import Stretch and Lookup Table saved in text file and apply")
+            "Import Stretch and Lookup Table saved in text file and apply")
         self.importFromTextAction.setIcon(QIcon(":/viewer/images/opentext.png"))
 
     def setupToolbar(self):
@@ -999,7 +1003,7 @@ class StretchDockWidget(QDockWidget):
         try:
             self.viewwidget.setNewStretch(stretch, self.layer, local)
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e) )
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onSave(self):
         """
@@ -1043,7 +1047,6 @@ class StretchDockWidget(QDockWidget):
         been saved
         """
         from . import viewerwindow
-        from osgeo import gdal
 
         viewerwindow.populateFilters()       
         dlg = QFileDialog(self)
@@ -1060,7 +1063,7 @@ class StretchDockWidget(QDockWidget):
                 stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(fname)
                 if stretch is None:
                     QMessageBox.critical(self, MESSAGE_TITLE, 
-                                                "Unable to find stretch")
+                        "Unable to find stretch")
                 else:
                     self.viewwidget.setNewStretch(stretch, self.layer)
 
