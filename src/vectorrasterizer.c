@@ -596,13 +596,7 @@ struct VectorRasterizerState
     PyObject *error;
 };
 
-#if PY_MAJOR_VERSION >= 3
 #define GETSTATE(m) ((struct VectorRasterizerState*)PyModule_GetState(m))
-#else
-#define GETSTATE(m) (&_state)
-static struct VectorRasterizerState _state;
-#endif
-
 
 static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
 {
@@ -937,8 +931,6 @@ static PyMethodDef VectorRasterizerMethods[] = {
     {NULL}        /* Sentinel */
 };
 
-#if PY_MAJOR_VERSION >= 3
-
 static int vectorrasterizer_traverse(PyObject *m, visitproc visit, void *arg) 
 {
     Py_VISIT(GETSTATE(m)->error);
@@ -963,17 +955,8 @@ static struct PyModuleDef moduledef = {
         NULL
 };
 
-#define INITERROR return NULL
-
 PyMODINIT_FUNC 
 PyInit_vectorrasterizer(void)
-
-#else
-#define INITERROR return
-
-PyMODINIT_FUNC
-initvectorrasterizer(void)
-#endif
 {
     PyObject *pModule;
     struct VectorRasterizerState *state;
@@ -981,13 +964,9 @@ initvectorrasterizer(void)
     /* initialize the numpy stuff */
     import_array();
 
-#if PY_MAJOR_VERSION >= 3
     pModule = PyModule_Create(&moduledef);
-#else
-    pModule = Py_InitModule("vectorrasterizer", VectorRasterizerMethods);
-#endif
     if( pModule == NULL )
-        INITERROR;
+        return NULL;
 
     state = GETSTATE(pModule);
 
@@ -996,11 +975,9 @@ initvectorrasterizer(void)
     if( state->error == NULL )
     {
         Py_DECREF(pModule);
-        INITERROR;
+        return NULL;
     }
     PyModule_AddObject(pModule, "error", state->error);
 
-#if PY_MAJOR_VERSION >= 3
     return pModule;
-#endif
 }

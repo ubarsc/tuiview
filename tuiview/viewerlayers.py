@@ -19,9 +19,7 @@ this module contains the LayerManager and related classes
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from __future__ import print_function
 import os
-import sys
 import json
 import numpy
 from osgeo import gdal
@@ -31,10 +29,7 @@ from PyQt5.QtGui import QImage, QPainter, QPen
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
 import threading
-if sys.version_info[0] < 3:
-    import Queue as queue
-else:
-    import queue
+import queue
 
 from . import viewerRAT
 from . import viewerLUT

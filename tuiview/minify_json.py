@@ -8,7 +8,6 @@ Based on JSON.minify.js:
 https://github.com/getify/JSON.minify
 '''
 
-from __future__ import print_function
 import re
 
 
