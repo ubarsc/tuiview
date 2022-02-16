@@ -49,7 +49,6 @@ by default).
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from __future__ import print_function
 
 import os
 import sys
@@ -98,13 +97,11 @@ def getGDALFlags():
         import subprocess
         try:
             cflags = subprocess.check_output(['gdal-config', '--cflags'])
-            if sys.version_info[0] >= 3:
-                cflags = cflags.decode()
+            cflags = cflags.decode()
             extraargs['extra_compile_args'] = cflags.strip().split()
 
             ldflags = subprocess.check_output(['gdal-config', '--libs'])
-            if sys.version_info[0] >= 3:
-                ldflags = ldflags.decode()
+            ldflags = ldflags.decode()
             extraargs['extra_link_args'] = ldflags.strip().split()
         except OSError:
             raise SystemExit("can't find gdal-config - GDAL development files need to be installed")
