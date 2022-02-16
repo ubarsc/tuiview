@@ -1,3 +1,13 @@
+Version 1.2.9 (2022-02-17)
+--------------------------
+
+* Fixes for plotwidget under Python 3.10
+* Remove Python 2 support
+* Tweak source so flake8 is happy (and add CI run to check this on github)
+* Don't install LICENSE.txt and CHANGES.txt
+* Remove dependency on the deprecated distutils module
+* Change plugin mechanism to use importlib instead of the deprecated imp module
+
 Version 1.2.8 (2021-09-21)
 --------------------------
 
@@ -8,7 +18,7 @@ Version 1.2.8 (2021-09-21)
 * Add --vectorlayer and --vectorsql command line options to prevent vector layer dialog being shown
 * Include all colorbrewer2.org ramps
 * Allow float columns to be used as lookups into surrogate colour tables (not just restricted to integers)
-* Apply workaround to limit RAT to 100million rows - seems to be a limiation of Qt.
+* Apply workaround to limit RAT to 100million rows - seems to be a limitation of Qt.
 
 
 Version 1.2.7 (2020-02-15)
