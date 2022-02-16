@@ -277,6 +277,9 @@ class PlotWidget(QWidget):
             yloc += txtrect.height()
         if flags & Qt.AlignVCenter:
             yloc += txtrect.height() / 2
+            
+        xloc = int(xloc)
+        yloc = int(yloc)
 
         if flags & Qt.TextDontClip:
             # remember: y is baseline
@@ -305,7 +308,7 @@ class PlotWidget(QWidget):
             txtwidth = textrect.width()
             if txtwidth > maxwidth:
                 maxwidth = txtwidth
-        return maxwidth
+        return int(maxwidth)
 
     def drawYTicks(self, paint, minYData, maxYData, yoffset, yscale, height):
         """
@@ -331,6 +334,7 @@ class PlotWidget(QWidget):
                 txt = self.formatInterval(interval, ndp)
 
                 yloc = (interval - minYData) * yscale + yoffset
+                yloc = int(yloc)
 
                 self.drawText(paint, txtwidth, yloc, txt, flags)
                 # draw tick
@@ -393,6 +397,7 @@ class PlotWidget(QWidget):
                 txt = self.formatInterval(interval, ndp)
 
                 xloc = (interval - minXData) * xscale + xoffset
+                xloc = int(xloc)
 
                 self.drawText(paint, xloc, height, txt, flags)
 
@@ -403,6 +408,7 @@ class PlotWidget(QWidget):
             # user supplied ticks
             for tick in self.xticks:
                 xloc = (tick.loc - minXData) * xscale + xoffset
+                xloc = int(xloc)
 
                 if tick.pen is not None:
                     oldPen = paint.pen()  # save it
@@ -690,4 +696,6 @@ class PlotBarWidget(PlotWidget):
             width = 1
 
         for height, tlx in zip(heights, tlxs):
+            tlx = int(tlx)
+            height = int(height)
             paint.fillRect(tlx, height, width, yoffset - height, self.bars.fillColor)
