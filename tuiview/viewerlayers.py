@@ -1038,7 +1038,7 @@ class ViewerRasterLayer(ViewerLayer):
             dataTypeName = gdal.GetDataTypeName(band.DataType)
             bandInfo.append(('Data Type:', dataTypeName))
 
-            bandName = band.GetDescription()
+            bandName = self.bandNames[nband]
             info.addBandInfo(bandName, bandInfo)
 
             # check the histo info - from RAT if available
