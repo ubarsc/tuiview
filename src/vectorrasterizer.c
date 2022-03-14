@@ -196,7 +196,7 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
     VectorWriter_bresenham(pData, nx1, ny1, nx2, ny2);
 }
 
-static unsigned char* VectorWriter_processPoint(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processPoint(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     double x, y;
 
@@ -211,7 +211,7 @@ static unsigned char* VectorWriter_processPoint(VectorWriterData *pData, unsigne
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processLineString(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processLineString(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
@@ -284,7 +284,7 @@ int pointInPolygon(int polyCorners, double x, double y,double *polyX,
 }
 
 /* same as processLineString, but closes ring */
-static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
@@ -410,7 +410,7 @@ static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, un
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processPolygon(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processPolygon(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nRings, n;
 
@@ -422,7 +422,7 @@ static unsigned char* VectorWriter_processPolygon(VectorWriterData *pData, unsig
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processMultiPoint(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processMultiPoint(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
 
@@ -436,7 +436,7 @@ static unsigned char* VectorWriter_processMultiPoint(VectorWriterData *pData, un
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processMultiLineString(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processMultiLineString(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nLines, n;
 
@@ -450,7 +450,7 @@ static unsigned char* VectorWriter_processMultiLineString(VectorWriterData *pDat
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processMultiPolygon(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processMultiPolygon(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPolys, n;
 
@@ -464,9 +464,9 @@ static unsigned char* VectorWriter_processMultiPolygon(VectorWriterData *pData, 
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processWKB(VectorWriterData *pData, unsigned char *pCurrWKB);
+static const unsigned char* VectorWriter_processWKB(VectorWriterData *pData, const unsigned char *pCurrWKB);
 
-static unsigned char* VectorWriter_processGeometryCollection(VectorWriterData *pData, unsigned char *pWKB)
+static const unsigned char* VectorWriter_processGeometryCollection(VectorWriterData *pData, const unsigned char *pWKB)
 {
     GUInt32 nGeoms, n;
 
@@ -479,7 +479,7 @@ static unsigned char* VectorWriter_processGeometryCollection(VectorWriterData *p
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processWKB(VectorWriterData *pData, unsigned char *pCurrWKB)
+static const unsigned char* VectorWriter_processWKB(VectorWriterData *pData, const unsigned char *pCurrWKB)
 {
     GUInt32 nType;
 
@@ -898,6 +898,71 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     return pOutArray;
 }
 
+static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
+{
+    const unsigned char *pszWKB = NULL;
+    Py_ssize_t nWKBSize = 0;
+    PyObject *pBBoxObject; /* must be a sequence*/
+    int nXSize, nYSize, nLineWidth;
+    double adExtents[4];
+    PyObject *o;
+    npy_intp dims[2];
+    PyObject *pOutArray;
+    VectorWriterData *pWriter;
+    int n, bFill = 0;
+
+    if( !PyArg_ParseTuple(args, "y#Oiii|i:rasterizeGeometry", &pszWKB, &nWKBSize,
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+        return NULL;
+
+    if( !PySequence_Check(pBBoxObject))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "second argument must be a sequence");
+        return NULL;
+    }
+
+    if( PySequence_Size(pBBoxObject) != 4 )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
+        return NULL;
+    }
+
+    for( n = 0; n < 4; n++ )
+    {
+        o = PySequence_GetItem(pBBoxObject, n);
+        if( !PyFloat_Check(o) )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Must be a sequence of floats" );
+            Py_DECREF(o);
+            return NULL;
+        }
+        adExtents[n] = PyFloat_AsDouble(o);
+        Py_DECREF(o);
+    }
+
+    /* create output array - all 0 to begin with */
+    dims[0] = nYSize;
+    dims[1] = nXSize;
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
+    if( pOutArray == NULL )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
+        return NULL;
+    }
+
+    /* set up the object that does the writing */
+    if( pszWKB != NULL )
+    {
+        pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    
+        VectorWriter_processWKB(pWriter, pszWKB);
+
+        VectorWriter_destroy(pWriter);
+    }
+
+    return pOutArray;
+}
+
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
@@ -924,6 +989,15 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False)\n"
 "where:\n"
 "  ogrgeometry is an instance of ogr.Geometry\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  xsize,ysize size of output array\n"
+"  linewidth is the width of the line\n"
+"  fill is an optional argument that determines if polygons are filled in\n"},
+    {"rasterizeWKB", vectorrasterizer_rasterizeWKB, METH_VARARGS,
+"read an WKB from a bytes object and vectorize outlines to numpy array:\n"
+"call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, fill=False)\n"
+"where:\n"
+"  bytes is a bytes object (assumed to be correct endian).\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
