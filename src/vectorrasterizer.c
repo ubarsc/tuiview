@@ -980,7 +980,7 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False)\n"
 "where:\n"
 "  ogrfeature is an instance of ogr.Feature\n"
-"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
 "  fill is an optional argument that determines if polygons are filled in\n"},
@@ -989,7 +989,7 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False)\n"
 "where:\n"
 "  ogrgeometry is an instance of ogr.Geometry\n"
-"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
 "  fill is an optional argument that determines if polygons are filled in\n"},
@@ -998,7 +998,7 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, fill=False)\n"
 "where:\n"
 "  bytes is a bytes object (assumed to be correct endian).\n"
-"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
 "  fill is an optional argument that determines if polygons are filled in\n"},
