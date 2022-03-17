@@ -50,31 +50,6 @@ typedef struct
     int bFill;
 } VectorWriterData;
 
-#define DIM_X 0
-#define DIM_Y 1
-
-inline static int VectorWriter_Wld2Pix(VectorWriterData* pData, int nDim, double coord)
-{
-    double dDiff;
-    if( nDim == DIM_X )
-    {
-        dDiff = coord - pData->pExtents[nDim];
-    }
-    else
-    {
-        dDiff = pData->pExtents[nDim] - coord;
-    }
-    
-    if( dDiff < pData->dMetersPerPix )
-    {
-        return 0;
-    }
-    else
-    {
-        return dDiff / pData->dMetersPerPix;
-    }
-}
-
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
         int nLineWidth, int bFill)
 {
@@ -202,8 +177,8 @@ static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy
 {
     int nx, ny, x, y;
 
-    nx = VectorWriter_Wld2Pix(pData, DIM_X, dx);
-    ny = VectorWriter_Wld2Pix(pData, DIM_Y, dy);
+    nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
     /* burn a cross*/
     for( x = (nx - HALF_CROSS_SIZE); x < (nx + HALF_CROSS_SIZE); x++)
         VectorWriter_plot(pData, x, ny);
@@ -215,10 +190,10 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
 {
     int nx1, ny1, nx2, ny2;
 
-    nx1 = VectorWriter_Wld2Pix(pData, DIM_X, dx1);
-    ny1 = VectorWriter_Wld2Pix(pData, DIM_Y, dy1);
-    nx2 = VectorWriter_Wld2Pix(pData, DIM_X, dx2);
-    ny2 = VectorWriter_Wld2Pix(pData, DIM_Y, dy2);
+    nx1 = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny1 = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
+    nx2 = (dx2 - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny2 = (pData->pExtents[1] - dy2) / pData->dMetersPerPix;
     VectorWriter_bresenham(pData, nx1, ny1, nx2, ny2);
 }
 
@@ -390,9 +365,8 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
                     if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
                             pConstant, pMultiple) )
                     {
-                        x = VectorWriter_Wld2Pix(pData, DIM_X, dx1);
-                        y = VectorWriter_Wld2Pix(pData, DIM_Y, dy1);
-
+                        x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
+                        y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
                         VectorWriter_plot(pData, x, y);
                     }
                 }
