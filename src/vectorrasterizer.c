@@ -57,9 +57,13 @@ inline static int VectorWriter_Wld2Pix(VectorWriterData* pData, int nDim, double
 {
     double dDiff = coord - pData->pExtents[nDim];
     if( dDiff < pData->dMetersPerPix )
+    {
         return 0;
+    }
     else
+    {
         return dDiff / pData->dMetersPerPix;
+    }
 }
 
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
