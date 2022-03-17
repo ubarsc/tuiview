@@ -55,7 +55,16 @@ typedef struct
 
 inline static int VectorWriter_Wld2Pix(VectorWriterData* pData, int nDim, double coord)
 {
-    double dDiff = coord - pData->pExtents[nDim];
+    double dDiff;
+    if( nDim == DIM_X )
+    {
+        dDiff = coord - pData->pExtents[nDim];
+    }
+    else
+    {
+        dDiff = pData->pExtents[nDim] - coord;
+    }
+    
     if( dDiff < pData->dMetersPerPix )
     {
         return 0;
