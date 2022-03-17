@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include "numpy/arrayobject.h"
 #include <string.h>
@@ -35,7 +36,7 @@
 /* do a memcpy rather than cast and access so we work on SPARC etc with aligned reads */
 #define READ_WKB_VAL(n, p)  memcpy(&n, p, sizeof(n)); p += sizeof(n);
 
-/* for buring points as a cross so they can be seen */
+/* for burning points as a cross so they can be seen */
 #define HALF_CROSS_SIZE 5
 
 typedef struct 
