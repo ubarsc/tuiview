@@ -953,6 +953,8 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
         PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
         return NULL;
     }
+    
+    fprintf(stderr, "about to write\n");
 
     /* set up the object that does the writing */
     if( pszWKB != NULL )
