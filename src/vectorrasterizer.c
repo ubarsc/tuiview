@@ -298,10 +298,13 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     double *pPolyX, *pPolyY, *pConstant, *pMultiple;
     double dMinX, dMaxX, dMinY, dMaxY;
     int x, y;
+    const unsigned char *pStartThisPoint = NULL;
 
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
     {
+        /* Save this start so we can 'rewind' if we need to also do the outline */
+        pStartThisPoint = pWKB;
         if( pData->bFill )
         {
             pPolyX = (double*)malloc(nPoints * sizeof(double));
@@ -383,6 +386,9 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
         }
         if( pData->nLineWidth > 0 )
         {
+            /* rewind to the start of the point (only does something if were were filling in) */
+            pWKB = pStartThisPoint;
+            
             /* outline */
             /* get the first point */
             READ_WKB_VAL(dx1, pWKB)
