@@ -113,6 +113,17 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
     }
 }
 
+/* Like VectorWriter_plot but always plots even if nLineWidth == 0 */
+/* For use in filling a poly */
+static inline void VectorWriter_plot_for_fill(VectorWriterData *pData, int x, int y)
+{
+    if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
+    {
+        *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = 1;
+    }
+}
+
+
 /* adapted from http://roguebasin.roguelikedevelopment.org/index.php?title=Bresenham%27s_Line_Algorithm#C.2B.2B */
 static void VectorWriter_bresenham(VectorWriterData *pData, int x1, int y1, int x2, int y2)
 {
@@ -368,9 +379,10 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
                     if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
                             pConstant, pMultiple) )
                     {
-                        x = round((dx1 - pData->pExtents[0]) / pData->dMetersPerPix);
-                        y = round((pData->pExtents[1] - dy1) / pData->dMetersPerPix);
-                        VectorWriter_plot(pData, x, y);
+                        x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
+                        y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
+                        /* Special function that ignores nLineWidth */
+                        VectorWriter_plot_for_fill(pData, x, y);
                     }
                 }
             }
