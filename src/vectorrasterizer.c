@@ -67,7 +67,8 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
     
-    fprintf(stderr, "dMetersPerPix %f\n", pData->dMetersPerPix);
+    fprintf(stderr, "dMetersPerPix %f nLineWidth %d fill %d\n", pData->dMetersPerPix, 
+            pData->nLineWidth, pData->bFill);
 
     return pData;
 }
@@ -380,7 +381,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             free(pConstant);
             free(pMultiple);
         }
-        else if( pData->nLineWidth > 0 )
+        if( pData->nLineWidth > 0 )
         {
             /* outline */
             /* get the first point */
