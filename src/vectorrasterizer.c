@@ -60,8 +60,8 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->pArray = pArray;
     pData->pExtents = pExtents;
     pData->nLineWidth = nLineWidth;
-    if( pData->nLineWidth < 1 ) /* hack necessary? */
-        pData->nLineWidth = 1;
+    if( pData->nLineWidth < 0 ) /* hack necessary? */
+        pData->nLineWidth = 0;
     pData->nYSize = PyArray_DIMS(pArray)[0];
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
@@ -218,7 +218,7 @@ static const unsigned char* VectorWriter_processLineString(VectorWriterData *pDa
     double dx1, dy1, dx2, dy2;
 
     READ_WKB_VAL(nPoints, pWKB)
-    if( nPoints > 0 )
+    if( (nPoints > 0) && (pData->nLineWidth > 0) )
     {
         /* get the first point */
         READ_WKB_VAL(dx1, pWKB)
@@ -377,7 +377,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             free(pConstant);
             free(pMultiple);
         }
-        else
+        else if( pData->nLineWidth > 0 )
         {
             /* outline */
             /* get the first point */
