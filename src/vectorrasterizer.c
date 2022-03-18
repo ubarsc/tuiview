@@ -67,9 +67,6 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
     
-    fprintf(stderr, "dMetersPerPix %f nLineWidth %d fill %d\n", pData->dMetersPerPix, 
-            pData->nLineWidth, pData->bFill);
-
     return pData;
 }
 
@@ -180,8 +177,8 @@ static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy
 {
     int nx, ny, x, y;
 
-    nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
-    ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
+    nx = round((dx - pData->pExtents[0]) / pData->dMetersPerPix);
+    ny = round((pData->pExtents[1] - dy) / pData->dMetersPerPix);
     /* burn a cross*/
     for( x = (nx - HALF_CROSS_SIZE); x < (nx + HALF_CROSS_SIZE); x++)
         VectorWriter_plot(pData, x, ny);
@@ -193,11 +190,10 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
 {
     int nx1, ny1, nx2, ny2;
 
-    nx1 = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
-    ny1 = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
-    nx2 = (dx2 - pData->pExtents[0]) / pData->dMetersPerPix;
-    ny2 = (pData->pExtents[1] - dy2) / pData->dMetersPerPix;
-    fprintf(stderr, "Drawing line from %f %f to %f %f (%d %d to %d %d)\n", dx1, dy1, dx2, dy2, nx1, ny1, nx2, ny2);
+    nx1 = round((dx1 - pData->pExtents[0]) / pData->dMetersPerPix);
+    ny1 = round((pData->pExtents[1] - dy1) / pData->dMetersPerPix);
+    nx2 = round((dx2 - pData->pExtents[0]) / pData->dMetersPerPix);
+    ny2 = round((pData->pExtents[1] - dy2) / pData->dMetersPerPix);
     VectorWriter_bresenham(pData, nx1, ny1, nx2, ny2);
 }
 
@@ -372,8 +368,8 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
                     if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
                             pConstant, pMultiple) )
                     {
-                        x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
-                        y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
+                        x = round((dx1 - pData->pExtents[0]) / pData->dMetersPerPix);
+                        y = round((pData->pExtents[1] - dy1) / pData->dMetersPerPix);
                         VectorWriter_plot(pData, x, y);
                     }
                 }
@@ -961,8 +957,6 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
         return NULL;
     }
     
-    fprintf(stderr, "about to write\n");
-
     /* set up the object that does the writing */
     if( pszWKB != NULL )
     {
