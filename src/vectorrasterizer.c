@@ -66,6 +66,8 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
+    
+    fprintf(stderr, "dMetersPerPix %f\n", pData->dMetersPerPix);
 
     return pData;
 }
@@ -194,6 +196,7 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
     ny1 = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
     nx2 = (dx2 - pData->pExtents[0]) / pData->dMetersPerPix;
     ny2 = (pData->pExtents[1] - dy2) / pData->dMetersPerPix;
+    fprintf(stderr, "Drawing line from %f %f to %f %f (%d %d to %d %d)\n", dx1, dy1, dx2, dy2, nx1, ny1, nx2, ny2);
     VectorWriter_bresenham(pData, nx1, ny1, nx2, ny2);
 }
 
