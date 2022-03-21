@@ -196,7 +196,7 @@ static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy
     {
         VectorWriter_plot(pData, nx, ny);
     }
-    else
+    else if( pData->nHalfCrossSize > 0 )
     {
         /* burn a cross*/
         for( x = (nx - pData->nHalfCrossSize); x < (nx + pData->nHalfCrossSize); x++)
