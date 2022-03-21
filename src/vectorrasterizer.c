@@ -48,10 +48,11 @@ typedef struct
     npy_intp nXSize;
     npy_intp nYSize;
     int bFill;
+    int nHalfCrossSize;
 } VectorWriterData;
 
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
-        int nLineWidth, int bFill)
+        int nLineWidth, int bFill, int nHalfCrossSize)
 {
     VectorWriterData *pData;
 
@@ -66,6 +67,7 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
+    pData->nHalfCrossSize = nHalfCrossSize;
     
     return pData;
 }
@@ -190,11 +192,18 @@ static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy
 
     nx = round((dx - pData->pExtents[0]) / pData->dMetersPerPix);
     ny = round((pData->pExtents[1] - dy) / pData->dMetersPerPix);
-    /* burn a cross*/
-    for( x = (nx - HALF_CROSS_SIZE); x < (nx + HALF_CROSS_SIZE); x++)
-        VectorWriter_plot(pData, x, ny);
-    for( y = (ny - HALF_CROSS_SIZE); y < (ny + HALF_CROSS_SIZE); y++)
-        VectorWriter_plot(pData, nx, y);
+    if( pData->nHalfCrossSize == 0 )
+    {
+        VectorWriter_plot(pData, nx, ny);
+    }
+    else
+    {
+        /* burn a cross*/
+        for( x = (nx - pData->nHalfCrossSize); x < (nx + pData->nHalfCrossSize); x++)
+            VectorWriter_plot(pData, x, ny);
+        for( y = (ny - pData->nHalfCrossSize); y < (ny + pData->nHalfCrossSize); y++)
+            VectorWriter_plot(pData, nx, y);
+    }
 }
 
 static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy1, double dx2, double dy2)
@@ -371,14 +380,20 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
                 dMinY = pData->pExtents[3];
             if( dMaxY > pData->pExtents[1] )
                 dMaxY = pData->pExtents[1];
+                
+            /* Snap to the grid we are using */
+            dMaxY = pData->pExtents[1] + (floor((pData->pExtents[1] - dMaxY) / pData->dMetersPerPix) * pData->dMetersPerPix);
+            dMinX = pData->pExtents[0] + (floor((dMinX - pData->pExtents[0]) / pData->dMetersPerPix) * pData->dMetersPerPix);
 
-            for( dy1 = dMaxY; dy1 > dMinY; dy1 -= pData->dMetersPerPix )
+            /* Use the centre of each pixel for the test */
+            for( dy1 = (dMaxY -  pData->dMetersPerPix / 2); dy1 >= dMinY; dy1 -= pData->dMetersPerPix )
             {
-                for( dx1 = dMinX; dx1 < dMaxX; dx1 += pData->dMetersPerPix )
+                for( dx1 = (dMinX + pData->dMetersPerPix / 2); dx1 <= dMaxX; dx1 += pData->dMetersPerPix )
                 {
                     if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
                             pConstant, pMultiple) )
                     {
+                        /* truncate ok for this as tl corner should relate to the centre of the pixel coord */
                         x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
                         y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
                         /* Special function that ignores nLineWidth */
@@ -617,6 +632,24 @@ struct VectorRasterizerState
 
 #define GETSTATE(m) ((struct VectorRasterizerState*)PyModule_GetState(m))
 
+/* Helper function */
+int GetHalfCrossSize(PyObject *self)
+{
+    PyObject *pObj;
+    int nHalfCrossSize = HALF_CROSS_SIZE, n;
+    
+    pObj = PyObject_GetAttrString(self, "HALF_CROSS_SIZE");
+    if( pObj != NULL )
+    {
+        n = PyLong_AsLong(pObj);
+        Py_DECREF(pObj);
+        if( n != -1 )
+            nHalfCrossSize = n;
+    }
+    
+    return nHalfCrossSize;
+}
+
 static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
 {
     PyObject *pPythonLayer; /* of type ogr.Layer*/
@@ -635,7 +668,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pNewWKB;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize;
 
     if( !PyArg_ParseTuple(args, "OOiiiz|i:rasterizeLayer", &pPythonLayer, 
             &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill))
@@ -657,6 +690,8 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
+
+    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -682,7 +717,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     /* set the spatial filter to the extent */
     OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
@@ -750,7 +785,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize;
 
     if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeFeature", &pPythonFeature, 
             &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
@@ -772,6 +807,8 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
+
+    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -797,7 +834,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     hGeometry = OGR_F_GetGeometryRef(hOGRFeature);
     if( hGeometry != NULL )
@@ -841,7 +878,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize;
 
     if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeGeometry", &pPythonGeometry, 
             &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
@@ -863,6 +900,8 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
+
+    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -888,7 +927,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     if( hGeometry != NULL )
     {
@@ -928,7 +967,7 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
     npy_intp dims[2];
     PyObject *pOutArray;
     VectorWriterData *pWriter;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize;
 
     if( !PyArg_ParseTuple(args, "y#Oiii|i:rasterizeGeometry", &pszWKB, &nWKBSize,
             &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
@@ -945,6 +984,8 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
+    
+    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -972,7 +1013,7 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
     /* set up the object that does the writing */
     if( pszWKB != NULL )
     {
-        pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+        pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
         VectorWriter_processWKB(pWriter, pszWKB);
 
@@ -1070,7 +1111,18 @@ PyInit_vectorrasterizer(void)
         Py_DECREF(pModule);
         return NULL;
     }
-    PyModule_AddObject(pModule, "error", state->error);
+    if( PyModule_AddObject(pModule, "error", state->error) != 0)
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+    
+    /* Constant for HALF_CROSS_SIZE */
+    if( PyModule_AddIntMacro(pModule, HALF_CROSS_SIZE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
 
     return pModule;
 }
