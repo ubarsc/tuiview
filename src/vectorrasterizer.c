@@ -318,7 +318,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     /* when pData->bFill */
     double *pPolyX, *pPolyY, *pConstant, *pMultiple;
     double dMinX, dMaxX, dMinY, dMaxY;
-    int x, y;
+    int x, y, oldLineWidth;
     const unsigned char *pStartThisPoint = NULL;
 
     READ_WKB_VAL(nPoints, pWKB)
@@ -333,6 +333,12 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             /* it is part of the outline */
             /* we delete the outline last if nLineWidth is 0 */
             /* get the first point */
+            oldLineWidth = pData->nLineWidth;
+            if( pData->nLineWidth == 0 )
+            {
+                pData->nLineWidth = 1;
+            }
+            
             READ_WKB_VAL(dx1, pWKB)
             READ_WKB_VAL(dy1, pWKB)
             if(hasz)
@@ -485,6 +491,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
 
                 /* reset */
                 pData->nValueToBurn = 1;
+                pData->nLineWidth = oldLineWidth;
             }
         }
         else if( pData->nLineWidth > 0 )
