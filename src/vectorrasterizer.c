@@ -454,8 +454,8 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             free(pConstant);
             free(pMultiple);
             
-            /* now if the nLineWidth is zero 'rub out' what we've done */
-            if( pData->nLineWidth == 0 )
+            /* now if the (old) nLineWidth is zero 'rub out' what we've done */
+            if( oldLineWidth == 0 )
             {
                 /* rewind to the start of the point (again) */
                 pWKB = pStartThisPoint;
