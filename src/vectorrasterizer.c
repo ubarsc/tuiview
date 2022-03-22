@@ -124,7 +124,7 @@ static inline void VectorWriter_plot_for_fill(VectorWriterData *pData, int x, in
 {
     if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
     {
-        if( *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) == 0 )
+        if( *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) != pData->nValueToBurn )
             *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
     }
 }
@@ -194,8 +194,8 @@ static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy
 {
     int nx, ny, x, y;
 
-    nx = round((dx - pData->pExtents[0]) / pData->dMetersPerPix);
-    ny = round((pData->pExtents[1] - dy) / pData->dMetersPerPix);
+    nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
     if( pData->nHalfCrossSize == 0 )
     {
         VectorWriter_plot(pData, nx, ny);
@@ -214,10 +214,11 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
 {
     int nx1, ny1, nx2, ny2;
 
-    nx1 = round((dx1 - pData->pExtents[0]) / pData->dMetersPerPix);
-    ny1 = round((pData->pExtents[1] - dy1) / pData->dMetersPerPix);
-    nx2 = round((dx2 - pData->pExtents[0]) / pData->dMetersPerPix);
-    ny2 = round((pData->pExtents[1] - dy2) / pData->dMetersPerPix);
+    /* note: not round as that can pop it into the neihbouring pixel */
+    nx1 = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny1 = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
+    nx2 = (dx2 - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny2 = (pData->pExtents[1] - dy2) / pData->dMetersPerPix;
     VectorWriter_bresenham(pData, nx1, ny1, nx2, ny2);
 }
 
