@@ -62,8 +62,6 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->pArray = pArray;
     pData->pExtents = pExtents;
     pData->nLineWidth = nLineWidth;
-    if( pData->nLineWidth < 0 ) /* hack necessary? */
-        pData->nLineWidth = 0;
     pData->nYSize = PyArray_DIMS(pArray)[0];
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
@@ -119,13 +117,11 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
 
 /* Like VectorWriter_plot but always plots even if nLineWidth == 0 */
 /* For use in filling a poly */
-/* Only sets where there no data set so we can 'rub out' the outline again */
 static inline void VectorWriter_plot_for_fill(VectorWriterData *pData, int x, int y)
 {
     if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
     {
-        if( *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) != pData->nValueToBurn )
-            *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
+        *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
     }
 }
 
@@ -243,27 +239,39 @@ static const unsigned char* VectorWriter_processLineString(VectorWriterData *pDa
     double dx1, dy1, dx2, dy2;
 
     READ_WKB_VAL(nPoints, pWKB)
-    if( (nPoints > 0) && (pData->nLineWidth > 0) )
+    if( nPoints > 0 )
     {
-        /* get the first point */
-        READ_WKB_VAL(dx1, pWKB)
-        READ_WKB_VAL(dy1, pWKB)
-        if(hasz)
+        if( pData->nLineWidth > 0 )
         {
-            pWKB += sizeof(double);
-        }
-        for( n = 1; n < nPoints; n++ )
-        {
-            READ_WKB_VAL(dx2, pWKB)
-            READ_WKB_VAL(dy2, pWKB)
+            /* get the first point */
+            READ_WKB_VAL(dx1, pWKB)
+            READ_WKB_VAL(dy1, pWKB)
             if(hasz)
             {
                 pWKB += sizeof(double);
             }
-            VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
-            /* set up for next one */
-            dx1 = dx2;
-            dy1 = dy2;
+            for( n = 1; n < nPoints; n++ )
+            {
+                READ_WKB_VAL(dx2, pWKB)
+                READ_WKB_VAL(dy2, pWKB)
+                if(hasz)
+                {
+                    pWKB += sizeof(double);
+                }
+                VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
+                /* set up for next one */
+                dx1 = dx2;
+                dy1 = dy2;
+            }
+        }
+        else
+        {
+            /* skip */
+            pWKB += nPoints * (sizeof(double) * 2);
+            if(hasz)
+            {
+                pWKB += nPoints * sizeof(double);
+            }
         }
     }
     return pWKB;
@@ -318,56 +326,16 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     /* when pData->bFill */
     double *pPolyX, *pPolyY, *pConstant, *pMultiple;
     double dMinX, dMaxX, dMinY, dMaxY;
-    int x, y, oldLineWidth;
+    int x, y;
     const unsigned char *pStartThisPoint = NULL;
 
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
     {
+        /* Save this start so we can 'rewind' if we need to also do the outline */
+        pStartThisPoint = pWKB;
         if( pData->bFill )
         {
-            /* Save this start so we can 'rewind' if we need to also do the outline */
-            pStartThisPoint = pWKB;
-            /* first do the outline */
-            /* In this way we know when we do the fill that if a pixel is set then  */
-            /* it is part of the outline */
-            /* we delete the outline last if nLineWidth is 0 */
-            /* get the first point */
-            oldLineWidth = pData->nLineWidth;
-            if( pData->nLineWidth == 0 )
-            {
-                pData->nLineWidth = 1;
-            }
-            
-            READ_WKB_VAL(dx1, pWKB)
-            READ_WKB_VAL(dy1, pWKB)
-            if(hasz)
-            {
-                pWKB += sizeof(double);
-            }
-            dFirstX = dx1;
-            dFirstY = dy1;
-
-            for( n = 1; n < nPoints; n++ )
-            {
-                READ_WKB_VAL(dx2, pWKB)
-                READ_WKB_VAL(dy2, pWKB)
-                if(hasz)
-                {
-                    pWKB += sizeof(double);
-                }
-                VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
-
-                /* set up for next one */
-                dx1 = dx2;
-                dy1 = dy2;
-            }
-            /* close it*/
-            VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
-
-            /* rewind to the start of the point */
-            pWKB = pStartThisPoint;
-
             /* now do the fill */        
             pPolyX = (double*)malloc(nPoints * sizeof(double));
             pPolyY = (double*)malloc(nPoints * sizeof(double));
@@ -453,15 +421,21 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             free(pPolyY);
             free(pConstant);
             free(pMultiple);
+
             
             /* now if the (old) nLineWidth is zero 'rub out' what we've done */
-            if( oldLineWidth == 0 )
+            /* Along the outline. Necessary since the centres of some pixels will be */
+            /* within the poly but not completely. Rubbing out these partial pixels */
+            /* along the outline should do the trick */
+            if( pData->nLineWidth == 0 )
             {
                 /* rewind to the start of the point (again) */
                 pWKB = pStartThisPoint;
-                
+
                 /* set fill color to 0 */
                 pData->nValueToBurn = 0;
+                /* line width to 1 */
+                pData->nLineWidth = 1;
                 
                 READ_WKB_VAL(dx1, pWKB)
                 READ_WKB_VAL(dy1, pWKB)
@@ -491,11 +465,15 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
 
                 /* reset */
                 pData->nValueToBurn = 1;
-                pData->nLineWidth = oldLineWidth;
+                pData->nLineWidth = 0;
             }
         }
-        else if( pData->nLineWidth > 0 )
+        
+        if( pData->nLineWidth > 0 )
         {
+            /* rewind to the start of the point (in case we filled) */
+            pWKB = pStartThisPoint;
+                        
             /* outline */
             /* get the first point */
             READ_WKB_VAL(dx1, pWKB)
@@ -523,6 +501,18 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             }
             /* close it*/
             VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
+        }
+        
+        if( pWKB == pStartThisPoint )
+        {
+            /* they must have passed fill=False and linewidth==0  */
+            /* Must be just interested in points */
+            /* read the data so pWKB valid for next feature */
+            pWKB += nPoints * (sizeof(double) * 2);
+            if(hasz)
+            {
+                pWKB += nPoints * sizeof(double);
+            }
         }
     }
     return pWKB;
@@ -1111,7 +1101,7 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
 "read an OGR dataset and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeOutlines(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False)\n"
+"call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False)\n"
 "where:\n"
 "  ogrlayer is an instance of ogr.Layer\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
