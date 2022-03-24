@@ -720,7 +720,9 @@ int GetHalfCrossSize(PyObject *self)
     {
         n = PyLong_AsLong(pObj);
         Py_DECREF(pObj);
-        if( n != -1 )
+        if( (n == -1 ) && PyErr_Occurred() )
+            return nHalfCrossSize;
+        else
             nHalfCrossSize = n;
     }
     
