@@ -18,12 +18,15 @@ Module that contains the LayerWindow class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QColor
 from PyQt5.QtWidgets import QDockWidget, QListView, QMenu, QAbstractItemView
-from PyQt5.QtWidgets import QAction
+from PyQt5.QtWidgets import QAction, QInputDialog, QColorDialog
 from PyQt5.QtCore import QAbstractListModel, Qt, pyqtSignal
 
 from . import viewerlayers
+from . import vectorrasterizer
+from . import stretchdialog
+from . import propertieswindow
 from .viewerstrings import MESSAGE_TITLE
 
 
@@ -155,6 +158,10 @@ class LayerListView(QListView):
         self.setLineWidthAct.setText("Set &Line width")
         self.setLineWidthAct.setStatusTip("Set line width of rendered features")
 
+        self.setPointCrossSizeAct = QAction(self, triggered=self.setPointCrossSize)
+        self.setPointCrossSizeAct.setText("Set P&oint cross size")
+        self.setPointCrossSizeAct.setStatusTip("Set the size of the point crosshair")
+
         self.setFillAct = QAction(self, toggled=self.toggleFill)
         self.setFillAct.setText("Fill Polygons")
         self.setFillAct.setStatusTip("Toggle the fill status of polygons")
@@ -192,6 +199,7 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addAction(self.changeColorAct)
         self.vectorPopupMenu.addAction(self.setSQLAct)
         self.vectorPopupMenu.addAction(self.setLineWidthAct)
+        self.vectorPopupMenu.addAction(self.setPointCrossSizeAct)
         self.vectorPopupMenu.addAction(self.setFillAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.propertiesAct)
@@ -282,8 +290,6 @@ class LayerListView(QListView):
             
     def changeColor(self):
         "Change the color of the vector layer"
-        from PyQt5.QtWidgets import QColorDialog
-        from PyQt5.QtGui import QColor
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -303,7 +309,6 @@ class LayerListView(QListView):
                 
     def setSQL(self):
         "Set the attribute filter for vector layers"
-        from PyQt5.QtWidgets import QInputDialog
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -328,7 +333,6 @@ class LayerListView(QListView):
 
     def setLineWidth(self):
         "Set the line width for vector layers"
-        from PyQt5.QtWidgets import QInputDialog
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -342,6 +346,24 @@ class LayerListView(QListView):
                 "Enter line width", value=linewidth, min=0, max=100)
             if ok:
                 layer.setLineWidth(linewidth)
+                layer.getImage()
+                model.viewwidget.viewport().update()
+                
+    def setPointCrossSize(self):
+        "Set the cross hair size for points"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+
+            crossHairSize = vectorrasterizer.HALF_CROSS_SIZE
+                
+            crossHairSize, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
+                "Enter half crosshair size", value=crossHairSize, min=0, max=100)
+            if ok:
+                vectorrasterizer.HALF_CROSS_SIZE = crossHairSize
                 layer.getImage()
                 model.viewwidget.viewport().update()
 
@@ -359,7 +381,6 @@ class LayerListView(QListView):
 
     def editStretch(self):
         "Edit the stretch for the layer"
-        from . import stretchdialog
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]
@@ -373,7 +394,6 @@ class LayerListView(QListView):
 
     def properties(self):
         "Show the properties for the layer"
-        from . import propertieswindow
         selected = self.selectedIndexes()
         if len(selected) > 0:
             index = selected[0]

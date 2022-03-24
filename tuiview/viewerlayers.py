@@ -36,6 +36,7 @@ from . import viewerLUT
 from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
+from . import vectorrasterizer
 from .viewerstrings import MESSAGE_TITLE
 
 # number of threads to call layer.getImage on - only raster layers supported
@@ -1314,7 +1315,6 @@ class ViewerVectorLayer(ViewerLayer):
         Updates self.image with the outlines of the
         vector in the current color
         """
-        from . import vectorrasterizer
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
@@ -1432,7 +1432,6 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         Updates self.image with the outlines of the
         vector feature in the current color
         """
-        from . import vectorrasterizer
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
