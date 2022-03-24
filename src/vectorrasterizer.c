@@ -62,6 +62,8 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->pArray = pArray;
     pData->pExtents = pExtents;
     pData->nLineWidth = nLineWidth;
+    if( pData->nLineWidth < 0 )
+        pData->nLineWidth = 0;
     pData->nYSize = PyArray_DIMS(pArray)[0];
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
@@ -91,7 +93,7 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
             *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
         }
     }
-    else
+    else if( pData->nLineWidth > 1 )
     {
         /* do some dodgy maths to work out how many pixels either side
          since if it is an even number we err to the north west*/
@@ -186,6 +188,7 @@ static void VectorWriter_bresenham(VectorWriterData *pData, int x1, int y1, int 
     }
 }
 
+/* only called for points */
 static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy)
 {
     int nx, ny, x, y;
@@ -423,7 +426,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             free(pMultiple);
 
             
-            /* now if the (old) nLineWidth is zero 'rub out' what we've done */
+            /* now if the nLineWidth is zero 'rub out' what we've done */
             /* Along the outline. Necessary since the centres of some pixels will be */
             /* within the poly but not completely. Rubbing out these partial pixels */
             /* along the outline should do the trick */

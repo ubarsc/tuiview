@@ -339,7 +339,7 @@ class LayerListView(QListView):
             linewidth = layer.getLineWidth()            
                 
             linewidth, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
-                "Enter line width", value=linewidth, min=1, max=100)
+                "Enter line width", value=linewidth, min=0, max=100)
             if ok:
                 layer.setLineWidth(linewidth)
                 layer.getImage()
