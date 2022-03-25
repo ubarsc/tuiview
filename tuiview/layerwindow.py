@@ -24,7 +24,6 @@ from PyQt5.QtWidgets import QAction, QInputDialog, QColorDialog
 from PyQt5.QtCore import QAbstractListModel, Qt, pyqtSignal
 
 from . import viewerlayers
-from . import vectorrasterizer
 from . import stretchdialog
 from . import propertieswindow
 from .viewerstrings import MESSAGE_TITLE
@@ -358,12 +357,12 @@ class LayerListView(QListView):
             model = self.model()
             layer = model.getLayer(index)
 
-            crossHairSize = vectorrasterizer.HALF_CROSS_SIZE
+            crossHairSize = layer.getHalfCrossSize()
                 
             crossHairSize, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
                 "Enter half crosshair size", value=crossHairSize, min=0, max=100)
             if ok:
-                vectorrasterizer.HALF_CROSS_SIZE = crossHairSize
+                layer.setHalfCrossSize(crossHairSize)
                 layer.getImage()
                 model.viewwidget.viewport().update()
 

@@ -1164,6 +1164,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.linewidth = 1
         self.isResultSet = False
         self.bFill = False
+        self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1253,6 +1254,12 @@ class ViewerVectorLayer(ViewerLayer):
     def getLineWidth(self):
         return self.linewidth
         
+    def setHalfCrossSize(self, halfCrossSize):
+        self.halfCrossSize = halfCrossSize
+
+    def getHalfCrossSize(self):
+        return self.halfCrossSize
+        
     def getColorAsRGBATuple(self):
         rgba = []
         for code in viewerLUT.RGBA_CODES:
@@ -1320,7 +1327,8 @@ class ViewerVectorLayer(ViewerLayer):
 
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
         data = vectorrasterizer.rasterizeLayer(self.ogrLayer, extent, 
-                    xsize, ysize, self.linewidth, self.sql, self.bFill)
+                    xsize, ysize, self.linewidth, self.sql, self.bFill,
+                    self.halfCrossSize)
 
         # do our lookup
         bgra = self.lut[data]
@@ -1437,7 +1445,8 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
 
         # rasterizeOutlinesFeature burns in 1 for outline, 0 otherwise
         data = vectorrasterizer.rasterizeFeature(self.ogrFeature, extent, 
-                    xsize, ysize, self.linewidth, self.bFill)
+                    xsize, ysize, self.linewidth, self.bFill, 
+                    self.halfCrossSize)
 
         # do our lookup
         bgra = self.lut[data]

@@ -195,11 +195,11 @@ static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy
 
     nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
     ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
-    if( pData->nHalfCrossSize == 0 )
+    if( pData->nHalfCrossSize == 1 )
     {
         VectorWriter_plot(pData, nx, ny);
     }
-    else if( pData->nHalfCrossSize > 0 )
+    else if( pData->nHalfCrossSize > 1 )
     {
         /* burn a cross*/
         for( x = (nx - pData->nHalfCrossSize); x < (nx + pData->nHalfCrossSize); x++)
@@ -710,7 +710,8 @@ struct VectorRasterizerState
 #define GETSTATE(m) ((struct VectorRasterizerState*)PyModule_GetState(m))
 
 /* Helper function */
-int GetHalfCrossSize(PyObject *self)
+/* Gets the value of the module variable HALF_CROSS_SIZE to use as default */
+int GetDefaultHalfCrossSize(PyObject *self)
 {
     PyObject *pObj;
     int nHalfCrossSize = HALF_CROSS_SIZE, n;
@@ -747,10 +748,11 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pNewWKB;
-    int n, bFill = 0, nHalfCrossSize;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiiiz|i:rasterizeLayer", &pPythonLayer, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill))
+    if( !PyArg_ParseTuple(args, "OOiiiz|ii:rasterizeLayer", &pPythonLayer, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill, 
+            &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
@@ -769,8 +771,6 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
-
-    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -864,10 +864,10 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n, bFill = 0, nHalfCrossSize;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeFeature", &pPythonFeature, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+    if( !PyArg_ParseTuple(args, "OOiii|ii:rasterizeFeature", &pPythonFeature, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonFeature, GETSTATE(self)->error);
@@ -886,8 +886,6 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
-
-    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -957,10 +955,10 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n, bFill = 0, nHalfCrossSize;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
     if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeGeometry", &pPythonGeometry, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonGeometry, GETSTATE(self)->error);
@@ -979,8 +977,6 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
         PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
         return NULL;
     }
-
-    nHalfCrossSize = GetHalfCrossSize(self);
 
     for( n = 0; n < 4; n++ )
     {
@@ -1046,10 +1042,10 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
     npy_intp dims[2];
     PyObject *pOutArray;
     VectorWriterData *pWriter;
-    int n, bFill = 0, nHalfCrossSize;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "y#Oiii|i:rasterizeGeometry", &pszWKB, &nWKBSize,
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+    if( !PyArg_ParseTuple(args, "y#Oiii|i:rasterizeWKB", &pszWKB, &nWKBSize,
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
         return NULL;
 
     if( !PySequence_Check(pBBoxObject))
@@ -1064,8 +1060,6 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
         return NULL;
     }
     
-    nHalfCrossSize = GetHalfCrossSize(self);
-
     for( n = 0; n < 4; n++ )
     {
         o = PySequence_GetItem(pBBoxObject, n);
@@ -1106,41 +1100,45 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
 "read an OGR dataset and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False)\n"
+"call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrlayer is an instance of ogr.Layer\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
 "  sql is the attribute filter. Pass None or SQL string\n"
-"  fill is an optional argument that determines if polygons are filled in"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {"rasterizeFeature", vectorrasterizer_rasterizeFeature, METH_VARARGS, 
 "read an OGR feature and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False)\n"
+"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrfeature is an instance of ogr.Feature\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
-"  fill is an optional argument that determines if polygons are filled in\n"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {"rasterizeGeometry", vectorrasterizer_rasterizeGeometry, METH_VARARGS,
 "read an OGR Geometry and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False)\n"
+"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrgeometry is an instance of ogr.Geometry\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
-"  fill is an optional argument that determines if polygons are filled in\n"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {"rasterizeWKB", vectorrasterizer_rasterizeWKB, METH_VARARGS,
 "read an WKB from a bytes object and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, fill=False)\n"
+"call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  bytes is a bytes object (assumed to be correct endian).\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
-"  fill is an optional argument that determines if polygons are filled in\n"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {NULL}        /* Sentinel */
 };
 
