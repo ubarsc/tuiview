@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include "numpy/arrayobject.h"
 #include <string.h>
@@ -35,7 +36,7 @@
 /* do a memcpy rather than cast and access so we work on SPARC etc with aligned reads */
 #define READ_WKB_VAL(n, p)  memcpy(&n, p, sizeof(n)); p += sizeof(n);
 
-/* for buring points as a cross so they can be seen */
+/* for burning points as a cross so they can be seen */
 #define HALF_CROSS_SIZE 5
 
 typedef struct 
@@ -47,10 +48,12 @@ typedef struct
     npy_intp nXSize;
     npy_intp nYSize;
     int bFill;
+    int nHalfCrossSize;
+    npy_uint8 nValueToBurn;
 } VectorWriterData;
 
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
-        int nLineWidth, int bFill)
+        int nLineWidth, int bFill, int nHalfCrossSize)
 {
     VectorWriterData *pData;
 
@@ -59,13 +62,15 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->pArray = pArray;
     pData->pExtents = pExtents;
     pData->nLineWidth = nLineWidth;
-    if( pData->nLineWidth < 1 ) /* hack necessary? */
-        pData->nLineWidth = 1;
+    if( pData->nLineWidth < 0 )
+        pData->nLineWidth = 0;
     pData->nYSize = PyArray_DIMS(pArray)[0];
     pData->nXSize = PyArray_DIMS(pArray)[1];
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
-
+    pData->nHalfCrossSize = nHalfCrossSize;
+    pData->nValueToBurn = 1;
+    
     return pData;
 }
 
@@ -85,10 +90,10 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
     {
         if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
         {
-            *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = 1;
+            *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
         }
     }
-    else
+    else if( pData->nLineWidth > 1 )
     {
         /* do some dodgy maths to work out how many pixels either side
          since if it is an even number we err to the north west*/
@@ -105,12 +110,23 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
             {
                 if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
                 {
-                    *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = 1;
+                    *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
                 }
             }
         }
     }
 }
+
+/* Like VectorWriter_plot but always plots even if nLineWidth == 0 */
+/* For use in filling a poly */
+static inline void VectorWriter_plot_for_fill(VectorWriterData *pData, int x, int y)
+{
+    if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
+    {
+        *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
+    }
+}
+
 
 /* adapted from http://roguebasin.roguelikedevelopment.org/index.php?title=Bresenham%27s_Line_Algorithm#C.2B.2B */
 static void VectorWriter_bresenham(VectorWriterData *pData, int x1, int y1, int x2, int y2)
@@ -172,23 +188,32 @@ static void VectorWriter_bresenham(VectorWriterData *pData, int x1, int y1, int 
     }
 }
 
+/* only called for points */
 static void VectorWriter_burnPoint(VectorWriterData *pData, double dx, double dy)
 {
     int nx, ny, x, y;
 
     nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
     ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
-    /* burn a cross*/
-    for( x = (nx - HALF_CROSS_SIZE); x < (nx + HALF_CROSS_SIZE); x++)
-        VectorWriter_plot(pData, x, ny);
-    for( y = (ny - HALF_CROSS_SIZE); y < (ny + HALF_CROSS_SIZE); y++)
-        VectorWriter_plot(pData, nx, y);
+    if( pData->nHalfCrossSize == 1 )
+    {
+        VectorWriter_plot(pData, nx, ny);
+    }
+    else if( pData->nHalfCrossSize > 1 )
+    {
+        /* burn a cross*/
+        for( x = (nx - pData->nHalfCrossSize); x < (nx + pData->nHalfCrossSize); x++)
+            VectorWriter_plot(pData, x, ny);
+        for( y = (ny - pData->nHalfCrossSize); y < (ny + pData->nHalfCrossSize); y++)
+            VectorWriter_plot(pData, nx, y);
+    }
 }
 
 static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy1, double dx2, double dy2)
 {
     int nx1, ny1, nx2, ny2;
 
+    /* note: not round as that can pop it into the neihbouring pixel */
     nx1 = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
     ny1 = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
     nx2 = (dx2 - pData->pExtents[0]) / pData->dMetersPerPix;
@@ -196,7 +221,7 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
     VectorWriter_bresenham(pData, nx1, ny1, nx2, ny2);
 }
 
-static unsigned char* VectorWriter_processPoint(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processPoint(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     double x, y;
 
@@ -211,7 +236,7 @@ static unsigned char* VectorWriter_processPoint(VectorWriterData *pData, unsigne
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processLineString(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processLineString(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
@@ -219,25 +244,37 @@ static unsigned char* VectorWriter_processLineString(VectorWriterData *pData, un
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
     {
-        /* get the first point */
-        READ_WKB_VAL(dx1, pWKB)
-        READ_WKB_VAL(dy1, pWKB)
-        if(hasz)
+        if( pData->nLineWidth > 0 )
         {
-            pWKB += sizeof(double);
-        }
-        for( n = 1; n < nPoints; n++ )
-        {
-            READ_WKB_VAL(dx2, pWKB)
-            READ_WKB_VAL(dy2, pWKB)
+            /* get the first point */
+            READ_WKB_VAL(dx1, pWKB)
+            READ_WKB_VAL(dy1, pWKB)
             if(hasz)
             {
                 pWKB += sizeof(double);
             }
-            VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
-            /* set up for next one */
-            dx1 = dx2;
-            dy1 = dy2;
+            for( n = 1; n < nPoints; n++ )
+            {
+                READ_WKB_VAL(dx2, pWKB)
+                READ_WKB_VAL(dy2, pWKB)
+                if(hasz)
+                {
+                    pWKB += sizeof(double);
+                }
+                VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
+                /* set up for next one */
+                dx1 = dx2;
+                dy1 = dy2;
+            }
+        }
+        else
+        {
+            /* skip */
+            pWKB += nPoints * (sizeof(double) * 2);
+            if(hasz)
+            {
+                pWKB += nPoints * sizeof(double);
+            }
         }
     }
     return pWKB;
@@ -284,7 +321,7 @@ int pointInPolygon(int polyCorners, double x, double y,double *polyX,
 }
 
 /* same as processLineString, but closes ring */
-static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
@@ -293,12 +330,16 @@ static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, un
     double *pPolyX, *pPolyY, *pConstant, *pMultiple;
     double dMinX, dMaxX, dMinY, dMaxY;
     int x, y;
+    const unsigned char *pStartThisPoint = NULL;
 
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
     {
+        /* Save this start so we can 'rewind' if we need to also do the outline */
+        pStartThisPoint = pWKB;
         if( pData->bFill )
         {
+            /* now do the fill */        
             pPolyX = (double*)malloc(nPoints * sizeof(double));
             pPolyY = (double*)malloc(nPoints * sizeof(double));
             pConstant = (double*)malloc(nPoints * sizeof(double));
@@ -356,17 +397,25 @@ static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, un
                 dMinY = pData->pExtents[3];
             if( dMaxY > pData->pExtents[1] )
                 dMaxY = pData->pExtents[1];
+                
+            /* Snap to the grid we are using */
+            dMaxY = pData->pExtents[1] + (floor((pData->pExtents[1] - dMaxY) / pData->dMetersPerPix) * pData->dMetersPerPix);
+            dMinX = pData->pExtents[0] + (floor((dMinX - pData->pExtents[0]) / pData->dMetersPerPix) * pData->dMetersPerPix);
 
-            for( dy1 = dMaxY; dy1 > dMinY; dy1 -= pData->dMetersPerPix )
+            /* Use the centre of each pixel for the test */
+            for( dy1 = (dMaxY -  pData->dMetersPerPix / 2); dy1 >= dMinY; dy1 -= pData->dMetersPerPix )
             {
-                for( dx1 = dMinX; dx1 < dMaxX; dx1 += pData->dMetersPerPix )
+                for( dx1 = (dMinX + pData->dMetersPerPix / 2); dx1 <= dMaxX; dx1 += pData->dMetersPerPix )
                 {
                     if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
                             pConstant, pMultiple) )
                     {
+                        /* truncate ok for this as tl corner should relate to the centre of the pixel coord */
                         x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
                         y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
-                        VectorWriter_plot(pData, x, y);
+                        /* Special function that ignores nLineWidth */
+                        /* and only fills in where not set */
+                        VectorWriter_plot_for_fill(pData, x, y);
                     }
                 }
             }
@@ -375,9 +424,59 @@ static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, un
             free(pPolyY);
             free(pConstant);
             free(pMultiple);
+
+            
+            /* now if the nLineWidth is zero 'rub out' what we've done */
+            /* Along the outline. Necessary since the centres of some pixels will be */
+            /* within the poly but not completely. Rubbing out these partial pixels */
+            /* along the outline should do the trick */
+            if( pData->nLineWidth == 0 )
+            {
+                /* rewind to the start of the point (again) */
+                pWKB = pStartThisPoint;
+
+                /* set fill color to 0 */
+                pData->nValueToBurn = 0;
+                /* line width to 1 */
+                pData->nLineWidth = 1;
+                
+                READ_WKB_VAL(dx1, pWKB)
+                READ_WKB_VAL(dy1, pWKB)
+                if(hasz)
+                {
+                    pWKB += sizeof(double);
+                }
+                dFirstX = dx1;
+                dFirstY = dy1;
+
+                for( n = 1; n < nPoints; n++ )
+                {
+                    READ_WKB_VAL(dx2, pWKB)
+                    READ_WKB_VAL(dy2, pWKB)
+                    if(hasz)
+                    {
+                        pWKB += sizeof(double);
+                    }
+                    VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
+
+                    /* set up for next one */
+                    dx1 = dx2;
+                    dy1 = dy2;
+                }
+                /* close it*/
+                VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
+
+                /* reset */
+                pData->nValueToBurn = 1;
+                pData->nLineWidth = 0;
+            }
         }
-        else
+        
+        if( pData->nLineWidth > 0 )
         {
+            /* rewind to the start of the point (in case we filled) */
+            pWKB = pStartThisPoint;
+                        
             /* outline */
             /* get the first point */
             READ_WKB_VAL(dx1, pWKB)
@@ -406,11 +505,23 @@ static unsigned char* VectorWriter_processLinearRing(VectorWriterData *pData, un
             /* close it*/
             VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
         }
+        
+        if( pWKB == pStartThisPoint )
+        {
+            /* they must have passed fill=False and linewidth==0  */
+            /* Must be just interested in points */
+            /* read the data so pWKB valid for next feature */
+            pWKB += nPoints * (sizeof(double) * 2);
+            if(hasz)
+            {
+                pWKB += nPoints * sizeof(double);
+            }
+        }
     }
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processPolygon(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processPolygon(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nRings, n;
 
@@ -422,7 +533,7 @@ static unsigned char* VectorWriter_processPolygon(VectorWriterData *pData, unsig
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processMultiPoint(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processMultiPoint(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPoints, n;
 
@@ -436,7 +547,7 @@ static unsigned char* VectorWriter_processMultiPoint(VectorWriterData *pData, un
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processMultiLineString(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processMultiLineString(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nLines, n;
 
@@ -450,7 +561,7 @@ static unsigned char* VectorWriter_processMultiLineString(VectorWriterData *pDat
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processMultiPolygon(VectorWriterData *pData, unsigned char *pWKB, int hasz)
+static const unsigned char* VectorWriter_processMultiPolygon(VectorWriterData *pData, const unsigned char *pWKB, int hasz)
 {
     GUInt32 nPolys, n;
 
@@ -464,9 +575,9 @@ static unsigned char* VectorWriter_processMultiPolygon(VectorWriterData *pData, 
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processWKB(VectorWriterData *pData, unsigned char *pCurrWKB);
+static const unsigned char* VectorWriter_processWKB(VectorWriterData *pData, const unsigned char *pCurrWKB);
 
-static unsigned char* VectorWriter_processGeometryCollection(VectorWriterData *pData, unsigned char *pWKB)
+static const unsigned char* VectorWriter_processGeometryCollection(VectorWriterData *pData, const unsigned char *pWKB)
 {
     GUInt32 nGeoms, n;
 
@@ -479,7 +590,7 @@ static unsigned char* VectorWriter_processGeometryCollection(VectorWriterData *p
     return pWKB;
 }
 
-static unsigned char* VectorWriter_processWKB(VectorWriterData *pData, unsigned char *pCurrWKB)
+static const unsigned char* VectorWriter_processWKB(VectorWriterData *pData, const unsigned char *pCurrWKB)
 {
     GUInt32 nType;
 
@@ -598,6 +709,27 @@ struct VectorRasterizerState
 
 #define GETSTATE(m) ((struct VectorRasterizerState*)PyModule_GetState(m))
 
+/* Helper function */
+/* Gets the value of the module variable HALF_CROSS_SIZE to use as default */
+int GetDefaultHalfCrossSize(PyObject *self)
+{
+    PyObject *pObj;
+    int nHalfCrossSize = HALF_CROSS_SIZE, n;
+    
+    pObj = PyObject_GetAttrString(self, "HALF_CROSS_SIZE");
+    if( pObj != NULL )
+    {
+        n = PyLong_AsLong(pObj);
+        Py_DECREF(pObj);
+        if( (n == -1 ) && PyErr_Occurred() )
+            return nHalfCrossSize;
+        else
+            nHalfCrossSize = n;
+    }
+    
+    return nHalfCrossSize;
+}
+
 static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
 {
     PyObject *pPythonLayer; /* of type ogr.Layer*/
@@ -616,10 +748,11 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pNewWKB;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiiiz|i:rasterizeLayer", &pPythonLayer, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill))
+    if( !PyArg_ParseTuple(args, "OOiiiz|ii:rasterizeLayer", &pPythonLayer, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill, 
+            &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
@@ -663,7 +796,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     /* set the spatial filter to the extent */
     OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
@@ -731,10 +864,10 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeFeature", &pPythonFeature, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+    if( !PyArg_ParseTuple(args, "OOiii|ii:rasterizeFeature", &pPythonFeature, 
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonFeature, GETSTATE(self)->error);
@@ -778,7 +911,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     hGeometry = OGR_F_GetGeometryRef(hOGRFeature);
     if( hGeometry != NULL )
@@ -822,10 +955,10 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     OGRGeometryH hGeometry;
     int nNewWKBSize;
     unsigned char *pCurrWKB;
-    int n, bFill = 0;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
     if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeGeometry", &pPythonGeometry, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill))
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonGeometry, GETSTATE(self)->error);
@@ -869,7 +1002,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     }
 
     /* set up the object that does the writing */
-    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill);
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     if( hGeometry != NULL )
     {
@@ -898,36 +1031,114 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     return pOutArray;
 }
 
+static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
+{
+    const unsigned char *pszWKB = NULL;
+    Py_ssize_t nWKBSize = 0;
+    PyObject *pBBoxObject; /* must be a sequence*/
+    int nXSize, nYSize, nLineWidth;
+    double adExtents[4];
+    PyObject *o;
+    npy_intp dims[2];
+    PyObject *pOutArray;
+    VectorWriterData *pWriter;
+    int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+
+    if( !PyArg_ParseTuple(args, "y#Oiii|i:rasterizeWKB", &pszWKB, &nWKBSize,
+            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
+        return NULL;
+
+    if( !PySequence_Check(pBBoxObject))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "second argument must be a sequence");
+        return NULL;
+    }
+
+    if( PySequence_Size(pBBoxObject) != 4 )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
+        return NULL;
+    }
+    
+    for( n = 0; n < 4; n++ )
+    {
+        o = PySequence_GetItem(pBBoxObject, n);
+        if( !PyFloat_Check(o) )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Must be a sequence of floats" );
+            Py_DECREF(o);
+            return NULL;
+        }
+        adExtents[n] = PyFloat_AsDouble(o);
+        Py_DECREF(o);
+    }
+
+    /* create output array - all 0 to begin with */
+    dims[0] = nYSize;
+    dims[1] = nXSize;
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
+    if( pOutArray == NULL )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
+        return NULL;
+    }
+    
+    /* set up the object that does the writing */
+    if( pszWKB != NULL )
+    {
+        pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
+    
+        VectorWriter_processWKB(pWriter, pszWKB);
+
+        VectorWriter_destroy(pWriter);
+    }
+
+    return pOutArray;
+}
+
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
 "read an OGR dataset and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeOutlines(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False)\n"
+"call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrlayer is an instance of ogr.Layer\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
 "  sql is the attribute filter. Pass None or SQL string\n"
-"  fill is an optional argument that determines if polygons are filled in"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {"rasterizeFeature", vectorrasterizer_rasterizeFeature, METH_VARARGS, 
 "read an OGR feature and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False)\n"
+"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrfeature is an instance of ogr.Feature\n"
-"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
-"  fill is an optional argument that determines if polygons are filled in\n"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {"rasterizeGeometry", vectorrasterizer_rasterizeGeometry, METH_VARARGS,
 "read an OGR Geometry and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False)\n"
+"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrgeometry is an instance of ogr.Geometry\n"
-"  boundingbox is a sequence that contains (tlx, tly, brx, bry, linewidth)\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
 "  xsize,ysize size of output array\n"
 "  linewidth is the width of the line\n"
-"  fill is an optional argument that determines if polygons are filled in\n"},
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
+    {"rasterizeWKB", vectorrasterizer_rasterizeWKB, METH_VARARGS,
+"read an WKB from a bytes object and vectorize outlines to numpy array:\n"
+"call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
+"where:\n"
+"  bytes is a bytes object (assumed to be correct endian).\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
+"  xsize,ysize size of output array\n"
+"  linewidth is the width of the line\n"
+"  fill is an optional argument that determines if polygons are filled in\n"
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
     {NULL}        /* Sentinel */
 };
 
@@ -977,7 +1188,18 @@ PyInit_vectorrasterizer(void)
         Py_DECREF(pModule);
         return NULL;
     }
-    PyModule_AddObject(pModule, "error", state->error);
+    if( PyModule_AddObject(pModule, "error", state->error) != 0)
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+    
+    /* Constant for HALF_CROSS_SIZE */
+    if( PyModule_AddIntMacro(pModule, HALF_CROSS_SIZE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
 
     return pModule;
 }

@@ -36,6 +36,7 @@ from . import viewerLUT
 from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
+from . import vectorrasterizer
 from .viewerstrings import MESSAGE_TITLE
 
 # number of threads to call layer.getImage on - only raster layers supported
@@ -1163,6 +1164,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.linewidth = 1
         self.isResultSet = False
         self.bFill = False
+        self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1252,6 +1254,12 @@ class ViewerVectorLayer(ViewerLayer):
     def getLineWidth(self):
         return self.linewidth
         
+    def setHalfCrossSize(self, halfCrossSize):
+        self.halfCrossSize = halfCrossSize
+
+    def getHalfCrossSize(self):
+        return self.halfCrossSize
+        
     def getColorAsRGBATuple(self):
         rgba = []
         for code in viewerLUT.RGBA_CODES:
@@ -1314,13 +1322,13 @@ class ViewerVectorLayer(ViewerLayer):
         Updates self.image with the outlines of the
         vector in the current color
         """
-        from . import vectorrasterizer
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
         data = vectorrasterizer.rasterizeLayer(self.ogrLayer, extent, 
-                    xsize, ysize, self.linewidth, self.sql, self.bFill)
+                    xsize, ysize, self.linewidth, self.sql, self.bFill,
+                    self.halfCrossSize)
 
         # do our lookup
         bgra = self.lut[data]
@@ -1432,13 +1440,13 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         Updates self.image with the outlines of the
         vector feature in the current color
         """
-        from . import vectorrasterizer
         extent = self.coordmgr.getWorldExtent()
         (xsize, ysize) = (self.coordmgr.dspWidth, self.coordmgr.dspHeight)
 
         # rasterizeOutlinesFeature burns in 1 for outline, 0 otherwise
         data = vectorrasterizer.rasterizeFeature(self.ogrFeature, extent, 
-                    xsize, ysize, self.linewidth, self.bFill)
+                    xsize, ysize, self.linewidth, self.bFill, 
+                    self.halfCrossSize)
 
         # do our lookup
         bgra = self.lut[data]
