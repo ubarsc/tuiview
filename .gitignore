@@ -2,7 +2,6 @@
 *.o
 *.so
 *~
-*.png
 *.img
 _build
 _templates
