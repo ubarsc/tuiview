@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/viewer/images" >
+        <file>tui.png</file>
         <file>addraster.png</file>
         <file>addvector.png</file>
 	<file>removelayer.png</file>
