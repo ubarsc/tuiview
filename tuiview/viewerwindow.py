@@ -191,7 +191,7 @@ class ViewerWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle(MESSAGE_TITLE)
-        self.setWindowIcon(QIcon(":/viewer/images/kea.png"))
+        self.setWindowIcon(QIcon(":/viewer/images/tui.png"))
         self.viewwidget = viewerwidget.ViewerWidget(self)
 
         # connect to the signals emmitted by the LUT/RAT via the LayerManager
