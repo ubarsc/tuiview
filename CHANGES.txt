@@ -1,3 +1,11 @@
+Version 1.2.10 (2022-06-22)
+---------------------------
+
+* Support for 64 bit int images (introduced in GDAL 3.5)
+* Improvements to vectorrasterizer.c, including new rasterizeWKB() C function
+* New main window icon
+* Use sanitized band names in file properties dialog (as done elsewhere in TuiView).
+
 Version 1.2.9 (2022-02-17)
 --------------------------
 
