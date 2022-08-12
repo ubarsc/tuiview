@@ -52,7 +52,7 @@ by default).
 
 import os
 import sys
-from numpy.distutils.core import setup, Extension
+from setuptools import setup, Extension
 
 # don't build extensions if we are in readthedocs
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
@@ -109,13 +109,15 @@ def getGDALFlags():
 
 
 if withExtensions:
-
+    from numpy import get_include as numpy_get_include
+        
     # get the flags for GDAL
     gdalargs = getGDALFlags()
 
     # create our vector extension
     vecextkwargs = {'name': 'vectorrasterizer', 
-        'sources': ['src/vectorrasterizer.c']}
+        'sources': ['src/vectorrasterizer.c'],
+        'include_dirs': [numpy_get_include()]}
     # add gdalargs
     vecextkwargs.update(gdalargs)
 

@@ -1,0 +1,46 @@
+This document describes the installation of TuiView from source. 
+It is recommended to use pre-built packages where available, for
+example from conda-forge.
+
+Unpacking The Source
+--------------------
+
+To install python-fmask from the source code bundle, use the following commands
+First unpack the bundle. For the tar.gz file, this would be 
+    tar xfz TuiView-1.2.10.tar.gz
+For the zip file this would be
+    unzip -q TuiView-1.2.10.zip
+    
+Prerequisites
+-------------
+    
+To install TuiView you will need the following packages installed:
+
+  * Python 3.6 or later
+  * PyQt5
+  * numpy
+  * GDAL with Python Bindings and headers
+  * A C compiler that is compatible with your Python installation.
+     (Windows users may wish to look at https://wiki.python.org/moin/WindowsCompilers
+      for further explanation).
+  
+On Windows you will need to set the environment variable "GDAL_ROOT"
+to the root of your GDAL installation. On Unix this is inferred
+by running the "gdal-config" command during installation.
+
+Installation
+------------
+
+Run the command:
+  pip install .
+  
+If you wish to install in a non-default location, use
+  pip install . --prefix=/yourChosenDirectory
+
+If installed in a non-default location, you will then need to ensure that the 
+right environment variables are set. For simple bash syntax, this would be 
+something like:
+    export PATH="/yourChosenDirectory/bin:$PATH"
+    export PYTHONPATH="/yourChosenDirectory/lib/pythonX.X/site-packages:$PYTHONPATH"
+    
+Note that the pythonX.X sub-directory needs to match your version of python. 
