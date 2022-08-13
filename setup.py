@@ -7,15 +7,9 @@ Installation
 
 Use like this:
 
-$ python setup.py install
+$ pip install .
 
-GDAL devel files need to be installed along with a C compiler.
-numpy and pyqt also required.
-
-export TUIVIEW_NOCMDLINE=1
-
-First to prevent the command line scripts from being installed which
-is useful when using Python entry points instead.
+See INSTALL.txt for more information.
 
 Creating Source Packages
 ------------------------
@@ -25,12 +19,6 @@ Use like this:
 $ python setup.py sdist --formats=gztar,zip
 
 The packages will be created in the 'dist' subdirectory.
-
-export INCLUDE_WINDOWS_BAT=1
-
-First to include the .bat files needed for Windows installation.
-(these aren't included in packages created on non-Windows platforms
-by default).
 
 """
 # This file is part of 'TuiView' - a simple Raster viewer
@@ -64,16 +52,6 @@ except ImportError:
         raise SystemExit("GDAL with Python bindings must be installed first")
 
 import tuiview
-
-# Are we installing the command line scripts?
-# this is an experimental option for users who are
-# using the Python entry point feature of setuptools and Conda instead
-NO_INSTALL_CMDLINE = int(os.getenv('TUIVIEW_NOCMDLINE', '0')) > 0
-
-# When building the sdist on Linux we want the extra .bat
-# files that are need for the Windows install. 
-INCLUDE_WINDOWS_BAT = int(os.getenv('TUIVIEW_INCLUDEBAT', '0')) > 0
-
 
 def getGDALFlags():
     """
@@ -126,23 +104,19 @@ if withExtensions:
 else:
     ext_modules = []
 
-if NO_INSTALL_CMDLINE:
-    scripts_list = None
-else:
-    # For windows also copy bat files, to run python scripts
-    if sys.platform == 'win32' or INCLUDE_WINDOWS_BAT:
-        scripts_list = ['bin/tuiview', 'bin/tuiview.bat',
-            'bin/tuiviewwritetable', 'bin/tuiviewwritetable.bat']
-    else:
-        scripts_list = ['bin/tuiview',
-            'bin/tuiviewwritetable']
-
 setup(name='TuiView', 
     version=tuiview.TUIVIEW_VERSION, 
     description='Simple Raster Viewer',
     author='Sam Gillingham',
     author_email='gillingham.sam@gmail.com',
-    scripts=scripts_list,
+    entry_points={
+        'console_scripts': [
+            'tuiviewwritetable = tuiview:writetableapplication.run'
+        ],
+        'gui_scripts': [
+            'tuiview = tuiview:viewerapplication.run'
+        ]
+    },
     packages=['tuiview'],
     ext_package='tuiview',
     ext_modules=ext_modules,
