@@ -53,6 +53,7 @@ except ImportError:
 
 import tuiview
 
+
 def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
