@@ -71,7 +71,16 @@ def getGDALFlags():
             raise SystemExit("need to define %GDAL_HOME%")
         extraargs['include_dirs'] = [os.path.join(gdalhome, 'include'), numpy_get_include()]
         extraargs['library_dirs'] = [os.path.join(gdalhome, 'lib')]
-        extraargs['libraries'] = ['gdal_i']
+        # nmake builds of gdal created the import lib as gdal_i.lib
+        # new cmake builds create it as gdal.lib. Handle both
+        for name in ('gdal_i', 'gdal'):
+            lib = os.path.join(gdalhome, 'lib', name + '.lib')
+            if os.path.exists(lib):
+                extraargs['libraries'] = [name]
+                break
+                
+        if 'libraries' not in extraargs:
+            raise SystemExit('Unable to find gdal import lib')
     else:
         # Unix - can do better with actual flags using gdal-config
         extraargs['include_dirs'] = [numpy_get_include()]
