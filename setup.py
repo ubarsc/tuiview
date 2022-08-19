@@ -58,6 +58,7 @@ def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
     """
+    from numpy import get_include as numpy_get_include
     extraargs = {}
     # don't use the deprecated numpy api
     extraargs['define_macros'] = [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
@@ -68,11 +69,12 @@ def getGDALFlags():
         gdalhome = os.getenv('GDAL_HOME')
         if gdalhome is None:
             raise SystemExit("need to define %GDAL_HOME%")
-        extraargs['include_dirs'] = [os.path.join(gdalhome, 'include')]
+        extraargs['include_dirs'] = [os.path.join(gdalhome, 'include'), numpy_get_include()]
         extraargs['library_dirs'] = [os.path.join(gdalhome, 'lib')]
         extraargs['libraries'] = ['gdal_i']
     else:
         # Unix - can do better with actual flags using gdal-config
+        extraargs['include_dirs'] = [numpy_get_include()]
         import subprocess
         try:
             cflags = subprocess.check_output(['gdal-config', '--cflags'])
@@ -88,15 +90,13 @@ def getGDALFlags():
 
 
 if withExtensions:
-    from numpy import get_include as numpy_get_include
         
     # get the flags for GDAL
     gdalargs = getGDALFlags()
 
     # create our vector extension
     vecextkwargs = {'name': 'vectorrasterizer', 
-        'sources': ['src/vectorrasterizer.c'],
-        'include_dirs': [numpy_get_include()]}
+        'sources': ['src/vectorrasterizer.c']}
     # add gdalargs
     vecextkwargs.update(gdalargs)
 
