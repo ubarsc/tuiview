@@ -32,6 +32,7 @@ from .viewerstrings import MESSAGE_TITLE
 # (because we have been started in "GUI" mode on Windows)
 GUI_MODE = sys.stderr is None
 
+
 def showMessageAndExit(msg):
     """
     If in gui mode, show message box with error and exit with 1
@@ -42,6 +43,7 @@ def showMessageAndExit(msg):
         sys.exit(1)
     else:
         raise SystemExit(msg)
+
         
 class TuiViewArgumentParser(argparse.ArgumentParser):
     """
@@ -49,7 +51,8 @@ class TuiViewArgumentParser(argparse.ArgumentParser):
     so we can show a message box if required.
     """
     def __init__(self):
-        super().__init__(add_help=False) # we do the help ourselves
+        super().__init__(add_help=False)  # we do the help ourselves
+        
     def exit(self, status=0, message=None):
         if message is not None:
             if GUI_MODE:
@@ -57,12 +60,14 @@ class TuiViewArgumentParser(argparse.ArgumentParser):
             else:
                 print(message, file=sys.stderr)
         sys.exit(status)
+        
     def error(self, message):
         if GUI_MODE:
             QMessageBox.critical(None, MESSAGE_TITLE, message)
         else:
             print(message, file=sys.stderr)
         sys.exit(2)
+
     
 def getCmdargs():
     """
