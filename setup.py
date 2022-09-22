@@ -7,15 +7,9 @@ Installation
 
 Use like this:
 
-$ python setup.py install
+$ pip install .
 
-GDAL devel files need to be installed along with a C compiler.
-numpy and pyqt also required.
-
-export TUIVIEW_NOCMDLINE=1
-
-First to prevent the command line scripts from being installed which
-is useful when using Python entry points instead.
+See INSTALL.txt for more information.
 
 Creating Source Packages
 ------------------------
@@ -25,12 +19,6 @@ Use like this:
 $ python setup.py sdist --formats=gztar,zip
 
 The packages will be created in the 'dist' subdirectory.
-
-export INCLUDE_WINDOWS_BAT=1
-
-First to include the .bat files needed for Windows installation.
-(these aren't included in packages created on non-Windows platforms
-by default).
 
 """
 # This file is part of 'TuiView' - a simple Raster viewer
@@ -52,7 +40,7 @@ by default).
 
 import os
 import sys
-from numpy.distutils.core import setup, Extension
+from setuptools import setup, Extension
 
 # don't build extensions if we are in readthedocs
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
@@ -65,20 +53,12 @@ except ImportError:
 
 import tuiview
 
-# Are we installing the command line scripts?
-# this is an experimental option for users who are
-# using the Python entry point feature of setuptools and Conda instead
-NO_INSTALL_CMDLINE = int(os.getenv('TUIVIEW_NOCMDLINE', '0')) > 0
-
-# When building the sdist on Linux we want the extra .bat
-# files that are need for the Windows install. 
-INCLUDE_WINDOWS_BAT = int(os.getenv('TUIVIEW_INCLUDEBAT', '0')) > 0
-
 
 def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
     """
+    from numpy import get_include as numpy_get_include
     extraargs = {}
     # don't use the deprecated numpy api
     extraargs['define_macros'] = [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
@@ -89,11 +69,21 @@ def getGDALFlags():
         gdalhome = os.getenv('GDAL_HOME')
         if gdalhome is None:
             raise SystemExit("need to define %GDAL_HOME%")
-        extraargs['include_dirs'] = [os.path.join(gdalhome, 'include')]
+        extraargs['include_dirs'] = [os.path.join(gdalhome, 'include'), numpy_get_include()]
         extraargs['library_dirs'] = [os.path.join(gdalhome, 'lib')]
-        extraargs['libraries'] = ['gdal_i']
+        # nmake builds of gdal created the import lib as gdal_i.lib
+        # new cmake builds create it as gdal.lib. Handle both
+        for name in ('gdal_i', 'gdal'):
+            lib = os.path.join(gdalhome, 'lib', name + '.lib')
+            if os.path.exists(lib):
+                extraargs['libraries'] = [name]
+                break
+                
+        if 'libraries' not in extraargs:
+            raise SystemExit('Unable to find gdal import lib')
     else:
         # Unix - can do better with actual flags using gdal-config
+        extraargs['include_dirs'] = [numpy_get_include()]
         import subprocess
         try:
             cflags = subprocess.check_output(['gdal-config', '--cflags'])
@@ -109,7 +99,7 @@ def getGDALFlags():
 
 
 if withExtensions:
-
+        
     # get the flags for GDAL
     gdalargs = getGDALFlags()
 
@@ -124,23 +114,19 @@ if withExtensions:
 else:
     ext_modules = []
 
-if NO_INSTALL_CMDLINE:
-    scripts_list = None
-else:
-    # For windows also copy bat files, to run python scripts
-    if sys.platform == 'win32' or INCLUDE_WINDOWS_BAT:
-        scripts_list = ['bin/tuiview', 'bin/tuiview.bat',
-            'bin/tuiviewwritetable', 'bin/tuiviewwritetable.bat']
-    else:
-        scripts_list = ['bin/tuiview',
-            'bin/tuiviewwritetable']
-
 setup(name='TuiView', 
     version=tuiview.TUIVIEW_VERSION, 
     description='Simple Raster Viewer',
     author='Sam Gillingham',
     author_email='gillingham.sam@gmail.com',
-    scripts=scripts_list,
+    entry_points={
+        'console_scripts': [
+            'tuiviewwritetable = tuiview:writetableapplication.run'
+        ],
+        'gui_scripts': [
+            'tuiview = tuiview:viewerapplication.run'
+        ]
+    },
     packages=['tuiview'],
     ext_package='tuiview',
     ext_modules=ext_modules,

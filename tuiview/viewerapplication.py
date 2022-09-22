@@ -28,12 +28,52 @@ from . import geolinkedviewers
 from . import viewerstretch
 from .viewerstrings import MESSAGE_TITLE
 
+# True if we can't print to stderr etc
+# (because we have been started in "GUI" mode on Windows)
+GUI_MODE = sys.stderr is None
 
+
+def showMessageAndExit(msg):
+    """
+    If in gui mode, show message box with error and exit with 1
+    Otherwise raise SystemExit with msg
+    """
+    if GUI_MODE:
+        QMessageBox.critical(None, MESSAGE_TITLE, msg)
+        sys.exit(1)
+    else:
+        raise SystemExit(msg)
+
+        
+class TuiViewArgumentParser(argparse.ArgumentParser):
+    """
+    Same as argparse.ArgumentParser but overrides exit() and error()
+    so we can show a message box if required.
+    """
+    def __init__(self):
+        super().__init__(add_help=False)  # we do the help ourselves
+        
+    def exit(self, status=0, message=None):
+        if message is not None:
+            if GUI_MODE:
+                QMessageBox.critical(None, MESSAGE_TITLE, message)
+            else:
+                print(message, file=sys.stderr)
+        sys.exit(status)
+        
+    def error(self, message):
+        if GUI_MODE:
+            QMessageBox.critical(None, MESSAGE_TITLE, message)
+        else:
+            print(message, file=sys.stderr)
+        sys.exit(2)
+
+    
 def getCmdargs():
     """
     Get commandline arguments
     """
-    p = argparse.ArgumentParser()
+    p = TuiViewArgumentParser()
     p.add_argument('-b', '--bands', 
         help="comma seperated list of bands to display")
     p.add_argument('-c', '--colortable', action="store_true", default=False,
@@ -78,10 +118,24 @@ def getCmdargs():
             "Can be specified multiple times - once for each vector")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
+    # do this ourselves so we can show QMessageBox if GUI_MODE
+    p.add_argument('-h', '--help', action="store_true", default=False,
+        help="Show this message and exit")
     p.add_argument('filenames', nargs='*')
 
     cmdargs = p.parse_args()
-
+    
+    if cmdargs.help:
+        if GUI_MODE:
+            msgBox = QMessageBox(QMessageBox.Information, MESSAGE_TITLE, 
+                "Get command line information by clicking 'Show Details...'",
+                QMessageBox.Ok)
+            msgBox.setDetailedText(p.format_help())
+            msgBox.exec_()
+        else:
+            p.print_help()
+        sys.exit(1)
+    
     # default values for these 'fake' parameters that we
     # then set depending on the flags.
     cmdargs.stretch = viewerstretch.ViewerStretch()
@@ -108,16 +162,18 @@ def getCmdargs():
         cmdargs.stretchModeSet = True
     if cmdargs.linear is not None:
         (minVal, maxVal) = cmdargs.linear
-        if minVal == 'stats':
-            minVal = None
-        else:
-            minVal = float(minVal)
+        try:
+            if minVal == 'stats':
+                minVal = None
+            else:
+                minVal = float(minVal)
 
-        if maxVal == 'stats':
-            maxVal = None
-        else:
-            maxVal = float(maxVal)
-
+            if maxVal == 'stats':
+                maxVal = None
+            else:
+                maxVal = float(maxVal)
+        except ValueError as e:
+            showMessageAndExit(str(e))
         cmdargs.stretch.setLinearStretch(minVal, maxVal)
         cmdargs.stretchModeSet = True
     if cmdargs.stddev:
@@ -127,7 +183,10 @@ def getCmdargs():
         cmdargs.stretch.setHistStretch()
         cmdargs.stretchModeSet = True
     if cmdargs.bands is not None:
-        bandlist = [int(x) for x in cmdargs.bands.split(',')]
+        try:
+            bandlist = [int(x) for x in cmdargs.bands.split(',')]
+        except ValueError as e:
+            showMessageAndExit(str(e))
         cmdargs.stretch.setBands(bandlist)
         cmdargs.bandsSet = True
     if cmdargs.stretchfromtext is not None:
@@ -138,13 +197,16 @@ def getCmdargs():
             cmdargs.stretchModeSet = True
             cmdargs.bandsSet = True
         except Exception as e:
-            QMessageBox.critical(None, MESSAGE_TITLE, str(e))
+            showMessageAndExit(str(e))
     if cmdargs.stretchfromgdal is not None:
-        cmdargs.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(
-            cmdargs.stretchfromgdal)
-        cmdargs.modeSet = True
-        cmdargs.stretchModeSet = True
-        cmdargs.bandsSet = True
+        try:
+            cmdargs.stretch = viewerstretch.ViewerStretch.fromGDALFileWithLUT(
+                cmdargs.stretchfromgdal)
+            cmdargs.modeSet = True
+            cmdargs.stretchModeSet = True
+            cmdargs.bandsSet = True
+        except Exception as e:
+            showMessageAndExit(str(e))
 
     return cmdargs
 
@@ -175,29 +237,29 @@ class ViewerApplication(QApplication):
                 cmdargs.bandsSet):
             msg = ('Stretch incomplete. Must specify one of [-c|-g|-r] and' + 
                 ' one of [-n|-l|-s|--hist] and -b, or none to use defaults.')
-            raise SystemExit(msg)
+            showMessageAndExit(msg)
             
         if cmdargs.vectorlayers is not None and cmdargs.vectorsqls is not None:
             msg = 'Specify only one of --vectorlayer and --vectorsql'
-            raise SystemExit(msg)
+            showMessageAndExit(msg)
             
         if (cmdargs.vectors is not None and cmdargs.vectorlayers is not None and
                 len(cmdargs.vectors) != len(cmdargs.vectorlayers)):
             msg = 'If specified, you must pass one --vectorlayer per --vector'
-            raise SystemExit(msg)
+            showMessageAndExit(msg)
 
         if (cmdargs.vectors is not None and cmdargs.vectorsqls is not None and
                 len(cmdargs.vectors) != len(cmdargs.vectorsqls)):
             msg = 'If specified, you must pass one --vectorsql per --vector'
-            raise SystemExit(msg)
+            showMessageAndExit(msg)
             
         if cmdargs.vectorlayers is not None and cmdargs.vectors is None:
             msg = 'When specifying --vectorlayer you must also specify --vector'
-            raise SystemExit(msg)
+            showMessageAndExit(msg)
 
         if cmdargs.vectorsqls is not None and cmdargs.vectors is None:
             msg = 'When specifying --vectorsql you must also specify --vector'
-            raise SystemExit(msg)
+            showMessageAndExit(msg)
 
         if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
@@ -223,8 +285,7 @@ class ViewerApplication(QApplication):
                 self.viewers.readViewersState(fileobj)
                 fileobj.close()
             except Exception as e:
-                QMessageBox.critical(None, MESSAGE_TITLE, str(e))
-                self.viewers.newViewer()
+                showMessageAndExit(str(e))
 
         # open vectors in all viewer windows
         if cmdargs.vectors is not None:
@@ -254,7 +315,7 @@ class ViewerApplication(QApplication):
             arr = cmdargs.goto.split(',')
             if len(arr) != 3:
                 msg = "goto usage: 'easting,northing,factor'"
-                raise SystemExit(msg)
+                showMessageAndExit(msg)
             (easting, northing, metresperimgpix) = arr
             easting = float(easting)
             northing = float(northing)
