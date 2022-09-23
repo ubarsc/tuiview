@@ -213,7 +213,7 @@ static void VectorWriter_burnLine(VectorWriterData *pData, double dx1, double dy
 {
     int nx1, ny1, nx2, ny2;
 
-    /* note: not round as that can pop it into the neihbouring pixel */
+    /* note: not round as that can pop it into the neighbouring pixel */
     nx1 = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
     ny1 = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
     nx2 = (dx2 - pData->pExtents[0]) / pData->dMetersPerPix;
@@ -730,7 +730,7 @@ int GetDefaultHalfCrossSize(PyObject *self)
     return nHalfCrossSize;
 }
 
-static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
+static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *pPythonLayer; /* of type ogr.Layer*/
     PyObject *pBBoxObject; /* must be a sequence*/
@@ -750,9 +750,11 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     unsigned char *pNewWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiiiz|ii:rasterizeLayer", &pPythonLayer, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &pszSQLFilter, &bFill, 
-            &nHalfCrossSize))
+    char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
+            "linewidth", "sql", "fill", "halfCrossSize", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|ii:rasterizeLayer", kwlist, 
+            &pPythonLayer, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, 
+            &pszSQLFilter, &bFill, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
@@ -849,7 +851,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args)
     return pOutArray;
 }
 
-static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *args)
+static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *pPythonFeature; /* of type ogr.Feature*/
     PyObject *pBBoxObject; /* must be a sequence*/
@@ -866,8 +868,11 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     unsigned char *pCurrWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiii|ii:rasterizeFeature", &pPythonFeature, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
+    char *kwlist[] = {"ogrfeature", "boundingbox", "xsize", "ysize", 
+        "linewidth", "fill", "halfCrossSize", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiii|ii:rasterizeFeature", kwlist, 
+            &pPythonFeature, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, 
+            &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonFeature, GETSTATE(self)->error);
@@ -941,7 +946,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     return pOutArray;
 }
 
-static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *args)
+static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *pPythonGeometry; /* of type ogr.Geometry*/
     PyObject *pBBoxObject; /* must be a sequence*/
@@ -957,8 +962,11 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     unsigned char *pCurrWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "OOiii|i:rasterizeGeometry", &pPythonGeometry, 
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
+    char *kwlist[] = {"ogrgeometry", "boundingbox", "xsize", "ysize", "linewidth", 
+        "fill", "halfCrossSize", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiii|ii:rasterizeGeometry", kwlist,
+            &pPythonGeometry, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, 
+            &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonGeometry, GETSTATE(self)->error);
@@ -1031,7 +1039,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     return pOutArray;
 }
 
-static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
+static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args, PyObject *kwds)
 {
     const unsigned char *pszWKB = NULL;
     Py_ssize_t nWKBSize = 0;
@@ -1044,8 +1052,11 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
     VectorWriterData *pWriter;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
 
-    if( !PyArg_ParseTuple(args, "y#Oiii|i:rasterizeWKB", &pszWKB, &nWKBSize,
-            &pBBoxObject, &nXSize, &nYSize, &nLineWidth, &bFill, &nHalfCrossSize))
+    char *kwlist[] = {"bytes", "boundingbox", "xsize", "ysize", "linewidth", 
+        "fill", "halfCrossSize", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "y#Oiii|ii:rasterizeWKB", kwlist,
+            &pszWKB, &nWKBSize, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, 
+            &bFill, &nHalfCrossSize))
         return NULL;
 
     if( !PySequence_Check(pBBoxObject))
@@ -1098,7 +1109,7 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args)
 
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
-    {"rasterizeLayer", vectorrasterizer_rasterizeLayer, METH_VARARGS, 
+    {"rasterizeLayer", (PyCFunction)vectorrasterizer_rasterizeLayer, METH_VARARGS | METH_KEYWORDS, 
 "read an OGR dataset and vectorize outlines to numpy array:\n"
 "call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
@@ -1109,9 +1120,9 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  sql is the attribute filter. Pass None or SQL string\n"
 "  fill is an optional argument that determines if polygons are filled in\n"
 "  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
-    {"rasterizeFeature", vectorrasterizer_rasterizeFeature, METH_VARARGS, 
+    {"rasterizeFeature", (PyCFunction)vectorrasterizer_rasterizeFeature, METH_VARARGS | METH_KEYWORDS, 
 "read an OGR feature and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
+"call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, linewidth, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrfeature is an instance of ogr.Feature\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
@@ -1119,9 +1130,9 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  linewidth is the width of the line\n"
 "  fill is an optional argument that determines if polygons are filled in\n"
 "  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
-    {"rasterizeGeometry", vectorrasterizer_rasterizeGeometry, METH_VARARGS,
+    {"rasterizeGeometry", (PyCFunction)vectorrasterizer_rasterizeGeometry, METH_VARARGS | METH_KEYWORDS,
 "read an OGR Geometry and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
+"call signature: arr = rasterizeGeometry(ogrgeometry, boundingbox, xsize, ysize, linewidth, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  ogrgeometry is an instance of ogr.Geometry\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
@@ -1129,9 +1140,9 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  linewidth is the width of the line\n"
 "  fill is an optional argument that determines if polygons are filled in\n"
 "  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
-    {"rasterizeWKB", vectorrasterizer_rasterizeWKB, METH_VARARGS,
+    {"rasterizeWKB", (PyCFunction)vectorrasterizer_rasterizeWKB, METH_VARARGS | METH_KEYWORDS,
 "read an WKB from a bytes object and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
+"call signature: arr = rasterizeWKB(bytes, boundingbox, xsize, ysize, linewidth, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
 "where:\n"
 "  bytes is a bytes object (assumed to be correct endian).\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
