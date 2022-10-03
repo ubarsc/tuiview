@@ -924,7 +924,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
         PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
         return NULL;
     }
-    
+
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
@@ -1029,7 +1029,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
-    
+
     if( hGeometry != NULL )
     {
         /* how big a buffer do we need? */
