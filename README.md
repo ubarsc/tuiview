@@ -25,7 +25,7 @@ Binaries for Windows, Linux and Mac are available through [Conda](http://conda.p
 
 ## Source ##
 
-TuiView requires: Python >= 2.6, Numpy, GDAL and PyQt.
+TuiView requires: Python >= 3.6, Numpy, GDAL and PyQt.
 Source available from [Download Page](https://github.com/ubarsc/tuiview/releases) or through git.
 
 # Documentation #

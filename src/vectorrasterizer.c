@@ -39,6 +39,9 @@
 /* for burning points as a cross so they can be seen */
 #define HALF_CROSS_SIZE 5
 
+/* release the GIL when we know the WKB is bigger than this size in bytes */
+#define GIL_WKB_SIZE_THRESHOLD 1024
+
 typedef struct 
 {
     PyArrayObject *pArray;
@@ -749,6 +752,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     int nNewWKBSize;
     unsigned char *pNewWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+    NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
             "linewidth", "sql", "fill", "halfCrossSize", NULL};
@@ -796,6 +800,9 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
         return NULL;
     }
+    
+    /* Always release GIL as we don't know number of features/how big the WKBs are */
+    NPY_BEGIN_THREADS;
 
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
@@ -825,9 +832,10 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
                     /* realloc failed - bail out */
                     /* according to man page original not freed */
                     free(pCurrWKB);
-                    Py_DECREF(pOutArray);
                     OGR_F_Destroy(hFeature);
                     VectorWriter_destroy(pWriter);
+                    NPY_END_THREADS;
+                    Py_DECREF(pOutArray);
                     PyErr_SetString(GETSTATE(self)->error, "memory allocation failed");
                     return NULL;
                 }
@@ -847,6 +855,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     }
     free( pCurrWKB );
     VectorWriter_destroy(pWriter);
+    NPY_END_THREADS;
 
     return pOutArray;
 }
@@ -867,6 +876,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
     int nNewWKBSize;
     unsigned char *pCurrWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+    NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"ogrfeature", "boundingbox", "xsize", "ysize", 
         "linewidth", "fill", "halfCrossSize", NULL};
@@ -934,6 +944,12 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
         }
         else
         {
+            /* Only allow other threads to run if worthwhile */
+            if( nNewWKBSize > GIL_WKB_SIZE_THRESHOLD )
+            {
+                NPY_BEGIN_THREADS;
+            }
+
             /* read it in*/
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array*/
@@ -942,6 +958,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
         }
     }
     VectorWriter_destroy(pWriter);
+    NPY_END_THREADS;
 
     return pOutArray;
 }
@@ -961,6 +978,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
     int nNewWKBSize;
     unsigned char *pCurrWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+    NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"ogrgeometry", "boundingbox", "xsize", "ysize", "linewidth", 
         "fill", "halfCrossSize", NULL};
@@ -1011,7 +1029,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
 
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
-    
+
     if( hGeometry != NULL )
     {
         /* how big a buffer do we need? */
@@ -1027,6 +1045,12 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
         }
         else
         {
+            /* Only allow other threads to run if worthwhile */
+            if( nNewWKBSize > GIL_WKB_SIZE_THRESHOLD )
+            {
+                NPY_BEGIN_THREADS;
+            }
+
             /* read it in*/
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array*/
@@ -1035,6 +1059,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
         }
     }
     VectorWriter_destroy(pWriter);
+    NPY_END_THREADS;
 
     return pOutArray;
 }
@@ -1051,6 +1076,7 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args, P
     PyObject *pOutArray;
     VectorWriterData *pWriter;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+    NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"bytes", "boundingbox", "xsize", "ysize", "linewidth", 
         "fill", "halfCrossSize", NULL};
@@ -1094,6 +1120,12 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args, P
         return NULL;
     }
     
+    /* Only allow other threads to run if worthwhile */
+    if( nWKBSize > GIL_WKB_SIZE_THRESHOLD )
+    {
+        NPY_BEGIN_THREADS;
+    }
+    
     /* set up the object that does the writing */
     if( pszWKB != NULL )
     {
@@ -1103,6 +1135,8 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args, P
 
         VectorWriter_destroy(pWriter);
     }
+    
+    NPY_END_THREADS;
 
     return pOutArray;
 }
