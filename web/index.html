@@ -88,11 +88,12 @@ Major development work on this project has been funded by <a href="http://www.la
 <p>Once you have installed <a href="http://conda.pydata.org/miniconda.html#miniconda">Conda</a>, run the following commands 
 on the command line to install TuiView from the &quot;conda-forge&quot; channel:<br>
 <code>conda config --add channels conda-forge<br>
+conda config --set channel_priority strict<br>
 conda create -n myenv tuiview<br>
 conda activate myenv</code></p>
 
 <h2>Source</h2>
-<p>TuiView requires: Python >= 2.6, Numpy, GDAL and PyQt.<br>
+<p>TuiView requires: Python > 3.5, Numpy, GDAL and PyQt.<br>
 Download releases through git at <a href="https://github.com/ubarsc/tuiview">GitHub</a></p>
 
 <h1>Documentation</h1>
