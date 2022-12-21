@@ -62,13 +62,13 @@ gdal.UseExceptions()
 # is the one chosen.
 dataTypeMapping = [
     (numpy.uint8, gdal.GDT_Byte),
-    (numpy.bool, gdal.GDT_Byte),
+    (bool, gdal.GDT_Byte),
     (numpy.int16, gdal.GDT_Int16),
     (numpy.uint16, gdal.GDT_UInt16),
     (numpy.int32, gdal.GDT_Int32),
     (numpy.uint32, gdal.GDT_UInt32),
     (numpy.single, gdal.GDT_Float32),
-    (numpy.float, gdal.GDT_Float64)
+    (float, gdal.GDT_Float64)
 ]
 
 # hack for GDAL 3.5 and later which suppport 64 bit ints

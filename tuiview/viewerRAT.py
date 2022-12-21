@@ -425,7 +425,7 @@ class ViewerRAT(QObject):
 
         # create the new selected array the full size of the rat
         # we will fill in each chunk as we go
-        result = numpy.empty(nrows, dtype=numpy.bool)
+        result = numpy.empty(nrows, dtype=bool)
 
         currRow = 0
 
@@ -635,7 +635,7 @@ class RATCache(object):
                     if coltype == gdal.GFT_Integer:
                         data = numpy.zeros(self.length, dtype=numpy.integer)
                     elif coltype == gdal.GFT_Real:
-                        data = numpy.zeros(self.length, dtype=numpy.float)
+                        data = numpy.zeros(self.length, dtype=float)
                     else:
                         data = numpy.zeros(self.length, dtype='S10')
 
@@ -723,7 +723,7 @@ class RATCache(object):
                     if numpy.isscalar(data):
                         data = float(data)
                     else:
-                        data = data.astype(numpy.float)
+                        data = data.astype(float)
                 else:
                     if numpy.isscalar(data):
                         data = str(data)
@@ -756,7 +756,7 @@ class RATCache(object):
                     dataarr = numpy.empty(self.length, dtype=numpy.integer)
                     dataarr.fill(data)
                 elif coltype == gdal.GFT_Real:
-                    dataarr = numpy.empty(self.length, dtype=numpy.float)
+                    dataarr = numpy.empty(self.length, dtype=float)
                     dataarr.fill(data)
                 else:
                     lendata = len(data)
