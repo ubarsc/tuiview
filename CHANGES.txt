@@ -6,6 +6,7 @@ Version 1.2.11 (2022-12-22)
 * Add support for keywords in the vectorrasterizer C extension
 * Release the GIL for long running operations in the vectorrasterizer C extension
 * Support for signed 8 bit images (introduced in GDAL 3.7)
+* Cope with changed import lib name on Windows in GDAL 3.6
 
 Version 1.2.10 (2022-06-22)
 ---------------------------
