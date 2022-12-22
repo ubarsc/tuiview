@@ -8,7 +8,7 @@ How to create a distribution of TuiView.
 4. Check out a clean copy of the repository into /tmp or
    somewhere similar and 'cd' into it.
 5. Create the distribution tarball, using
-    TUIVIEW_INCLUDEBAT=1 python setup.py sdist --formats=gztar,zip
+       python setup.py sdist --formats=gztar,zip
    This creates both a tar.gz and a zip, under a subdirectory called dist
    This also ensures that the .bat files needed on Windows are included
    when creating the tarball on Linux.

@@ -76,6 +76,9 @@ if hasattr(gdal, 'GDT_Int64'):
     dataTypeMapping.append((numpy.int64, gdal.GDT_Int64))
     dataTypeMapping.append((numpy.uint64, gdal.GDT_UInt64))
 
+# hack for GDAL 3.7 and later which support signed 8 bit ints
+if hasattr(gdal, 'GDT_Int8'):
+    dataTypeMapping.append((numpy.int8, gdal.GDT_Int8))
 
 def GDALTypeToNumpyType(gdaltype):
     """
