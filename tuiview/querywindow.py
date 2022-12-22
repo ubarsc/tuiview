@@ -1662,7 +1662,7 @@ Use the special columns:
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
-                numpy.bool)
+                bool)
             self.lastSelectionArray = None
             self.selectionArray.fill(False)  # none selected by default
 

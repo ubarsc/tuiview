@@ -100,7 +100,7 @@ class PolygonToolInfo(ToolInfo):
         # create the output mask - just do polygon checks
         # within the bounding box
         selectMask = numpy.empty_like(self.layer.image.viewermask, 
-                                    dtype=numpy.bool)
+                                    dtype=bool)
         selectMask.fill(False)
 
         # now create a mgrid of x and y values within the bounding box
@@ -124,7 +124,7 @@ class PolygonToolInfo(ToolInfo):
 
         # vectorize the function which creates a mask of values
         # inside the poly for the bbox area
-        vfunc = numpy.vectorize(self.maskFunc, otypes=[numpy.bool])
+        vfunc = numpy.vectorize(self.maskFunc, otypes=[bool])
         bboxmask = vfunc(dispGridX, dispGridY, noniter)
 
         # insert the bbox mask back into the selectMask
