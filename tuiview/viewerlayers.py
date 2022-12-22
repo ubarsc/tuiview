@@ -80,6 +80,7 @@ if hasattr(gdal, 'GDT_Int64'):
 if hasattr(gdal, 'GDT_Int8'):
     dataTypeMapping.append((numpy.int8, gdal.GDT_Int8))
 
+
 def GDALTypeToNumpyType(gdaltype):
     """
     Given a gdal data type returns the matching
