@@ -41,17 +41,19 @@ The packages will be created in the 'dist' subdirectory.
 import os
 import sys
 from setuptools import setup, Extension
+import tuiview
 
 # don't build extensions if we are in readthedocs
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
+# there seems to be no 'standard' cross compilation env var, so just using
+# the conda one as that is what I'm really interested in
+crossCompiling = os.getenv('CONDA_BUILD_CROSS_COMPILATION', default='0') == '1'
 
 try:
     from osgeo import gdal  # noqa
 except ImportError:
-    if withExtensions:
+    if withExtensions and not crossCompiling:
         raise SystemExit("GDAL with Python bindings must be installed first")
-
-import tuiview
 
 
 def getGDALFlags():
