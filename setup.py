@@ -41,6 +41,7 @@ The packages will be created in the 'dist' subdirectory.
 import os
 import sys
 from setuptools import setup, Extension
+import tuiview
 
 # don't build extensions if we are in readthedocs
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
@@ -53,8 +54,6 @@ try:
 except ImportError:
     if withExtensions and not crossCompiling:
         raise SystemExit("GDAL with Python bindings must be installed first")
-
-import tuiview
 
 
 def getGDALFlags():
