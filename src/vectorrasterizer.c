@@ -52,6 +52,12 @@ typedef struct
     npy_intp nYSize;
     int bFill;
     int nHalfCrossSize;
+    /* For bFill */
+    double *pPolyX;
+    double *pPolyY;
+    int nPolyCorners;
+    double dMinY;
+    double dMaxY;
 } VectorWriterData;
 
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
@@ -71,12 +77,19 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
     pData->nHalfCrossSize = nHalfCrossSize;
+    pData->pPolyX = NULL;
+    pData->pPolyY = NULL;
+    pData->nPolyCorners = 0;
     
     return pData;
 }
 
 static void VectorWriter_destroy(VectorWriterData *pData)
 {
+    if( pData->pPolyX != NULL )
+        free(pData->pPolyX);
+    if( pData->pPolyY != NULL )
+        free(pData->pPolyY);
     free(pData);
 }
 
@@ -286,31 +299,34 @@ static const unsigned char* VectorWriter_processLineString(VectorWriterData *pDa
 }
 
 /* taken from https://alienryderflex.com/polygon_fill/ */
-static void fillPoly(VectorWriterData *pData, int polyCorners, 
-        double dMinY, double dMaxY, double *polyX, double *polyY)
+static void fillPoly(VectorWriterData *pData)
 {
     int nodes, i, j;
     double swap, *nodeX;
     
     fprintf(stderr, "filling poly\n");
-    nodeX = (double*)malloc(polyCorners * sizeof(double));
+    nodeX = (double*)malloc(pData->nPolyCorners * sizeof(double));
     if( nodeX == NULL )
     {
         fprintf(stderr, "Allocation for fill failed\n");
         return;
     }
+    
+    /* Snap to the grid we are using */
+    pData->dMaxY = pData->pExtents[1] + (floor((pData->pExtents[1] - pData->dMaxY) / pData->dMetersPerPix) * pData->dMetersPerPix);
+
     /* Use the centre of each pixel for the test */
-    for( double pixelY = (dMaxY -  pData->dMetersPerPix / 2); pixelY >= dMinY; pixelY -= pData->dMetersPerPix )
+    for( double pixelY = (pData->dMaxY -  pData->dMetersPerPix / 2); pixelY >= pData->dMinY; pixelY -= pData->dMetersPerPix )
     {
         //  Build a list of nodes.
         nodes = 0; 
-        j = polyCorners - 1;
-        for( i = 0; i < polyCorners; i++) 
+        j = pData->nPolyCorners - 1;
+        for( i = 0; i < pData->nPolyCorners; i++) 
         {
-            if( (polyY[i] < pixelY && polyY[j] >= pixelY)
-                || (polyY[j] < pixelY && polyY[i] >= pixelY)) 
+            if( (pData->pPolyY[i] < pixelY && pData->pPolyY[j] >= pixelY)
+                || (pData->pPolyY[j] < pixelY && pData->pPolyY[i] >= pixelY)) 
             {
-                nodeX[nodes++] = (polyX[i]+(pixelY-polyY[i])/(polyY[j]-polyY[i])*(polyX[j]-polyX[i])); 
+                nodeX[nodes++] = (pData->pPolyX[i]+(pixelY-pData->pPolyY[i])/(pData->pPolyY[j]-pData->pPolyY[i])*(pData->pPolyX[j]-pData->pPolyX[i])); 
             }
             j = i; 
         }
@@ -355,112 +371,71 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
     double dFirstX, dFirstY;
-    /* when pData->bFill */
-    double *pPolyX, *pPolyY;
-    double dMinY, dMaxY;
-    const unsigned char *pStartThisPoint = NULL;
 
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
     {
-        /* Save this start so we can 'rewind' if we need to also do the outline */
-        pStartThisPoint = pWKB;
+        /* get the first point */
+        READ_WKB_VAL(dx1, pWKB)
+        READ_WKB_VAL(dy1, pWKB)
+        if(hasz)
+        {
+            pWKB += sizeof(double);
+        }
+        dFirstX = dx1;
+        dFirstY = dy1;
+        
         if( pData->bFill )
         {
-            /* now do the fill */        
-            pPolyX = (double*)malloc(nPoints * sizeof(double));
-            pPolyY = (double*)malloc(nPoints * sizeof(double));
-
-            for( n = 0; n < nPoints; n++ )
+            /* grow buffer for fill */
+            pData->pPolyX = realloc(pData->pPolyX, (pData->nPolyCorners + nPoints) * sizeof(double));
+            pData->pPolyY = realloc(pData->pPolyY, (pData->nPolyCorners + nPoints) * sizeof(double));
+            /* TODO: deal with failure */
+            if( pData->nPolyCorners == 0 )
             {
-                READ_WKB_VAL(dx1, pWKB)
-                READ_WKB_VAL(dy1, pWKB)
-                if(hasz)
-                {
-                    pWKB += sizeof(double);
-                }
-                pPolyX[n] = dx1;
-                pPolyY[n] = dy1;
-                /* need the extent of Y values */
-                if( n == 0 )
-                {
-                    dMinY = dy1;
-                    dMaxY = dy1;
-                }
-                else
-                {
-                    if( dy1 < dMinY)
-                        dMinY = dy1;
-                    if( dy1 > dMaxY)
-                        dMaxY = dy1;
-                }
+                /* first point */
+                pData->dMinY = dFirstY;
+                pData->dMaxY = dFirstY;
             }
-
-            /* if we are not actually anywhere near the extent then just return */
-            if( (dMinY > pData->pExtents[1] ) || (dMaxY < pData->pExtents[3]) )
-            {
-                /*fprintf( stderr, "ignoring poly %d %d %d %d\n", ( dMinX > pData->pExtents[2] ), ( dMaxX < pData->pExtents[0]), 
-                        (dMinY > pData->pExtents[1] ) , (dMaxY > pData->pExtents[3]));*/
-                return pWKB;
-            }
-
-            /* Don't chop down to extents as the algorithm needs the full range of values */
-                            
-            /* Snap to the grid we are using */
-            dMaxY = pData->pExtents[1] + (floor((pData->pExtents[1] - dMaxY) / pData->dMetersPerPix) * pData->dMetersPerPix);
-
-            fillPoly(pData, nPoints, dMinY, dMaxY, pPolyX, pPolyY);
-
-            free(pPolyX);
-            free(pPolyY);
+            pData->pPolyX[pData->nPolyCorners] = dFirstX;
+            pData->pPolyY[pData->nPolyCorners] = dFirstY;
+            pData->nPolyCorners++;
         }
-        
-        if( pData->nLineWidth > 0 )
+
+        for( n = 1; n < nPoints; n++ )
         {
-            /* rewind to the start of the point (in case we filled) */
-            pWKB = pStartThisPoint;
-                        
-            /* outline */
-            /* get the first point */
-            READ_WKB_VAL(dx1, pWKB)
-            READ_WKB_VAL(dy1, pWKB)
+            READ_WKB_VAL(dx2, pWKB)
+            READ_WKB_VAL(dy2, pWKB)
             if(hasz)
             {
                 pWKB += sizeof(double);
             }
-            dFirstX = dx1;
-            dFirstY = dy1;
-
-            for( n = 1; n < nPoints; n++ )
+            if( pData->nLineWidth > 0 )
             {
-                READ_WKB_VAL(dx2, pWKB)
-                READ_WKB_VAL(dy2, pWKB)
-                if(hasz)
-                {
-                    pWKB += sizeof(double);
-                }
                 VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
-
-                /* set up for next one */
-                dx1 = dx2;
-                dy1 = dy2;
             }
-            /* close it*/
+            if( pData->bFill )
+            {
+                pData->pPolyX[pData->nPolyCorners] = dx2;
+                pData->pPolyY[pData->nPolyCorners] = dy2;
+                pData->nPolyCorners++;
+                if( dy2 < pData->dMinY ) 
+                    pData->dMinY = dy2;
+                if( dy2 > pData->dMaxY )
+                    pData->dMaxY = dy2;
+            }
+
+            /* set up for next one */
+            dx1 = dx2;
+            dy1 = dy2;
+        }
+        /* close it*/
+        if( pData->nLineWidth > 0 )
+        {
             VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
         }
-        
-        if( pWKB == pStartThisPoint )
-        {
-            /* they must have passed fill=False and linewidth==0  */
-            /* Must be just interested in points */
-            /* read the data so pWKB valid for next feature */
-            pWKB += nPoints * (sizeof(double) * 2);
-            if(hasz)
-            {
-                pWKB += nPoints * sizeof(double);
-            }
-        }
     }
+        
     return pWKB;
 }
 
@@ -590,6 +565,16 @@ static const unsigned char* VectorWriter_processWKB(VectorWriterData *pData, con
         break;
     }
     return pCurrWKB;
+}
+
+static const void VectorWriter_processAll(VectorWriterData *pData, const unsigned char *pWKB)
+{
+    VectorWriter_processWKB(pData, pWKB);
+    
+    if( pData->bFill && (pData->pPolyX != NULL) )
+    {
+        fillPoly(pData);
+    }
 }
 
 /* bit of a hack here - this is what a SWIG object looks
@@ -788,7 +773,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
             /* read it in */
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array */
-            VectorWriter_processWKB(pWriter, pCurrWKB);
+            VectorWriter_processAll(pWriter, pCurrWKB);
         }
 
         OGR_F_Destroy(hFeature);
@@ -893,7 +878,7 @@ static PyObject *vectorrasterizer_rasterizeFeature(PyObject *self, PyObject *arg
             /* read it in*/
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array*/
-            VectorWriter_processWKB(pWriter, pCurrWKB);
+            VectorWriter_processAll(pWriter, pCurrWKB);
             free( pCurrWKB );
         }
     }
@@ -994,7 +979,7 @@ static PyObject *vectorrasterizer_rasterizeGeometry(PyObject *self, PyObject *ar
             /* read it in*/
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array*/
-            VectorWriter_processWKB(pWriter, pCurrWKB);
+            VectorWriter_processAll(pWriter, pCurrWKB);
             free( pCurrWKB );
         }
     }
