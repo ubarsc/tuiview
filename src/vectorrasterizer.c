@@ -52,7 +52,6 @@ typedef struct
     npy_intp nYSize;
     int bFill;
     int nHalfCrossSize;
-    npy_uint8 nValueToBurn;
 } VectorWriterData;
 
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
@@ -72,7 +71,6 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
     pData->nHalfCrossSize = nHalfCrossSize;
-    pData->nValueToBurn = 1;
     
     return pData;
 }
@@ -93,7 +91,7 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
     {
         if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
         {
-            *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
+            *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = 1;
         }
     }
     else if( pData->nLineWidth > 1 )
@@ -113,7 +111,7 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
             {
                 if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
                 {
-                    *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
+                    *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = 1;
                 }
             }
         }
@@ -121,12 +119,16 @@ static void VectorWriter_plot(VectorWriterData *pData, int x, int y)
 }
 
 /* Like VectorWriter_plot but always plots even if nLineWidth == 0 */
+/* and converts to x/y */
 /* For use in filling a poly */
-static inline void VectorWriter_plot_for_fill(VectorWriterData *pData, int x, int y)
+static inline void VectorWriter_plot_for_fill(VectorWriterData *pData, double dx, double dy)
 {
-    if( ( x >= 0 ) && ( x < pData->nXSize ) && ( y >= 0 ) && ( y < pData->nYSize ) )
+    int nx, ny;
+    nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
+    if( ( nx >= 0 ) && ( nx < pData->nXSize ) && ( ny >= 0 ) && ( ny < pData->nYSize ) )
     {
-        *((npy_uint8*)PyArray_GETPTR2(pData->pArray, y, x)) = pData->nValueToBurn;
+        *((npy_uint8*)PyArray_GETPTR2(pData->pArray, ny, nx)) = 1;
     }
 }
 
@@ -283,44 +285,68 @@ static const unsigned char* VectorWriter_processLineString(VectorWriterData *pDa
     return pWKB;
 }
 
-/* See http://alienryderflex.com/polygon/ */
-void precalc_values(int polyCorners, double *polyX, double *polyY, double *constant, double *multiple)
+/* taken from https://alienryderflex.com/polygon_fill/ */
+static void fillPoly(VectorWriterData *pData, int polyCorners, 
+        double dMinY, double dMaxY, double *polyX, double *polyY)
 {
-  int i, j=polyCorners-1;
-
-    for(i=0; i<polyCorners; i++) 
+    int nodes, i, j;
+    double swap, *nodeX;
+    
+    fprintf(stderr, "filling poly\n");
+    nodeX = (double*)malloc(polyCorners * sizeof(double));
+    if( nodeX == NULL )
     {
-        if(polyY[j]==polyY[i]) 
-        {
-            constant[i]=polyX[i];
-            multiple[i]=0; 
-        }
-        else 
-        {
-            constant[i]=polyX[i]-(polyY[i]*polyX[j])/(polyY[j]-polyY[i])+(polyY[i]*polyX[i])/(polyY[j]-polyY[i]);
-            multiple[i]=(polyX[j]-polyX[i])/(polyY[j]-polyY[i]); 
-        }
-        j=i; 
+        fprintf(stderr, "Allocation for fill failed\n");
+        return;
     }
-}
-
-int pointInPolygon(int polyCorners, double x, double y,double *polyX, 
-        double *polyY, double *constant, double *multiple) 
-{
-    int   i, j=polyCorners-1;
-    int  oddNodes=0;
-
-    for (i=0; i<polyCorners; i++) 
+    /* Use the centre of each pixel for the test */
+    for( double pixelY = (dMaxY -  pData->dMetersPerPix / 2); pixelY >= dMinY; pixelY -= pData->dMetersPerPix )
     {
-        if ((((polyY[i]< y) && (polyY[j]>=y))
-            ||   ((polyY[j]< y) && (polyY[i]>=y))) )
+        //  Build a list of nodes.
+        nodes = 0; 
+        j = polyCorners - 1;
+        for( i = 0; i < polyCorners; i++) 
         {
-            oddNodes^=(y*multiple[i]+constant[i]<x); 
+            if( (polyY[i] < pixelY && polyY[j] >= pixelY)
+                || (polyY[j] < pixelY && polyY[i] >= pixelY)) 
+            {
+                nodeX[nodes++] = (polyX[i]+(pixelY-polyY[i])/(polyY[j]-polyY[i])*(polyX[j]-polyX[i])); 
+            }
+            j = i; 
         }
-        j=i; 
-    }
 
-    return oddNodes; 
+        //  Sort the nodes, via a simple “Bubble” sort.
+        i = 0;
+        while( i < nodes - 1 ) 
+        {
+            if( nodeX[i] > nodeX[i+1] )
+            {
+                swap = nodeX[i]; 
+                nodeX[i] = nodeX[i+1]; 
+                nodeX[i+1] = swap; 
+                if( i ) i--;
+            }
+            else 
+            {
+                i++; 
+            }
+        }
+
+        //  Fill the pixels between node pairs.
+        for( i = 0; i < nodes; i += 2) 
+        {
+            /* extents are (tlx, tly, brx, bry) */
+            if( nodeX[i] >= pData->pExtents[2]) break;
+            if( nodeX[i+1] > pData->pExtents[0] ) {
+                if( nodeX[i] < pData->pExtents[0] ) nodeX[i] = pData->pExtents[0];
+                if( nodeX[i+1] > pData->pExtents[2]) nodeX[i+1] = pData->pExtents[2];
+                for( double pixelX = nodeX[i]; pixelX < nodeX[i+1]; pixelX++) 
+                { 
+                    VectorWriter_plot_for_fill(pData, pixelX, pixelY); 
+                }
+            }
+        }
+    }
 }
 
 /* same as processLineString, but closes ring */
@@ -330,9 +356,8 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     double dx1, dy1, dx2, dy2;
     double dFirstX, dFirstY;
     /* when pData->bFill */
-    double *pPolyX, *pPolyY, *pConstant, *pMultiple;
-    double dMinX, dMaxX, dMinY, dMaxY;
-    int x, y;
+    double *pPolyX, *pPolyY;
+    double dMinY, dMaxY;
     const unsigned char *pStartThisPoint = NULL;
 
     READ_WKB_VAL(nPoints, pWKB)
@@ -345,8 +370,6 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             /* now do the fill */        
             pPolyX = (double*)malloc(nPoints * sizeof(double));
             pPolyY = (double*)malloc(nPoints * sizeof(double));
-            pConstant = (double*)malloc(nPoints * sizeof(double));
-            pMultiple = (double*)malloc(nPoints * sizeof(double));
 
             for( n = 0; n < nPoints; n++ )
             {
@@ -358,20 +381,14 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
                 }
                 pPolyX[n] = dx1;
                 pPolyY[n] = dy1;
-                /* need the extent */
+                /* need the extent of Y values */
                 if( n == 0 )
                 {
-                    dMinX = dx1;
-                    dMaxX = dx1;
                     dMinY = dy1;
                     dMaxY = dy1;
                 }
                 else
                 {
-                    if( dx1 < dMinX )
-                        dMinX = dx1;
-                    if( dx1 > dMaxX)
-                        dMaxX = dx1;
                     if( dy1 < dMinY)
                         dMinY = dy1;
                     if( dy1 > dMaxY)
@@ -380,99 +397,22 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             }
 
             /* if we are not actually anywhere near the extent then just return */
-            if( ( dMinX > pData->pExtents[2] ) || ( dMaxX < pData->pExtents[0])
-                    || (dMinY > pData->pExtents[1] ) || (dMaxY < pData->pExtents[3]) )
+            if( (dMinY > pData->pExtents[1] ) || (dMaxY < pData->pExtents[3]) )
             {
                 /*fprintf( stderr, "ignoring poly %d %d %d %d\n", ( dMinX > pData->pExtents[2] ), ( dMaxX < pData->pExtents[0]), 
                         (dMinY > pData->pExtents[1] ) , (dMaxY > pData->pExtents[3]));*/
                 return pWKB;
             }
 
-            precalc_values(nPoints, pPolyX, pPolyY, pConstant, pMultiple);
-
-            /* pData->pExtents is (tlx, tly, brx, bry) */
-            /* chop down area to that within the extent */
-            if( dMinX < pData->pExtents[0] )
-                dMinX = pData->pExtents[0];
-            if( dMaxX > pData->pExtents[2] )
-                dMaxX = pData->pExtents[2];
-            if( dMinY < pData->pExtents[3] )
-                dMinY = pData->pExtents[3];
-            if( dMaxY > pData->pExtents[1] )
-                dMaxY = pData->pExtents[1];
-                
+            /* Don't chop down to extents as the algorithm needs the full range of values */
+                            
             /* Snap to the grid we are using */
             dMaxY = pData->pExtents[1] + (floor((pData->pExtents[1] - dMaxY) / pData->dMetersPerPix) * pData->dMetersPerPix);
-            dMinX = pData->pExtents[0] + (floor((dMinX - pData->pExtents[0]) / pData->dMetersPerPix) * pData->dMetersPerPix);
 
-            /* Use the centre of each pixel for the test */
-            for( dy1 = (dMaxY -  pData->dMetersPerPix / 2); dy1 >= dMinY; dy1 -= pData->dMetersPerPix )
-            {
-                for( dx1 = (dMinX + pData->dMetersPerPix / 2); dx1 <= dMaxX; dx1 += pData->dMetersPerPix )
-                {
-                    if( pointInPolygon(nPoints, dx1, dy1, pPolyX, pPolyY,
-                            pConstant, pMultiple) )
-                    {
-                        /* truncate ok for this as tl corner should relate to the centre of the pixel coord */
-                        x = (dx1 - pData->pExtents[0]) / pData->dMetersPerPix;
-                        y = (pData->pExtents[1] - dy1) / pData->dMetersPerPix;
-                        /* Special function that ignores nLineWidth */
-                        /* and only fills in where not set */
-                        VectorWriter_plot_for_fill(pData, x, y);
-                    }
-                }
-            }
+            fillPoly(pData, nPoints, dMinY, dMaxY, pPolyX, pPolyY);
 
             free(pPolyX);
             free(pPolyY);
-            free(pConstant);
-            free(pMultiple);
-
-            
-            /* now if the nLineWidth is zero 'rub out' what we've done */
-            /* Along the outline. Necessary since the centres of some pixels will be */
-            /* within the poly but not completely. Rubbing out these partial pixels */
-            /* along the outline should do the trick */
-            if( pData->nLineWidth == 0 )
-            {
-                /* rewind to the start of the point (again) */
-                pWKB = pStartThisPoint;
-
-                /* set fill color to 0 */
-                pData->nValueToBurn = 0;
-                /* line width to 1 */
-                pData->nLineWidth = 1;
-                
-                READ_WKB_VAL(dx1, pWKB)
-                READ_WKB_VAL(dy1, pWKB)
-                if(hasz)
-                {
-                    pWKB += sizeof(double);
-                }
-                dFirstX = dx1;
-                dFirstY = dy1;
-
-                for( n = 1; n < nPoints; n++ )
-                {
-                    READ_WKB_VAL(dx2, pWKB)
-                    READ_WKB_VAL(dy2, pWKB)
-                    if(hasz)
-                    {
-                        pWKB += sizeof(double);
-                    }
-                    VectorWriter_burnLine(pData, dx1, dy1, dx2, dy2);
-
-                    /* set up for next one */
-                    dx1 = dx2;
-                    dy1 = dy2;
-                }
-                /* close it*/
-                VectorWriter_burnLine(pData, dx1, dy1, dFirstX, dFirstY);
-
-                /* reset */
-                pData->nValueToBurn = 1;
-                pData->nLineWidth = 0;
-            }
         }
         
         if( pData->nLineWidth > 0 )
