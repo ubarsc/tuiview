@@ -298,12 +298,6 @@ static void fillPoly(VectorWriterData *pData)
     while( pCurr != NULL )
     {
         totalPolycorners += pCurr->nPolyCorners;
-        /* Check for ok allocations */
-        if( (pCurr->pPolyX == NULL) || (pCurr->pPolyY == NULL) )
-        {
-            fprintf(stderr, "Allocation for corners failed\n");
-            return;
-        }
         pCurr = pCurr->pNext;
     }
     
@@ -411,12 +405,12 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
         if( pData->bFill )
         {
             /* create buffer for fill */
-            /* TODO: deal with failure */
             pSlab = (struct sPolycornersStruct*)malloc(sizeof(struct sPolycornersStruct));
             pSlab->pPolyX = (double*)malloc(sizeof(double) * nPoints);
             pSlab->pPolyY = (double*)malloc(sizeof(double) * nPoints);
-            if( (pSlab->pPolyX != NULL) && (pSlab->pPolyY != NULL) )
+            if( (pSlab != NULL) && (pSlab->pPolyX != NULL) && (pSlab->pPolyY != NULL) )
             {
+                /* If any of the allocations above fail then we don't add the slab */
                 bCornerAllocationOK = 1;
                 /* first point */
                 pSlab->pPolyX[0] = dFirstX;
