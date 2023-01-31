@@ -42,6 +42,14 @@
 /* release the GIL when we know the WKB is bigger than this size in bytes */
 #define GIL_WKB_SIZE_THRESHOLD 1024
 
+typedef struct sPolycornersStruct
+{
+    double *pPolyX;
+    double *pPolyY;
+    int nPolyCorners;
+    struct sPolycornersStruct *pNext;
+} PolycornersSlab;
+
 typedef struct 
 {
     PyArrayObject *pArray;
@@ -53,9 +61,7 @@ typedef struct
     int bFill;
     int nHalfCrossSize;
     /* For bFill */
-    double *pPolyX;
-    double *pPolyY;
-    int nPolyCorners;
+    struct sPolycornersStruct *pFirstSlab;
     double dMinY;
     double dMaxY;
 } VectorWriterData;
@@ -77,19 +83,23 @@ static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExt
     pData->dMetersPerPix = (pExtents[2] - pExtents[0]) / ((double)pData->nXSize);
     pData->bFill = bFill;
     pData->nHalfCrossSize = nHalfCrossSize;
-    pData->pPolyX = NULL;
-    pData->pPolyY = NULL;
-    pData->nPolyCorners = 0;
+    pData->pFirstSlab = NULL;
     
     return pData;
 }
 
 static void VectorWriter_destroy(VectorWriterData *pData)
 {
-    if( pData->pPolyX != NULL )
-        free(pData->pPolyX);
-    if( pData->pPolyY != NULL )
-        free(pData->pPolyY);
+    struct sPolycornersStruct *tmp, *head;
+    head = pData->pFirstSlab;
+    while( head != NULL )
+    {
+        tmp = head;
+        head = head->pNext;
+        free(tmp->pPolyX);
+        free(tmp->pPolyY);
+        free(tmp);
+    }
     free(pData);
 }
 
@@ -301,11 +311,25 @@ static const unsigned char* VectorWriter_processLineString(VectorWriterData *pDa
 /* taken from https://alienryderflex.com/polygon_fill/ */
 static void fillPoly(VectorWriterData *pData)
 {
-    int nodes, i, j;
+    int nodes, i, j, totalPolycorners = 0;
     double swap, *nodeX;
+    struct sPolycornersStruct *pCurr;
+    
+    /* find the total corners for all the slabs */
+    pCurr = pData->pFirstSlab;
+    while( pCurr != NULL )
+    {
+        totalPolycorners += pCurr->nPolyCorners;
+        pCurr = pCurr->pNext;
+    }
+    
+    if( totalPolycorners < 2 )
+    {
+        return;
+    }
     
     fprintf(stderr, "filling poly\n");
-    nodeX = (double*)malloc(pData->nPolyCorners * sizeof(double));
+    nodeX = (double*)malloc(totalPolycorners * sizeof(double));
     if( nodeX == NULL )
     {
         fprintf(stderr, "Allocation for fill failed\n");
@@ -318,20 +342,25 @@ static void fillPoly(VectorWriterData *pData)
     /* Use the centre of each pixel for the test */
     for( double pixelY = (pData->dMaxY -  pData->dMetersPerPix / 2); pixelY >= pData->dMinY; pixelY -= pData->dMetersPerPix )
     {
-        //  Build a list of nodes.
+        //  Build a list of nodes. For each slab separately
         nodes = 0; 
-        j = pData->nPolyCorners - 1;
-        for( i = 0; i < pData->nPolyCorners; i++) 
+        pCurr = pData->pFirstSlab;
+        while( pCurr != NULL )
         {
-            if( (pData->pPolyY[i] < pixelY && pData->pPolyY[j] >= pixelY)
-                || (pData->pPolyY[j] < pixelY && pData->pPolyY[i] >= pixelY)) 
+            j = pCurr->nPolyCorners - 1;
+            for( i = 0; i < pCurr->nPolyCorners; i++) 
             {
-                nodeX[nodes++] = (pData->pPolyX[i]+(pixelY-pData->pPolyY[i])/(pData->pPolyY[j]-pData->pPolyY[i])*(pData->pPolyX[j]-pData->pPolyX[i])); 
+                if( (pCurr->pPolyY[i] < pixelY && pCurr->pPolyY[j] >= pixelY)
+                    || (pCurr->pPolyY[j] < pixelY && pCurr->pPolyY[i] >= pixelY)) 
+                {
+                    nodeX[nodes++] = (pCurr->pPolyX[i]+(pixelY-pCurr->pPolyY[i])/(pCurr->pPolyY[j]-pCurr->pPolyY[i])*(pCurr->pPolyX[j]-pCurr->pPolyX[i])); 
+                }
+                j = i; 
             }
-            j = i; 
+            pCurr = pCurr->pNext;
         }
 
-        //  Sort the nodes, via a simple “Bubble” sort.
+        //  Sort the nodes, via a simple Bubble sort.
         i = 0;
         while( i < nodes - 1 ) 
         {
@@ -371,6 +400,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
     double dFirstX, dFirstY;
+    struct sPolycornersStruct *pSlab, *pLastSlab;
 
     READ_WKB_VAL(nPoints, pWKB)
     if( nPoints > 0 )
@@ -387,19 +417,33 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
         
         if( pData->bFill )
         {
-            /* grow buffer for fill */
-            pData->pPolyX = realloc(pData->pPolyX, (pData->nPolyCorners + nPoints) * sizeof(double));
-            pData->pPolyY = realloc(pData->pPolyY, (pData->nPolyCorners + nPoints) * sizeof(double));
+            /* create buffer for fill */
             /* TODO: deal with failure */
-            if( pData->nPolyCorners == 0 )
+            pSlab = (struct sPolycornersStruct*)malloc(sizeof(struct sPolycornersStruct));
+            pSlab->pPolyX = (double*)malloc(sizeof(double) * nPoints);
+            pSlab->pPolyY = (double*)malloc(sizeof(double) * nPoints);
+            /* first point */
+            pSlab->pPolyX[0] = dFirstX;
+            pSlab->pPolyY[0] = dFirstY;
+            pSlab->nPolyCorners = 1;
+            pSlab->pNext = NULL;
+            
+            if( pData->pFirstSlab == NULL )
             {
-                /* first point */
+                /* first slab - init range */
+                pData->pFirstSlab = pSlab;
                 pData->dMinY = dFirstY;
                 pData->dMaxY = dFirstY;
             }
-            pData->pPolyX[pData->nPolyCorners] = dFirstX;
-            pData->pPolyY[pData->nPolyCorners] = dFirstY;
-            pData->nPolyCorners++;
+            else
+            {
+                pLastSlab = pData->pFirstSlab;
+                while( pLastSlab->pNext != NULL )
+                {
+                    pLastSlab = pLastSlab->pNext;
+                }
+                pLastSlab->pNext = pSlab;
+            }
         }
 
         for( n = 1; n < nPoints; n++ )
@@ -416,9 +460,9 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
             }
             if( pData->bFill )
             {
-                pData->pPolyX[pData->nPolyCorners] = dx2;
-                pData->pPolyY[pData->nPolyCorners] = dy2;
-                pData->nPolyCorners++;
+                pSlab->pPolyX[pSlab->nPolyCorners] = dx2;
+                pSlab->pPolyY[pSlab->nPolyCorners] = dy2;
+                pSlab->nPolyCorners++;
                 if( dy2 < pData->dMinY ) 
                     pData->dMinY = dy2;
                 if( dy2 > pData->dMaxY )
@@ -571,7 +615,7 @@ static const void VectorWriter_processAll(VectorWriterData *pData, const unsigne
 {
     VectorWriter_processWKB(pData, pWKB);
     
-    if( pData->bFill && (pData->pPolyX != NULL) )
+    if( pData->bFill && (pData->pFirstSlab != NULL) )
     {
         fillPoly(pData);
     }
