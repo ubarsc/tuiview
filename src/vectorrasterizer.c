@@ -43,13 +43,14 @@
 #define GIL_WKB_SIZE_THRESHOLD 1024
 
 /* This is used when filling */
-/* There is a link list of these 'slabs' that contain  */
+/* There is a linked list of these 'slabs' that contain corners for the rings for each feature */
+/* used by fillPoly() below */
 typedef struct sPolycornersStruct
 {
-    double *pPolyX;
-    double *pPolyY;
-    int nPolyCorners;
-    struct sPolycornersStruct *pNext;
+    double *pPolyX; /* array of x coords for the corners */
+    double *pPolyY; /* array of y coords for the corners */
+    int nPolyCorners; /* number of corners */
+    struct sPolycornersStruct *pNext; /* next slab (or NULL) */
 } PolycornersSlab;
 
 typedef struct 
@@ -62,10 +63,10 @@ typedef struct
     npy_intp nYSize;
     int bFill;
     int nHalfCrossSize;
-    /* For bFill */
-    struct sPolycornersStruct *pFirstSlab;
-    double dMinY;
-    double dMaxY;
+    /* below is for bFill */
+    struct sPolycornersStruct *pFirstSlab; /* linked list */
+    double dMinY;   /* min y coord for corners */
+    double dMaxY;   /* max y coord for corners */
 } VectorWriterData;
 
 static VectorWriterData* VectorWriter_create(PyArrayObject *pArray, double *pExtents, 
