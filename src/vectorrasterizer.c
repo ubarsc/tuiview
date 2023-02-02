@@ -367,7 +367,9 @@ static void fillPoly(VectorWriterData *pData)
             if( nodeX[i+1] > pData->pExtents[0] ) {
                 if( nodeX[i] < pData->pExtents[0] ) nodeX[i] = pData->pExtents[0];
                 if( nodeX[i+1] > pData->pExtents[2]) nodeX[i+1] = pData->pExtents[2];
-                for( pixelX = nodeX[i]; pixelX < nodeX[i+1]; pixelX += pData->dMetersPerPix) 
+                /* snap to the grid we are using */
+                for( pixelX = pData->pExtents[0] + (floor((nodeX[i] - pData->pExtents[0]) / pData->dMetersPerPix) * pData->dMetersPerPix); )
+                     pixelX < nodeX[i+1]; pixelX += pData->dMetersPerPix) 
                 { 
                     nx = (pixelX - pData->pExtents[0]) / pData->dMetersPerPix;
                     /* do range check again as we might not be within the image */

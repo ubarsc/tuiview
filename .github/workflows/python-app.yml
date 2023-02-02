@@ -51,4 +51,5 @@ jobs:
     - name: Test Build
       shell: bash -el {0}
       run:
+        echo $CONDA_PREFIX
         GDAL_HOME=${CONDA_PREFIX} pip install .        
