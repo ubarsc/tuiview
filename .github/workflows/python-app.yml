@@ -1,4 +1,4 @@
-name: Flake8 Lint
+name: Flake8 Lint And Test Build
 
 on:
   push:
@@ -51,6 +51,5 @@ jobs:
     - name: Test Build
       shell: bash -el {0}
       run: |
-        echo $CONDA_PREFIX
-        ls -l ${CONDA_PREFIX}/lib
-        GDAL_HOME=${CONDA_PREFIX} pip install .        
+        ls -l ${CONDA_PREFIX}/Library
+        GDAL_HOME=${CONDA_PREFIX}\Library pip install .        
