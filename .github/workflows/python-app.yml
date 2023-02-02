@@ -51,5 +51,4 @@ jobs:
     - name: Test Build
       shell: bash -el {0}
       run: |
-        ls -l ${CONDA_PREFIX}/Library/lib
-        GDAL_HOME=${CONDA_PREFIX}\Library pip install .        
+        GDAL_HOME=${CONDA_PREFIX}\\Library pip install .        
