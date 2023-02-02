@@ -27,7 +27,7 @@ jobs:
         flake8 tuiview
     - name: Test Build
       shell: bash -l {0}
-      run:
+      run: |
         pip install .        
 
   build-windows:
@@ -50,6 +50,7 @@ jobs:
         flake8 tuiview
     - name: Test Build
       shell: bash -el {0}
-      run:
+      run: |
         echo $CONDA_PREFIX
+        ls -l ${CONDA_PREFIX}/lib
         GDAL_HOME=${CONDA_PREFIX} pip install .        
