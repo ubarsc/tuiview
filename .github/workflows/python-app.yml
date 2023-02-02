@@ -1,16 +1,54 @@
 name: Flake8 Lint
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
-  do-flake8:
+  build-linux:
+    name: Test Linux
     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup Python
-      uses: actions/setup-python@v1
+    steps: 
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniforge-version: latest
+        miniforge-variant: Mambaforge
+    - name: Install Dependencies
+      shell: bash -l {0}
+      run: |
+        conda install flake8 gdal
     - name: Lint with flake8
-      uses: py-actions/flake8@v2
-     
+      shell: bash -l {0}
+      run: |
+        flake8 tuiview
+    - name: Test Build
+      shell: bash -l {0}
+      run:
+        pip install .        
+
+  build-windows:
+    name: Test Windows
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniforge-version: latest
+        miniforge-variant: Mambaforge
+    - name: Install Dependencies
+      shell: bash -el {0}
+      run: |
+        conda install flake8 gdal
+    - name: Lint with flake8
+      shell: bash -el {0}
+      run: |
+        flake8 tuiview
+    - name: Test Build
+      shell: bash -el {0}
+      run:
+        pip install .        
