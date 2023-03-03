@@ -387,7 +387,7 @@ static const unsigned char* VectorWriter_processLinearRing(VectorWriterData *pDa
     GUInt32 nPoints, n;
     double dx1, dy1, dx2, dy2;
     double dFirstX, dFirstY;
-    struct sPolycornersStruct *pSlab, *pLastSlab;
+    struct sPolycornersStruct *pSlab = NULL, *pLastSlab;
     int bCornerAllocationOK = 0;
 
     READ_WKB_VAL(nPoints, pWKB)
