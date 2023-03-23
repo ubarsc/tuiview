@@ -171,8 +171,10 @@ class ViewerLUT(QObject):
             # make selectionArray the same size by adding space for 
             # no data and ignore+nan
             # (which aren't used here)
+            # also cope with RATs smaller than 256
+            needToAdd = self.lut.shape[0] - selectionArray.shape[0]
             selectionArray = numpy.append(selectionArray, 
-                [False, False, False])
+                numpy.zeros((needToAdd,), dtype=bool))
 
             entry = [color.red(), color.green(), color.blue(), color.alpha()]
             for (value, code) in zip(entry, RGBA_CODES):
