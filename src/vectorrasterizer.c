@@ -551,46 +551,60 @@ static const unsigned char* VectorWriter_processWKB(VectorWriterData *pData, con
     /* ignore byte order (should be native) */
     pCurrWKB++;
     READ_WKB_VAL(nType, pCurrWKB)
+    fprintf(stderr, "nType %d\n", (int)nType);
     switch(nType)
     {
     case wkbPoint:
         pCurrWKB = VectorWriter_processPoint(pData, pCurrWKB, 0);
+        fprintf(stderr, "pCurrWKB\n");
         break;
     case wkbPoint25D:
+        fprintf(stderr, "pCurrWKB 2.5\n");
         pCurrWKB = VectorWriter_processPoint(pData, pCurrWKB, 1);
         break;
     case wkbLineString:
+        fprintf(stderr, "wkbLineString\n");
         pCurrWKB = VectorWriter_processLineString(pData, pCurrWKB, 0);
         break;
     case wkbLineString25D:
+        fprintf(stderr, "wkbLineString 2.5\n");
         pCurrWKB = VectorWriter_processLineString(pData, pCurrWKB, 1);
         break;
     case wkbPolygon:
+        fprintf(stderr, "wkbPolygon\n");
         pCurrWKB = VectorWriter_processPolygon(pData, pCurrWKB, 0);
         break;
     case wkbPolygon25D:
+        fprintf(stderr, "wkbPolygon 2.5\n");
         pCurrWKB = VectorWriter_processPolygon(pData, pCurrWKB, 1);
         break;
     case wkbMultiPoint:
+        fprintf(stderr, "wkbMultiPoint\n");
         pCurrWKB = VectorWriter_processMultiPoint(pData, pCurrWKB, 0);
         break;
     case wkbMultiPoint25D:
+        fprintf(stderr, "wkbMultiPoint 2.5\n");
         pCurrWKB = VectorWriter_processMultiPoint(pData, pCurrWKB, 1);
         break;
     case wkbMultiLineString:
+        fprintf(stderr, "wkbMultiLineString\n");
         pCurrWKB = VectorWriter_processMultiLineString(pData, pCurrWKB, 0);
         break;
     case wkbMultiLineString25D:
+        fprintf(stderr, "wkbMultiLineString 2.5\n");
         pCurrWKB = VectorWriter_processMultiLineString(pData, pCurrWKB, 1);
         break;
     case wkbMultiPolygon:
+        fprintf(stderr, "wkbMultiPolygon\n");
         pCurrWKB = VectorWriter_processMultiPolygon(pData, pCurrWKB, 0);
         break;
     case wkbMultiPolygon25D:
+        fprintf(stderr, "wkbMultiPolygon 2.5\n");
         pCurrWKB = VectorWriter_processMultiPolygon(pData, pCurrWKB, 1);
         break;
     case wkbGeometryCollection:
     case wkbGeometryCollection25D:
+        fprintf(stderr, "wkbGeometryCollection\n");
         pCurrWKB = VectorWriter_processGeometryCollection(pData, pCurrWKB);
         break;
     case wkbNone:
@@ -730,6 +744,8 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     unsigned char *pNewWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
     NPY_BEGIN_THREADS_DEF;
+    
+    fprintf(stderr, "vectorrasterizer_rasterizeLayer\n");
 
     char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
             "linewidth", "sql", "fill", "halfCrossSize", NULL};
