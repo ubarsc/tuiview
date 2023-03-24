@@ -730,7 +730,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     unsigned char *pNewWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
     NPY_BEGIN_THREADS_DEF;
-    
+
     char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
             "linewidth", "sql", "fill", "halfCrossSize", NULL};
     if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|ii:rasterizeLayer", kwlist, 
