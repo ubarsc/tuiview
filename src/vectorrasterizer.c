@@ -1108,7 +1108,7 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args, P
     {
         pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
-        VectorWriter_processWKB(pWriter, pszWKB);
+        VectorWriter_processAll(pWriter, pszWKB);
 
         VectorWriter_destroy(pWriter);
     }
