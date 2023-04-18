@@ -101,7 +101,7 @@ class PluginManager(object):
         """
         for fname in os.listdir(directory):
             for suffix in importlib.machinery.SOURCE_SUFFIXES:
-                if fname.endswith(suffix):
+                if fname.endswith(suffix) and not fname.startswith('__'):
                     path = os.path.join(directory, fname)
                     self.loadPluginFromPath(path)
 
