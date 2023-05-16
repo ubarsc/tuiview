@@ -121,14 +121,31 @@ class PolygonToolInfo(ToolInfo):
             pass
         noniter = NonIter()
         noniter.poly = self
+        
+        import time
 
         # vectorize the function which creates a mask of values
         # inside the poly for the bbox area
+        a = time.time()
         vfunc = numpy.vectorize(self.maskFunc, otypes=[bool])
         bboxmask = vfunc(dispGridX, dispGridY, noniter)
 
         # insert the bbox mask back into the selectMask
         selectMask[tly:bry, tlx:brx] = bboxmask
+
+        print('vfunc', time.time() - a)
+        
+        a = time.time()
+        size = len(self)
+        xvals = numpy.empty((size,), dtype=float)
+        yvals = numpy.empty((size,), dtype=float)
+        for idx, p in enumerate(self):
+            wldx, wldy = self.layer.coordmgr.display2world(p.x(), p.y())
+            xvals[idx] = wldx
+            yvals[idx] = wldy
+
+        print('c', time.time() - a)
+
         return selectMask
 
     def getOGRGeometry(self):

@@ -1118,6 +1118,106 @@ static PyObject *vectorrasterizer_rasterizeWKB(PyObject *self, PyObject *args, P
     return pOutArray;
 }
 
+
+static PyObject *vectorrasterizer_fillVertices(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *pBBoxObject; /* must be a sequence*/
+    int nXSize, nYSize, n;
+    double adExtents[4], dMinY, dMaxY;
+    PyObject *o;
+    npy_intp dims[2];
+    PyObject *pOutArray;
+    PyArrayObject *pXArray, *pYArray;
+    VectorWriterData *pWriter;
+    
+    NPY_BEGIN_THREADS_DEF;
+
+    char *kwlist[] = {"x", "y", "boundingbox", "xsize", "ysize", "minY", "maxY", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "O!O!Oiidd:fillVertices", kwlist,
+            &PyArray_Type, &pXArray, &PyArray_Type, &pYArray, &pBBoxObject, &nXSize, &nYSize,
+            &dMinY, &dMaxY))
+        return NULL;
+
+    if( !PySequence_Check(pBBoxObject))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "second argument must be a sequence");
+        return NULL;
+    }
+
+    if( PySequence_Size(pBBoxObject) != 4 )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
+        return NULL;
+    }
+    
+    for( n = 0; n < 4; n++ )
+    {
+        o = PySequence_GetItem(pBBoxObject, n);
+        if( !PyFloat_Check(o) )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Must be a sequence of floats" );
+            Py_DECREF(o);
+            return NULL;
+        }
+        adExtents[n] = PyFloat_AsDouble(o);
+        Py_DECREF(o);
+    }
+    
+    if( (PyArray_TYPE(pXArray) != NPY_FLOAT64) || (PyArray_TYPE(pYArray) != NPY_FLOAT64) )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Arrays should be float64" );
+        return NULL;
+    }
+    
+    if( (PyArray_NDIM(pXArray) != 1) || (PyArray_NDIM(pYArray) != 1) )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Arrays should be 1-D" );
+        return NULL;
+    }
+    
+    if( PyArray_SIZE(pXArray) != PyArray_SIZE(pYArray))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Arrays should be same size" );
+        return NULL;
+    }
+
+    /* create output array - all 0 to begin with */
+    dims[0] = nYSize;
+    dims[1] = nXSize;
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
+    if( pOutArray == NULL )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
+        return NULL;
+    }
+    
+    /* Only allow other threads to run if worthwhile */
+    if( PyArray_SIZE(pXArray) > GIL_WKB_SIZE_THRESHOLD )
+    {
+        NPY_BEGIN_THREADS;
+    }
+    
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, 1, 1, 1);
+    pWriter->dMinY = dMinY;
+    pWriter->dMaxY = dMaxY;
+    pWriter->pFirstSlab = (struct sPolycornersStruct*)malloc(sizeof(struct sPolycornersStruct));
+    pWriter->pFirstSlab->pPolyX = PyArray_DATA(pXArray);
+    pWriter->pFirstSlab->pPolyY = PyArray_DATA(pYArray);
+    pWriter->pFirstSlab->nPolyCorners = PyArray_SIZE(pXArray);
+    pWriter->pFirstSlab->pNext = NULL;
+    fillPoly(pWriter);
+
+    /* Delete the first slab being careful not to delete the data owned by numpy */
+    free(pWriter->pFirstSlab);
+    pWriter->pFirstSlab = NULL;
+    VectorWriter_destroy(pWriter);
+    
+    NPY_END_THREADS;
+
+    return pOutArray;
+}
+
+
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", (PyCFunction)vectorrasterizer_rasterizeLayer, METH_VARARGS | METH_KEYWORDS, 
@@ -1161,6 +1261,16 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  linewidth is the width of the line\n"
 "  fill is an optional argument that determines if polygons are filled in\n"
 "  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
+    {"fillVertices", (PyCFunction)vectorrasterizer_fillVertices, METH_VARARGS | METH_KEYWORDS,
+"read the vertices from 2 numpy arrays of float64 and fill to numpy array:\n"
+"call signature: arr = fillVertices(x, y, boundingbox, xsize, ysize, minY, maxY)\n"
+"where:\n"
+"  x is the array of x coords of the vertices\n"
+"  y is the array of x coords of the vertices\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
+"  xsize,ysize size of output array\n"
+"  minY is the min(y)\n"
+"  maxY is the max(y)\n"},
     {NULL}        /* Sentinel */
 };
 
