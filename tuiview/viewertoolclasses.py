@@ -25,6 +25,7 @@ import numpy
 from osgeo import ogr
 
 from .viewerLUT import MASK_IMAGE_VALUE
+from . import vectorrasterizer
 
 
 class ToolInfo(QPolygon):
@@ -137,16 +138,36 @@ class PolygonToolInfo(ToolInfo):
         
         a = time.time()
         size = len(self)
-        xvals = numpy.empty((size,), dtype=float)
-        yvals = numpy.empty((size,), dtype=float)
+        xDsp = numpy.empty((size,), dtype=float)
+        yDsp = numpy.empty((size,), dtype=float)
         for idx, p in enumerate(self):
-            wldx, wldy = self.layer.coordmgr.display2world(p.x(), p.y())
-            xvals[idx] = wldx
-            yvals[idx] = wldy
+            xDsp[idx] = p.x()
+            yDsp[idx] = p.y()
+            
+        xWld, yWld = self.layer.coordmgr.display2world(xDsp, yDsp)
+        minY = yWld.min()
+        maxY = yWld.max()
+
+        extent = self.layer.coordmgr.getWorldExtent()
+        (xsize, ysize) = (self.layer.coordmgr.dspWidth, 
+                    self.layer.coordmgr.dspHeight)
+                
+        mask = vectorrasterizer.fillVertices(xWld, yWld, extent, 
+                        xsize, ysize, minY, maxY)
+        mask = mask == 1
 
         print('c', time.time() - a)
+        diff = numpy.logical_xor(mask, selectMask)
+        print('diff', numpy.count_nonzero(diff)) 
 
-        return selectMask
+        from osgeo import gdal
+        drv = gdal.GetDriverByName('KEA')
+        ds = drv.Create('/tmp/diff.kea', xsize, ysize, 1, gdal.GDT_Byte)
+        band = ds.GetRasterBand(1)
+        band.WriteArray(numpy.where(diff, numpy.uint8(1), numpy.uint8(0)))
+
+        #return selectMask
+        return mask
 
     def getOGRGeometry(self):
         """
