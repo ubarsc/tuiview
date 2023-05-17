@@ -1126,6 +1126,9 @@ File will now be opened using default stretch""")
         """
         Tell the widget to zoom to native resolution
         """
+        # also removes any toolpoints drawn
+        self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
         try:
             self.viewwidget.zoomNativeResolution()
         except Exception as e:
@@ -1135,6 +1138,9 @@ File will now be opened using default stretch""")
         """
         Tell the widget to zoom back to the full extent
         """
+        # also removes any toolpoints drawn
+        self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
+                        id(self))
         try:
             self.viewwidget.zoomFullExtent()
         except Exception as e:
