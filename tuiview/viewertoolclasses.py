@@ -25,6 +25,7 @@ import numpy
 from osgeo import ogr
 
 from .viewerLUT import MASK_IMAGE_VALUE
+from . import vectorrasterizer
 
 
 class ToolInfo(QPolygon):
@@ -97,39 +98,27 @@ class PolygonToolInfo(ToolInfo):
         the data (would probably pay to apply getDisplayValidMask
         to the result)
         """
-        # create the output mask - just do polygon checks
-        # within the bounding box
-        selectMask = numpy.empty_like(self.layer.image.viewermask, 
-                                    dtype=bool)
-        selectMask.fill(False)
+        # copy all the vertices so they can be used to fill in poly
+        size = len(self)
+        xDsp = numpy.empty((size,), dtype=float)
+        yDsp = numpy.empty((size,), dtype=float)
+        for idx, p in enumerate(self):
+            xDsp[idx] = p.x()
+            yDsp[idx] = p.y()
+            
+        xWld, yWld = self.layer.coordmgr.display2world(xDsp, yDsp)
+        minY = yWld.min()
+        maxY = yWld.max()
 
-        # now create a mgrid of x and y values within the bounding box
-        bbox = self.boundingRect()
-        tlx = bbox.left()
-        tly = bbox.top()
-        brx = bbox.right()
-        bry = bbox.bottom()
+        extent = self.layer.coordmgr.getWorldExtent()
+        (xsize, ysize) = (self.layer.coordmgr.dspWidth, 
+                    self.layer.coordmgr.dspHeight)
+                
+        mask = vectorrasterizer.fillVertices(xWld, yWld, extent, 
+                        xsize, ysize, minY, maxY)
+        mask = mask == 1
 
-        # create a grid of x and y values same size as the data
-        dispGridY, dispGridX = numpy.mgrid[tly:bry, tlx:brx]
-
-        # normally would pass self to numpy.vectorize to give access to
-        # containsPoint(),  but we are iteratable which causes all
-        # sorts of problems. Work around is to create a new class
-        # which is not iteratable, but has a reference to self
-        class NonIter(object):
-            pass
-        noniter = NonIter()
-        noniter.poly = self
-
-        # vectorize the function which creates a mask of values
-        # inside the poly for the bbox area
-        vfunc = numpy.vectorize(self.maskFunc, otypes=[bool])
-        bboxmask = vfunc(dispGridX, dispGridY, noniter)
-
-        # insert the bbox mask back into the selectMask
-        selectMask[tly:bry, tlx:brx] = bboxmask
-        return selectMask
+        return mask
 
     def getOGRGeometry(self):
         """
