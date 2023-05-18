@@ -670,7 +670,7 @@ class ViewerLUT(QObject):
             lut = numpy.empty(lutsize, numpy.uint8)
             # assume ints - we just create ramp 0-255 in data range
             stretchMin = int(stretchMin)
-            stretchMax = int(stretchMax)
+            stretchMax = int(numpy.ceil(stretchMax))
             if stretchMin == stretchMax:
                 # hack for invalid data
                 stretchMax = stretchMin + 1
