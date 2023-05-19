@@ -25,7 +25,7 @@ import numpy
 from osgeo import gdal
 from osgeo import osr
 from osgeo import ogr
-from PyQt5.QtGui import QImage, QPainter, QPen
+from PyQt5.QtGui import QImage, QPainter, QPen, QColor
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
 import threading
@@ -1174,6 +1174,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.isResultSet = False
         self.bFill = False
         self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
+        self.fieldToLabel = 'routename'
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1343,6 +1344,57 @@ class ViewerVectorLayer(ViewerLayer):
         bgra = self.lut[data]
         self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
         self.image.viewerdata = data
+        if self.fieldToLabel is not None:
+            self.drawLabels()
+        
+    def drawLabels(self):
+        """
+        Draw labels specified by self.fieldToLabel
+        """
+        extent = self.coordmgr.getWorldExtent()
+        extentRing = ogr.Geometry(ogr.wkbLinearRing)
+        extentRing.AddPoint(extent[0], extent[1])
+        extentRing.AddPoint(extent[2], extent[1])
+        extentRing.AddPoint(extent[2], extent[3])
+        extentRing.AddPoint(extent[0], extent[3])
+        extentRing.AddPoint(extent[0], extent[1])
+        extentGeom = ogr.Geometry(ogr.wkbPolygon)
+        extentGeom.AddGeometry(extentRing)
+
+        lineTypes = set([ogr.wkbLineString, ogr.wkbLineString25D, 
+            ogr.wkbLineStringM, ogr.wkbLineStringZM, ogr.wkbMultiLineString,
+            ogr.wkbMultiLineString25D, ogr.wkbMultiLineStringM, 
+            ogr.wkbMultiLineStringZM])
+
+        pen = QPen()
+        pen.setWidth(1)
+        # TODO: different colour from linework??
+        rgba = self.getColorAsRGBATuple()
+        col = QColor(rgba[0], rgba[1], rgba[2], rgba[3])
+        pen.setColor(col)
+        
+        paint = QPainter(self.image)
+        paint.setPen(pen)
+        self.ogrLayer.ResetReading()
+        self.ogrLayer.SetSpatialFilter(extentGeom)
+        for feature in self.ogrLayer:
+            geom = feature.GetGeometryRef()
+            if geom is not None:
+                # only interested in centroids etc within the window
+                geom = geom.Intersection(extentGeom)
+                geomType = geom.GetGeometryType()
+                if geomType in lineTypes:
+                    print('doing line')
+                    # line
+                    ctr = geom.Value(geom.Length() / 2)
+                else:
+                    ctr = geom.Centroid()
+                disp = self.coordmgr.world2display(ctr.GetX(), ctr.GetY())
+                if disp is not None:
+                    dspX, dspY = disp
+                    label = feature.GetField(self.fieldToLabel)
+                    paint.drawText(int(dspX), int(dspY), label)
+        paint.end()
 
     def getAttributesAtPoint(self, easting, northing, tolerance=0):
         """
