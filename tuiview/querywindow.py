@@ -1627,7 +1627,7 @@ Use the special columns:
         
         # attempt to set the size of the Value colunm to something sensible
         if data is not None:
-            largestString = "Value" # name of column - don't make smaller than this
+            largestString = "Value"  # name of column - don't make smaller than this
             largestStringSize = len(largestString)
             for d in data:
                 s = "%s" % d
