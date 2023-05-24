@@ -56,7 +56,7 @@ else:
     
 # Use this font for labels. TODO: check this works on Windows
 # Qt claims to choose the 'nearest' font if this is not available... 
-LABEL_FONT = QFont('FreeMono', 10, 50)
+LABEL_FONT = QFont('FreeMono', 10, 200)
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
