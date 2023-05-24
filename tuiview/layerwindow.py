@@ -165,6 +165,14 @@ class LayerListView(QListView):
         self.setFillAct.setText("Fill Polygons")
         self.setFillAct.setStatusTip("Toggle the fill status of polygons")
         self.setFillAct.setCheckable(True)
+        
+        self.setLabelAct = QAction(self, triggered=self.setLabel)
+        self.setLabelAct.setText("Set Label")
+        self.setLabelAct.setStatusTip("Set the attribute to show as a label")
+        
+        self.setLabelColorAct = QAction(self, triggered=self.setLabelColor)
+        self.setLabelColorAct.setText("Set Label Color")
+        self.setLabelColorAct.setStatusTip("Set the color of the labels")
 
         self.editStretchAct = QAction(self, triggered=self.editStretch)
         self.editStretchAct.setText("&Edit Stretch")
@@ -200,6 +208,9 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addAction(self.setLineWidthAct)
         self.vectorPopupMenu.addAction(self.setPointCrossSizeAct)
         self.vectorPopupMenu.addAction(self.setFillAct)
+        self.vectorPopupMenu.addSeparator()
+        self.vectorPopupMenu.addAction(self.setLabelAct)
+        self.vectorPopupMenu.addAction(self.setLabelColorAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.propertiesAct)
 
@@ -377,6 +388,48 @@ class LayerListView(QListView):
             layer.setFill(state)
             layer.getImage()
             model.viewwidget.viewport().update()
+            
+    def setLabel(self):
+        "Set the label"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            all_attributes = layer.getAvailableAttributes()
+            attribute_list = ["<None>"]
+            attribute_list.extend(all_attributes)
+            idx = 0
+            field = layer.getFieldToLabel()
+            if field is not None:
+                idx = attribute_list.index(field)
+            att, ok = QInputDialog.getItem(self, MESSAGE_TITLE, 
+                "Select Attribute", attribute_list, idx, False)
+            if ok:
+                if att == "<None>":
+                    att = None
+                layer.setFieldToLabel(att)
+                layer.getImage()  # need to redraw whole thing so old labels aren't seen
+                model.viewwidget.viewport().update()
+                
+    def setLabelColor(self):
+        "Color for label"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            color = layer.getLabelColor()
+            init = QColor(color[0], color[1], color[2], color[3])
+            newCol = QColorDialog.getColor(init, self, "Choose Label Color",
+                            QColorDialog.ShowAlphaChannel)
+            if newCol.isValid():
+                rgba = (newCol.red(), newCol.green(), newCol.blue(), 
+                    newCol.alpha())
+                layer.updateLabelColor(rgba)
+                model.viewwidget.viewport().update()
 
     def editStretch(self):
         "Edit the stretch for the layer"
