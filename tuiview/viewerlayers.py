@@ -25,7 +25,7 @@ import numpy
 from osgeo import gdal
 from osgeo import osr
 from osgeo import ogr
-from PyQt5.QtGui import QImage, QPainter, QPen
+from PyQt5.QtGui import QImage, QPainter, QPen, QColor, QFont
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
 import threading
@@ -53,6 +53,10 @@ if ALLOW_NOGEO.upper() == 'YES':
     ALLOW_NOGEO = True
 else:
     ALLOW_NOGEO = False
+    
+# Use this font for labels. TODO: check this works on Windows
+# Qt claims to choose the 'nearest' font if this is not available... 
+LABEL_FONT = QFont('FreeMono', 10, 200)
 
 # raise exceptions rather than returning None
 gdal.UseExceptions()
@@ -1174,6 +1178,8 @@ class ViewerVectorLayer(ViewerLayer):
         self.isResultSet = False
         self.bFill = False
         self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
+        self.fieldToLabel = None
+        self.labelColor = DEFAULT_VECTOR_COLOR
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1269,6 +1275,12 @@ class ViewerVectorLayer(ViewerLayer):
     def getHalfCrossSize(self):
         return self.halfCrossSize
         
+    def setFieldToLabel(self, field):
+        self.fieldToLabel = field
+        
+    def getFieldToLabel(self):
+        return self.fieldToLabel
+        
     def getColorAsRGBATuple(self):
         rgba = []
         for code in viewerLUT.RGBA_CODES:
@@ -1284,6 +1296,15 @@ class ViewerVectorLayer(ViewerLayer):
         for value, code in zip(color, viewerLUT.RGBA_CODES):
             lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
             self.lut[1, lutindex] = value
+            
+    def setLabelColor(self, color):
+        """
+        Sets the labels as the specified colour (tuple)
+        """
+        self.labelColor = color
+        
+    def getLabelColor(self):
+        return self.labelColor
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
             color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None):
@@ -1325,6 +1346,27 @@ class ViewerVectorLayer(ViewerLayer):
             (ysize, xsize) = data.shape
             self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
             self.image.viewerdata = data
+            
+    def updateLabelColor(self, color):
+        """
+        Like setLabelColor, but also re-labels in the new color
+        """
+        self.setLabelColor(color)
+        if self.image is not None and self.fieldToLabel is not None:
+            self.drawLabels()
+            
+    def getAvailableAttributes(self):
+        """
+        Returns a list of available attributes
+        """
+        result = []
+        if self.ogrLayer is not None:
+            defn = self.ogrLayer.GetLayerDefn()
+            count = defn.GetFieldCount()
+            for n in range(count):
+                fieldDefn = defn.GetFieldDefn(n)
+                result.append(fieldDefn.GetName())
+        return result
 
     def getImage(self):
         """
@@ -1343,6 +1385,58 @@ class ViewerVectorLayer(ViewerLayer):
         bgra = self.lut[data]
         self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
         self.image.viewerdata = data
+        if self.fieldToLabel is not None:
+            self.drawLabels()
+        
+    def drawLabels(self):
+        """
+        Draw labels specified by self.fieldToLabel
+        """
+        extent = self.coordmgr.getWorldExtent()
+        extentRing = ogr.Geometry(ogr.wkbLinearRing)
+        extentRing.AddPoint(extent[0], extent[1])
+        extentRing.AddPoint(extent[2], extent[1])
+        extentRing.AddPoint(extent[2], extent[3])
+        extentRing.AddPoint(extent[0], extent[3])
+        extentRing.AddPoint(extent[0], extent[1])
+        extentGeom = ogr.Geometry(ogr.wkbPolygon)
+        extentGeom.AddGeometry(extentRing)
+
+        lineTypes = set([ogr.wkbLineString, ogr.wkbLineString25D, 
+            ogr.wkbLineStringM, ogr.wkbLineStringZM, ogr.wkbMultiLineString,
+            ogr.wkbMultiLineString25D, ogr.wkbMultiLineStringM, 
+            ogr.wkbMultiLineStringZM])
+
+        pen = QPen()
+        pen.setWidth(1)
+        col = QColor(self.labelColor[0], self.labelColor[1], 
+                self.labelColor[2], self.labelColor[3])
+        pen.setColor(col)
+        
+        paint = QPainter(self.image)
+        paint.setPen(pen)
+        paint.setFont(LABEL_FONT)
+        self.ogrLayer.ResetReading()
+        self.ogrLayer.SetSpatialFilter(extentGeom)
+        for feature in self.ogrLayer:
+            geom = feature.GetGeometryRef()
+            if geom is not None:
+                # only interested in centroids etc within the window
+                geom = geom.Intersection(extentGeom)
+                geomType = geom.GetGeometryType()
+                if geomType in lineTypes:
+                    # line - half way along
+                    ctr = geom.Value(geom.Length() / 2)
+                else:
+                    # any other geom - centroid
+                    ctr = geom.Centroid()
+                if ctr is not None:
+                    disp = self.coordmgr.world2display(ctr.GetX(), ctr.GetY())
+                    if disp is not None:
+                        dspX, dspY = disp
+                        label = feature.GetField(self.fieldToLabel)
+                        paint.drawText(int(dspX), int(dspY), label)
+        paint.end()
 
     def getAttributesAtPoint(self, easting, northing, tolerance=0):
         """
