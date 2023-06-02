@@ -62,14 +62,21 @@ class GeolinkedViewers(QObject):
         self.timer.start(10000)  # 10 secs
 
     @staticmethod
-    def getViewerList():
+    def getViewerList(screen=None):
         """
-        Gets the list of current viewer windows from Qt
+        Gets the list of current viewer windows from Qt.
+        Pass in a screen to restrict to the viewers on
+        that screen
         """
         viewers = []
         for viewer in QApplication.topLevelWidgets():
             if (isinstance(viewer, viewerwindow.ViewerWindow) and
                     viewer.isVisible()):
+                if screen is not None:
+                    screen2 = viewer.screen()
+                    if screen2 is not None and screen.name() != screen2.name():
+                        continue
+                    
                 viewers.append(viewer)
         return viewers
 
@@ -197,20 +204,25 @@ class GeolinkedViewers(QObject):
             self.pluginmanager.callAction(
                 pluginmanager.PLUGIN_ACTION_NEWQUERY, querywindow)
 
-    def getDesktopSize(self):
+    def getDesktopSize(self, screen):
         """
         Called at the start of the tiling operation.
         Default implementation just gets the size of the desktop.
         if overridden, return a QRect
         """
-        return QApplication.desktop().availableGeometry()
+        if screen is None:
+            return QApplication.desktop().availableGeometry()
+        else:
+            return screen.availableGeometry()
 
-    def onTileWindows(self, nxside, nyside):
+    def onTileWindows(self, nxside, nyside, screen):
         """
         Called when the user wants the windows to be tiled
         """
         # get the dimensions of the desktop
-        desktop = self.getDesktopSize()
+        desktop = self.getDesktopSize(screen)
+        # getViewerList returns a temporary list so we can stuff around with it
+        viewerList = self.getViewerList(screen)
 
         # do they want full auto?
         if nxside == 0 and nyside == 0:
@@ -242,8 +254,6 @@ class GeolinkedViewers(QObject):
         # now resize and move the viewers
         xcount = 0
         ycount = 0
-        # getViewerList returns a temporary list so we can stuff around with it
-        viewerList = self.getViewerList()
         while len(viewerList) > 0:
             # work out the location we will use and find the viewer closest
             xloc = desktop.x() + viewerwidth * xcount

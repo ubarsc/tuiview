@@ -180,7 +180,7 @@ class ViewerWindow(QMainWindow):
     """
     # signals
     newWindowSig = pyqtSignal(name='newWindow')
-    tileWindowsSig = pyqtSignal(int, int, name='tileWindows')
+    tileWindowsSig = pyqtSignal(int, int, object, name='tileWindows')
     newQueryWindowSig = pyqtSignal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
     closeAllWindowsSig = pyqtSignal(name='closeAllWindows')
@@ -715,10 +715,19 @@ class ViewerWindow(QMainWindow):
         to GeolinkedViewers class (if there is one!)
         """
         from .tiledialog import TileDialog
-        dlg = TileDialog(self)
+        if hasattr(self, 'screen'):
+            # guard for older Qt
+            screen = self.screen()
+        else:
+            screen = None
+        name = None
+        if screen is not None:
+            name = screen.name()
+        
+        dlg = TileDialog(self, name)
         if dlg.exec_() == QDialog.Accepted:
             xnum, ynum = dlg.getValues()
-            self.tileWindowsSig.emit(xnum, ynum)
+            self.tileWindowsSig.emit(xnum, ynum, screen)
 
     def defaultStretch(self):
         """
