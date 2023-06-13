@@ -350,7 +350,7 @@ class GeolinkedViewers(QObject):
             winHandle = viewer.windowHandle()
             if hasattr(winHandle, 'screen'):
                 # save which screen this is on if available
-                screen = winHandle.screen()
+                screen = viewer.screen()
                 if screen is not None:
                     viewerDict['screen'] = screen.name()
                 
@@ -385,8 +385,6 @@ class GeolinkedViewers(QObject):
         for n in range(headerDict['nviewers']):
             viewer = self.onNewWindow()
             viewerDict = json.loads(fileobj.readline())
-            viewer.move(viewerDict['x'], viewerDict['y'])
-            viewer.resize(viewerDict['width'], viewerDict['height'])
 
             viewer.addLayersFromJSONFile(fileobj, viewerDict['nlayers'])
             
@@ -397,6 +395,11 @@ class GeolinkedViewers(QObject):
                     if screenName in screenDict:
                         screen = screenDict[screenName]
                         winHandle.setScreen(screen)
+
+            # do this last in case only makes sense on new window
+            viewer.move(viewerDict['x'], viewerDict['y'])
+            viewer.resize(viewerDict['width'], viewerDict['height'])
+
                 
         # set the location if any
         if geolink is not None:
