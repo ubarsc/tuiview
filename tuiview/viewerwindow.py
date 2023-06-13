@@ -715,9 +715,10 @@ class ViewerWindow(QMainWindow):
         to GeolinkedViewers class (if there is one!)
         """
         from .tiledialog import TileDialog
-        if hasattr(self, 'screen'):
+        winHandle = self.windowHandle()
+        if hasattr(winHandle, 'screen'):
             # guard for older Qt
-            screen = self.screen()
+            screen = winHandle.screen()
         else:
             screen = None
         name = None
@@ -1220,6 +1221,8 @@ File will now be opened using default stretch""")
         # emit the signal back to geolinked viewers so that 
         # any plugins can be informed
         self.newQueryWindowSig.emit(queryDock)
+        
+        return queryDock
 
     def vectorQuery(self, checked):
         """
