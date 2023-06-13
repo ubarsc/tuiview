@@ -73,7 +73,8 @@ class GeolinkedViewers(QObject):
             if (isinstance(viewer, viewerwindow.ViewerWindow) and
                     viewer.isVisible()):
                 if screen is not None:
-                    screen2 = viewer.screen()
+                    winHandle = viewer.windowHandle()
+                    screen2 = winHandle.screen()
                     if screen2 is not None and screen.name() != screen2.name():
                         continue
                     
@@ -348,11 +349,10 @@ class GeolinkedViewers(QObject):
             viewerDict = {'nlayers': nlayers, 'x': pos.x(), 'y': pos.y(), 
                 'width': viewer.width(), 'height': viewer.height()}
             winHandle = viewer.windowHandle()
-            if hasattr(winHandle, 'screen'):
-                # save which screen this is on if available
-                screen = viewer.screen()
-                if screen is not None:
-                    viewerDict['screen'] = screen.name()
+            # save which screen this is on
+            screen = winHandle.screen()
+            if screen is not None:
+                viewerDict['screen'] = screen.name()
                 
             s = json.dumps(viewerDict) + '\n'
             fileobj.write(s)
@@ -377,10 +377,9 @@ class GeolinkedViewers(QObject):
             
         # get all the screens connected
         screenDict = {}
-        if hasattr(QApplication, 'screens'):
-            screens = QApplication.screens()
-            for screen in screens:
-                screenDict[screen.name()] = screen
+        screens = QApplication.screens()
+        for screen in screens:
+            screenDict[screen.name()] = screen
 
         for n in range(headerDict['nviewers']):
             viewer = self.onNewWindow()
@@ -390,17 +389,15 @@ class GeolinkedViewers(QObject):
             
             if 'screen' in viewerDict:
                 winHandle = viewer.windowHandle()
-                if hasattr(winHandle, 'setScreen'):
-                    screenName = viewerDict['screen']
-                    if screenName in screenDict:
-                        screen = screenDict[screenName]
-                        winHandle.setScreen(screen)
+                screenName = viewerDict['screen']
+                if screenName in screenDict:
+                    screen = screenDict[screenName]
+                    winHandle.setScreen(screen)
 
             # do this last in case only makes sense on new window
             viewer.move(viewerDict['x'], viewerDict['y'])
             viewer.resize(viewerDict['width'], viewerDict['height'])
 
-                
         # set the location if any
         if geolink is not None:
             self.onMove(geolink)

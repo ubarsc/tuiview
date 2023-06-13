@@ -716,11 +716,7 @@ class ViewerWindow(QMainWindow):
         """
         from .tiledialog import TileDialog
         winHandle = self.windowHandle()
-        if hasattr(winHandle, 'screen'):
-            # guard for older Qt
-            screen = winHandle.screen()
-        else:
-            screen = None
+        screen = winHandle.screen()
         name = None
         if screen is not None:
             name = screen.name()
