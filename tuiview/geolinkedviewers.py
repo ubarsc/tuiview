@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import QApplication
 
 from . import viewerwindow
 from . import pluginmanager
+from .querywindow import QueryDockWidget
 
 
 class GeolinkedViewers(QObject):
@@ -354,6 +355,22 @@ class GeolinkedViewers(QObject):
             if screen is not None:
                 viewerDict['screen'] = screen.name()
                 
+            # querywindow situation
+            query_wins = viewer.findChildren(QueryDockWidget)
+            if len(query_wins) > 0:
+                query_win = query_wins[0]
+                # check it's visible - can still exist after hidden.
+                if query_win.isVisible():
+                    qpos = query_win.pos()
+                    query_win_data = {'x': qpos.x(), 'y': qpos.y(), 
+                        'width': query_win.width(), 'height': query_win.height()}
+                    if query_win.lastqi is not None:
+                        query_win_data['easting'] = query_win.lastqi.easting
+                        query_win_data['northing'] = query_win.lastqi.northing
+                    viewerDict['querywindow'] = query_win_data
+                
+            # TODO: maybe other dock widgets (profile etc?)
+                
             s = json.dumps(viewerDict) + '\n'
             fileobj.write(s)
 
@@ -380,6 +397,10 @@ class GeolinkedViewers(QObject):
         screens = QApplication.screens()
         for screen in screens:
             screenDict[screen.name()] = screen
+            
+        # set this if we have a valid query window with a valid location
+        query_easting_northing = (None, None)
+        query_viewer = None # so we can grab the last one
 
         for n in range(headerDict['nviewers']):
             viewer = self.onNewWindow()
@@ -397,6 +418,24 @@ class GeolinkedViewers(QObject):
             # do this last in case only makes sense on new window
             viewer.move(viewerDict['x'], viewerDict['y'])
             viewer.resize(viewerDict['width'], viewerDict['height'])
+            
+            # any sub windows?
+            if 'querywindow' in viewerDict:
+                query_win_data = viewerDict['querywindow']
+                qw = viewer.query(True)
+                qw.move(query_win_data['x'], query_win_data['y'])
+                qw.resize(query_win_data['width'], query_win_data['height'])
+                # any location?
+                if 'easting' in query_win_data and 'northing' in query_win_data:
+                    query_easting_northing = (query_win_data['easting'], 
+                                query_win_data['northing'])
+                    query_viewer = viewer
+
+        # do now so all the windows get it (using the last one)
+        qeasting, qnorthing = query_easting_northing
+        if qeasting is not None:
+            query_viewer.viewwidget.newQueryPoint(qeasting, qnorthing)
+
 
         # set the location if any
         if geolink is not None:

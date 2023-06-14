@@ -1164,6 +1164,7 @@ File will now be opened using default stretch""")
         Query tool selected.
         Tell view widget to operate in query mode.
         """
+        qw = None
         if checked:
             # disable any other tools
             self.disableTools(self.queryAct)
@@ -1172,10 +1173,12 @@ File will now be opened using default stretch""")
 
             # if there is no query window currently open start one
             if self.queryWindowCount <= 0:
-                self.newQueryWindow()
+                qw = self.newQueryWindow()
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                     id(self))
+                    
+        return qw
 
     def queryClosed(self, queryDock):
         """
