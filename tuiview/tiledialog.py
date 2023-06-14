@@ -20,7 +20,7 @@ Contains the TileDialog class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PyQt5.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QPushButton
-from PyQt5.QtWidgets import QSpinBox
+from PyQt5.QtWidgets import QSpinBox, QLabel
 
 
 class TileDialog(QDialog):
@@ -28,7 +28,7 @@ class TileDialog(QDialog):
     Dialog that allows user to select how many viewers across and down 
     they want (or auto)
     """
-    def __init__(self, parent):
+    def __init__(self, parent, name):
         QDialog.__init__(self, parent)
         
         self.xspin = QSpinBox()
@@ -42,6 +42,13 @@ class TileDialog(QDialog):
         self.yspin.setValue(0)
 
         self.formLayout = QFormLayout(self)
+        if name is not None:
+            # add a row to display the current screen name
+            self.screenLabel = QLabel(name)
+            self.screenLabel.setToolTip(
+                "To tile windows on another screen, use a viewer on that screen")
+            self.formLayout.addRow("Tile Windows On Screen", self.screenLabel)
+        
         self.formLayout.addRow("Viewers Across", self.xspin)
         self.formLayout.addRow("Viewers Down", self.yspin)
 
