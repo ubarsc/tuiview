@@ -1176,7 +1176,7 @@ File will now be opened using default stretch""")
         else:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                     id(self))
-                    
+
     def queryClosed(self, queryDock):
         """
         Query dock window has been closed. Disconnect from
