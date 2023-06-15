@@ -400,7 +400,7 @@ class GeolinkedViewers(QObject):
             
         # set this if we have a valid query window with a valid location
         query_easting_northing = (None, None)
-        query_viewer = None # so we can grab the last one
+        query_viewer = None  # so we can grab the last one
 
         for n in range(headerDict['nviewers']):
             viewer = self.onNewWindow()
@@ -422,7 +422,11 @@ class GeolinkedViewers(QObject):
             # any sub windows?
             if 'querywindow' in viewerDict:
                 query_win_data = viewerDict['querywindow']
-                qw = viewer.query(True)
+                # the best way to do this ended up by invoking the action
+                # as the button state ended up being correct etc
+                viewer.queryAct.setChecked(True)
+                # should be only one child of this type
+                qw = viewer.findChildren(QueryDockWidget)[0]
                 qw.move(query_win_data['x'], query_win_data['y'])
                 qw.resize(query_win_data['width'], query_win_data['height'])
                 # any location?
@@ -435,7 +439,6 @@ class GeolinkedViewers(QObject):
         qeasting, qnorthing = query_easting_northing
         if qeasting is not None:
             query_viewer.viewwidget.newQueryPoint(qeasting, qnorthing)
-
 
         # set the location if any
         if geolink is not None:
