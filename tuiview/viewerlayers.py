@@ -1197,10 +1197,12 @@ class ViewerVectorLayer(ViewerLayer):
 
         dict = {'filename': self.filename, 'displayed': self.displayed,
             'quiet': self.quiet, 'filterSQL': self.sql, 
-            'linewidth': self.linewidth}
+            'linewidth': self.linewidth, 'fill': self.bFill,
+            'fieldToLabel': self.fieldToLabel}
         # the values out of getColorAsRGBATuple are numpy.uint8's
         # which confuses json. Convert to ints
         dict['color'] = [int(x) for x in self.getColorAsRGBATuple()]
+        dict['labelColor'] = self.labelColor
 
         if self.isResultSet:
             dict['origSQL'] = self.origSQL
@@ -1240,6 +1242,14 @@ class ViewerVectorLayer(ViewerLayer):
         sql = dict['filterSQL']
         if sql is not None:
             self.setSQL(sql)
+        
+        # cope with these not being in the file (added more recently)    
+        if 'fill' in dict:
+            self.bFill = dict['fill']
+        if 'fieldToLabel' in dict:
+            self.fieldToLabel = dict['fieldToLabel']
+        if 'labelColor' in dict:
+            self.labelColor = dict['labelColor']
 
         self.setLineWidth(dict['linewidth'])
         
@@ -1435,7 +1445,7 @@ class ViewerVectorLayer(ViewerLayer):
                     if disp is not None:
                         dspX, dspY = disp
                         label = feature.GetField(self.fieldToLabel)
-                        paint.drawText(int(dspX), int(dspY), label)
+                        paint.drawText(int(dspX), int(dspY), str(label))
         paint.end()
 
     def getAttributesAtPoint(self, easting, northing, tolerance=0):

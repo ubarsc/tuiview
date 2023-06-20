@@ -21,3 +21,4 @@ prevent circular imports.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 MESSAGE_TITLE = 'TuiView'
+"Title for windows"
