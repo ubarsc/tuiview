@@ -33,9 +33,11 @@ Below is developer documentation for all the modules in TuiView.
     tuiview_viewerpreferences
     tuiview_viewerRAT
     tuiview_viewerstretch
+    tuiview_viewerstrings
     tuiview_viewertoolclasses
     tuiview_viewerwidget
     tuiview_viewerwindow
+    tuiview_writetableapplication
 
 * :ref:`modindex`
 * :ref:`search`
