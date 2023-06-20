@@ -14,11 +14,14 @@
 # serve to show the default.
 
 import sys
-import tuiview  # for version info
+import os
 
 # Set up 'mock' modules, needed to build docs if numpy, gdal etc., aren't installed
 from unittest.mock import MagicMock
 
+sys.path.insert(0, os.path.abspath('../..'))
+# for version info
+import tuiview          # noqa: E402
 
 class Mock(MagicMock):
     @classmethod
