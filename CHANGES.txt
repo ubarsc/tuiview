@@ -1,3 +1,16 @@
+Version 1.2.12 (2023-06-21)
+---------------------------
+
+* Support cross compilation
+* Speedup filling of polygons and geographical select with polygons
+* Fix coping with RATs with less than 256 entries
+* Skip loading plugin files that start with double underscores (ie __init__.py)
+* Try to capture better the full range of the stretch
+* Resize the Value column in the Query Window so it shows all the digits
+* Initial support for vector labels (based on attribute values)
+* Support multiple screens in tile dialog
+* Save Query Window size/location plus which screen in viewer state
+
 Version 1.2.11 (2022-12-22)
 ---------------------------
 
