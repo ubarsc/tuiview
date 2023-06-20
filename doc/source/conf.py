@@ -29,7 +29,7 @@ class Mock(MagicMock):
         return MagicMock()
 
 
-MOCK_MODULES = ['numpy', 'osgeo', 'gdal', 'osgeo.gdal', 'tuiview.vectorrasterizer']
+MOCK_MODULES = ['numpy', 'osgeo', 'gdal', 'osgeo.gdal', 'tuiview.vectorrasterizer', 'PyQt5']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
