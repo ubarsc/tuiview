@@ -16,21 +16,13 @@
 import sys
 import os
 
-# Set up 'mock' modules, needed to build docs if numpy, gdal etc., aren't installed
-from unittest.mock import MagicMock
-
 sys.path.insert(0, os.path.abspath('../..'))
 # for version info
 import tuiview          # noqa: E402
 
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return MagicMock()
-
-
-MOCK_MODULES = ['numpy', 'osgeo', 'gdal', 'osgeo.gdal', 'tuiview.vectorrasterizer']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+autodoc_mock_imports = ['numpy', 'osgeo', 'gdal', 'osgeo.gdal', 
+    'tuiview.vectorrasterizer', 'PyQt5', 'PyQt5.QtWidgets',
+    'PyQt5.QtCore', 'PyQt5.QtGui']
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
