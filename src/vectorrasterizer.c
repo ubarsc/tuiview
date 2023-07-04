@@ -25,6 +25,8 @@
 
 #include "ogr_api.h"
 
+#include "tuifont.h"
+
 /* define WKB_BYTE_ORDER depending on endian setting
  from pyconfig.h */
 #if WORDS_BIGENDIAN == 1
@@ -629,6 +631,34 @@ static const void VectorWriter_processAll(VectorWriterData *pData, const unsigne
     }
 }
 
+static const void VectorWriter_drawLabel(VectorWriterData *pData, OGRGeometryH hCentroid, const char *pszLabelText)
+{
+    double dx, dy;
+    int nx, ny, idx = 0, chIdx;
+    char ch;
+    
+    dx = OGR_G_GetX(hCentroid, 0);
+    dy = OGR_G_GetY(hCentroid, 0);
+    nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
+    
+    ch = pszLabelText[idx];
+    while( ch != '\0' )
+    {
+        if( ch == ' ' )
+        {
+            nx += FONT_SPACE_ADVANCE;
+        }
+        else if( (ch >= FONT_MIN_ASCII) && (ch <= FONT_MAX_ASCII) )
+        {
+            chIdx = ch - FONT_MIN_ASCII;
+        }
+    
+        idx++;
+        ch = pszLabelText[idx];
+    }
+}
+
 /* bit of a hack here - this is what a SWIG object looks
  like. It is only defined in the source file so we copy it here*/
 typedef struct {
@@ -715,7 +745,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     PyObject *pPythonLayer; /* of type ogr.Layer*/
     PyObject *pBBoxObject; /* must be a sequence*/
     int nXSize, nYSize, nLineWidth;
-    const char *pszSQLFilter;
+    const char *pszSQLFilter, *pszLabel;
     void *pPtr;
     OGRLayerH hOGRLayer;
     double adExtents[4];
@@ -729,13 +759,18 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     int nNewWKBSize;
     unsigned char *pNewWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+    OGRFeatureDefnH hFeatureDefn = NULL;
+    int nLabelFieldIdx = -1;
+    const char *pszLabelText = NULL;
+    OGRGeometryH hCentroid = NULL, hMidPoint = NULL;
+    OGRwkbGeometryType geomType;
     NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
-            "linewidth", "sql", "fill", "halfCrossSize", NULL};
-    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|ii:rasterizeLayer", kwlist, 
+            "linewidth", "sql", "fill", "label", "halfCrossSize", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|izi:rasterizeLayer", kwlist, 
             &pPythonLayer, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, 
-            &pszSQLFilter, &bFill, &nHalfCrossSize))
+            &pszSQLFilter, &bFill, &pszLabel, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
@@ -778,6 +813,20 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         return NULL;
     }
     
+    /* Are we labeling? */
+    if( pszLabel != NULL )
+    {
+        hFeatureDefn = OGR_L_GetLayerDefn(hOGRLayer);
+        nLabelFieldIdx = OGR_FD_GetFieldIndex(hFeatureDefn, pszLabel);
+        if( nLabelFieldIdx == -1 ) 
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Unable to find requested field" );
+            return NULL;
+        }
+        hCentroid = OGR_G_CreateGeometry(wkbPoint);
+    }
+
+    
     /* Always release GIL as we don't know number of features/how big the WKBs are */
     NPY_BEGIN_THREADS;
 
@@ -788,7 +837,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
     /* set the attribute filter (if None/NULL resets) */
     OGR_L_SetAttributeFilter(hOGRLayer, pszSQLFilter);
-
+    
     OGR_L_ResetReading(hOGRLayer);
 
     nCurrWKBSize = 0;
@@ -826,11 +875,46 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array */
             VectorWriter_processAll(pWriter, pCurrWKB);
+            
+            /* label? */
+            if( nLabelFieldIdx != -1 )
+            {
+                pszLabelText = OGR_F_GetFieldAsString(hFeature, nLabelFieldIdx);
+                
+                geomType = OGR_G_GetGeometryType(hGeometry);
+                
+                /* line? */
+                if( (geomType == wkbLineString) || (geomType == wkbLineString25D) ||
+                    (geomType == wkbLineStringM) || (geomType == wkbLineStringZM) ||
+                    (geomType == wkbMultiLineString) || (geomType == wkbMultiLineString25D) ||
+                    (geomType == wkbMultiLineStringM) || (geomType == wkbMultiLineStringZM) )
+                {
+                    /* confusingly, OGR_G_Value returns a new Geom, but OGR_G_Centroid re-uses an existing */
+                    hMidPoint = OGR_G_Value(hGeometry, OGR_G_Length(hGeometry) / 2);
+                    if( hMidPoint != NULL )
+                    {
+                        VectorWriter_drawLabel(pWriter, hMidPoint, pszLabelText);
+                        OGR_G_DestroyGeometry(hMidPoint);
+                    }
+                }
+                else 
+                {
+                    if( OGR_G_Centroid(hGeometry, hCentroid) == OGRERR_NONE )
+                    {
+                        VectorWriter_drawLabel(pWriter, hCentroid, pszLabelText);
+                    }
+                }
+            }
         }
 
         OGR_F_Destroy(hFeature);
     }
     free( pCurrWKB );
+    if( hCentroid != NULL )
+    {
+        OGR_G_DestroyGeometry(hCentroid);
+    }
+    
     VectorWriter_destroy(pWriter);
     NPY_END_THREADS;
 
