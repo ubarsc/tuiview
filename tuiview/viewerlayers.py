@@ -25,7 +25,7 @@ import numpy
 from osgeo import gdal
 from osgeo import osr
 from osgeo import ogr
-from PyQt5.QtGui import QImage, QPainter, QPen, QColor, QFont
+from PyQt5.QtGui import QImage, QPainter, QPen
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
 import threading
@@ -54,10 +54,6 @@ if ALLOW_NOGEO.upper() == 'YES':
 else:
     ALLOW_NOGEO = False
     
-# Use this font for labels. TODO: check this works on Windows
-# Qt claims to choose the 'nearest' font if this is not available... 
-LABEL_FONT = QFont('FreeMono', 10, 200)
-
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
@@ -1404,61 +1400,10 @@ class ViewerVectorLayer(ViewerLayer):
                     self.fieldToLabel, self.halfCrossSize)
 
         # do our lookup
-        print('label pixs', numpy.count_nonzero(data == 2))
         bgra = self.lut[data]
         self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
         self.image.viewerdata = data
         
-    def drawLabelsjj(self):
-        """
-        Draw labels specified by self.fieldToLabel
-        """
-        extent = self.coordmgr.getWorldExtent()
-        extentRing = ogr.Geometry(ogr.wkbLinearRing)
-        extentRing.AddPoint(extent[0], extent[1])
-        extentRing.AddPoint(extent[2], extent[1])
-        extentRing.AddPoint(extent[2], extent[3])
-        extentRing.AddPoint(extent[0], extent[3])
-        extentRing.AddPoint(extent[0], extent[1])
-        extentGeom = ogr.Geometry(ogr.wkbPolygon)
-        extentGeom.AddGeometry(extentRing)
-
-        lineTypes = set([ogr.wkbLineString, ogr.wkbLineString25D, 
-            ogr.wkbLineStringM, ogr.wkbLineStringZM, ogr.wkbMultiLineString,
-            ogr.wkbMultiLineString25D, ogr.wkbMultiLineStringM, 
-            ogr.wkbMultiLineStringZM])
-
-        pen = QPen()
-        pen.setWidth(1)
-        col = QColor(self.labelColor[0], self.labelColor[1], 
-                self.labelColor[2], self.labelColor[3])
-        pen.setColor(col)
-        
-        paint = QPainter(self.image)
-        paint.setPen(pen)
-        paint.setFont(LABEL_FONT)
-        self.ogrLayer.ResetReading()
-        self.ogrLayer.SetSpatialFilter(extentGeom)
-        for feature in self.ogrLayer:
-            geom = feature.GetGeometryRef()
-            if geom is not None:
-                # only interested in centroids etc within the window
-                geom = geom.Intersection(extentGeom)
-                geomType = geom.GetGeometryType()
-                if geomType in lineTypes:
-                    # line - half way along
-                    ctr = geom.Value(geom.Length() / 2)
-                else:
-                    # any other geom - centroid
-                    ctr = geom.Centroid()
-                if ctr is not None:
-                    disp = self.coordmgr.world2display(ctr.GetX(), ctr.GetY())
-                    if disp is not None:
-                        dspX, dspY = disp
-                        label = feature.GetField(self.fieldToLabel)
-                        paint.drawText(int(dspX), int(dspY), str(label))
-        paint.end()
-
     def getAttributesAtPoint(self, easting, northing, tolerance=0):
         """
         Returns a list of attributes for the point centred on 

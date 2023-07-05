@@ -810,7 +810,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     const char *pszSQLFilter, *pszLabel;
     void *pPtr;
     OGRLayerH hOGRLayer;
-    double adExtents[4];
+    double adExtents[4], dPixSize;
     PyObject *o, *pOutArray;
     npy_intp dims[2];
     VectorWriterData *pWriter;
@@ -824,7 +824,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     OGRFeatureDefnH hFeatureDefn = NULL;
     int nLabelFieldIdx = -1;
     const char *pszLabelText = NULL;
-    OGRGeometryH hCentroid = NULL, hMidPoint = NULL;
+    OGRGeometryH hCentroid = NULL, hMidPoint = NULL, hExtentGeom, hExtentRing;
     OGRwkbGeometryType geomType;
     NPY_BEGIN_THREADS_DEF;
 
@@ -888,15 +888,27 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         hCentroid = OGR_G_CreateGeometry(wkbPoint);
     }
 
-    
     /* Always release GIL as we don't know number of features/how big the WKBs are */
     NPY_BEGIN_THREADS;
+
+    /* Used to call OGR_L_SetSpatialFilterRect but since we need the bounding box for  */
+    /* the intersection for labels we do this here */
+    hExtentRing = OGR_G_CreateGeometry(wkbLinearRing);
+    /* Buffer a bit so the intersected geom doesn't include borders */
+    dPixSize = ((adExtents[2] - adExtents[0]) / nXSize) * 2;
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[1] + dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[2] + dPixSize, adExtents[1] + dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[2] + dPixSize, adExtents[3] - dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[3] - dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[1] + dPixSize);
+    hExtentGeom = OGR_G_CreateGeometry(wkbPolygon);
+    OGR_G_AddGeometryDirectly(hExtentGeom, hExtentRing);
 
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     /* set the spatial filter to the extent */
-    OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
+    OGR_L_SetSpatialFilter(hOGRLayer, hExtentGeom);
     /* set the attribute filter (if None/NULL resets) */
     OGR_L_SetAttributeFilter(hOGRLayer, pszSQLFilter);
     
@@ -910,6 +922,14 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         hGeometry = OGR_F_GetGeometryRef(hFeature);
         if( hGeometry != NULL )
         {
+            if( nLabelFieldIdx != -1 )
+            {
+                /* If we are going to label, we need to intersect */
+                /* if we are going to intersect, we might as well do it here */
+                /* to save some processing time */
+                hGeometry = OGR_G_Intersection(hGeometry, hExtentGeom);
+            }
+
             /* how big a buffer do we need? Grow if needed */
             nNewWKBSize = OGR_G_WkbSize(hGeometry);
             if( nNewWKBSize > nCurrWKBSize )
@@ -966,6 +986,10 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
                         VectorWriter_drawLabel(pWriter, hCentroid, pszLabelText);
                     }
                 }
+                
+                /* If we labeled then we created a new intersection geometry */
+                /* so delete it here */
+                OGR_G_DestroyGeometry(hGeometry);
             }
         }
 
@@ -976,6 +1000,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     {
         OGR_G_DestroyGeometry(hCentroid);
     }
+    OGR_G_DestroyGeometry(hExtentGeom);
     
     VectorWriter_destroy(pWriter);
     NPY_END_THREADS;
