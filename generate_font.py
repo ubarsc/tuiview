@@ -103,7 +103,7 @@ def main(cmdargs):
         f.write('#define FONT_MAX_ASCII {}\n\n'.format(MAX_ASCII))
         
         f.write('struct TuiFontInfo {npy_uint8 left; npy_uint8 adv; npy_uint8 right;};\n')
-        f.write('struct TuiFontInfo fontInfo[] = {\n')
+        f.write('static const struct TuiFontInfo fontInfo[] = {\n')
         # loop through to get maximums
         maxLeftBearing = 0
         maxRightBearing = 0
@@ -141,7 +141,7 @@ def main(cmdargs):
 
         img = QImage(width, height, QImage.Format_RGB32)
         
-        f.write('npy_uint8 fontData[{}][FONT_HEIGHT][FONT_WIDTH] = {{\n'.format(N_ASCII))
+        f.write('static const npy_uint8 fontData[{}][FONT_HEIGHT][FONT_WIDTH] = {{\n'.format(N_ASCII))
         for n in range(N_ASCII):
             val = chr(n + MIN_ASCII)
             print(val, end='\r')
