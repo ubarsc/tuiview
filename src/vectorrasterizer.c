@@ -631,6 +631,56 @@ static const void VectorWriter_processAll(VectorWriterData *pData, const unsigne
     }
 }
 
+static const int VectorWriter_drawChar(VectorWriterData *pData, int chIdx, int nx, int ny)
+{
+    int read_start_x = FONT_MAX_LEFT_BEARING - fontInfo[chIdx].left;
+    int read_end_x = read_start_x + fontInfo[chIdx].left + fontInfo[chIdx].adv + fontInfo[chIdx].right;
+    int read_start_y = 0;
+    int read_end_y = read_start_y + FONT_HEIGHT;
+    int write_x;
+    int write_y = ny - FONT_ASCENT;
+    int read_x;
+    int read_y = read_start_y;
+    npy_uint8 val;
+    
+    while( read_y < read_end_y )
+    {
+        if( write_y >= pData->nYSize )
+        {
+            break;
+        }
+    
+    
+        read_x = read_start_x;
+        write_x = nx - fontInfo[chIdx].left;
+        while( read_x < read_end_x )
+        {
+            if( write_x >= pData->nXSize )
+            {
+                break;
+            }
+        
+            if( (write_x >= 0) && (write_y >= 0) )
+            {
+                val = fontData[chIdx][read_y][read_x];
+                if( val != 0 )
+                {
+                    *((npy_uint8*)PyArray_GETPTR2(pData->pArray, write_y, write_x)) = val;
+                }
+            }
+            
+            read_x++;
+            write_x++;
+        }
+    
+    
+        read_y++;
+        write_y++;
+    }
+    
+    return nx + fontInfo[chIdx].adv;
+}
+
 static const void VectorWriter_drawLabel(VectorWriterData *pData, OGRGeometryH hCentroid, const char *pszLabelText)
 {
     double dx, dy;
@@ -641,6 +691,12 @@ static const void VectorWriter_drawLabel(VectorWriterData *pData, OGRGeometryH h
     dy = OGR_G_GetY(hCentroid, 0);
     nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
     ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
+
+    if( (nx >= pData->nXSize) || ((ny - FONT_ASCENT) >= pData->nYSize))
+    {
+        /* already off the screen */
+        return;
+    }
     
     ch = pszLabelText[idx];
     while( ch != '\0' )
@@ -652,6 +708,12 @@ static const void VectorWriter_drawLabel(VectorWriterData *pData, OGRGeometryH h
         else if( (ch >= FONT_MIN_ASCII) && (ch <= FONT_MAX_ASCII) )
         {
             chIdx = ch - FONT_MIN_ASCII;
+            nx = VectorWriter_drawChar(pData, chIdx, nx, ny);
+            if( nx >= pData->nXSize )
+            {
+                /* not going to see rest of string */
+                return;
+            }
         }
     
         idx++;

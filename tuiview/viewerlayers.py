@@ -1169,7 +1169,8 @@ class ViewerVectorLayer(ViewerLayer):
         self.coordmgr = coordinatemgr.VectorCoordManager()
         # we use a mini LUT to convert the 1's and zeros to colours
         # we leave the first index blank to it is black/invisible
-        self.lut = numpy.zeros((2, 4), numpy.uint8)
+        # vector is index 1 and labels are index 2
+        self.lut = numpy.zeros((3, 4), numpy.uint8)
         self.image = None
         self.filename = None
         self.origSQL = None  # if query, not layer name (isResultSet = True)
@@ -1179,7 +1180,6 @@ class ViewerVectorLayer(ViewerLayer):
         self.bFill = False
         self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
         self.fieldToLabel = None
-        self.labelColor = DEFAULT_VECTOR_COLOR
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1311,10 +1311,17 @@ class ViewerVectorLayer(ViewerLayer):
         """
         Sets the labels as the specified colour (tuple)
         """
-        self.labelColor = color
+        for value, code in zip(color, viewerLUT.RGBA_CODES):
+            lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
+            self.lut[2, lutindex] = value
         
-    def getLabelColor(self):
-        return self.labelColor
+    def getLabelColorAsRGBATuple(self):
+        rgba = []
+        for code in viewerLUT.RGBA_CODES:
+            lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
+            value = self.lut[2, lutindex]
+            rgba.append(value)
+        return tuple(rgba)
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
             color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None):
@@ -1330,6 +1337,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.ogrDataSource = ogrDataSource
         self.ogrLayer = ogrLayer
         self.setColor(color)
+        self.setLabelColor(color)
         self.isResultSet = resultSet
         self.origSQL = origSQL
 
@@ -1362,8 +1370,12 @@ class ViewerVectorLayer(ViewerLayer):
         Like setLabelColor, but also re-labels in the new color
         """
         self.setLabelColor(color)
-        if self.image is not None and self.fieldToLabel is not None:
-            self.drawLabels()
+        if self.image is not None:
+            data = self.image.viewerdata
+            bgra = self.lut[data]
+            (ysize, xsize) = data.shape
+            self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
+            self.image.viewerdata = data
             
     def getAvailableAttributes(self):
         """
@@ -1389,16 +1401,15 @@ class ViewerVectorLayer(ViewerLayer):
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
         data = vectorrasterizer.rasterizeLayer(self.ogrLayer, extent, 
                     xsize, ysize, self.linewidth, self.sql, self.bFill,
-                    self.halfCrossSize)
+                    self.fieldToLabel, self.halfCrossSize)
 
         # do our lookup
+        print('label pixs', numpy.count_nonzero(data == 2))
         bgra = self.lut[data]
         self.image = QImage(bgra.data, xsize, ysize, QImage.Format_ARGB32)
         self.image.viewerdata = data
-        if self.fieldToLabel is not None:
-            self.drawLabels()
         
-    def drawLabels(self):
+    def drawLabelsjj(self):
         """
         Draw labels specified by self.fieldToLabel
         """

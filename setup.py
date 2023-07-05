@@ -55,18 +55,20 @@ except ImportError:
     if withExtensions and not crossCompiling:
         raise SystemExit("GDAL with Python bindings must be installed first")
 
+
 def have_geos():
     """
     Check that GDAL is built with GEOS support
     """
     geos_flag = True  # assume all ok if we can't test
     if withExtensions and not crossCompiling:
-        pnt1 = ogr.CreateGeometryFromWkt( 'POINT(10 20)' )
-        pnt2 = ogr.CreateGeometryFromWkt( 'POINT(30 20)' )
+        pnt1 = ogr.CreateGeometryFromWkt('POINT(10 20)')
+        pnt2 = ogr.CreateGeometryFromWkt('POINT(30 20)')
         gdal.PushErrorHandler('CPLQuietErrorHandler')
-        geos_flag = pnt1.Union( pnt2 ) is not None
+        geos_flag = pnt1.Union(pnt2) is not None
         gdal.PopErrorHandler()
     return geos_flag
+
 
 def getGDALFlags():
     """
