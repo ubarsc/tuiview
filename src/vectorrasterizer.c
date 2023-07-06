@@ -25,6 +25,8 @@
 
 #include "ogr_api.h"
 
+#include "tuifont.h"
+
 /* define WKB_BYTE_ORDER depending on endian setting
  from pyconfig.h */
 #if WORDS_BIGENDIAN == 1
@@ -629,6 +631,96 @@ static const void VectorWriter_processAll(VectorWriterData *pData, const unsigne
     }
 }
 
+static const int VectorWriter_drawChar(VectorWriterData *pData, int chIdx, int nx, int ny)
+{
+    int read_start_x = FONT_MAX_LEFT_BEARING - fontInfo[chIdx].left;
+    int read_end_x = read_start_x + fontInfo[chIdx].left + fontInfo[chIdx].adv + fontInfo[chIdx].right;
+    int read_start_y = 0;
+    int read_end_y = read_start_y + FONT_HEIGHT;
+    int write_x;
+    int write_y = ny - FONT_ASCENT;
+    int read_x;
+    int read_y = read_start_y;
+    npy_uint8 val;
+    
+    while( read_y < read_end_y )
+    {
+        if( write_y >= pData->nYSize )
+        {
+            break;
+        }
+    
+    
+        read_x = read_start_x;
+        write_x = nx - fontInfo[chIdx].left;
+        while( read_x < read_end_x )
+        {
+            if( write_x >= pData->nXSize )
+            {
+                break;
+            }
+        
+            if( (write_x >= 0) && (write_y >= 0) )
+            {
+                val = fontData[chIdx][read_y][read_x];
+                if( val != 0 )
+                {
+                    *((npy_uint8*)PyArray_GETPTR2(pData->pArray, write_y, write_x)) = val;
+                }
+            }
+            
+            read_x++;
+            write_x++;
+        }
+    
+    
+        read_y++;
+        write_y++;
+    }
+    
+    return nx + fontInfo[chIdx].adv;
+}
+
+static const void VectorWriter_drawLabel(VectorWriterData *pData, OGRGeometryH hCentroid, const char *pszLabelText)
+{
+    double dx, dy;
+    int nx, ny, idx = 0, chIdx;
+    char ch;
+    
+    dx = OGR_G_GetX(hCentroid, 0);
+    dy = OGR_G_GetY(hCentroid, 0);
+    nx = (dx - pData->pExtents[0]) / pData->dMetersPerPix;
+    ny = (pData->pExtents[1] - dy) / pData->dMetersPerPix;
+
+    if( (nx >= pData->nXSize) || ((ny - FONT_ASCENT) >= pData->nYSize))
+    {
+        /* already off the screen */
+        return;
+    }
+    
+    ch = pszLabelText[idx];
+    while( ch != '\0' )
+    {
+        if( ch == ' ' )
+        {
+            nx += FONT_SPACE_ADVANCE;
+        }
+        else if( (ch >= FONT_MIN_ASCII) && (ch <= FONT_MAX_ASCII) )
+        {
+            chIdx = ch - FONT_MIN_ASCII;
+            nx = VectorWriter_drawChar(pData, chIdx, nx, ny);
+            if( nx >= pData->nXSize )
+            {
+                /* not going to see rest of string */
+                return;
+            }
+        }
+    
+        idx++;
+        ch = pszLabelText[idx];
+    }
+}
+
 /* bit of a hack here - this is what a SWIG object looks
  like. It is only defined in the source file so we copy it here*/
 typedef struct {
@@ -715,10 +807,10 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     PyObject *pPythonLayer; /* of type ogr.Layer*/
     PyObject *pBBoxObject; /* must be a sequence*/
     int nXSize, nYSize, nLineWidth;
-    const char *pszSQLFilter;
+    const char *pszSQLFilter, *pszLabel;
     void *pPtr;
     OGRLayerH hOGRLayer;
-    double adExtents[4];
+    double adExtents[4], dPixSize;
     PyObject *o, *pOutArray;
     npy_intp dims[2];
     VectorWriterData *pWriter;
@@ -729,13 +821,18 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     int nNewWKBSize;
     unsigned char *pNewWKB;
     int n, bFill = 0, nHalfCrossSize = GetDefaultHalfCrossSize(self);
+    OGRFeatureDefnH hFeatureDefn = NULL;
+    int nLabelFieldIdx = -1;
+    const char *pszLabelText = NULL;
+    OGRGeometryH hCentroid = NULL, hMidPoint = NULL, hExtentGeom, hExtentRing;
+    OGRwkbGeometryType geomType;
     NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
-            "linewidth", "sql", "fill", "halfCrossSize", NULL};
-    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|ii:rasterizeLayer", kwlist, 
+            "linewidth", "sql", "fill", "label", "halfCrossSize", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|izi:rasterizeLayer", kwlist, 
             &pPythonLayer, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, 
-            &pszSQLFilter, &bFill, &nHalfCrossSize))
+            &pszSQLFilter, &bFill, &pszLabel, &nHalfCrossSize))
         return NULL;
 
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
@@ -778,17 +875,43 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         return NULL;
     }
     
+    /* Are we labeling? */
+    if( pszLabel != NULL )
+    {
+        hFeatureDefn = OGR_L_GetLayerDefn(hOGRLayer);
+        nLabelFieldIdx = OGR_FD_GetFieldIndex(hFeatureDefn, pszLabel);
+        if( nLabelFieldIdx == -1 ) 
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Unable to find requested field" );
+            return NULL;
+        }
+        hCentroid = OGR_G_CreateGeometry(wkbPoint);
+    }
+
     /* Always release GIL as we don't know number of features/how big the WKBs are */
     NPY_BEGIN_THREADS;
+
+    /* Used to call OGR_L_SetSpatialFilterRect but since we need the bounding box for  */
+    /* the intersection for labels we do this here */
+    hExtentRing = OGR_G_CreateGeometry(wkbLinearRing);
+    /* Buffer a bit so the intersected geom doesn't include borders */
+    dPixSize = ((adExtents[2] - adExtents[0]) / nXSize) * 2;
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[1] + dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[2] + dPixSize, adExtents[1] + dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[2] + dPixSize, adExtents[3] - dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[3] - dPixSize);
+    OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[1] + dPixSize);
+    hExtentGeom = OGR_G_CreateGeometry(wkbPolygon);
+    OGR_G_AddGeometryDirectly(hExtentGeom, hExtentRing);
 
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     /* set the spatial filter to the extent */
-    OGR_L_SetSpatialFilterRect(hOGRLayer, adExtents[0], adExtents[1], adExtents[2], adExtents[3]);
+    OGR_L_SetSpatialFilter(hOGRLayer, hExtentGeom);
     /* set the attribute filter (if None/NULL resets) */
     OGR_L_SetAttributeFilter(hOGRLayer, pszSQLFilter);
-
+    
     OGR_L_ResetReading(hOGRLayer);
 
     nCurrWKBSize = 0;
@@ -799,6 +922,14 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         hGeometry = OGR_F_GetGeometryRef(hFeature);
         if( hGeometry != NULL )
         {
+            if( nLabelFieldIdx != -1 )
+            {
+                /* If we are going to label, we need to intersect */
+                /* if we are going to intersect, we might as well do it here */
+                /* to save some processing time */
+                hGeometry = OGR_G_Intersection(hGeometry, hExtentGeom);
+            }
+
             /* how big a buffer do we need? Grow if needed */
             nNewWKBSize = OGR_G_WkbSize(hGeometry);
             if( nNewWKBSize > nCurrWKBSize )
@@ -826,11 +957,51 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
             OGR_G_ExportToWkb(hGeometry, WKB_BYTE_ORDER, pCurrWKB);
             /* write it to array */
             VectorWriter_processAll(pWriter, pCurrWKB);
+            
+            /* label? */
+            if( nLabelFieldIdx != -1 )
+            {
+                pszLabelText = OGR_F_GetFieldAsString(hFeature, nLabelFieldIdx);
+                
+                geomType = OGR_G_GetGeometryType(hGeometry);
+                
+                /* line? */
+                if( (geomType == wkbLineString) || (geomType == wkbLineString25D) ||
+                    (geomType == wkbLineStringM) || (geomType == wkbLineStringZM) ||
+                    (geomType == wkbMultiLineString) || (geomType == wkbMultiLineString25D) ||
+                    (geomType == wkbMultiLineStringM) || (geomType == wkbMultiLineStringZM) )
+                {
+                    /* confusingly, OGR_G_Value returns a new Geom, but OGR_G_Centroid re-uses an existing */
+                    hMidPoint = OGR_G_Value(hGeometry, OGR_G_Length(hGeometry) / 2);
+                    if( hMidPoint != NULL )
+                    {
+                        VectorWriter_drawLabel(pWriter, hMidPoint, pszLabelText);
+                        OGR_G_DestroyGeometry(hMidPoint);
+                    }
+                }
+                else 
+                {
+                    if( OGR_G_Centroid(hGeometry, hCentroid) == OGRERR_NONE )
+                    {
+                        VectorWriter_drawLabel(pWriter, hCentroid, pszLabelText);
+                    }
+                }
+                
+                /* If we labeled then we created a new intersection geometry */
+                /* so delete it here */
+                OGR_G_DestroyGeometry(hGeometry);
+            }
         }
 
         OGR_F_Destroy(hFeature);
     }
     free( pCurrWKB );
+    if( hCentroid != NULL )
+    {
+        OGR_G_DestroyGeometry(hCentroid);
+    }
+    OGR_G_DestroyGeometry(hExtentGeom);
+    
     VectorWriter_destroy(pWriter);
     NPY_END_THREADS;
 

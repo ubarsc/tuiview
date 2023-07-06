@@ -421,7 +421,7 @@ class LayerListView(QListView):
 
             model = self.model()
             layer = model.getLayer(index)
-            color = layer.getLabelColor()
+            color = layer.getLabelColorAsRGBATuple()
             init = QColor(color[0], color[1], color[2], color[3])
             newCol = QColorDialog.getColor(init, self, "Choose Label Color",
                             QColorDialog.ShowAlphaChannel)

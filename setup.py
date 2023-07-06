@@ -50,16 +50,33 @@ withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
 crossCompiling = os.getenv('CONDA_BUILD_CROSS_COMPILATION', default='0') == '1'
 
 try:
-    from osgeo import gdal  # noqa
+    from osgeo import gdal, ogr  # noqa
 except ImportError:
     if withExtensions and not crossCompiling:
         raise SystemExit("GDAL with Python bindings must be installed first")
+
+
+def have_geos():
+    """
+    Check that GDAL is built with GEOS support
+    """
+    geos_flag = True  # assume all ok if we can't test
+    if withExtensions and not crossCompiling:
+        pnt1 = ogr.CreateGeometryFromWkt('POINT(10 20)')
+        pnt2 = ogr.CreateGeometryFromWkt('POINT(30 20)')
+        gdal.PushErrorHandler('CPLQuietErrorHandler')
+        geos_flag = pnt1.Union(pnt2) is not None
+        gdal.PopErrorHandler()
+    return geos_flag
 
 
 def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
     """
+    if not have_geos():
+        raise SystemExit("GDAL not built with GEOS support")
+    
     from numpy import get_include as numpy_get_include
     extraargs = {}
     # don't use the deprecated numpy api
