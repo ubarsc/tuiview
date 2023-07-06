@@ -116,6 +116,9 @@ def getCmdargs():
         help="vector SQL statement(s) to use with --vector. " +
             "Can't be specified if --vectorlayer is used. " +
             "Can be specified multiple times - once for each vector")
+    p.add_argument('--vectorlabel', action='append', dest="vectorlabels",
+        help="Vector attributes to label. Can be specified multiple times " +
+            "- once for each vector")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
     # do this ourselves so we can show QMessageBox if GUI_MODE
@@ -252,6 +255,11 @@ class ViewerApplication(QApplication):
                 len(cmdargs.vectors) != len(cmdargs.vectorsqls)):
             msg = 'If specified, you must pass one --vectorsql per --vector'
             showMessageAndExit(msg)
+
+        if (cmdargs.vectors is not None and cmdargs.vectorlabels is not None and
+                len(cmdargs.vectors) != len(cmdargs.vectorlabels)):
+            msg = 'If specified, you must pass one --vectorlabel per --vector'
+            showMessageAndExit(msg)
             
         if cmdargs.vectorlayers is not None and cmdargs.vectors is None:
             msg = 'When specifying --vectorlayer you must also specify --vector'
@@ -259,6 +267,12 @@ class ViewerApplication(QApplication):
 
         if cmdargs.vectorsqls is not None and cmdargs.vectors is None:
             msg = 'When specifying --vectorsql you must also specify --vector'
+            showMessageAndExit(msg)
+
+        if cmdargs.vectorlabels is not None and (cmdargs.vectors is None or
+            (cmdargs.vectorlayers is None and cmdargs.vectorsqls is None)):
+            msg = ('When specifying --vectorlabel you must also specify ' 
+                '--vector and one of --vectorlayer or --vectorsql')
             showMessageAndExit(msg)
 
         if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
@@ -300,8 +314,13 @@ class ViewerApplication(QApplication):
                         layername = cmdargs.vectorlayers[idx]
                     elif cmdargs.vectorsqls is not None:
                         sql = cmdargs.vectorsqls[idx]
+                        
+                    label = None
+                    if cmdargs.vectorlabels is not None:
+                        label = cmdargs.vectorlabels[idx]
+                        
                     layername, sql = viewer.addVectorInternal(vector, 
-                                        layername=layername, sql=sql)
+                        layername=layername, sql=sql, label=label)
                     if layername is None and sql is None:
                         # they canceled... break out of loop
                         userCancel = True

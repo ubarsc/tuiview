@@ -928,7 +928,7 @@ File will now be opened using default stretch""")
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
 
-    def addVectorInternal(self, path, layername=None, sql=None):
+    def addVectorInternal(self, path, layername=None, sql=None, label=None):
         """
         Open OGR dataset and layer and tell widget to add it 
         to the list of layers
@@ -973,7 +973,7 @@ File will now be opened using default stretch""")
                         return None, None
                 
             self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet,
-                                        origSQL=sql)
+                                        origSQL=sql, label=label)
 
         except Exception as e:
             if SHOW_TRACEBACK:
