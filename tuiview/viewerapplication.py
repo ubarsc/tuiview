@@ -270,7 +270,7 @@ class ViewerApplication(QApplication):
             showMessageAndExit(msg)
 
         if cmdargs.vectorlabels is not None and (cmdargs.vectors is None or
-            (cmdargs.vectorlayers is None and cmdargs.vectorsqls is None)):
+                (cmdargs.vectorlayers is None and cmdargs.vectorsqls is None)):
             msg = ('When specifying --vectorlabel you must also specify ' 
                 '--vector and one of --vectorlayer or --vectorsql')
             showMessageAndExit(msg)
