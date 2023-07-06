@@ -319,7 +319,8 @@ static void fillPoly(VectorWriterData *pData)
     /* Just process the area we are using */
     for( ny = 0; ny < pData->nYSize; ny++ )
     {
-        pixelY = pData->pExtents[1] - (ny * pData->dMetersPerPix);
+        /* 0.5 for Center height of line */
+        pixelY = pData->pExtents[1] - ((ny + 0.5) * pData->dMetersPerPix);
         if( (pixelY < pData->dMinY) || (pixelY > pData->dMaxY) )
         {
             // outside extent of corners we have collected. bail.
@@ -371,7 +372,7 @@ static void fillPoly(VectorWriterData *pData)
                 if( nodeX[i+1] > pData->pExtents[2]) nodeX[i+1] = pData->pExtents[2];
                 for( pixelX = nodeX[i]; pixelX < nodeX[i+1]; pixelX += pData->dMetersPerPix) 
                 { 
-                    nx = (pixelX - pData->pExtents[0]) / pData->dMetersPerPix;
+                    nx = round((pixelX - pData->pExtents[0]) / pData->dMetersPerPix);
                     /* do range check again as we might not be within the image */
                     if( (nx >= 0) && (nx < pData->nXSize)) 
                     {
