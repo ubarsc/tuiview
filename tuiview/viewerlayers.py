@@ -1320,7 +1320,8 @@ class ViewerVectorLayer(ViewerLayer):
         return tuple(rgba)
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
-            color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None):
+            color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None, 
+            label=None):
         """
         Use the supplied datasource and layer for accessing vector data
         keeps a reference to the datasource and layer
@@ -1336,6 +1337,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.setLabelColor(color)
         self.isResultSet = resultSet
         self.origSQL = origSQL
+        self.fieldToLabel = label
 
         self.coordmgr.setDisplaySize(width, height)
         bbox = ogrLayer.GetExtent()
@@ -1668,7 +1670,7 @@ class LayerManager(QObject):
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
             color=DEFAULT_VECTOR_COLOR, resultSet=False,
-            origSQL=None, quiet=False):
+            origSQL=None, label=None, quiet=False):
         """
         Add a vector layer. See ViewerVectorLayer.open for more info on params
         """
@@ -1681,7 +1683,7 @@ class LayerManager(QObject):
         layer = ViewerVectorLayer()
         layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
-            resultSet, origSQL)
+            resultSet, origSQL, label)
 
         self.addLayer(layer)
 
