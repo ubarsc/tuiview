@@ -140,10 +140,10 @@ setup(name='TuiView',
     author_email='gillingham.sam@gmail.com',
     entry_points={
         'console_scripts': [
-            'tuiviewwritetable = tuiview:writetableapplication.run'
+            'tuiviewwritetable = tuiview.writetableapplication:run'
         ],
         'gui_scripts': [
-            'tuiview = tuiview:viewerapplication.run'
+            'tuiview = tuiview.viewerapplication:run'
         ]
     },
     packages=['tuiview'],

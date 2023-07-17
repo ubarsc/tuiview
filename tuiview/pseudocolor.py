@@ -274,7 +274,7 @@ def getRampsFromFile(fname):
     Read extra color ramps into our global RAMPS dictionary
     from specified file
     """
-    from minify_json import json_minify
+    from .minify_json import json_minify
     # Read palette file
     palettesFobj = open(fname, "r")
     # Minify file contents
