@@ -199,6 +199,7 @@ class ViewerWindow(QMainWindow):
         self.viewwidget.layers.newProgressSig.connect(self.newProgress)
         self.viewwidget.layers.endProgressSig.connect(self.endProgress)
         self.viewwidget.layers.newPercentSig.connect(self.newPercent)
+        self.viewwidget.layers.statusMessageSig.connect(self.showStatusMessage)
         # so we can update the window title
         self.viewwidget.layers.topLayerChanged.connect(self.updateWindowTitle)
         # general messages from the widget
@@ -305,6 +306,8 @@ class ViewerWindow(QMainWindow):
         Helper method to show a message for a short period of time
         """
         self.statusBar().showMessage(message, MESSAGE_TIMEOUT)
+        # process any events show gets shown while busy
+        QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def activeToolChanged(self, obj):
         """

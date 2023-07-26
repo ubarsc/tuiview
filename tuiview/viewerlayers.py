@@ -140,6 +140,10 @@ class OverviewManager(object):
         "Get the full res overview - ie the non overview image"
         return self.overviews[0]
 
+    def overviewsPresentInFile(self):
+        "return whether overviews are present. Call loadOverviewInfo first"
+        return len(self.overviews) > 1
+
     def loadOverviewInfo(self, ds, bands):
         """
         Load the overviews from the GDAL dataset into a list
@@ -1550,6 +1554,7 @@ class LayerManager(QObject):
     newProgressSig = pyqtSignal('QString', name='newProgress')
     endProgressSig = pyqtSignal(name='endProgress')
     newPercentSig = pyqtSignal(int, name='newPercent')
+    statusMessageSig = pyqtSignal('QString', name='statusMessage')
 
     def __init__(self):
         QObject.__init__(self)
@@ -1665,6 +1670,10 @@ class LayerManager(QObject):
         # ensure the query points have the correct extent
         extent = layer.coordmgr.getWorldExtent()
         self.queryPointLayer.coordmgr.setWorldExtent(extent)
+
+        if not layer.overviews.overviewsPresentInFile():
+            self.statusMessageSig.emit(
+                "No overviews found, performance will be slow")
 
         self.addLayer(layer)
 
