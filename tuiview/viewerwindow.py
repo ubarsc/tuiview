@@ -1412,6 +1412,8 @@ File will now be opened using default stretch""")
         from PyQt5.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
         from osgeo.gdal import __version__ as gdalVersion
         from numpy import version as numpyVersion
+        from .vectorrasterizer import (FONT_FAMILY, FONT_POINTSIZE, 
+                FONT_WEIGHT, FONT_ITALIC)
 
         msg = """<p align='center'>TuiView<br><br>
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, <br>
@@ -1429,14 +1431,16 @@ GDAL Version: %s<br>
 PyQt Version: %s<br>
 Qt Version: %s<br>
 Python Version: %s<br>
-Numpy Version: %s<br></p>
+Numpy Version: %s<br>
+Label Font Information: %s<br></p>
 """
         appDir = os.path.dirname(os.path.abspath(sys.argv[0]))
         pyVer = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
                     sys.version_info.micro)
+        fontInfo = "%s %d %d %d" % (FONT_FAMILY, FONT_POINTSIZE, 
+                FONT_WEIGHT, FONT_ITALIC)
         msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYQT_VERSION_STR, 
-                QT_VERSION_STR, 
-                pyVer, numpyVersion.version)
+                QT_VERSION_STR, pyVer, numpyVersion.version, fontInfo)
 
         # centre each line - doesn't work very well due to font
         msgLines = msg.split('\n')

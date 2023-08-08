@@ -1389,6 +1389,92 @@ static PyObject *vectorrasterizer_fillVertices(PyObject *self, PyObject *args, P
     return pOutArray;
 }
 
+static PyObject* vectorrasterizer_textLength(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    const char *pszString = NULL;
+    char ch;
+    int idx = 0, chIdx;
+    size_t nx = 0;
+    char *kwlist[] = {"string", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "z:textLength", kwlist, &pszString))
+        return NULL;
+
+    ch = pszString[idx];
+    while( ch != '\0' )
+    {
+        chIdx = ch - FONT_MIN_ASCII;
+        nx += fontInfo[chIdx].adv;
+        /* TODO: do we worry about fontInfo[chIdx].right for the last character? */
+        idx++;
+        ch = pszString[idx];
+    }
+    
+    return PyLong_FromSize_t(nx);
+}
+
+static PyObject* vectorrasterizer_printText(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *pBBoxObject; /* must be a sequence*/
+    int nXSize, nYSize, n;
+    const char *pszString = NULL;
+    double x, y, adExtents[4];
+    PyObject *pOutArray;
+    VectorWriterData *pWriter;
+    OGRGeometryH hGeom;
+    PyObject *o;
+    npy_intp dims[2];
+
+    char *kwlist[] = {"string", "boundingbox", "xsize", "ysize", "x", "y", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "zOiidd:printText", kwlist, 
+            &pszString, &pBBoxObject, &nXSize, &nYSize, &x, &y))
+        return NULL;
+
+    if( !PySequence_Check(pBBoxObject))
+    {
+        PyErr_SetString(GETSTATE(self)->error, "second argument must be a sequence");
+        return NULL;
+    }
+
+    if( PySequence_Size(pBBoxObject) != 4 )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "sequence must have 4 elements");
+        return NULL;
+    }
+    
+    for( n = 0; n < 4; n++ )
+    {
+        o = PySequence_GetItem(pBBoxObject, n);
+        if( !PyFloat_Check(o) )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Must be a sequence of floats" );
+            Py_DECREF(o);
+            return NULL;
+        }
+        adExtents[n] = PyFloat_AsDouble(o);
+        Py_DECREF(o);
+    }
+
+    /* create output array - all 0 to begin with */
+    dims[0] = nYSize;
+    dims[1] = nXSize;
+    pOutArray = PyArray_ZEROS(2, dims, NPY_UINT8, 0);
+    if( pOutArray == NULL )
+    {
+        PyErr_SetString(GETSTATE(self)->error, "Unable to allocate array" );
+        return NULL;
+    }
+
+    pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, 1, 1, 1);
+    
+    hGeom = OGR_G_CreateGeometry(wkbPoint);
+    OGR_G_SetPoint_2D(hGeom, 0, x, y);
+    
+    VectorWriter_drawLabel(pWriter, hGeom, pszString);
+    
+    OGR_G_DestroyGeometry(hGeom);
+    
+    return pOutArray;
+}
 
 /* Our list of functions in this module*/
 static PyMethodDef VectorRasterizerMethods[] = {
@@ -1443,6 +1529,19 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  xsize,ysize size of output array\n"
 "  minY is the min(y)\n"
 "  maxY is the max(y)\n"},
+    {"textLength", (PyCFunction)vectorrasterizer_textLength, METH_VARARGS | METH_KEYWORDS,
+"determine the length of a string when printed.\n"
+"call signature: length = textLength(string)\n"
+"where:\n"
+"  string is the string to find the length of\n"},
+    {"printText", (PyCFunction)vectorrasterizer_printText, METH_VARARGS | METH_KEYWORDS,
+"print some text to a numpy array.\n"
+"call signature: arr = printText(string, boundingbox, xsize, ysize, x, y)\n"
+"where:\n"
+"  string is the string to print\n"
+"  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
+"  xsize,ysize size of output array\n"
+"  x, y the location (in eastings/northings) to print the text\n"},
     {NULL}        /* Sentinel */
 };
 
@@ -1500,6 +1599,61 @@ PyInit_vectorrasterizer(void)
     
     /* Constant for HALF_CROSS_SIZE */
     if( PyModule_AddIntMacro(pModule, HALF_CROSS_SIZE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+    
+    /* Font constants */
+    if( PyModule_AddStringMacro(pModule, FONT_FAMILY) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_POINTSIZE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_WEIGHT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_ITALIC) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_THRESHOLD) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_SPACE_ADVANCE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_HEIGHT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_ASCENT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_DESCENT) != 0 )
     {
         Py_DECREF(pModule);
         return NULL;
