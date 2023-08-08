@@ -1603,6 +1603,61 @@ PyInit_vectorrasterizer(void)
         Py_DECREF(pModule);
         return NULL;
     }
+    
+    /* Font constants */
+    if( PyModule_AddStringMacro(pModule, FONT_FAMILY) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_POINTSIZE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_WEIGHT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_ITALIC) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_THRESHOLD) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_SPACE_ADVANCE) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_HEIGHT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_ASCENT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
+
+    if( PyModule_AddIntMacro(pModule, FONT_DESCENT) != 0 )
+    {
+        Py_DECREF(pModule);
+        return NULL;
+    }
 
     return pModule;
 }
