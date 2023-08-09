@@ -1,3 +1,13 @@
+Version 1.2.13 (2023-08-11)
+---------------------------
+* Use our own bitmapped font engine to print labels. Means vectors only need be be read once. 
+* Add functions in vectorrasterizer for only printing labels to an array
+* Add check for GDAL being built with GEOS support
+* Fix rounding error in fill algorithm
+* Added '--vectorlabel' command line arg
+* Fix entry points in setup.py
+* Show a status message when no pyramid layers present in a file
+
 Version 1.2.12 (2023-06-21)
 ---------------------------
 
