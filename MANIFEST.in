@@ -1,2 +1,3 @@
 include CHANGES.txt
 include LICENSE.txt
+include src/*.h
