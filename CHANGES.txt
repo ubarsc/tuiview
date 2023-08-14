@@ -1,4 +1,4 @@
-Version 1.2.13 (2023-08-11)
+Version 1.2.13 (2023-08-14)
 ---------------------------
 * Use our own bitmapped font engine to print labels. Means vectors only need be be read once. 
 * Add functions in vectorrasterizer for only printing labels to an array
