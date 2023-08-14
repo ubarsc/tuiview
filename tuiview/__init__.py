@@ -3,5 +3,5 @@ TuiView - this file is needed to ensure it can be imported
 
 See other source files for details
 """
-TUIVIEW_VERSION = '1.2.12'
+TUIVIEW_VERSION = '1.2.13'
 __version__ = TUIVIEW_VERSION
