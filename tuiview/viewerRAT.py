@@ -38,7 +38,7 @@ DEFAULT_STRING_FMT = "%s"
 VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
 VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
 
-DEFAULT_CACHE_SIZE = 10000
+DEFAULT_CACHE_SIZE = 500000
 
 GDAL_COLTYPE_LOOKUP = {gdal.GFT_Integer: "Integer", 
         gdal.GFT_Real: "Floating point", gdal.GFT_String: "String"}
@@ -116,13 +116,15 @@ class ViewerRAT(QObject):
         "return the column names"
         return self.columnNames
 
-    def getSaneColumnNames(self):
+    def getSaneColumnNames(self, colNameList=None):
         """
         Gets column names made sane. This means adding '_'
         to Python keywords and replacing spaces with '_' etc
         """
         sane = []
-        for colName in self.columnNames:
+        if colNameList is None:
+            colNameList = self.columnNames
+        for colName in colNameList:
             if keyword.iskeyword(colName):
                 # append an underscore. 
                 colName = colName + '_'
@@ -379,7 +381,7 @@ class ViewerRAT(QObject):
         self.findColorTableColumns()
         
     def getUserExpressionGlobals(self, cache, isselected, queryRow, 
-                            lastselected=None):
+                            lastselected=None, colNameList=None):
         """
         Get globals for user in user expression
         """
@@ -400,14 +402,58 @@ class ViewerRAT(QObject):
             globaldict['lastselected'] = lastselected
         # insert each column into the global namespace
         # as the array it represents
+        if colNameList is None:
+            colNameList = self.columnNames
         for colName, saneName in (
-                zip(self.columnNames, self.getSaneColumnNames())):
+                zip(colNameList, self.getSaneColumnNames(colNameList))):
             # use sane names so as not to confuse Python
             globaldict[saneName] = cache.cacheDict[colName]
 
         # give them access to numpy
         globaldict['numpy'] = numpy
         return globaldict
+
+    @staticmethod
+    def findVarNamesUsed(expression):
+        """
+        Work out what variable names are used in the given expression.
+        The variable names are those apart from the special ones provided
+        for in getUserExpressionGlobals(), and is intended to be just those
+        which might be column names. Returns a list of the variable name
+        strings.
+        """
+        # Just for safety, should never try any where near this many times
+        MAX_TRIES = 10000
+
+        numTries = 0
+        ok = False
+        # Initialize a name space with the special names
+        varDict = {'row': 0, 'queryrow': 0, 'isselected': 0, 'lastselected': 0,
+                'numpy': numpy}
+        specialNames = list(varDict.keys())
+        while (not ok and numTries < MAX_TRIES):
+            try:
+                eval(expression, varDict)
+                ok = True
+            except NameError as e:
+                # Some name in the expression was not found. Find that name,
+                # and add it to the dictionary
+                msg = str(e)
+                varName = msg.split()[1].replace("'", "")
+                varDict[varName] = None
+            except Exception:
+                # Ignore all other exceptions. If we got this far, then we have
+                # fixed all the NameError exceptions, and so have all the
+                # required names
+                ok = True
+
+            numTries += 1
+
+        # The eval() call has added __builtins__, so remove it again.
+        # Also remove the special names we started with.
+        varNamesUsed = [varName for varName in list(varDict.keys())
+            if varName != "__builtins__" and varName not in specialNames]
+        return varNamesUsed
 
     def evaluateUserSelectExpression(self, expression, isselected, queryRow, 
             lastselected):
@@ -422,6 +468,7 @@ class ViewerRAT(QObject):
         self.newProgress.emit("Evaluating User Expression...")
         cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
         nrows = self.getNumRows()
+        columnsUsed = self.findVarNamesUsed(expression)
 
         # create the new selected array the full size of the rat
         # we will fill in each chunk as we go
@@ -430,7 +477,7 @@ class ViewerRAT(QObject):
         currRow = 0
 
         while currRow < nrows:
-            cache.setStartRow(currRow)
+            cache.setStartRow(currRow, colName=columnsUsed)
             length = cache.getLength()
 
             isselectedSub = isselected[currRow:currRow + length]
@@ -439,7 +486,8 @@ class ViewerRAT(QObject):
             else:
                 lastselectedSub = None
             globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
-                                queryRow, lastselectedSub)
+                                queryRow, lastselectedSub,
+                                colNameList=columnsUsed)
 
             try:
                 resultSub = eval(expression, globaldict)
@@ -613,8 +661,9 @@ class RATCache(object):
     def updateCache(self, colName=None):
         """
         Internal method, called when self.currStartRow changed
-        If colName is None all columns will be updated 
-        otherwise just the named one
+        If colName is None all columns will be updated, if it is a single
+        name or a list of names, then just the named one(s) will
+        be update.
         """
         rowCount = self.gdalRAT.GetRowCount()
         self.length = self.chunkSize
@@ -624,7 +673,7 @@ class RATCache(object):
         ncols = self.gdalRAT.GetColumnCount()
         for col in range(ncols):
             name = self.gdalRAT.GetNameOfCol(col)
-            if colName is None or name == colName:
+            if colName is None or name == colName or name in colName:
                 data = self.gdalRAT.ReadAsArray(col, int(self.currStartRow), 
                             self.length)
 
