@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget
-from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
+from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QPoint
 from PyQt5.QtCore import QModelIndex, QItemSelectionModel
 import numpy
 
@@ -45,8 +45,10 @@ QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 RAT_CACHE_CHUNKSIZE = 1000
 
-# Qt seems to have issues with tables bigger than this
-MAX_ROW_COUNT = 100000000
+# Qt seems to have issues with tables bigger than 100million
+# rows. For this, and performance issues, only pretend we 
+# have a maximim of this number of rows and fake it
+MAX_ROW_COUNT = 10000
 
 
 def safeCreateColor(r, g, b, a=255):
@@ -82,9 +84,10 @@ class ThematicTableModel(QAbstractTableModel):
     This class is the 'model' that drives the thematic table.
     QTableView asks it for the data etc
     """
-    def __init__(self, attributes, parent):
+    def __init__(self, attributes, view, parent):
         QAbstractTableModel.__init__(self, parent)
         self.attributes = attributes
+        self.view = view
         self.saneColNames = attributes.getSaneColumnNames()
         self.colNames = attributes.getColumnNames()
         # for reading the data
@@ -92,6 +95,10 @@ class ThematicTableModel(QAbstractTableModel):
         self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
         self.highlightRow = -1
         self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
+        # work out mapping between Qt rows and RAT rows.
+        self.rowRatio = 1.0
+        if self.attributes.getNumRows() > MAX_ROW_COUNT:
+            self.rowRatio = self.attributes.getNumRows() / MAX_ROW_COUNT
 
     def doUpdate(self, updateHorizHeader=False):
         """
@@ -117,9 +124,6 @@ class ThematicTableModel(QAbstractTableModel):
         Called by setupTableThematic to indicate 
         the row that should be highlighted
         """
-        if row >= MAX_ROW_COUNT:
-            print('Selected row is', row)
-            row = MAX_ROW_COUNT - 1
         self.highlightRow = row
         self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
 
@@ -184,9 +188,10 @@ class ThematicTableModel(QAbstractTableModel):
                 
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             # rows just a number
-            return "%s" % section
+            row = self.getAttRowForTableRow(section)
+            return "%s" % row
         elif (orientation == Qt.Vertical and role == Qt.BackgroundRole and
-                section == self.highlightRow):
+                self.getAttRowForTableRow(section) == self.highlightRow):
             # highlight the header also
             return self.highlightBrush
         else:
@@ -214,6 +219,20 @@ class ThematicTableModel(QAbstractTableModel):
         pixmap = QPixmap(64, 24)
         pixmap.fill(col)
         return pixmap
+        
+    def getAttRowForTableRow(self, row):
+        """
+        Return the row in the attribute table for row
+        in the table. Ideally these are the same
+        but for large RAT's we have the rowRatio hack
+        """
+        if self.rowRatio == 1.0:
+            return row
+        else:
+            startRow = self.view.indexAt(QPoint(0, 0)).row()
+            diff = row - startRow
+            row = int(startRow * self.rowRatio) + diff
+            return row
 
     def data(self, index, role):
         """
@@ -224,7 +243,7 @@ class ThematicTableModel(QAbstractTableModel):
         if not index.isValid():
             return None
 
-        row = index.row()
+        row = self.getAttRowForTableRow(index.row())
         if role == Qt.BackgroundRole and row == self.highlightRow:
             return self.highlightBrush
 
@@ -1658,16 +1677,8 @@ Use the special columns:
             self.lastAttributeid = id(layer.attributes)
             self.lastLayer = layer
             
-            # display warning so the user knows what is happening
-            # have an env var so we can disable this check from eg. plugin
-            # (which is why we check it each time)
-            if (layer.attributes.getNumRows() > MAX_ROW_COUNT and 
-                    os.getenv('TUIVIEW_DISABLE_ROW_WARNING', default='0') != '1'):
-                msg = ('The Attribute Table is larger than {} rows. ' +
-                    'It will be truncated.').format(MAX_ROW_COUNT)
-                QMessageBox.information(self, MESSAGE_TITLE, msg)
-
-            self.tableModel = ThematicTableModel(layer.attributes, self)
+            self.tableModel = ThematicTableModel(layer.attributes, 
+                self.tableView, self)
             self.tableView.setModel(self.tableModel)
 
             # create our own selection model so nothing gets selected
