@@ -18,7 +18,6 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import os
 from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
