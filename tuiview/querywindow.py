@@ -23,7 +23,7 @@ from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget
+from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QPoint
 from PyQt5.QtCore import QModelIndex, QItemSelectionModel
 import numpy
@@ -83,10 +83,11 @@ class ThematicTableModel(QAbstractTableModel):
     This class is the 'model' that drives the thematic table.
     QTableView asks it for the data etc
     """
-    def __init__(self, attributes, view, parent):
+    def __init__(self, attributes, view, scroll, parent):
         QAbstractTableModel.__init__(self, parent)
         self.attributes = attributes
         self.view = view
+        self.scroll = scroll
         self.saneColNames = attributes.getSaneColumnNames()
         self.colNames = attributes.getColumnNames()
         # for reading the data
@@ -98,6 +99,15 @@ class ThematicTableModel(QAbstractTableModel):
         self.rowRatio = 1.0
         if self.attributes.getNumRows() > MAX_ROW_COUNT:
             self.rowRatio = self.attributes.getNumRows() / MAX_ROW_COUNT
+            
+        self.scroll.tuiviewSetRange(0, self.attributes.getNumRows())  # minus height of table view?
+        self.scroll.setSingleStep(1)
+
+        # signals
+        scroll.valueChanged.connect(self.scrollChanged)
+        
+    def scrollChanged(self, value):
+        print('new scroll', value)
 
     def doUpdate(self, updateHorizHeader=False):
         """
@@ -128,7 +138,11 @@ class ThematicTableModel(QAbstractTableModel):
 
     def rowCount(self, parent):
         "returns the number of rows"
-        return min(self.attributes.getNumRows(), MAX_ROW_COUNT)
+        #return min(self.attributes.getNumRows(), MAX_ROW_COUNT)
+        if parent is not None and parent.isValid():
+            # zero children
+            return 0
+        return 1000
 
     def columnCount(self, parent):
         "number of columns"
@@ -586,6 +600,22 @@ class QueryTableView(QTableView):
 
     def keyPressEvent(self, event):
         self.parent.keyPressEvent(event)
+        
+        
+class ThematicScrollBar(QScrollBar):
+    def __init__(self, parent):
+        QScrollBar.__init__(self, parent)
+        
+    def setRange(self, m1, m2):
+        print('tried setting range')
+        
+    def setMaximum(self, m):
+        print('tried setting max')
+        
+    def tuiviewSetRange(self, m1, m2):
+        QScrollBar.setRange(self, m1, m2)
+        
+        
         
 
 class QueryDockWidget(QDockWidget):
@@ -1676,8 +1706,11 @@ Use the special columns:
             self.lastAttributeid = id(layer.attributes)
             self.lastLayer = layer
             
+            # replace the default scroll bar with our own
+            self.tableScroll = ThematicScrollBar(self)
             self.tableModel = ThematicTableModel(layer.attributes, 
-                self.tableView, self)
+                self.tableView, self.tableScroll, self)
+            self.tableView.setVerticalScrollBar(self.tableScroll)
             self.tableView.setModel(self.tableModel)
 
             # create our own selection model so nothing gets selected
