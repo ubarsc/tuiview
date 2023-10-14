@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
-from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QPoint
+from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
 from PyQt5.QtCore import QModelIndex, QItemSelectionModel
 import numpy
 
@@ -95,21 +95,32 @@ class ThematicTableModel(QAbstractTableModel):
         self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
         self.highlightRow = -1
         self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
-        # work out mapping between Qt rows and RAT rows.
-        self.rowRatio = 1.0
-        if self.attributes.getNumRows() > MAX_ROW_COUNT:
-            self.rowRatio = self.attributes.getNumRows() / MAX_ROW_COUNT
-            
-        self.scroll.tuiviewSetRange(0, self.attributes.getNumRows())  # minus height of table view?
+
+        self.geomChanged()    
         self.scroll.setSingleStep(1)
 
         # signals
-        scroll.valueChanged.connect(self.scrollChanged)
+        self.scroll.valueChanged.connect(self.scrollChanged)
+        self.view.verticalHeader().geometriesChanged.connect(self.geomChanged)
         
     def scrollChanged(self, value):
+        "Position in scroll changed"
         print('new scroll', value)
+        self.doUpdate(updateVertHeader=True)
+        
+    def geomChanged(self):
+        "size of window changed"
+        brPoint = self.view.rect().bottomLeft()
+        horiz_bar = self.view.horizontalScrollBar()
+        if horiz_bar is not None and horiz_bar.isVisible():
+            scrollSize = horiz_bar.size().height()
+            brPoint.setY(brPoint.y() - scrollSize)
+            
+        nShownRows = self.view.indexAt(brPoint).row()
+        if nShownRows > 0:
+            self.scroll.setRange(0, self.attributes.getNumRows() - nShownRows + 1)  # +1 for col header
 
-    def doUpdate(self, updateHorizHeader=False):
+    def doUpdate(self, updateHorizHeader=False, updateVertHeader=False):
         """
         Called by the parent window when the attributes have changed.
         Emits the appropriate signal.
@@ -127,6 +138,9 @@ class ThematicTableModel(QAbstractTableModel):
             self.colNames = self.attributes.getColumnNames()
             self.headerDataChanged.emit(Qt.Horizontal, 0, 
                         self.columnCount(None) - 1)
+                        
+        if updateVertHeader:
+            self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
 
     def setHighlightRow(self, row):
         """
@@ -138,7 +152,6 @@ class ThematicTableModel(QAbstractTableModel):
 
     def rowCount(self, parent):
         "returns the number of rows"
-        #return min(self.attributes.getNumRows(), MAX_ROW_COUNT)
         if parent is not None and parent.isValid():
             # zero children
             return 0
@@ -201,10 +214,13 @@ class ThematicTableModel(QAbstractTableModel):
                 
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             # rows just a number
-            row = self.getAttRowForTableRow(section)
-            return "%s" % row
+            row = self.scroll.sliderPosition() + section
+            if row < self.attributes.getNumRows():
+                return "%s" % row
+            else:
+                return ''
         elif (orientation == Qt.Vertical and role == Qt.BackgroundRole and
-                self.getAttRowForTableRow(section) == self.highlightRow):
+                (self.scroll.sliderPosition() + section) == self.highlightRow):
             # highlight the header also
             return self.highlightBrush
         else:
@@ -214,39 +230,28 @@ class ThematicTableModel(QAbstractTableModel):
         """
         Returns the colour icon for the given row
         """
-        self.attCache.autoScrollToIncludeRow(row)
-
-        names = self.attributes.getColumnNames()
-        name = names[self.attributes.redColumnIdx]
-        redVal = self.attCache.getValueFromCol(name, row)
-
-        name = names[self.attributes.greenColumnIdx]
-        greenVal = self.attCache.getValueFromCol(name, row)
-
-        name = names[self.attributes.blueColumnIdx]
-        blueVal = self.attCache.getValueFromCol(name, row)
-
-        # ignore alpha as we want to see it
-        col = safeCreateColor(redVal, greenVal, blueVal)
-
+        if row < self.attributes.getNumRows():
+            self.attCache.autoScrollToIncludeRow(row)
+    
+            names = self.attributes.getColumnNames()
+            name = names[self.attributes.redColumnIdx]
+            redVal = self.attCache.getValueFromCol(name, row)
+    
+            name = names[self.attributes.greenColumnIdx]
+            greenVal = self.attCache.getValueFromCol(name, row)
+    
+            name = names[self.attributes.blueColumnIdx]
+            blueVal = self.attCache.getValueFromCol(name, row)
+    
+            # ignore alpha as we want to see it
+            col = safeCreateColor(redVal, greenVal, blueVal)
+        else:
+            col = QColor(0, 0, 0)
+    
         pixmap = QPixmap(64, 24)
         pixmap.fill(col)
         return pixmap
         
-    def getAttRowForTableRow(self, row):
-        """
-        Return the row in the attribute table for row
-        in the table. Ideally these are the same
-        but for large RAT's we have the rowRatio hack
-        """
-        if self.rowRatio == 1.0:
-            return row
-        else:
-            startRow = self.view.indexAt(QPoint(0, 0)).row()
-            diff = row - startRow
-            row = int(startRow * self.rowRatio) + diff
-            return row
-
     def data(self, index, role):
         """
         Gets the actual data. A variety of Qt.ItemDataRole's
@@ -256,7 +261,7 @@ class ThematicTableModel(QAbstractTableModel):
         if not index.isValid():
             return None
 
-        row = self.getAttRowForTableRow(index.row())
+        row = self.scroll.sliderPosition() + index.row()
         if role == Qt.BackgroundRole and row == self.highlightRow:
             return self.highlightBrush
 
@@ -269,8 +274,12 @@ class ThematicTableModel(QAbstractTableModel):
 
             name = self.attributes.getColumnNames()[column]
             # scroll to row
-            self.attCache.autoScrollToIncludeRow(row)
-            attr_val = self.attCache.getValueFromCol(name, row)
+            if row >= self.attributes.getNumRows():
+                # sometimes there is a 'partial' row shown. but we don't need data
+                return ''
+            else:
+                self.attCache.autoScrollToIncludeRow(row)
+                attr_val = self.attCache.getValueFromCol(name, row)
 
             if isinstance(attr_val, bytes):
                 # other wise we get b'...' in Python3 
@@ -602,22 +611,6 @@ class QueryTableView(QTableView):
         self.parent.keyPressEvent(event)
         
         
-class ThematicScrollBar(QScrollBar):
-    def __init__(self, parent):
-        QScrollBar.__init__(self, parent)
-        
-    def setRange(self, m1, m2):
-        print('tried setting range')
-        
-    def setMaximum(self, m):
-        print('tried setting max')
-        
-    def tuiviewSetRange(self, m1, m2):
-        QScrollBar.setRange(self, m1, m2)
-        
-        
-        
-
 class QueryDockWidget(QDockWidget):
     """
     Dock widget that contains the query window. Follows query 
@@ -726,8 +719,17 @@ class QueryDockWidget(QDockWidget):
         self.tableView.verticalHeader().setDefaultSectionSize(height)
 
         self.plotWidget = plotwidget.PlotLineWidget(self)
+        
+        self.thematicScrollBar = QScrollBar(Qt.Vertical, self)
+        
+        self.tableLayout = QHBoxLayout()
+        self.tableLayout.addWidget(self.tableView)
+        self.tableLayout.addWidget(self.thematicScrollBar)
+        
+        self.tableWidget = QWidget(self)
+        self.tableWidget.setLayout(self.tableLayout)
 
-        self.tabWidget.addTab(self.tableView, "Table")
+        self.tabWidget.addTab(self.tableWidget, "Table")
         self.tabWidget.addTab(self.plotWidget, "Plot")
 
         self.mainLayout = QVBoxLayout()
@@ -1665,6 +1667,9 @@ Use the special columns:
         self.lastAttributeid = -1
         self.lastLayer = layer
 
+        self.thematicScrollBar.setVisible(False)
+        self.tableView.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
         self.tableModel = ContinuousTableModel(data, layer.bandNames,
                     layer.stretch, self)
         self.tableView.setModel(self.tableModel)
@@ -1706,11 +1711,11 @@ Use the special columns:
             self.lastAttributeid = id(layer.attributes)
             self.lastLayer = layer
             
-            # replace the default scroll bar with our own
-            self.tableScroll = ThematicScrollBar(self)
+            self.thematicScrollBar.setVisible(True)
+            self.tableView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            
             self.tableModel = ThematicTableModel(layer.attributes, 
-                self.tableView, self.tableScroll, self)
-            self.tableView.setVerticalScrollBar(self.tableScroll)
+                self.tableView, self.thematicScrollBar, self)
             self.tableView.setModel(self.tableModel)
 
             # create our own selection model so nothing gets selected
@@ -1731,11 +1736,11 @@ Use the special columns:
 
             # scroll to the new index - remembering the existing horizontal 
             # scroll value
-            horiz_scroll_bar = self.tableView.horizontalScrollBar()
-            horiz_pos = horiz_scroll_bar.sliderPosition()
-            index = self.tableView.model().index(val, 0)
-            self.tableView.scrollTo(index, QTableView.PositionAtCenter)
-            horiz_scroll_bar.setSliderPosition(horiz_pos)
+            # horiz_scroll_bar = self.tableView.horizontalScrollBar()
+            # horiz_pos = horiz_scroll_bar.sliderPosition()
+            # horiz_scroll_bar.setSliderPosition(horiz_pos)
+            
+            self.thematicScrollBar.setSliderPosition(val)            
 
         self.updateToolTip()
 
