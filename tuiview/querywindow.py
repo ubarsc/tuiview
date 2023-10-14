@@ -246,7 +246,7 @@ class ThematicTableModel(QAbstractTableModel):
             # ignore alpha as we want to see it
             col = safeCreateColor(redVal, greenVal, blueVal)
         else:
-            col = QColor(0, 0, 0)
+            col = QColor(255, 255, 255)
     
         pixmap = QPixmap(64, 24)
         pixmap.fill(col)
