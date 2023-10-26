@@ -44,11 +44,6 @@ QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 RAT_CACHE_CHUNKSIZE = 1000
 
-# Qt seems to have issues with tables bigger than 100million
-# rows. For this, and performance issues, only pretend we 
-# have a maximim of this number of rows and fake it
-MAX_ROW_COUNT = 10000
-
 
 def safeCreateColor(r, g, b, a=255):
     """
@@ -103,10 +98,20 @@ class ThematicTableModel(QAbstractTableModel):
         self.scroll.valueChanged.connect(self.scrollChanged)
         self.view.verticalHeader().geometriesChanged.connect(self.geomChanged)
         
+    #def index(self, row, column, parent=QModelIndex()):
+    #    print(row, column, parent)
+    #    #val = QAbstractTableModel.index(self, row, column, parent)
+    #    #print(val.internalId())
+    #    #return val
+    #    return self.createIndex(row, column, self.scroll.sliderPosition())
+        
     def scrollChanged(self, value):
         "Position in scroll changed"
-        print('new scroll', value)
+        # print('new scroll', value)
         self.doUpdate(updateVertHeader=True)
+        
+    def sliderPosition(self):
+        return self.scroll.sliderPosition()
         
     def geomChanged(self):
         "size of window changed"
@@ -155,7 +160,7 @@ class ThematicTableModel(QAbstractTableModel):
         if parent is not None and parent.isValid():
             # zero children
             return 0
-        return 1000
+        return RAT_CACHE_CHUNKSIZE
 
     def columnCount(self, parent):
         "number of columns"
@@ -416,7 +421,7 @@ class ThematicSelectionModel(QItemSelectionModel):
     def __init__(self, model, parent):
         QItemSelectionModel.__init__(self, model)
         self.parent = parent
-
+        
     def select(self, index, command):
         """
         Override and don't call base class so nothing
@@ -425,13 +430,15 @@ class ThematicSelectionModel(QItemSelectionModel):
         # seems that the rows can be repeated
         # so just operate on unique values
         # because we toggling
-        unique_rows = {}
+        unique_rows = set()
         if isinstance(index, QModelIndex):
-            unique_rows[index.row()] = 1
+            row = self.parent.tableModel.sliderPosition() + index.row()
+            unique_rows.add(row)
         else:
             # QItemSelection
             for idx in index.indexes():
-                unique_rows[idx.row()] = 1
+                row = self.parent.tableModel.sliderPosition() + idx.row()
+                unique_rows.add(row)
                 
         self.parent.storeLastSelection()
 
@@ -466,8 +473,11 @@ class ThematicItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         "Paint method - paint as selected if needed"
+        row = self.parent.tableModel.sliderPosition() + index.row()
+        
         if (self.parent.selectionArray is not None and
-                self.parent.selectionArray[index.row()]):
+                row < self.parent.selectionArray.shape[0] and
+                self.parent.selectionArray[row]):
             option.state |= QStyle.State_Selected
         # shouldn't have to un-select as nothing should be selected
         # according to the model
@@ -1165,8 +1175,7 @@ The application will now exit."""
             # scroll value
             horiz_scroll_bar = self.tableView.horizontalScrollBar()
             horiz_pos = horiz_scroll_bar.sliderPosition()
-            index = self.tableView.model().index(selectedIdx[0], 0)
-            self.tableView.scrollTo(index, QTableView.PositionAtCenter)
+            self.thematicScrollBar.setSliderPosition(selectedIdx[0])
             horiz_scroll_bar.setSliderPosition(horiz_pos)
 
     def userNewCoord(self):
@@ -1736,9 +1745,9 @@ Use the special columns:
 
             # scroll to the new index - remembering the existing horizontal 
             # scroll value
-            # horiz_scroll_bar = self.tableView.horizontalScrollBar()
-            # horiz_pos = horiz_scroll_bar.sliderPosition()
-            # horiz_scroll_bar.setSliderPosition(horiz_pos)
+            horiz_scroll_bar = self.tableView.horizontalScrollBar()
+            horiz_pos = horiz_scroll_bar.sliderPosition()
+            horiz_scroll_bar.setSliderPosition(horiz_pos)
             
             self.thematicScrollBar.setSliderPosition(val)            
 
