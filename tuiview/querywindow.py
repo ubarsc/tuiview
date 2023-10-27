@@ -122,9 +122,6 @@ class ThematicTableModel(QAbstractTableModel):
         # print('new scroll', value)
         self.doUpdate(updateVertHeader=True)
         
-    #def sliderPosition(self):
-    #    return self.scroll.sliderPosition()
-        
     def geomChanged(self):
         "size of window changed"
         brPoint = self.view.rect().bottomLeft()
@@ -499,12 +496,6 @@ class ThematicSelectionModel(QItemSelectionModel):
         # update the view
         self.parent.tableModel.doUpdate(True)
 
-    #def setCurrentIndex(self, index, command):
-    #    print('setCurrentIndex', index.row(), index.internalId(), int(command))
-    #    newindex = self.parent.tableModel.createIndex(index.row() + index.internalId(),
-    #        index.column(), 0)
-    #    QItemSelectionModel.setCurrentIndex(self, newindex, command)
-        
 
 class ThematicItemDelegate(QStyledItemDelegate):
     """
