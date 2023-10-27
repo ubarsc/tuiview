@@ -98,20 +98,32 @@ class ThematicTableModel(QAbstractTableModel):
         self.scroll.valueChanged.connect(self.scrollChanged)
         self.view.verticalHeader().geometriesChanged.connect(self.geomChanged)
         
-    #def index(self, row, column, parent=QModelIndex()):
-    #    print(row, column, parent)
-    #    #val = QAbstractTableModel.index(self, row, column, parent)
-    #    #print(val.internalId())
-    #    #return val
-    #    return self.createIndex(row, column, self.scroll.sliderPosition())
+    def index(self, row, column, parent=None):
+        """
+        Create a new QModelIndex for the specified row and column. 
+        The base class implmentation just creates a new QModelIndex
+        but we override this so we can set the "internalId" parameter
+        which is available to clients to store more info. We use
+        this parameter to store the current slider position.
+        For most operations we could just obtain this by calling 
+        self.scroll.sliderPosition() again, but for selection this 
+        doesn't work as they may have started the selection then scrolled
+        down and ended the selection so we need to know the slider position
+        for each index.
+        
+        The other obvious thing to do is to add the slider position onto the
+        current row, but things get weird as sometimes Qt passes me a row
+        with the position alreaady added on...
+        """
+        return self.createIndex(row, column, self.scroll.sliderPosition())
         
     def scrollChanged(self, value):
         "Position in scroll changed"
         # print('new scroll', value)
         self.doUpdate(updateVertHeader=True)
         
-    def sliderPosition(self):
-        return self.scroll.sliderPosition()
+    #def sliderPosition(self):
+    #    return self.scroll.sliderPosition()
         
     def geomChanged(self):
         "size of window changed"
@@ -266,7 +278,8 @@ class ThematicTableModel(QAbstractTableModel):
         if not index.isValid():
             return None
 
-        row = self.scroll.sliderPosition() + index.row()
+        # convert back to a row within the file
+        row = index.internalId() + index.row()
         if role == Qt.BackgroundRole and row == self.highlightRow:
             return self.highlightBrush
 
@@ -421,6 +434,7 @@ class ThematicSelectionModel(QItemSelectionModel):
     def __init__(self, model, parent):
         QItemSelectionModel.__init__(self, model)
         self.parent = parent
+        self.current = None
         
     def select(self, index, command):
         """
@@ -430,21 +444,46 @@ class ThematicSelectionModel(QItemSelectionModel):
         # seems that the rows can be repeated
         # so just operate on unique values
         # because we toggling
+        
+        # Note using the internalId of the model index
+        # to find the slider position at the time the selection
+        # was made.
         unique_rows = set()
+        print('command', hex(int(command)))
         if isinstance(index, QModelIndex):
-            row = self.parent.tableModel.sliderPosition() + index.row()
+            row = index.internalId() + index.row()
             unique_rows.add(row)
         else:
             # QItemSelection
             for idx in index.indexes():
-                row = self.parent.tableModel.sliderPosition() + idx.row()
+                row = idx.internalId() + idx.row()
                 unique_rows.add(row)
                 
         self.parent.storeLastSelection()
 
         # if we are to clear first, do so
-        if (command & QItemSelectionModel.Clear) == QItemSelectionModel.Clear:
+        if command & QItemSelectionModel.Clear:
             self.parent.selectionArray.fill(False)
+            # also if we are here and the flags match update
+            # the "current" selection as we can't trust Qt to 
+            # pass through our internalId to here when the selection happens
+            if command & QItemSelectionModel.Select:
+                self.current = unique_rows
+        elif self.current is not None:
+                
+            # merge the ranges if it is a range
+            if command & QItemSelectionModel.Current:
+                mmin = min(min(self.current), min(unique_rows))
+                mmax = max(max(self.current), max(unique_rows))
+                for m in range(mmin, mmax + 1):
+                    unique_rows.add(m)
+
+                # unselect so the toggling works
+                self.parent.selectionArray.fill(False)
+            else:
+                unique_rows.update(self.current)
+                
+            self.current = None
 
         # toggle all the indexes
         for idx in unique_rows:
@@ -459,8 +498,13 @@ class ThematicSelectionModel(QItemSelectionModel):
 
         # update the view
         self.parent.tableModel.doUpdate(True)
-        # note: the behaviour still not right....
 
+    #def setCurrentIndex(self, index, command):
+    #    print('setCurrentIndex', index.row(), index.internalId(), int(command))
+    #    newindex = self.parent.tableModel.createIndex(index.row() + index.internalId(),
+    #        index.column(), 0)
+    #    QItemSelectionModel.setCurrentIndex(self, newindex, command)
+        
 
 class ThematicItemDelegate(QStyledItemDelegate):
     """
@@ -473,7 +517,7 @@ class ThematicItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         "Paint method - paint as selected if needed"
-        row = self.parent.tableModel.sliderPosition() + index.row()
+        row = index.internalId() + index.row()
         
         if (self.parent.selectionArray is not None and
                 row < self.parent.selectionArray.shape[0] and
