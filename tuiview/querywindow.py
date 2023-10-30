@@ -637,7 +637,7 @@ class QueryTableView(QTableView):
         # of the window)
         # scrollContentsBy is limited by what it thinks 
         # the size of the window should be 
-        dy = e.pixelDelta().y()
+        dy = e.angleDelta().y()
         if dy != 0:
             # TODO: signal instead?
             dy /= (self.rowHeight(0) * 2)  # don't scroll as much - matches scrollbar
