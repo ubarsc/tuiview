@@ -19,13 +19,12 @@ Module that contains the QueryDockWidget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
-from PyQt5.QtGui import QFontMetrics
+from PyQt5.QtGui import QFontMetrics, QMouseEvent
 from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
-from PyQt5.QtCore import QModelIndex, QItemSelectionModel
 import numpy
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
@@ -80,6 +79,7 @@ class ThematicTableModel(QAbstractTableModel):
     """
     def __init__(self, attributes, view, scroll, parent):
         QAbstractTableModel.__init__(self, parent)
+        self.parent = parent
         self.attributes = attributes
         self.view = view
         self.scroll = scroll
@@ -93,15 +93,44 @@ class ThematicTableModel(QAbstractTableModel):
 
         self.geomChanged()    
         self.scroll.setSingleStep(1)
+        
+        # 'current' selected row
+        self.curSel = None
 
         # signals
         self.scroll.valueChanged.connect(self.scrollChanged)
-        self.view.verticalHeader().geometriesChanged.connect(self.geomChanged)
+        vertHeader = self.view.verticalHeader() 
+        vertHeader.geometriesChanged.connect(self.geomChanged)
+        vertHeader.clicked.connect(self.rowClicked)
         
+    def rowClicked(self, e):
+        """
+        handle signal sent from our vertical header saying that
+        the 
+        """
+        pt = e.pos()
+        row = self.view.rowAt(pt.y()) + self.scroll.sliderPosition()
+        modifiers = e.modifiers()
+        if modifiers & Qt.ShiftModifier:
+            if self.curSel is not None:
+                startRow = min(self.curSel, row)
+                endRow = max(self.curSel, row)
+                self.parent.selectionArray[startRow:endRow + 1] = True
+                self.curSel = row
+        elif modifiers & Qt.ControlModifier:
+            if self.curSel is not None:
+                self.parent.selectionArray[row] = True
+                self.curSel = row
+        else:
+            self.curSel = row
+            self.parent.selectionArray.fill(False)
+            self.parent.selectionArray[row] = True
+        self.doUpdate()
+      
     def index(self, row, column, parent=None):
         """
         Create a new QModelIndex for the specified row and column. 
-        The base class implmentation just creates a new QModelIndex
+        The base class implementation just creates a new QModelIndex
         but we override this so we can set the "internalId" parameter
         which is available to clients to store more info. We use
         this parameter to store the current slider position.
@@ -109,17 +138,17 @@ class ThematicTableModel(QAbstractTableModel):
         self.scroll.sliderPosition() again, but for selection this 
         doesn't work as they may have started the selection then scrolled
         down and ended the selection so we need to know the slider position
-        for each index.
+        for each index. This is espcially useful for the ItemDelegate
+        which otherwise has no way of knowing what the scroll position was
         
         The other obvious thing to do is to add the slider position onto the
         current row, but things get weird as sometimes Qt passes me a row
-        with the position alreaady added on...
+        with the position already added on...
         """
         return self.createIndex(row, column, self.scroll.sliderPosition())
         
     def scrollChanged(self, value):
         "Position in scroll changed"
-        # print('new scroll', value)
         self.doUpdate(updateVertHeader=True)
         
     def geomChanged(self):
@@ -169,7 +198,7 @@ class ThematicTableModel(QAbstractTableModel):
         if parent is not None and parent.isValid():
             # zero children
             return 0
-        return RAT_CACHE_CHUNKSIZE
+        return min(RAT_CACHE_CHUNKSIZE, self.attributes.getNumRows())
 
     def columnCount(self, parent):
         "number of columns"
@@ -419,84 +448,6 @@ class ContinuousTableModel(QAbstractTableModel):
             return None
 
 
-class ThematicSelectionModel(QItemSelectionModel):
-    """
-    Selection model for the thematic table. We override the 
-    default because we don't want the selection model
-    to record any selections to make life easier for us.
-    Ideally we would override the isSelected method but
-    this is not declared virtual so we have to do this and
-    paint the selections via the ItemDelegate.
-    """
-    def __init__(self, model, parent):
-        QItemSelectionModel.__init__(self, model)
-        self.parent = parent
-        self.current = None
-        
-    def select(self, index, command):
-        """
-        Override and don't call base class so nothing
-        selected as far as selection model concerned
-        """
-        # seems that the rows can be repeated
-        # so just operate on unique values
-        # because we toggling
-        
-        # Note using the internalId of the model index
-        # to find the slider position at the time the selection
-        # was made.
-        unique_rows = set()
-        print('command', hex(int(command)))
-        if isinstance(index, QModelIndex):
-            row = index.internalId() + index.row()
-            unique_rows.add(row)
-        else:
-            # QItemSelection
-            for idx in index.indexes():
-                row = idx.internalId() + idx.row()
-                unique_rows.add(row)
-                
-        self.parent.storeLastSelection()
-
-        # if we are to clear first, do so
-        if command & QItemSelectionModel.Clear:
-            self.parent.selectionArray.fill(False)
-            # also if we are here and the flags match update
-            # the "current" selection as we can't trust Qt to 
-            # pass through our internalId to here when the selection happens
-            if command & QItemSelectionModel.Select:
-                self.current = unique_rows
-        elif self.current is not None:
-                
-            # merge the ranges if it is a range
-            if command & QItemSelectionModel.Current:
-                mmin = min(min(self.current), min(unique_rows))
-                mmax = max(max(self.current), max(unique_rows))
-                for m in range(mmin, mmax + 1):
-                    unique_rows.add(m)
-
-                # unselect so the toggling works
-                self.parent.selectionArray.fill(False)
-            else:
-                unique_rows.update(self.current)
-                
-            self.current = None
-
-        # toggle all the indexes
-        for idx in unique_rows:
-            self.parent.selectionArray[idx] = (
-                not self.parent.selectionArray[idx])
-
-        self.parent.updateToolTip()
-
-        if self.parent.highlightAction.isChecked():
-            self.parent.viewwidget.highlightValues(self.parent.highlightColor,
-                                self.parent.selectionArray)
-
-        # update the view
-        self.parent.tableModel.doUpdate(True)
-
-
 class ThematicItemDelegate(QStyledItemDelegate):
     """
     Because we can't override the isSelected method of the modelselection
@@ -641,6 +592,30 @@ class ThematicHorizontalHeader(QHeaderView):
                 self.parent.setColumnKeyboardEdit(colName)
 
 
+class ThematicVerticalHeader(QHeaderView):
+    """
+    Our own vertical header that forwards the event on to the
+    model to handle selection. In thematic mode only, 
+    otherwise behaves the same as the real thing.
+    """
+    clicked = pyqtSignal(QMouseEvent, name='clicked')
+    
+    def __init__(self, parent):
+        QHeaderView.__init__(self, Qt.Vertical, parent)
+        self.thematic = True
+        
+    def mousePressEvent(self, e):
+        if self.thematic:
+            # supress default behaviour and do our own
+            self.clicked.emit(e)
+        else:
+            QHeaderView.mousePressEvent(self, e)
+        
+    def setThematicMode(self, mode):
+        "Set the mode (True or False) for selection behaviour"
+        self.thematic = mode
+
+
 class QueryTableView(QTableView):
     """
     A hack to ensure all keypresses are redirected to
@@ -719,8 +694,10 @@ class QueryDockWidget(QDockWidget):
         # can only select rows - not individual items
         self.tableView.setSelectionBehavior(QTableView.SelectRows)
         # our own horizontal header that can do context menus
-        self.thematicHeader = ThematicHorizontalHeader(self)
-        self.tableView.setHorizontalHeader(self.thematicHeader)
+        self.thematicHorizontalHeader = ThematicHorizontalHeader(self)
+        self.tableView.setHorizontalHeader(self.thematicHorizontalHeader)
+        self.thematicVerticalHeader = ThematicVerticalHeader(self)
+        self.tableView.setVerticalHeader(self.thematicVerticalHeader)
 
         # the model - this is None by default - changed if 
         # it is a thematic view
@@ -1132,6 +1109,7 @@ class QueryDockWidget(QDockWidget):
                                 self.selectionArray)
         
         # so we repaint and our itemdelegate gets called
+        self.tableModel.curSel = None
         self.tableModel.doUpdate()
 
     def selectAll(self):
@@ -1197,9 +1175,9 @@ The application will now exit."""
         """
         self.addColumnAction.setEnabled(state)
         self.saveColOrderAction.setEnabled(state)
-        self.thematicHeader.editColumnAction.setEnabled(state)
-        self.thematicHeader.setKeyboardEditAction.setEnabled(state)
-        self.thematicHeader.setColorAction.setEnabled(state)
+        self.thematicHorizontalHeader.editColumnAction.setEnabled(state)
+        self.thematicHorizontalHeader.setKeyboardEditAction.setEnabled(state)
+        self.thematicHorizontalHeader.setColorAction.setEnabled(state)
 
     def scrollToFirstSelected(self):
         "scroll to the first selected row"
@@ -1695,7 +1673,8 @@ Use the special columns:
         self.geogSelectAction.setEnabled(thematic)
         self.geogSelectLineAction.setEnabled(thematic)
         self.geogSelectPointAction.setEnabled(thematic)
-        self.thematicHeader.setThematicMode(thematic)
+        self.thematicHorizontalHeader.setThematicMode(thematic)
+        self.thematicVerticalHeader.setThematicMode(thematic)
 
     def setupTableContinuous(self, data, layer):
         """
@@ -1761,11 +1740,6 @@ Use the special columns:
             self.tableModel = ThematicTableModel(layer.attributes, 
                 self.tableView, self.thematicScrollBar, self)
             self.tableView.setModel(self.tableModel)
-
-            # create our own selection model so nothing gets selected
-            # as far as the model is concerned
-            selectionModel = ThematicSelectionModel(self.tableModel, self)
-            self.tableView.setSelectionModel(selectionModel)
 
             # create our selection array to record which items selected
             self.selectionArray = numpy.empty(layer.attributes.getNumRows(),
