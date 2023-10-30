@@ -640,7 +640,7 @@ class QueryTableView(QTableView):
         dy = e.pixelDelta().y()
         if dy != 0:
             # TODO: signal instead?
-            dy /= self.rowHeight(0)
+            dy /= (self.rowHeight(0) * 2)  # don't scroll as much - matches scrollbar
             dy = -dy  # other way round
             scroll = self.parent.thematicScrollBar 
             pos = scroll.sliderPosition()
