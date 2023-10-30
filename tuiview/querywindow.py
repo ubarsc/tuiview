@@ -161,7 +161,11 @@ class ThematicTableModel(QAbstractTableModel):
             
         nShownRows = self.view.indexAt(brPoint).row()
         if nShownRows > 0:
-            self.scroll.setRange(0, self.attributes.getNumRows() - nShownRows + 1)  # +1 for col header
+            maxval = self.attributes.getNumRows() - nShownRows + 1  # +1 for col header
+            self.scroll.setRange(0, maxval)
+        else:
+            # if -1 then the RAT is very small
+            self.scroll.setRange(0, 0)
 
     def doUpdate(self, updateHorizHeader=False, updateVertHeader=False):
         """
