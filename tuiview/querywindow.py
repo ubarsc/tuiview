@@ -630,6 +630,26 @@ class QueryTableView(QTableView):
     def keyPressEvent(self, event):
         self.parent.keyPressEvent(event)
         
+    def wheelEvent(self, e):
+        # another hack to ensure that scroll wheel 
+        # works as expected when reaching the 'top'
+        # of the window (which may not be the top
+        # of the window)
+        # scrollContentsBy is limited by what it thinks 
+        # the size of the window should be 
+        dy = e.pixelDelta().y()
+        if dy != 0:
+            # TODO: signal instead?
+            dy /= self.rowHeight(0)
+            dy = -dy  # other way round
+            scroll = self.parent.thematicScrollBar 
+            pos = scroll.sliderPosition()
+            step = scroll.singleStep()
+            newpos = int(pos + dy * step)
+            if newpos < 0:
+                newpos = 0
+            self.parent.thematicScrollBar.setSliderPosition(newpos)
+        
         
 class QueryDockWidget(QDockWidget):
     """
