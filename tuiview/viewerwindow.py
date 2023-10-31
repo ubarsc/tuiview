@@ -315,10 +315,16 @@ class ViewerWindow(QMainWindow):
         then show our tools as disabled
         """
         if obj.senderid != id(self):
-            self.suppressToolReset = True
-            for tool in self.toolActions:
-                tool.setChecked(False)
-            self.suppressToolReset = False
+            self.activeToolChangedInternal()
+            
+    def activeToolChangedInternal(self):
+        """
+        Disable all tools, done on viewer reset
+        """
+        self.suppressToolReset = True
+        for tool in self.toolActions:
+            tool.setChecked(False)
+        self.suppressToolReset = False
 
     def restoreFromSettings(self):
         """
@@ -480,6 +486,7 @@ class ViewerWindow(QMainWindow):
         self.queryAct.setCheckable(True)
         self.queryAct.setIcon(QIcon(":/viewer/images/query.png"))
         self.queryAct.setIconVisibleInMenu(True)
+        self.toolActions.append(self.queryAct)
 
         self.newQueryAct = QAction(self, triggered=self.newQueryWindow)
         self.newQueryAct.setText("New Query &Window")
@@ -493,6 +500,7 @@ class ViewerWindow(QMainWindow):
         self.vectorQueryAct.setCheckable(True)
         self.vectorQueryAct.setIcon(QIcon(":/viewer/images/queryvector.png"))
         self.vectorQueryAct.setIconVisibleInMenu(True)
+        self.toolActions.append(self.vectorQueryAct)
 
         self.newVectorQueryAct = QAction(self, 
                                         triggered=self.newVectorQueryWindow)
@@ -1138,6 +1146,7 @@ File will now be opened using default stretch""")
         # also removes any toolpoints drawn
         self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                         id(self))
+        self.activeToolChangedInternal()
         try:
             self.viewwidget.zoomNativeResolution()
         except Exception as e:
@@ -1150,6 +1159,7 @@ File will now be opened using default stretch""")
         # also removes any toolpoints drawn
         self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                         id(self))
+        self.activeToolChangedInternal()
         try:
             self.viewwidget.zoomFullExtent()
         except Exception as e:
