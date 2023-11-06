@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
+from PyQt5.QtWidgets import QToolButton
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
 import numpy
 
@@ -166,7 +167,41 @@ class ThematicTableModel(QAbstractTableModel):
         else:
             # if -1 then the RAT is very small
             self.scroll.setRange(0, 0)
-
+            
+    def scrollToPreviousSelected(self):
+        brPoint = self.view.rect().bottomLeft()
+        # - 2 because of header and scroll bar (?)
+        nShownRows = self.view.indexAt(brPoint).row() - 2
+        # start searching right at the top of window
+        startSearch = self.scroll.sliderPosition()
+        # search on a reversed view of the array
+        nextIdx = self.parent.selectionArray[startSearch::-1].argmax()
+        # bizarrely argmax returns 0 when nothing found so we have to
+        # distinguish between this an an actual zero selected row
+        # subtract from where we started
+        nextIdx = startSearch - nextIdx
+        # bizarrely argmax returns 0 when nothing found so we have to
+        if nextIdx > 0 and self.parent.selectionArray[nextIdx]:
+            # scroll to middle
+            nextIdx = max(0, nextIdx - int(nShownRows / 2))
+            self.scroll.setSliderPosition(nextIdx)
+        
+    def scrollToNextSelected(self):
+        brPoint = self.view.rect().bottomLeft()
+        # - 2 because of header and scroll bar (?)
+        nShownRows = self.view.indexAt(brPoint).row() - 2
+        startSearch = self.scroll.sliderPosition() + nShownRows
+        print('startsearch', startSearch)
+        if startSearch < self.attributes.getNumRows():
+            nextIdx = self.parent.selectionArray[startSearch:].argmax()
+            # add on the index we started search at
+            nextIdx += startSearch
+            if (nextIdx < self.attributes.getNumRows() and 
+                    self.parent.selectionArray[nextIdx]):
+                # scroll to middle
+                nextIdx -= int(nShownRows / 2)
+                self.scroll.setSliderPosition(nextIdx)
+            
     def doUpdate(self, updateHorizHeader=False, updateVertHeader=False):
         """
         Called by the parent window when the attributes have changed.
@@ -767,10 +802,25 @@ class QueryDockWidget(QDockWidget):
         self.plotWidget = plotwidget.PlotLineWidget(self)
         
         self.thematicScrollBar = QScrollBar(Qt.Vertical, self)
+        upIcon = self.style().standardIcon(QStyle.SP_MediaSeekBackward)
+        self.thematicScrollPreviousBtn = QToolButton(self)
+        self.thematicScrollPreviousBtn.setIcon(upIcon)
+        self.thematicScrollPreviousBtn.setToolTip("Scroll to up to selected")
+        self.thematicScrollPreviousBtn.clicked.connect(self.previousSelected)
+        downIcon = self.style().standardIcon(QStyle.SP_MediaSeekForward)
+        self.thematicScrollNextBtn = QToolButton(self)
+        self.thematicScrollNextBtn.setIcon(downIcon)
+        self.thematicScrollNextBtn.setToolTip("Scroll to down to selected")
+        self.thematicScrollNextBtn.clicked.connect(self.nextSelected)
+        
+        self.thematicScrollLayout = QVBoxLayout()
+        self.thematicScrollLayout.addWidget(self.thematicScrollPreviousBtn)
+        self.thematicScrollLayout.addWidget(self.thematicScrollBar)
+        self.thematicScrollLayout.addWidget(self.thematicScrollNextBtn)
         
         self.tableLayout = QHBoxLayout()
         self.tableLayout.addWidget(self.tableView)
-        self.tableLayout.addWidget(self.thematicScrollBar)
+        self.tableLayout.addLayout(self.thematicScrollLayout)
         
         self.tableWidget = QWidget(self)
         self.tableWidget.setLayout(self.tableLayout)
@@ -1169,6 +1219,12 @@ Use the special columns:
         dlg.setHint(hint)
         dlg.newExpression['QString'].connect(self.newSelectUserExpression)
         dlg.show()
+        
+    def previousSelected(self):
+        self.tableModel.scrollToPreviousSelected()
+
+    def nextSelected(self):
+        self.tableModel.scrollToNextSelected()
 
     def unlockDataset(self, state):
         """
@@ -1715,6 +1771,8 @@ Use the special columns:
         self.lastLayer = layer
 
         self.thematicScrollBar.setVisible(False)
+        self.thematicScrollPreviousBtn.setVisible(False)
+        self.thematicScrollNextBtn.setVisible(False)
         self.tableView.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
         self.tableModel = ContinuousTableModel(data, layer.bandNames,
@@ -1759,6 +1817,8 @@ Use the special columns:
             self.lastLayer = layer
             
             self.thematicScrollBar.setVisible(True)
+            self.thematicScrollPreviousBtn.setVisible(True)
+            self.thematicScrollNextBtn.setVisible(True)
             self.tableView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             
             self.tableModel = ThematicTableModel(layer.attributes, 
