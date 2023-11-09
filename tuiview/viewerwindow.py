@@ -27,7 +27,7 @@ import traceback
 from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QDialog
 from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
 from PyQt5.QtWidgets import QMenu, QLineEdit, QPushButton
-from PyQt5.QtGui import QIcon, QColor
+from PyQt5.QtGui import QIcon, QColor, QImage
 from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
 from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
 
@@ -1371,17 +1371,22 @@ File will now be opened using default stretch""")
         Saves the current view as an image file
         """
         # now get a filename
+        imageFilter = "Images (*.png *.xpm *.jpg *.tif)"
+        geotiffFilter = "Geotiff file (*.tif)"
+        
         fname, filter = QFileDialog.getSaveFileName(self, "Image File", 
-                        filter="Images (*.png *.xpm *.jpg *.tif)")
+                        filter=';;'.join([imageFilter, geotiffFilter]))
         if fname != '':
-            self.saveCurrentViewInternal(fname)
+            if filter == imageFilter:
+                self.saveCurrentViewInternal(fname)
+            else:
+                self.saveCurrentViewInternalGTiff(fname)
 
     def saveCurrentViewInternal(self, fname):
         """
         Saves the current view as an image file as the file given
         """
         # first grab it out of the widget
-        from PyQt5.QtGui import QImage
         img = QImage(self.viewwidget.viewport().size(), QImage.Format_RGB32)
         self.viewwidget.viewport().render(img)
 
@@ -1413,6 +1418,21 @@ File will now be opened using default stretch""")
             finally:
                 if worldfObj is not None:
                     worldfObj.close()
+                    
+    def saveCurrentViewInternalGTiff(self, fname):
+        """
+        Like saveCurrentViewInternal but saves as a geotiff using
+        GDAL
+        """
+        from . import viewerLUT
+        layer = self.viewwidget.layers.getTopRasterLayer()
+        if layer is not None:
+            # first grab it out of the widget
+            # getting this one out with the alpha, not sure if this is appropriate?
+            img = QImage(self.viewwidget.viewport().size(), QImage.Format_ARGB32)
+            self.viewwidget.viewport().render(img)
+        
+            viewerLUT.saveQImageAsGTiff(img, layer, fname)
 
     def about(self):
         """
