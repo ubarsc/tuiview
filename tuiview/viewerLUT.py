@@ -1242,7 +1242,7 @@ class ViewerLUT(QObject):
         return image
 
 
-def saveQImageAsGTiff(img, layer, fname):
+def saveQImageAsGDAL(img, layer, fname, driver, creationOptions):
     """
     Not 100% this lives here but this functionality needs to know about
     LUTs etc. img to come from self.viewwidget.viewport().render() etc
@@ -1255,13 +1255,15 @@ def saveQImageAsGTiff(img, layer, fname):
     data = numpy.frombuffer(p, count=size, dtype=numpy.uint8)
     bgra = data.reshape(img.height(), img.width(), 4)
     
-    # TODO: maybe this should all be overridable?
-    drv = gdal.GetDriverByName('GTiff')
+    drv = gdal.GetDriverByName(driver)
     ds = drv.Create(fname, img.width(), img.height(), 4, gdal.GDT_Byte,
-        ["COMPRESS=DEFLATE", "ZLEVEL=1", "PREDICTOR=2", "TILED=YES",
-        "INTERLEAVE=BAND", "BIGTIFF=NO", "BLOCKXSIZE=256", 
-        "BLOCKYSIZE=256"])
-    ds.SetGeoTransform(layer.coordmgr.geotransform)
+        creationOptions)
+    tlx, tly = layer.coordmgr.display2world(0, 0)
+    brx, bry = layer.coordmgr.display2world(img.width(), img.height())
+    pixSize = (brx - tlx) / img.width()
+    transform = [tlx, pixSize, 0, tly, 0, -pixSize]
+    
+    ds.SetGeoTransform(transform)
     ds.SetProjection(layer.gdalDataset.GetProjection())
         
     code_to_interp = {'blue': gdal.GCI_BlueBand, 'green': gdal.GCI_GreenBand,

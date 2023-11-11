@@ -59,6 +59,14 @@ NON_GDAL_FILTERS = {'BIL': 'ENVI BIL (*.bil)',
                     'DEM': 'ENVI DEM (*.dem)',
                     'RAW': 'ENVI RAW (*.raw)'}
 
+GTIFF_CREATION_OPTIONS = os.getenv('TUIVIEW_DFLT_CREOPT_GTIFF')
+if GTIFF_CREATION_OPTIONS is None:
+    GTIFF_CREATION_OPTIONS = ["COMPRESS=DEFLATE", "ZLEVEL=1", 
+        "PREDICTOR=2", "TILED=YES", "INTERLEAVE=BAND", "BIGTIFF=NO", 
+        "BLOCKXSIZE=256", "BLOCKYSIZE=256"]
+else:
+    GTIFF_CREATION_OPTIONS = GTIFF_CREATION_OPTIONS.split(',')
+
 
 def createFilter(driver):
     """
@@ -1380,7 +1388,8 @@ File will now be opened using default stretch""")
             if filter == imageFilter:
                 self.saveCurrentViewInternal(fname)
             else:
-                self.saveCurrentViewInternalGTiff(fname)
+                self.saveCurrentViewInternalGDAL(fname, 'GTiff', 
+                    GTIFF_CREATION_OPTIONS)
 
     def saveCurrentViewInternal(self, fname):
         """
@@ -1419,10 +1428,10 @@ File will now be opened using default stretch""")
                 if worldfObj is not None:
                     worldfObj.close()
                     
-    def saveCurrentViewInternalGTiff(self, fname):
+    def saveCurrentViewInternalGDAL(self, fname, driver, creationOptions):
         """
-        Like saveCurrentViewInternal but saves as a geotiff using
-        GDAL
+        Like saveCurrentViewInternal but saves as a georeferenced
+        image file using GDAL
         """
         from . import viewerLUT
         layer = self.viewwidget.layers.getTopRasterLayer()
@@ -1432,7 +1441,8 @@ File will now be opened using default stretch""")
             img = QImage(self.viewwidget.viewport().size(), QImage.Format_ARGB32)
             self.viewwidget.viewport().render(img)
         
-            viewerLUT.saveQImageAsGTiff(img, layer, fname)
+            viewerLUT.saveQImageAsGDAL(img, layer, fname, 
+                driver, creationOptions)
 
     def about(self):
         """
