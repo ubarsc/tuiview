@@ -1259,8 +1259,7 @@ def saveQImageAsGDAL(img, layer, fname, driver, creationOptions):
     ds = drv.Create(fname, img.width(), img.height(), 4, gdal.GDT_Byte,
         creationOptions)
     tlx, tly = layer.coordmgr.display2world(0, 0)
-    brx, bry = layer.coordmgr.display2world(img.width(), img.height())
-    pixSize = (brx - tlx) / img.width()
+    pixSize = layer.coordmgr.geotransform[1] * layer.coordmgr.imgPixPerWinPix
     transform = [tlx, pixSize, 0, tly, 0, -pixSize]
     
     ds.SetGeoTransform(transform)
