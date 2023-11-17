@@ -1242,3 +1242,39 @@ class ViewerLUT(QObject):
         return image
 
 
+def saveQImageAsGDAL(img, layer, fname, driver, creationOptions):
+    """
+    Not 100% this lives here but this functionality needs to know about
+    LUTs etc. img to come from self.viewwidget.viewport().render() etc
+    """
+    # create a numpy array that 'wraps' the data
+    size = img.width() * img.height() * 4
+    p = img.bits()
+    # seems needed: https://stackoverflow.com/questions/45020672/convert-pyqt5-qpixmap-to-numpy-ndarray
+    p.setsize(size)
+    data = numpy.frombuffer(p, count=size, dtype=numpy.uint8)
+    bgra = data.reshape(img.height(), img.width(), 4)
+    
+    drv = gdal.GetDriverByName(driver)
+    ds = drv.Create(fname, img.width(), img.height(), 4, gdal.GDT_Byte,
+        creationOptions)
+    tlx, tly = layer.coordmgr.display2world(0, 0)
+    pixSize = layer.coordmgr.geotransform[1] * layer.coordmgr.imgPixPerWinPix
+    transform = [tlx, pixSize, 0, tly, 0, -pixSize]
+    
+    ds.SetGeoTransform(transform)
+    ds.SetProjection(layer.gdalDataset.GetProjection())
+        
+    code_to_interp = {'blue': gdal.GCI_BlueBand, 'green': gdal.GCI_GreenBand,
+        'red': gdal.GCI_RedBand, 'alpha': gdal.GCI_AlphaBand}
+        
+    for idx, code in enumerate(RGBA_CODES):
+        lutindex = CODE_TO_LUTINDEX[code]
+        
+        band = ds.GetRasterBand(idx + 1)
+        banddata = bgra[..., lutindex]
+        band.WriteArray(banddata)
+        interp = code_to_interp[code]
+        band.SetColorInterpretation(interp)
+        
+    ds.FlushCache()

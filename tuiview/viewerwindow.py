@@ -27,7 +27,7 @@ import traceback
 from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QDialog
 from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
 from PyQt5.QtWidgets import QMenu, QLineEdit, QPushButton
-from PyQt5.QtGui import QIcon, QColor
+from PyQt5.QtGui import QIcon, QColor, QImage
 from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
 from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
 
@@ -58,6 +58,14 @@ NON_GDAL_FILTERS = {'BIL': 'ENVI BIL (*.bil)',
                     'BSQ': 'ENVI BSQ (*.bsq)',
                     'DEM': 'ENVI DEM (*.dem)',
                     'RAW': 'ENVI RAW (*.raw)'}
+
+GTIFF_CREATION_OPTIONS = os.getenv('TUIVIEW_DFLT_CREOPT_GTIFF')
+if GTIFF_CREATION_OPTIONS is None:
+    GTIFF_CREATION_OPTIONS = ["COMPRESS=DEFLATE", "ZLEVEL=1", 
+        "PREDICTOR=2", "TILED=YES", "INTERLEAVE=BAND", "BIGTIFF=NO", 
+        "BLOCKXSIZE=256", "BLOCKYSIZE=256"]
+else:
+    GTIFF_CREATION_OPTIONS = GTIFF_CREATION_OPTIONS.split(',')
 
 
 def createFilter(driver):
@@ -1371,17 +1379,23 @@ File will now be opened using default stretch""")
         Saves the current view as an image file
         """
         # now get a filename
+        imageFilter = "Images (*.png *.xpm *.jpg *.tif)"
+        geotiffFilter = "Geotiff file (*.tif)"
+        
         fname, filter = QFileDialog.getSaveFileName(self, "Image File", 
-                        filter="Images (*.png *.xpm *.jpg *.tif)")
+                        filter=';;'.join([imageFilter, geotiffFilter]))
         if fname != '':
-            self.saveCurrentViewInternal(fname)
+            if filter == imageFilter:
+                self.saveCurrentViewInternal(fname)
+            else:
+                self.saveCurrentViewInternalGDAL(fname, 'GTiff', 
+                    GTIFF_CREATION_OPTIONS)
 
     def saveCurrentViewInternal(self, fname):
         """
         Saves the current view as an image file as the file given
         """
         # first grab it out of the widget
-        from PyQt5.QtGui import QImage
         img = QImage(self.viewwidget.viewport().size(), QImage.Format_RGB32)
         self.viewwidget.viewport().render(img)
 
@@ -1413,6 +1427,22 @@ File will now be opened using default stretch""")
             finally:
                 if worldfObj is not None:
                     worldfObj.close()
+                    
+    def saveCurrentViewInternalGDAL(self, fname, driver, creationOptions):
+        """
+        Like saveCurrentViewInternal but saves as a georeferenced
+        image file using GDAL
+        """
+        from . import viewerLUT
+        layer = self.viewwidget.layers.getTopRasterLayer()
+        if layer is not None:
+            # first grab it out of the widget
+            # getting this one out with the alpha, not sure if this is appropriate?
+            img = QImage(self.viewwidget.viewport().size(), QImage.Format_ARGB32)
+            self.viewwidget.viewport().render(img)
+        
+            viewerLUT.saveQImageAsGDAL(img, layer, fname, 
+                driver, creationOptions)
 
     def about(self):
         """
