@@ -79,6 +79,16 @@ if hasattr(gdal, 'GDT_Int64'):
 # hack for GDAL 3.7 and later which support signed 8 bit ints
 if hasattr(gdal, 'GDT_Int8'):
     dataTypeMapping.append((numpy.int8, gdal.GDT_Int8))
+    
+COLOR_INTERP_STR = {gdal.GCI_AlphaBand: 'Alpha', gdal.GCI_BlackBand: 'Black',
+    gdal.GCI_BlueBand: 'Blue', gdal.GCI_CyanBand: 'Cyan',
+    gdal.GCI_GrayIndex: 'Gray', gdal.GCI_GreenBand: 'Green',
+    gdal.GCI_HueBand: 'Hue', gdal.GCI_LightnessBand: 'Lightness',
+    gdal.GCI_MagentaBand: 'Magenta', gdal.GCI_PaletteIndex: 'PaletteIndex',
+    gdal.GCI_RedBand: 'Red', gdal.GCI_SaturationBand: 'Saturation',
+    gdal.GCI_Undefined: 'Undefined', gdal.GCI_YCbCr_CbBand: 'YCbCr_Cb',
+    gdal.GCI_YCbCr_CrBand: 'YCbCr_Cr', gdal.GCI_YCbCr_YBand: 'YCbCr_Y',
+    gdal.GCI_YellowBand: 'Yellow'}
 
 
 def GDALTypeToNumpyType(gdaltype):
@@ -1003,6 +1013,13 @@ class ViewerRasterLayer(ViewerLayer):
             else:
                 nodataString = '%f' % nodata
             bandInfo.append(('No Data Value:', nodataString))
+            
+            clrinterp = band.GetColorInterpretation()
+            if clrinterp is not None and clrinterp in COLOR_INTERP_STR:
+                clrinterpString = COLOR_INTERP_STR[clrinterp]
+            else:
+                clrinterpString = 'Unknown'
+            bandInfo.append(('Color Intepretation:', clrinterpString))
 
             if 'STATISTICS_MAXIMUM' in metadata:
                 statsMax = metadata['STATISTICS_MAXIMUM']
