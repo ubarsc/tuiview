@@ -19,7 +19,7 @@ Module that contains the PropertiesWindow class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton
 from PyQt5.QtWidgets import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
-from PyQt5.QtWidgets import QComboBox
+from PyQt5.QtWidgets import QComboBox, QScrollArea
 
 from . import plotwidget
 
@@ -28,6 +28,10 @@ class PropertiesWindow(QDialog):
     def __init__(self, parent, info):
         QDialog.__init__(self, parent)
         self.info = info
+
+        self.scrollArea = QScrollArea(self)
+        self.windowLayout = QVBoxLayout()
+        self.mainWidget = QWidget()
 
         self.mainLayout = QVBoxLayout()
 
@@ -123,11 +127,15 @@ class PropertiesWindow(QDialog):
         self.closeButton.setText("Close")
         self.closeButton.clicked.connect(self.accept)
 
-        self.mainLayout.addWidget(self.closeButton)
-
-        self.setLayout(self.mainLayout)
+        self.mainWidget.setLayout(self.mainLayout)
+        self.scrollArea.setWidget(self.mainWidget)
+        self.windowLayout.addWidget(self.scrollArea)
+        self.windowLayout.addWidget(self.closeButton)
+        
+        self.setLayout(self.windowLayout)
+        
         self.setSizeGripEnabled(True)
-        self.resize(500, 600)
+        self.resize(500, 400)
 
     def layerChanged(self, comboIdx):
         """
