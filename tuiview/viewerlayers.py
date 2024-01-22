@@ -23,6 +23,7 @@ import os
 import json
 import numpy
 from osgeo import gdal
+from osgeo import gdal_array
 from osgeo import osr
 from osgeo import ogr
 from PyQt5.QtGui import QImage, QPainter, QPen
@@ -57,29 +58,6 @@ else:
 # raise exceptions rather than returning None
 gdal.UseExceptions()
 
-# Mappings between numpy datatypes and GDAL datatypes.
-# Note that ambiguities are resolved by the order - the first one found
-# is the one chosen.
-dataTypeMapping = [
-    (numpy.uint8, gdal.GDT_Byte),
-    (bool, gdal.GDT_Byte),
-    (numpy.int16, gdal.GDT_Int16),
-    (numpy.uint16, gdal.GDT_UInt16),
-    (numpy.int32, gdal.GDT_Int32),
-    (numpy.uint32, gdal.GDT_UInt32),
-    (numpy.single, gdal.GDT_Float32),
-    (float, gdal.GDT_Float64)
-]
-
-# hack for GDAL 3.5 and later which suppport 64 bit ints
-if hasattr(gdal, 'GDT_Int64'):
-    dataTypeMapping.append((numpy.int64, gdal.GDT_Int64))
-    dataTypeMapping.append((numpy.uint64, gdal.GDT_UInt64))
-
-# hack for GDAL 3.7 and later which support signed 8 bit ints
-if hasattr(gdal, 'GDT_Int8'):
-    dataTypeMapping.append((numpy.int8, gdal.GDT_Int8))
-    
 COLOR_INTERP_STR = {gdal.GCI_AlphaBand: 'Alpha', gdal.GCI_BlackBand: 'Black',
     gdal.GCI_BlueBand: 'Blue', gdal.GCI_CyanBand: 'Cyan',
     gdal.GCI_GrayIndex: 'Gray', gdal.GCI_GreenBand: 'Green',
@@ -89,29 +67,6 @@ COLOR_INTERP_STR = {gdal.GCI_AlphaBand: 'Alpha', gdal.GCI_BlackBand: 'Black',
     gdal.GCI_Undefined: 'Undefined', gdal.GCI_YCbCr_CbBand: 'YCbCr_Cb',
     gdal.GCI_YCbCr_CrBand: 'YCbCr_Cr', gdal.GCI_YCbCr_YBand: 'YCbCr_Y',
     gdal.GCI_YellowBand: 'Yellow'}
-
-
-def GDALTypeToNumpyType(gdaltype):
-    """
-    Given a gdal data type returns the matching
-    numpy data type
-    """
-    for (numpy_type, test_gdal_type) in dataTypeMapping:
-        if test_gdal_type == gdaltype:
-            return numpy_type
-    raise viewererrors.TypeConversionError("Unknown GDAL datatype: %s"%gdaltype)
-
-
-def NumpyTypeToGDALType(numpytype):
-    """
-    For a given numpy data type returns the matching
-    GDAL data type
-    """
-    for (test_numpy_type, gdaltype) in dataTypeMapping:
-        if test_numpy_type == numpytype:
-            return gdaltype
-    msg = "Unknown numpy datatype: %s" % numpytype
-    raise viewererrors.TypeConversionError(msg)
 
 
 def _callGetImage(q):
@@ -863,7 +818,7 @@ class ViewerRasterLayer(ViewerLayer):
 
                 # create blank array of right size to read in to. This data
                 # array represents the window pixels, one-for-one
-                numpytype = GDALTypeToNumpyType(band.DataType)
+                numpytype = gdal_array.GDALTypeCodeToNumericTypeCode(band.DataType)
                 shape = (self.coordmgr.dspHeight, self.coordmgr.dspWidth)
                 data = numpy.zeros(shape, dtype=numpytype) 
 
@@ -912,7 +867,7 @@ class ViewerRasterLayer(ViewerLayer):
             band = self.gdalDataset.GetRasterBand(self.stretch.bands[0])
 
             # create blank array of right size to read in to
-            numpytype = GDALTypeToNumpyType(band.DataType)
+            numpytype = gdal_array.GDALTypeCodeToNumericTypeCode(band.DataType)
             shape = (self.coordmgr.dspHeight, self.coordmgr.dspWidth)
             data = numpy.zeros(shape, dtype=numpytype) 
 
