@@ -751,7 +751,7 @@ class QueryDockWidget(QDockWidget):
         self.coordTypeCombo.addItem("Eastings Northings", 
             COORD_NORTHING_EASTINGS)
         self.coordTypeCombo.addItem("Columns Rows", COORD_PIXELS)
-        self.coordTypeCombo.addItem("Latitude Longitude", COORD_LATLONG)
+        self.coordTypeCombo.addItem("Longitude Latitude", COORD_LATLONG)
         self.coordTypeCombo.setCurrentIndex(0)
         self.coordTypeCombo.currentIndexChanged.connect(
             self.displayCoordsModeChanged)

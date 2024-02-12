@@ -347,7 +347,7 @@ class ViewerRasterLayer(ViewerLayer):
         ll = osr.SpatialReference()
         ll.ImportFromEPSG(4326)
         transform = osr.CoordinateTransformation(self.sr, ll)
-        long, lat, _ = transform.TransformPoint(easting, northing)
+        lat, long, _ = transform.TransformPoint(easting, northing)
         return long, lat
         
     def toEastingNorthing(self, long, lat):
@@ -357,7 +357,7 @@ class ViewerRasterLayer(ViewerLayer):
         ll = osr.SpatialReference()
         ll.ImportFromEPSG(4326)
         transform = osr.CoordinateTransformation(ll, self.sr)
-        easting, northing, _ = transform.TransformPoint(long, lat)
+        easting, northing, _ = transform.TransformPoint(lat, long)
         return easting, northing
 
     def open(self, gdalDataset, width, height, stretch, lut=None):
