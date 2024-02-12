@@ -1294,7 +1294,6 @@ The application will now exit."""
         else:
             self.viewwidget.newQueryPoint(long=x, lat=y)
             
-
     def newSelectUserExpression(self, expression):
         """
         Called in reponse to signal from UserExpressionDialog
