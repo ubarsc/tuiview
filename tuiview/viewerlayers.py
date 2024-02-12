@@ -344,21 +344,27 @@ class ViewerRasterLayer(ViewerLayer):
         """
         Convert from northing as eastings to latlong
         """
-        ll = osr.SpatialReference()
-        ll.ImportFromEPSG(4326)
-        transform = osr.CoordinateTransformation(self.sr, ll)
-        lat, long, _ = transform.TransformPoint(easting, northing)
-        return long, lat
+        if self.sr is not None:
+            ll = osr.SpatialReference()
+            ll.ImportFromEPSG(4326)
+            transform = osr.CoordinateTransformation(self.sr, ll)
+            lat, long, _ = transform.TransformPoint(easting, northing)
+            return long, lat
+        else:
+            return easting, northing
         
     def toEastingNorthing(self, long, lat):
         """
         Convert lat/long coord to easting in northing in this layer
         """
-        ll = osr.SpatialReference()
-        ll.ImportFromEPSG(4326)
-        transform = osr.CoordinateTransformation(ll, self.sr)
-        easting, northing, _ = transform.TransformPoint(lat, long)
-        return easting, northing
+        if self.sr is not None:
+            ll = osr.SpatialReference()
+            ll.ImportFromEPSG(4326)
+            transform = osr.CoordinateTransformation(ll, self.sr)
+            easting, northing, _ = transform.TransformPoint(lat, long)
+            return easting, northing
+        else:
+            return long, lat
 
     def open(self, gdalDataset, width, height, stretch, lut=None):
         """
@@ -374,7 +380,7 @@ class ViewerRasterLayer(ViewerLayer):
         self.title = os.path.basename(self.filename)
         self.gdalDataset = gdalDataset
         proj = self.gdalDataset.GetProjection()
-        if proj is not None:
+        if proj is not None and proj != '':
             self.sr = osr.SpatialReference(proj)
         else:
             self.sr = None
