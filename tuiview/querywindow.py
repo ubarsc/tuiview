@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
-from PyQt5.QtWidgets import QToolButton
+from PyQt5.QtWidgets import QToolButton, QComboBox
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
 import numpy
 
@@ -43,6 +43,11 @@ QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
 
 RAT_CACHE_CHUNKSIZE = 1000
+
+# type of coordinates the edit boxes use
+COORD_NORTHING_EASTINGS = 0
+COORD_PIXELS = 1
+COORD_LATLONG = 2
 
 
 def safeCreateColor(r, g, b, a=255):
@@ -710,7 +715,6 @@ class QueryDockWidget(QDockWidget):
         self.cursorColor = QUERYWIDGET_DEFAULT_CURSORCOLOR
         self.cursorSize = QUERYWIDGET_DEFAULT_CURSORSIZE
         self.highlightColor = QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR
-        self.displayPixelCoords = False  # display pixel or map coordinates.
 
         # connect to the collected polygon signal - only respond when
         # self.geogSelectAction.isChecked() so don't interfere with
@@ -742,10 +746,20 @@ class QueryDockWidget(QDockWidget):
         self.northingEdit.setToolTip("Northing")
         self.northingEdit.setValidator(self.coordValidator)
         self.northingEdit.returnPressed.connect(self.userNewCoord)
+        
+        self.coordTypeCombo = QComboBox(self.dockWidget)
+        self.coordTypeCombo.addItem("Eastings Northings", 
+            COORD_NORTHING_EASTINGS)
+        self.coordTypeCombo.addItem("Columns Rows", COORD_PIXELS)
+        self.coordTypeCombo.addItem("Longitude Latitude", COORD_LATLONG)
+        self.coordTypeCombo.setCurrentIndex(0)
+        self.coordTypeCombo.currentIndexChanged.connect(
+            self.displayCoordsModeChanged)
 
         self.coordLayout = QHBoxLayout()
         self.coordLayout.addWidget(self.eastingEdit)
         self.coordLayout.addWidget(self.northingEdit)
+        self.coordLayout.addWidget(self.coordTypeCombo)
 
         self.tabWidget = QTabWidget(self.dockWidget)
 
@@ -1020,14 +1034,6 @@ class QueryDockWidget(QDockWidget):
         icon = QIcon(":/viewer/images/setplotscale.png")
         self.plotScalingAction.setIcon(icon)
                         
-        self.toggleCoordsAction = QAction(self, toggled=self.toggleCoordsSelect)
-        self.toggleCoordsAction.setText("Switch between map and pi&xel coordinates")
-        self.toggleCoordsAction.setStatusTip(
-            "Switch display between map and pixel coordinates")
-        icon = QIcon(":/viewer/images/toggle.png")
-        self.toggleCoordsAction.setIcon(icon)
-        self.toggleCoordsAction.setCheckable(True)
-
     def setupToolbar(self):
         """
         Add the actions to the toolbar
@@ -1047,7 +1053,6 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.geogSelectAction)
         self.toolBar.addAction(self.geogSelectLineAction)
         self.toolBar.addAction(self.geogSelectPointAction)
-        self.toolBar.addAction(self.toggleCoordsAction)
         self.toolBar.addAction(self.labelAction)
         self.toolBar.addAction(self.savePlotAction)
         self.toolBar.addAction(self.plotScalingAction)
@@ -1276,17 +1281,19 @@ The application will now exit."""
         User has pressed enter on one of the coord boxes
         Tell widget we want to move
         """
+        index = self.coordTypeCombo.currentIndex()
+        mode = self.coordTypeCombo.itemData(index)
         # should have been validated by the time we got here so 
         # should be valid floats
-        if self.displayPixelCoords:
-            column = float(self.eastingEdit.text())
-            row = float(self.northingEdit.text())
-            self.viewwidget.newQueryPoint(column=column, row=row)
+        x = float(self.eastingEdit.text())
+        y = float(self.northingEdit.text())
+        if mode == COORD_NORTHING_EASTINGS:
+            self.viewwidget.newQueryPoint(easting=x, northing=y)
+        elif mode == COORD_PIXELS:
+            self.viewwidget.newQueryPoint(column=x, row=y)
         else:
-            easting = float(self.eastingEdit.text())
-            northing = float(self.northingEdit.text())
-            self.viewwidget.newQueryPoint(easting=easting, northing=northing)
-
+            self.viewwidget.newQueryPoint(long=x, lat=y)
+            
     def newSelectUserExpression(self, expression):
         """
         Called in reponse to signal from UserExpressionDialog
@@ -1673,19 +1680,22 @@ Use the special columns:
         # so keyboard entry etc works
         self.activateWindow()
 
-    def toggleCoordsSelect(self, checked):
+    def displayCoordsModeChanged(self, index):
         """
-        toggle the displayPixelCoords flag.
+        The mode of the coords display has changed
         """
-        self.displayPixelCoords = checked
         if self.followAction.isChecked() and self.lastqi is not None:
+            mode = self.coordTypeCombo.itemData(index)
             # set the coords
-            if self.displayPixelCoords:
+            if mode == COORD_NORTHING_EASTINGS:
+                self.eastingEdit.setText("%.5f" % self.lastqi.easting)
+                self.northingEdit.setText("%.5f" % self.lastqi.northing)
+            elif mode == COORD_PIXELS:
                 self.eastingEdit.setText("%.5f" % self.lastqi.column)
                 self.northingEdit.setText("%.5f" % self.lastqi.row)
             else:
-                self.eastingEdit.setText("%.5f" % self.lastqi.easting)
-                self.northingEdit.setText("%.5f" % self.lastqi.northing)
+                self.eastingEdit.setText("%.10f" % self.lastqi.long)
+                self.northingEdit.setText("%.10f" % self.lastqi.lat)
 
     def geogSelect(self, checked):
         """
@@ -1880,12 +1890,19 @@ Use the special columns:
         
         if self.followAction.isChecked():
             # set the coords
-            if self.displayPixelCoords:
+            index = self.coordTypeCombo.currentIndex()
+            mode = self.coordTypeCombo.itemData(index)
+            # set the coords
+            if mode == COORD_NORTHING_EASTINGS:
+                self.eastingEdit.setText("%.5f" % qi.easting)
+                self.northingEdit.setText("%.5f" % qi.northing)
+            elif mode == COORD_PIXELS:
                 self.eastingEdit.setText("%.5f" % qi.column)
                 self.northingEdit.setText("%.5f" % qi.row)
             else:
-                self.eastingEdit.setText("%.5f" % qi.easting)
-                self.northingEdit.setText("%.5f" % qi.northing)
+                self.eastingEdit.setText("%.10f" % qi.long)
+                self.northingEdit.setText("%.10f" % qi.lat)
+
             nbands = qi.data.shape[0]
 
             # do the attribute thing if there is only one band

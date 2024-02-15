@@ -286,6 +286,7 @@ class ViewerRasterLayer(ViewerLayer):
         ViewerLayer.__init__(self)
         self.coordmgr = coordinatemgr.RasterCoordManager()
         self.gdalDataset = None
+        self.sr = None
         self.updateAccess = False
         self.transform = None
         self.bandNames = None
@@ -338,6 +339,32 @@ class ViewerRasterLayer(ViewerLayer):
 
         self.open(ds, width, height, stretch, lut)
         self.changeUpdateAccess(dict['update'])  # won't do anything if already ro
+        
+    def toLatLong(self, easting, northing):
+        """
+        Convert from northing as eastings to latlong
+        """
+        if self.sr is not None:
+            ll = osr.SpatialReference()
+            ll.ImportFromEPSG(4326)
+            transform = osr.CoordinateTransformation(self.sr, ll)
+            lat, long, _ = transform.TransformPoint(easting, northing)
+            return long, lat
+        else:
+            return easting, northing
+        
+    def toEastingNorthing(self, long, lat):
+        """
+        Convert lat/long coord to easting in northing in this layer
+        """
+        if self.sr is not None:
+            ll = osr.SpatialReference()
+            ll.ImportFromEPSG(4326)
+            transform = osr.CoordinateTransformation(ll, self.sr)
+            easting, northing, _ = transform.TransformPoint(lat, long)
+            return easting, northing
+        else:
+            return long, lat
 
     def open(self, gdalDataset, width, height, stretch, lut=None):
         """
@@ -352,6 +379,11 @@ class ViewerRasterLayer(ViewerLayer):
         self.filename = gdalDataset.GetDescription()
         self.title = os.path.basename(self.filename)
         self.gdalDataset = gdalDataset
+        proj = self.gdalDataset.GetProjection()
+        if proj is not None and proj != '':
+            self.sr = osr.SpatialReference(proj)
+        else:
+            self.sr = None
         self.updateAccess = False
 
         # do some checks to see if we can deal with the data
@@ -907,9 +939,7 @@ class ViewerRasterLayer(ViewerLayer):
         Do something similar to gdalinfo.
         """
         info = PropertyInfo()
-        proj = self.gdalDataset.GetProjection()
-        sr = osr.SpatialReference(proj)
-        info.setSR(sr)
+        info.setSR(self.sr)
 
         driver = self.gdalDataset.GetDriver()
         driverString = "%s/%s" % (driver.ShortName, driver.LongName)

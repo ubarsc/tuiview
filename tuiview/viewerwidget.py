@@ -41,11 +41,14 @@ class QueryInfo(object):
     Container class for the information passed in the locationSelected
     signal.
     """
-    def __init__(self, easting, northing, column, row, data, layer, modifiers):
+    def __init__(self, easting, northing, column, row, 
+            long, lat, data, layer, modifiers):
         self.easting = easting
         self.northing = northing
         self.column = column
         self.row = row
+        self.long = long
+        self.lat = lat
         self.data = data
         self.layer = layer
         self.modifiers = modifiers
@@ -910,14 +913,16 @@ class ViewerWidget(QAbstractScrollArea):
 
     # query point routines
     def newQueryPoint(self, easting=None, northing=None, 
-            dspY=None, dspX=None, column=None, row=None, modifiers=None):
+            dspY=None, dspX=None, column=None, row=None, 
+            lat=None, long=None, modifiers=None):
         """
         This viewer has recorded a new query point. Or
         user has entered new coords in querywindow.
 
         Calls updateQueryPoint and emits the geolinkQueryPoint signal
 
-        pass either [easting and northing] or [dspX,dspY] or [column, row]
+        pass either [easting and northing], [dspX,dspY], [column, row] 
+        or [long, lat]
         """
         if self.queryOnlyDisplayed:
             layer = self.layers.getTopDisplayedRasterLayer()
@@ -928,21 +933,29 @@ class ViewerWidget(QAbstractScrollArea):
 
         if ((easting is None or northing is None) and 
                 (dspX is None or dspY is None) and
-                (column is None or row is None)):
+                (column is None or row is None) and
+                (lat is None or long is None)):
             msg = ("must provide one of [easting,northing] or [dspX,dspY] " +
-                   "or [column, row]")
+                   "or [column, row] or [long, lat]")
             raise ValueError(msg)
 
         if dspX is not None and dspY is not None:
             (column, row) = layer.coordmgr.display2pixel(dspX, dspY)
             (easting, northing) = layer.coordmgr.pixel2world(column, row)
+            (long, lat) = layer.toLatLong(easting, northing)
         elif easting is not None and northing is not None:
             (column, row) = layer.coordmgr.world2pixel(easting, northing)
+            (long, lat) = layer.toLatLong(easting, northing)
         elif column is not None and row is not None:
             (easting, northing) = layer.coordmgr.pixel2world(column, row)
+            (long, lat) = layer.toLatLong(easting, northing)
+        elif long is not None and lat is not None:
+            (easting, northing) = layer.toEastingNorthing(long, lat)
+            (column, row) = layer.coordmgr.world2pixel(easting, northing)
 
         # update the point
-        self.updateQueryPoint(easting, northing, column, row, modifiers)
+        self.updateQueryPoint(easting, northing, column, row, long, lat, 
+            modifiers)
 
         # emit the geolinked query point signal
         obj = GeolinkInfo(id(self), easting, northing)
@@ -974,7 +987,8 @@ class ViewerWidget(QAbstractScrollArea):
 
         self.vectorLocationSelected.emit(results, layer)
 
-    def updateQueryPoint(self, easting, northing, column, row, modifiers):
+    def updateQueryPoint(self, easting, northing, column, 
+            row, long, lat, modifiers):
         """
         Map has been clicked, get the value and emit
         a locationSelected signal.
@@ -999,8 +1013,8 @@ class ViewerWidget(QAbstractScrollArea):
                 if data.size == 1:
                     data = numpy.array([data])
 
-                qi = QueryInfo(easting, northing, column, row, data, 
-                    layer, modifiers)
+                qi = QueryInfo(easting, northing, column, row, long, lat, 
+                    data, layer, modifiers)
                 # emit the signal - handled by the QueryDockWidget
                 self.locationSelected.emit(qi)
 
@@ -1017,7 +1031,9 @@ class ViewerWidget(QAbstractScrollArea):
                 layer = self.layers.getTopRasterLayer()
             if layer is not None:
                 (col, row) = layer.coordmgr.world2pixel(easting, northing)
-                self.updateQueryPoint(easting, northing, col, row, None)
+                (long, lat) = layer.toLatLong(easting, northing)
+                self.updateQueryPoint(easting, northing, col, row, 
+                    long, lat, None)
 
     # geolinking routines
     def doGeolinkMove(self, easting, northing, metresperwinpix):
