@@ -125,13 +125,20 @@ class ThematicTableModel(QAbstractTableModel):
                 self.curSel = row
         elif modifiers & Qt.ControlModifier:
             if self.curSel is not None:
-                self.parent.selectionArray[row] = True
+                # toggle
+                self.parent.selectionArray[row] = not self.parent.selectionArray[row]
                 self.curSel = row
         else:
             self.curSel = row
             self.parent.selectionArray.fill(False)
             self.parent.selectionArray[row] = True
         self.doUpdate()
+
+        # update map
+        if self.parent.highlightAction.isChecked():
+            self.parent.viewwidget.highlightValues(self.parent.highlightColor,
+                            self.parent.selectionArray)
+        self.parent.updateToolTip()
       
     def index(self, row, column, parent=None):
         """
