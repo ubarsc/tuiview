@@ -171,6 +171,7 @@ class OverviewManager(object):
 
         return selectedovi
 
+
 NOTSET_STRING = 'Not Set'
 "Returned when one of the property items not set on the file"
 
