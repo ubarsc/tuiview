@@ -1,5 +1,5 @@
 viewerstrings
-============
+=============
 .. automodule:: tuiview.viewerstrings
    :members:
    :undoc-members:

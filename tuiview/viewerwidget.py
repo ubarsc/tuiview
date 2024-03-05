@@ -111,22 +111,31 @@ class ViewerWidget(QAbstractScrollArea):
     """
     # signals
     geolinkMove = pyqtSignal(GeolinkInfo, name='geolinkMove')
+    "viewer moved, geolink the others"
     geolinkQueryPoint = pyqtSignal(GeolinkInfo, 
                                 name='geolinkQueryPoint')
+    "viewer queried"
     # can't use ViewerWidget - use base class instead
     layerAdded = pyqtSignal(QAbstractScrollArea, name='layerAdded')
+    "layer added"
     showStatusMessage = pyqtSignal('QString', 
                                 name='showStatusMessage')
+    "show new status message"
     activeToolChanged = pyqtSignal(ActiveToolChangedInfo,
                                 name='activeToolChanged')
+    "active tool has changed"
     polygonCollected = pyqtSignal(PolygonToolInfo,
                                 name='polygonCollected')
+    "polygon has been collected"
     polylineCollected = pyqtSignal(PolylineToolInfo,
                                 name='polylineCollected')
+    "line has been collected"
     vectorLocationSelected = pyqtSignal(list,
                                 viewerlayers.ViewerVectorLayer,
                                 name='vectorLocationSelected')
+    "a location on a vector as been selected"
     locationSelected = pyqtSignal(QueryInfo, name='locationSelected')
+    "a location on a raster as been selected"
 
     def __init__(self, parent):
         QAbstractScrollArea.__init__(self, parent)

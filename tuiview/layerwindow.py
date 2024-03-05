@@ -465,6 +465,7 @@ class LayerWindow(QDockWidget):
     """
     # signals
     layerWindowClosed = pyqtSignal('QDockWidget', name='layerWindowClosed')
+    "signal emitted when window closed"
 
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Layers", parent)

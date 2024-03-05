@@ -123,8 +123,11 @@ class ViewerLUT(QObject):
     """
     # signals
     newProgress = pyqtSignal('QString', name='newProgress')
+    "emitted when a new progress bar is needed"
     newPercent = pyqtSignal(int, name='newPercent')
+    "emitted when a new percent value is available"
     endProgress = pyqtSignal(name='endProgress')
+    "emitted when progress finished"
 
     def __init__(self):
         QObject.__init__(self)  # so we can emit signal

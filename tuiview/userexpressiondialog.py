@@ -33,8 +33,10 @@ class UserExpressionDialog(QDialog):
     # signals
     newExpression = pyqtSignal(['QString'], ['QString', int], 
                         name='newExpression')
+    "emitted when a new expression is entered"
     # not used?
     undoEdit = pyqtSignal('QObject', int, name='undoEdit')
+    "emitted when user wants to undo"
 
     def __init__(self, parent, col=None, undoObject=None):
         QDialog.__init__(self, parent)

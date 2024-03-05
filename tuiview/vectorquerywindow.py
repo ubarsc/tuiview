@@ -30,6 +30,7 @@ class VectorQueryDockWidget(QDockWidget):
     Dockable window that is a combined profile and ruler
     """
     queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+    "emitted when window closed"
 
     def __init__(self, parent):
         QDockWidget.__init__(self, "Vector Query", parent)

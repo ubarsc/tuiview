@@ -171,8 +171,8 @@ class OverviewManager(object):
 
         return selectedovi
 
-
 NOTSET_STRING = 'Not Set'
+"Returned when one of the property items not set on the file"
 
 
 class PropertyInfo(object):
@@ -195,6 +195,7 @@ class PropertyInfo(object):
         self.sr = sr
 
     def getUTMZone(self):
+        "get the UTM zone, if set"
         utmZone = NOTSET_STRING
         if self.sr is not None:
             zone = self.sr.GetUTMZone()
@@ -203,30 +204,35 @@ class PropertyInfo(object):
         return utmZone
 
     def getProjection(self):
+        "get the projection, if set"
         proj = NOTSET_STRING
         if self.sr is not None:
             proj = self.sr.GetAttrValue('PROJECTION')
         return proj
 
     def getDatum(self):
+        "get the datum, if set"
         datum = NOTSET_STRING
         if self.sr is not None:
             datum = self.sr.GetAttrValue('DATUM')
         return datum
 
     def getSpheroid(self):
+        "get spheroid, if set"
         spheroid = NOTSET_STRING
         if self.sr is not None:
             spheroid = self.sr.GetAttrValue('SPHEROID')
         return spheroid
 
     def getUnits(self):
+        "get the units, if set"
         units = NOTSET_STRING
         if self.sr is not None:
             units = self.sr.GetLinearUnitsName()
         return units
 
     def getWKT(self):
+        "get the projection as a WKT"
         wkt = NOTSET_STRING
         if self.sr is not None:
             wkt = self.sr.ExportToPrettyWkt()
@@ -1260,6 +1266,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.sql = sql
         
     def getSQL(self):
+        "returns the SQL used for this layer"
         return self.sql
         
     def hasSQL(self):
@@ -1279,21 +1286,27 @@ class ViewerVectorLayer(ViewerLayer):
         self.linewidth = linewidth
 
     def getLineWidth(self):
+        "gets the current line width"
         return self.linewidth
         
     def setHalfCrossSize(self, halfCrossSize):
+        "set the half cross size (used for points)"
         self.halfCrossSize = halfCrossSize
 
     def getHalfCrossSize(self):
+        "get the half cross size (used for points)"
         return self.halfCrossSize
         
     def setFieldToLabel(self, field):
+        "set the field to label (None disables)"
         self.fieldToLabel = field
         
     def getFieldToLabel(self):
+        "get the field that is being used to label"
         return self.fieldToLabel
         
     def getColorAsRGBATuple(self):
+        "Returns the current color as a tuple"
         rgba = []
         for code in viewerLUT.RGBA_CODES:
             lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
@@ -1318,6 +1331,7 @@ class ViewerVectorLayer(ViewerLayer):
             self.lut[2, lutindex] = value
         
     def getLabelColorAsRGBATuple(self):
+        "Returns the current label color as a tuple"
         rgba = []
         for code in viewerLUT.RGBA_CODES:
             lutindex = viewerLUT.CODE_TO_LUTINDEX[code]
@@ -1536,6 +1550,7 @@ class ViewerFeatureVectorLayer(ViewerVectorLayer):
         raise NotImplementedError(msg)
         
     def getSQL(self):
+        "unlike the base class we don't support SQL"
         msg = "ViewerFeatureVectorLayer doesn't support SQL"
         raise NotImplementedError(msg)
         
@@ -1552,11 +1567,17 @@ class LayerManager(QObject):
     # use object rather than ViewerLayer for topLayerChanged
     # so we can pass None
     topLayerChanged = pyqtSignal(object, name='topLayerChanged')
+    "signal emitted when top layer changed"
     layersChanged = pyqtSignal(name='layersChanged')
+    "signal emitted when layers have changed"
     newProgressSig = pyqtSignal('QString', name='newProgress')
+    "signal emitted when a new progress bar is needed"
     endProgressSig = pyqtSignal(name='endProgress')
+    "signal emitted when progress is finished"
     newPercentSig = pyqtSignal(int, name='newPercent')
+    "signal emitted when a new progress percent is reached"
     statusMessageSig = pyqtSignal('QString', name='statusMessage')
+    "signal emitted with a new status message needs to be shown to the user"
 
     def __init__(self):
         QObject.__init__(self)
