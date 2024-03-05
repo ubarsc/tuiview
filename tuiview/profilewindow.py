@@ -34,6 +34,7 @@ class ProfileDockWidget(QDockWidget):
     """
     # signals
     profileClosed = pyqtSignal(QDockWidget, name='profileClosed')
+    "emitted when Window closed"
 
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Profile", parent)

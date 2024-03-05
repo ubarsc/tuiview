@@ -650,6 +650,7 @@ class ThematicVerticalHeader(QHeaderView):
     otherwise behaves the same as the real thing.
     """
     clicked = pyqtSignal(QMouseEvent, name='clicked')
+    "emitted when header clicked"
     
     def __init__(self, parent):
         QHeaderView.__init__(self, Qt.Vertical, parent)
@@ -711,6 +712,7 @@ class QueryDockWidget(QDockWidget):
     """
     # signals
     queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+    "emitted when window closed"
 
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Query", parent)

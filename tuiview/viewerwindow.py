@@ -188,13 +188,19 @@ class ViewerWindow(QMainWindow):
     """
     # signals
     newWindowSig = pyqtSignal(name='newWindow')
+    "new window created"
     tileWindowsSig = pyqtSignal(int, int, object, name='tileWindows')
+    "user has requested that the windows are tiles"
     newQueryWindowSig = pyqtSignal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
+    "user has opened a new query window"
     closeAllWindowsSig = pyqtSignal(name='closeAllWindows')
+    "close all tuiview windows"
     # Don't know how to specify file objects...
     writeViewersState = pyqtSignal(object, name='writeViewersState')
+    "write viewer state to a file"
     readViewersState = pyqtSignal(object, name='readViewersState')
+    "read viewer state from a tile"
 
     def __init__(self):
         QMainWindow.__init__(self)

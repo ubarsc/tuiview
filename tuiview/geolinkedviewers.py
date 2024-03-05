@@ -37,6 +37,7 @@ class GeolinkedViewers(QObject):
     # signals
     newViewerCreated = pyqtSignal(viewerwindow.ViewerWindow, 
                         name='newViewerCreated')
+    "signal emitted when a new viewer window is created"
 
     def __init__(self, loadPlugins=True):
         QObject.__init__(self)
