@@ -808,7 +808,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     PyObject *pPythonLayer; /* of type ogr.Layer*/
     PyObject *pBBoxObject; /* must be a sequence*/
     int nXSize, nYSize, nLineWidth;
-    const char *pszSQLFilter, *pszLabel;
+    const char *pszSQLFilter, *pszLabel = NULL;
     void *pPtr;
     OGRLayerH hOGRLayer;
     double adExtents[4], dPixSize;
