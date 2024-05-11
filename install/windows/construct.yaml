@@ -1,0 +1,20 @@
+name: TuiView
+version: 0.3
+installer_type: exe
+#check_path_spaces: False
+#check_path_length: False
+channels:
+  - https://conda.anaconda.org/conda-forge/
+  - https://repo.anaconda.com/pkgs/main/
+  - https://repo.anaconda.com/pkgs/msys2/
+specs:
+  - conda
+  - menuinst
+  - console_shortcut
+  - tuiview
+extra_files:
+  - tuiview.bat
+  - tuiviewexe.bat
+  - TuiView-1.2.13-cp312-cp312-win_amd64.whl
+post_install: post_install.bat
+post_install_desc: Install the bundled version of TuiView instead of the version from Conda
