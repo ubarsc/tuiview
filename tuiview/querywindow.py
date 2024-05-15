@@ -203,7 +203,6 @@ class ThematicTableModel(QAbstractTableModel):
         # - 2 because of header and scroll bar (?)
         nShownRows = self.view.indexAt(brPoint).row() - 2
         startSearch = self.scroll.sliderPosition() + nShownRows
-        print('startsearch', startSearch)
         if startSearch < self.attributes.getNumRows():
             nextIdx = self.parent.selectionArray[startSearch:].argmax()
             # add on the index we started search at
