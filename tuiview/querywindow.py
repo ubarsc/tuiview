@@ -700,6 +700,14 @@ class QueryTableView(QTableView):
             if newpos < 0:
                 newpos = 0
             self.parent.thematicScrollBar.setSliderPosition(newpos)
+            
+    def mousePressEvent(self, e):
+        # yet another hack here because clicking on a row 
+        # (not the vertical header) causes that row to be highlighted
+        # by Qt, but not by us. This means as we scroll the highlight
+        # doesn't get scrolled. So don't call the base class, but call
+        # the vertical header instead which does the right thing.
+        self.parent.thematicVerticalHeader.mousePressEvent(e)
         
         
 class QueryDockWidget(QDockWidget):
