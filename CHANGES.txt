@@ -1,3 +1,13 @@
+Version 1.2.14 (2024-05-21)
+---------------------------
+* Remove 100million row limit on RATs by implementing our own table view
+* Improve performance of selecting rows by expression
+* Previous/Next selected scroll functionality
+* Add support for lat/long in query window
+* Use GDAL's own type conversion functions
+* Show Color Interpretation in Properties Window
+* Allow export of current image to GeoTiff.
+
 Version 1.2.13 (2023-08-14)
 ---------------------------
 * Use our own bitmapped font engine to print labels. Means vectors only need be be read once. 
