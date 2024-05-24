@@ -1,6 +1,8 @@
 # Create a Windows installer for TuiView
 
-Use conda `constructor` to create a Windows installer. This is quite simple for the basic case of installing tuiview from `conda-forge`. However, in the case where the version of tuiview in the git repo is newer than the version in conda-forge, we need a few additional steps to a) create a Python wheel, b) include that wheel in the installer, c) run `pip install` during the installation process to override the conda version with the pip version. An additional complication is that building the wheel will require a C compiler but if you don't have one then we simply copy the pre-compiled version (on the assumption it's not changed in git) and only use the newer python files.
+Use conda `constructor` to create a Windows installer. This is quite simple for the basic case of installing tuiview from `conda-forge`.
+
+If the version of tuiview in the git repo is newer than the version in conda-forge, we need a few additional steps to a) create a Python wheel, b) include that wheel in the installer, c) run `pip install` during the installation process to override the conda version with the pip version. An additional complication is that building the wheel will require a C compiler but if you don't have one then we simply copy the pre-compiled version (on the assumption that the source code has not changed in git) and only use the newer python files.
 
 ## Install TuiView via conda
 
@@ -20,15 +22,41 @@ conda activate tuiview
 
 ## To run TuiView
 
-To run TuiView you can create a batch file:
+To run TuiView you can create a batch file, e.g. `tuiview.bat`:
 ```
 call %USERPROFILE%\miniconda3\condabin\activate.bat
 call conda activate tuiview
-set TUIVIEW_ALLOW_NOGEO=YES
+REM set TUIVIEW_ALLOW_NOGEO=YES
 tuiview
 ```
 
 ## Create a Windows installer
+
+Create a standalone Windows installer which combines conda and tuiview
+
+* Open a command prompt to install `constructor`
+
+```
+%USERPROFILE%\miniconda3\Scripts\activate.bat
+conda activate tuiview
+conda install constructor
+```
+
+* Clone the git repo
+`git clone https://github.com/ubarsc/tuiview`
+
+* Run constructor
+
+```
+cd %USERPROFILE%\miniconda3
+mkdir src
+cd src
+git clone https://github.com/ubarsc/tuiview
+cd tuiview\install\windows
+constructor .
+```
+
+## Create a Windows installer with the latest source code for github
 
 Create a standalone Windows installer which combines conda and tuiview
 
@@ -63,13 +91,13 @@ python .\setup.py bdist_wheel
 
 * Install the new wheel into the conda environment and test run tuiview to make sure it works
 ```
-pip install --force-reinstall dist\TuiView-1.2.13-cp312-cp312-win_amd64.whl
+pip install --force-reinstall dist\TuiView-1.2.14-cp312-cp312-win_amd64.whl
 ```
 
 * Copy the wheel into the `constructor` directory
 
 ```
-copy dist\TuiView-1.2.13-cp312-cp312-win_amd64.whl install\windows
+copy dist\TuiView-1.2.14-cp312-cp312-win_amd64.whl install\windows
 ```
 
 * Use `constructor` to build the installer
@@ -84,4 +112,6 @@ constructor .
 
 ## How it works
 
-Conda `constructor` reads `construct.yaml` which installs the packages listed in `specs` from the given `channels`. We include `menuinst` to allow creation of a Start Menu item, and `console_shortcut` to allow Anaconda Prompt to be added to the Start Menu. Three additional files will be installed, two batch files and the python wheel we built above. After installation the script `post_install.bat` will be run; this script simply activates the environment and runs `pip install`.
+Conda `constructor` reads `construct.yaml` which installs the packages listed in `specs` from the given `channels`. We include `menuinst` to allow creation of a Start Menu item, and `console_shortcut` to allow Anaconda Prompt to be added to the Start Menu.
+
+Additional files can be installed, two batch files and the python wheel we built above. After installation the script `post_install.bat` will be run; this script simply activates the environment and runs `pip install`.

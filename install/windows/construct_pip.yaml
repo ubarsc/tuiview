@@ -15,3 +15,6 @@ specs:
 extra_files:
   - tuiview.bat
   - tuiviewexe.bat
+  - TuiView-1.2.13-cp312-cp312-win_amd64.whl
+post_install: post_install.bat
+post_install_desc: Install the bundled version of TuiView instead of the version from Conda
