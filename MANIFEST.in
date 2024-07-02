@@ -1,4 +1,4 @@
 include CHANGES.txt
 include LICENSE.txt
 include generate_font.py
-include src/*.h
+include c_src/*.h
