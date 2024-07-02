@@ -16,9 +16,10 @@ Creating Source Packages
 
 Use like this:
 
-$ python setup.py sdist --formats=gztar,zip
+$ python -m build
 
-The packages will be created in the 'dist' subdirectory.
+The tar.gz source package and a binary distribution wheel file,
+will be created in the 'dist' subdirectory.
 
 """
 # This file is part of 'TuiView' - a simple Raster viewer
@@ -41,46 +42,24 @@ The packages will be created in the 'dist' subdirectory.
 import os
 import sys
 from setuptools import setup, Extension
-import tuiview
+
+
+# I need this so that the tuiview package can be imported, in order for
+# pyproject.toml to access to the version number
+sys.path.append('.')
 
 # don't build extensions if we are in readthedocs
 withExtensions = os.getenv('READTHEDOCS', default='False') != 'True'
-# there seems to be no 'standard' cross compilation env var, so just using
-# the conda one as that is what I'm really interested in
-crossCompiling = os.getenv('CONDA_BUILD_CROSS_COMPILATION', default='0') == '1'
-
-try:
-    from osgeo import gdal, ogr  # noqa
-except ImportError:
-    if withExtensions and not crossCompiling:
-        raise SystemExit("GDAL with Python bindings must be installed first")
-
-
-def have_geos():
-    """
-    Check that GDAL is built with GEOS support
-    """
-    geos_flag = True  # assume all ok if we can't test
-    if withExtensions and not crossCompiling:
-        pnt1 = ogr.CreateGeometryFromWkt('POINT(10 20)')
-        pnt2 = ogr.CreateGeometryFromWkt('POINT(30 20)')
-        gdal.PushErrorHandler('CPLQuietErrorHandler')
-        geos_flag = pnt1.Union(pnt2) is not None
-        gdal.PopErrorHandler()
-    return geos_flag
 
 
 def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
     """
-    if not have_geos():
-        raise SystemExit("GDAL not built with GEOS support")
-    
     from numpy import get_include as numpy_get_include
     extraargs = {}
     # don't use the deprecated numpy api
-    extraargs['define_macros'] = [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
+    extraargs['define_macros'] = [('NPY_NO_DEPRECATED_API', 'NPY_2_0_API_VERSION')]
 
     if sys.platform == 'win32':
         # Windows - rely on %GDAL_HOME% being set and set 
@@ -112,19 +91,18 @@ def getGDALFlags():
             ldflags = subprocess.check_output(['gdal-config', '--libs'])
             ldflags = ldflags.decode()
             extraargs['extra_link_args'] = ldflags.strip().split()
-        except OSError:
+        except (OSError, FileNotFoundError):
             raise SystemExit("can't find gdal-config - GDAL development files need to be installed")
     return extraargs
 
 
 if withExtensions:
-        
     # get the flags for GDAL
     gdalargs = getGDALFlags()
 
     # create our vector extension
-    vecextkwargs = {'name': 'vectorrasterizer', 
-        'sources': ['src/vectorrasterizer.c']}
+    vecextkwargs = {'name': 'tuiview.vectorrasterizer',
+        'sources': ['c_src/vectorrasterizer.c']}
     # add gdalargs
     vecextkwargs.update(gdalargs)
 
@@ -133,33 +111,6 @@ if withExtensions:
 else:
     ext_modules = []
 
-setup(name='TuiView', 
-    version=tuiview.TUIVIEW_VERSION, 
-    description='Simple Raster Viewer',
-    author='Sam Gillingham',
-    author_email='gillingham.sam@gmail.com',
-    entry_points={
-        'console_scripts': [
-            'tuiviewwritetable = tuiview.writetableapplication:run'
-        ],
-        'gui_scripts': [
-            'tuiview = tuiview.viewerapplication:run'
-        ]
-    },
-    packages=['tuiview'],
-    ext_package='tuiview',
-    ext_modules=ext_modules,
-    license='LICENSE.txt',
-    url='http://tuiview.org/',
-    classifiers=['Intended Audience :: Developers',
-          'Operating System :: OS Independent',
-          'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.6',
-          'Programming Language :: Python :: 3.7',
-          'Programming Language :: Python :: 3.8',
-          'Programming Language :: Python :: 3.9',
-          'Programming Language :: Python :: 3.10',
-          'Programming Language :: Python :: 3.11',
-          'Programming Language :: Python :: 3.12'])
+setup(ext_modules=ext_modules)
 
 
