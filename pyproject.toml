@@ -1,0 +1,38 @@
+# Note that we do not explicitly list the requirements. This is because the
+# main one is GDAL, which is not managed on PyPI (for good reasons), and
+# therefore cannot be satisfactorily managed with pip. If we list it as a
+# requirement, this mainly just creates confusion. GDAL must be installed
+# by other means. For the same reason, this package is itself not available
+# from PyPI.
+# The actual requirements are GDAL and pyqt.
+#
+# Installation requires pip>=23.0.
+#
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "TuiView"
+dynamic = ["version"]
+authors = [
+    {name = "Sam Gillingham", email = "gillingham.sam@gmail.com"}
+]
+description = "Simple Raster Viewer"
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+
+[project.scripts]
+tuiviewwritetable = "tuiview.writetableapplication:run"
+tuiview = "tuiview.viewerapplication:run"
+
+[project.urls]
+Repository = "https://github.com/ubarsc/tuiview.git"
+Homepage = "https://tuiview.org/"
+
+[tool.setuptools.dynamic]
+version = {attr = "tuiview.__version__"}
+
+[tool.setuptools.packages.find]
+namespaces = false      # Excludes subdirectories with no __init__.py
