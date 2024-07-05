@@ -619,16 +619,16 @@ class ViewerWindow(QMainWindow):
         # Actions just for keyboard shortcuts
 
         self.moveUpAct = QAction(self, triggered=self.moveUp)
-        self.moveUpAct.setShortcut(Qt.CTRL + Qt.Key_Up)
+        self.moveUpAct.setShortcut(Qt.CTRL | Qt.Key_Up)
 
         self.moveDownAct = QAction(self, triggered=self.moveDown)
-        self.moveDownAct.setShortcut(Qt.CTRL + Qt.Key_Down)
+        self.moveDownAct.setShortcut(Qt.CTRL | Qt.Key_Down)
 
         self.moveLeftAct = QAction(self, triggered=self.moveLeft)
-        self.moveLeftAct.setShortcut(Qt.CTRL + Qt.Key_Left)
+        self.moveLeftAct.setShortcut(Qt.CTRL | Qt.Key_Left)
 
         self.moveRightAct = QAction(self, triggered=self.moveRight)
-        self.moveRightAct.setShortcut(Qt.CTRL + Qt.Key_Right)
+        self.moveRightAct.setShortcut(Qt.CTRL | Qt.Key_Right)
 
         self.addAction(self.moveUpAct)
         self.addAction(self.moveDownAct)
