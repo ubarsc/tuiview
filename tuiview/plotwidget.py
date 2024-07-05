@@ -19,9 +19,9 @@ Plot widget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import numpy
-from PyQt5.QtGui import QPainter, QPainterPath, QPen, QFontMetrics
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QSize, QSettings
+from PySide6.QtGui import QPainter, QPainterPath, QPen, QFontMetrics
+from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import Qt, QSize, QSettings
 
 DEFAULT_FONT_SIZE = 6
 try:

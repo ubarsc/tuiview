@@ -26,9 +26,9 @@ from osgeo import gdal
 from osgeo import gdal_array
 from osgeo import osr
 from osgeo import ogr
-from PyQt5.QtGui import QImage, QPainter, QPen
-from PyQt5.QtCore import QObject, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox
+from PySide6.QtGui import QImage, QPainter, QPen
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QMessageBox
 import threading
 import queue
 
@@ -1567,17 +1567,17 @@ class LayerManager(QObject):
     # signals
     # use object rather than ViewerLayer for topLayerChanged
     # so we can pass None
-    topLayerChanged = pyqtSignal(object, name='topLayerChanged')
+    topLayerChanged = Signal(object, name='topLayerChanged')
     "signal emitted when top layer changed"
-    layersChanged = pyqtSignal(name='layersChanged')
+    layersChanged = Signal(name='layersChanged')
     "signal emitted when layers have changed"
-    newProgressSig = pyqtSignal('QString', name='newProgress')
+    newProgressSig = Signal('QString', name='newProgress')
     "signal emitted when a new progress bar is needed"
-    endProgressSig = pyqtSignal(name='endProgress')
+    endProgressSig = Signal(name='endProgress')
     "signal emitted when progress is finished"
-    newPercentSig = pyqtSignal(int, name='newPercent')
+    newPercentSig = Signal(int, name='newPercent')
     "signal emitted when a new progress percent is reached"
-    statusMessageSig = pyqtSignal('QString', name='statusMessage')
+    statusMessageSig = Signal('QString', name='statusMessage')
     "signal emitted with a new status message needs to be shown to the user"
 
     def __init__(self):

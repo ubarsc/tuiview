@@ -18,14 +18,14 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
-from PyQt5.QtGui import QFontMetrics, QMouseEvent
-from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
-from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
-from PyQt5.QtWidgets import QToolButton, QComboBox
-from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
+from PySide6.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
+from PySide6.QtGui import QFontMetrics, QMouseEvent, QAction
+from PySide6.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
+from PySide6.QtWidgets import QToolBar, QMessageBox, QHeaderView
+from PySide6.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
+from PySide6.QtWidgets import QToolButton, QComboBox
+from PySide6.QtCore import Signal, Qt, QAbstractTableModel
 import numpy
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
@@ -648,7 +648,7 @@ class ThematicVerticalHeader(QHeaderView):
     model to handle selection. In thematic mode only, 
     otherwise behaves the same as the real thing.
     """
-    clicked = pyqtSignal(QMouseEvent, name='clicked')
+    clicked = Signal(QMouseEvent, name='clicked')
     "emitted when header clicked"
     
     def __init__(self, parent):
@@ -718,7 +718,7 @@ class QueryDockWidget(QDockWidget):
     signal from ViewerWidget. 
     """
     # signals
-    queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+    queryClosed = Signal(QDockWidget, name='queryClosed')
     "emitted when window closed"
 
     def __init__(self, parent, viewwidget):

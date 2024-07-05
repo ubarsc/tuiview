@@ -21,7 +21,7 @@ Module contains the ViewerApplication class
 
 import sys
 import argparse
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from . import archivereader
 from . import geolinkedviewers

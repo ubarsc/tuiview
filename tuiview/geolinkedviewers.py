@@ -21,8 +21,8 @@ Contains the GeolinkedViewers class.
 
 import math
 import json
-from PyQt5.QtCore import QObject, QTimer, Qt, QEventLoop, pyqtSignal
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtCore import QObject, QTimer, Qt, QEventLoop, Signal
+from PySide6.QtWidgets import QApplication
 
 from . import viewerwindow
 from . import pluginmanager
@@ -35,7 +35,7 @@ class GeolinkedViewers(QObject):
     that have their widgets geolinked.
     """
     # signals
-    newViewerCreated = pyqtSignal(viewerwindow.ViewerWindow, 
+    newViewerCreated = Signal(viewerwindow.ViewerWindow, 
                         name='newViewerCreated')
     "signal emitted when a new viewer window is created"
 

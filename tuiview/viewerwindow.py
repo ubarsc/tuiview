@@ -24,12 +24,12 @@ import os
 import sys
 import glob
 import traceback
-from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QDialog
-from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
-from PyQt5.QtWidgets import QMenu, QLineEdit, QPushButton
-from PyQt5.QtGui import QIcon, QColor, QImage
-from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
-from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QDialog
+from PySide6.QtWidgets import QMessageBox, QProgressBar, QToolButton
+from PySide6.QtWidgets import QMenu, QLineEdit, QPushButton
+from PySide6.QtGui import QIcon, QColor, QImage, QAction
+from PySide6.QtCore import QSettings, QSize, QPoint, Signal, Qt
+from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 
 from . import viewerresources  # noqa
 from . import archivereader
@@ -187,19 +187,19 @@ class ViewerWindow(QMainWindow):
     contained in the 'viewwidget' attribute.
     """
     # signals
-    newWindowSig = pyqtSignal(name='newWindow')
+    newWindowSig = Signal(name='newWindow')
     "new window created"
-    tileWindowsSig = pyqtSignal(int, int, object, name='tileWindows')
+    tileWindowsSig = Signal(int, int, object, name='tileWindows')
     "user has requested that the windows are tiles"
-    newQueryWindowSig = pyqtSignal(querywindow.QueryDockWidget,
+    newQueryWindowSig = Signal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
     "user has opened a new query window"
-    closeAllWindowsSig = pyqtSignal(name='closeAllWindows')
+    closeAllWindowsSig = Signal(name='closeAllWindows')
     "close all tuiview windows"
     # Don't know how to specify file objects...
-    writeViewersState = pyqtSignal(object, name='writeViewersState')
+    writeViewersState = Signal(object, name='writeViewersState')
     "write viewer state to a file"
-    readViewersState = pyqtSignal(object, name='readViewersState')
+    readViewersState = Signal(object, name='readViewersState')
     "read viewer state from a tile"
 
     def __init__(self):
@@ -835,7 +835,7 @@ class ViewerWindow(QMainWindow):
         """
         Add a vector from a database - ask user for connection string
         """
-        from PyQt5.QtWidgets import QInputDialog
+        from PySide6.QtWidgets import QInputDialog
         (con, ok) = QInputDialog.getText(self, MESSAGE_TITLE, 
                                 "Enter OGR connection string (without quotes)")
         if ok and con != "":
@@ -1455,7 +1455,8 @@ File will now be opened using default stretch""")
         Show author and version info
         """
         from . import TUIVIEW_VERSION
-        from PyQt5.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
+        from PySide6 import __version__ as PYSIDE_VERSION_STR
+        from PySide6.QtCore import __version__ as QT_VERSION_STR
         from osgeo.gdal import __version__ as gdalVersion
         from numpy import version as numpyVersion
         from .vectorrasterizer import (FONT_FAMILY, FONT_POINTSIZE, 
@@ -1474,7 +1475,7 @@ Pennsylvania State University.<br><br>
 Version: %s<br>
 Installed in: %s<br>
 GDAL Version: %s<br>
-PyQt Version: %s<br>
+PySide Version: %s<br>
 Qt Version: %s<br>
 Python Version: %s<br>
 Numpy Version: %s<br>
@@ -1485,7 +1486,7 @@ Label Font Information: %s<br></p>
                     sys.version_info.micro)
         fontInfo = "%s %d %d %d" % (FONT_FAMILY, FONT_POINTSIZE, 
                 FONT_WEIGHT, FONT_ITALIC)
-        msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYQT_VERSION_STR, 
+        msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYSIDE_VERSION_STR, 
                 QT_VERSION_STR, pyVer, numpyVersion.version, fontInfo)
 
         # centre each line - doesn't work very well due to font

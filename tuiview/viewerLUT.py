@@ -23,9 +23,9 @@ amongst other things
 import sys
 import numpy
 import json
-from PyQt5.QtGui import QImage
-from PyQt5.QtCore import QObject, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox
+from PySide6.QtGui import QImage
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QMessageBox
 from osgeo import gdal
 from . import viewererrors
 from . import viewerstretch
@@ -122,11 +122,11 @@ class ViewerLUT(QObject):
     data and stretched data
     """
     # signals
-    newProgress = pyqtSignal('QString', name='newProgress')
+    newProgress = Signal('QString', name='newProgress')
     "emitted when a new progress bar is needed"
-    newPercent = pyqtSignal(int, name='newPercent')
+    newPercent = Signal(int, name='newPercent')
     "emitted when a new percent value is available"
-    endProgress = pyqtSignal(name='endProgress')
+    endProgress = Signal(name='endProgress')
     "emitted when progress finished"
 
     def __init__(self):

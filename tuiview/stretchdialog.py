@@ -20,13 +20,13 @@ and StretchDefaultsDialog classes
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtWidgets import QDialog, QFormLayout, QGridLayout, QVBoxLayout
-from PyQt5.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
-from PyQt5.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
-from PyQt5.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
-from PyQt5.QtWidgets import QToolButton, QColorDialog, QMessageBox
-from PyQt5.QtGui import QIcon, QPixmap, QColor
-from PyQt5.QtCore import QSettings, Qt
+from PySide6.QtWidgets import QDialog, QFormLayout, QGridLayout, QVBoxLayout
+from PySide6.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QLabel
+from PySide6.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
+from PySide6.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
+from PySide6.QtWidgets import QToolButton, QColorDialog, QMessageBox
+from PySide6.QtGui import QIcon, QPixmap, QColor, QAction
+from PySide6.QtCore import QSettings, Qt
 import json
 import os
 

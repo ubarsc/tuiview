@@ -22,9 +22,9 @@ zooming and panning etc.
 
 import json
 import numpy
-from PyQt5.QtWidgets import QAbstractScrollArea, QRubberBand, QApplication
-from PyQt5.QtGui import QPainter, QCursor, QPixmap, QPainterPath, QPen
-from PyQt5.QtCore import Qt, QRect, QSize, QPoint, pyqtSignal
+from PySide6.QtWidgets import QAbstractScrollArea, QRubberBand, QApplication
+from PySide6.QtGui import QPainter, QCursor, QPixmap, QPainterPath, QPen
+from PySide6.QtCore import Qt, QRect, QSize, QPoint, Signal
 
 from . import viewererrors
 from . import viewerlayers
@@ -110,31 +110,31 @@ class ViewerWidget(QAbstractScrollArea):
     images.
     """
     # signals
-    geolinkMove = pyqtSignal(GeolinkInfo, name='geolinkMove')
+    geolinkMove = Signal(GeolinkInfo, name='geolinkMove')
     "viewer moved, geolink the others"
-    geolinkQueryPoint = pyqtSignal(GeolinkInfo, 
+    geolinkQueryPoint = Signal(GeolinkInfo, 
                                 name='geolinkQueryPoint')
     "viewer queried"
     # can't use ViewerWidget - use base class instead
-    layerAdded = pyqtSignal(QAbstractScrollArea, name='layerAdded')
+    layerAdded = Signal(QAbstractScrollArea, name='layerAdded')
     "layer added"
-    showStatusMessage = pyqtSignal('QString', 
+    showStatusMessage = Signal('QString', 
                                 name='showStatusMessage')
     "show new status message"
-    activeToolChanged = pyqtSignal(ActiveToolChangedInfo,
+    activeToolChanged = Signal(ActiveToolChangedInfo,
                                 name='activeToolChanged')
     "active tool has changed"
-    polygonCollected = pyqtSignal(PolygonToolInfo,
+    polygonCollected = Signal(PolygonToolInfo,
                                 name='polygonCollected')
     "polygon has been collected"
-    polylineCollected = pyqtSignal(PolylineToolInfo,
+    polylineCollected = Signal(PolylineToolInfo,
                                 name='polylineCollected')
     "line has been collected"
-    vectorLocationSelected = pyqtSignal(list,
+    vectorLocationSelected = Signal(list,
                                 viewerlayers.ViewerVectorLayer,
                                 name='vectorLocationSelected')
     "a location on a vector as been selected"
-    locationSelected = pyqtSignal(QueryInfo, name='locationSelected')
+    locationSelected = Signal(QueryInfo, name='locationSelected')
     "a location on a raster as been selected"
 
     def __init__(self, parent):
