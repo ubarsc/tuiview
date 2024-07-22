@@ -19,7 +19,7 @@ Module that contains the QueryDockWidget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PySide6.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
-from PySide6.QtGui import QFontMetrics, QMouseEvent, QAction
+from PySide6.QtGui import QMouseEvent, QAction
 from PySide6.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PySide6.QtWidgets import QToolBar, QMessageBox, QHeaderView

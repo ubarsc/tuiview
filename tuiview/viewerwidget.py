@@ -113,22 +113,22 @@ class ViewerWidget(QAbstractScrollArea):
     geolinkMove = Signal(GeolinkInfo, name='geolinkMove')
     "viewer moved, geolink the others"
     geolinkQueryPoint = Signal(GeolinkInfo, 
-                                name='geolinkQueryPoint')
+                            name='geolinkQueryPoint')
     "viewer queried"
     # can't use ViewerWidget - use base class instead
     layerAdded = Signal(QAbstractScrollArea, name='layerAdded')
     "layer added"
     showStatusMessage = Signal('QString', 
-                                name='showStatusMessage')
+                            name='showStatusMessage')
     "show new status message"
     activeToolChanged = Signal(ActiveToolChangedInfo,
-                                name='activeToolChanged')
+                            name='activeToolChanged')
     "active tool has changed"
     polygonCollected = Signal(PolygonToolInfo,
-                                name='polygonCollected')
+                            name='polygonCollected')
     "polygon has been collected"
     polylineCollected = Signal(PolylineToolInfo,
-                                name='polylineCollected')
+                            name='polylineCollected')
     "line has been collected"
     vectorLocationSelected = Signal(list,
                                 viewerlayers.ViewerVectorLayer,
