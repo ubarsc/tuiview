@@ -452,7 +452,8 @@ disable=raw-checker-failed,
         fixme,
         consider-using-get,
         trailing-newlines,
-        consider-using-with
+        consider-using-with,
+        too-many-arguments
         
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

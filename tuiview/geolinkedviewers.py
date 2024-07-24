@@ -27,6 +27,8 @@ from PySide6.QtWidgets import QApplication
 from . import viewerwindow
 from . import pluginmanager
 from .querywindow import QueryDockWidget
+from .viewerlayers import ViewerQueryPointLayer, ViewerFeatureVectorLayer
+from . import viewerwidget
 
 
 class GeolinkedViewers(QObject):
@@ -323,7 +325,6 @@ class GeolinkedViewers(QObject):
         Gets the state of all the viewers (location, layers etc) as a json encoded
         string and write it to fileobj
         """
-        from .viewerlayers import ViewerQueryPointLayer, ViewerFeatureVectorLayer
         viewers = self.getViewerList()
 
         # see if we can get a GeolinkInfo
@@ -382,7 +383,6 @@ class GeolinkedViewers(QObject):
         """
         Reads viewer state from the fileobj and restores viewers 
         """
-        from . import viewerwidget
         headerDict = json.loads(fileobj.readline())
         if 'name' not in headerDict or headerDict['name'] != 'tuiview':
             raise ValueError('File not written by tuiview')
@@ -403,7 +403,7 @@ class GeolinkedViewers(QObject):
         query_easting_northing = (None, None)
         query_viewer = None  # so we can grab the last one
 
-        for n in range(headerDict['nviewers']):
+        for _ in range(headerDict['nviewers']):
             viewer = self.onNewWindow()
             viewerDict = json.loads(fileobj.readline())
 
