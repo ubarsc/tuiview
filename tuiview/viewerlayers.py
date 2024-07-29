@@ -21,6 +21,8 @@ this module contains the LayerManager and related classes
 
 import os
 import json
+import threading
+import queue
 import numpy
 from osgeo import gdal
 from osgeo import gdal_array
@@ -29,8 +31,6 @@ from osgeo import ogr
 from PySide6.QtGui import QImage, QPainter, QPen
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QMessageBox
-import threading
-import queue
 
 from . import viewerRAT
 from . import viewerLUT
@@ -50,10 +50,7 @@ except ValueError:
 
 # Check if data without geospatial information is allowed
 ALLOW_NOGEO = os.getenv('TUIVIEW_ALLOW_NOGEO', 'NO')
-if ALLOW_NOGEO.upper() == 'YES':
-    ALLOW_NOGEO = True
-else:
-    ALLOW_NOGEO = False
+ALLOW_NOGEO = ALLOW_NOGEO.upper() == 'YES'
     
 # raise exceptions rather than returning None
 gdal.UseExceptions()
@@ -78,11 +75,9 @@ def _callGetImage(q):
         layer = q.get()
         layer.getImage()
         q.task_done()
+    
 
-    return None
-
-
-class OverviewInfo(object):
+class OverviewInfo:
     """
     Stores size and index of an overview
     """
@@ -93,7 +88,7 @@ class OverviewInfo(object):
         self.index = index
 
 
-class OverviewManager(object):
+class OverviewManager:
     """
     This class contains a list of valid overviews
     and allows the best overview to be retrieved
@@ -165,9 +160,8 @@ class OverviewManager(object):
         for ovi in self.overviews[1:]:
             if ovi.fullrespixperpix > imgpixperwinpix:
                 break  # gone too far, selectedovi is selected
-            else:
-                # got here overview must be ok, but keep going
-                selectedovi = ovi
+            # got here overview must be ok, but keep going
+            selectedovi = ovi
 
         return selectedovi
 
@@ -176,7 +170,7 @@ NOTSET_STRING = 'Not Set'
 "Returned when one of the property items not set on the file"
 
 
-class PropertyInfo(object):
+class PropertyInfo:
     """
     Container for Info for proerties window
     """
@@ -252,7 +246,7 @@ class PropertyInfo(object):
         self.histograms[bandName] = histInfo
 
 
-class ViewerLayer(object):
+class ViewerLayer:
     """
     Base class for a type of layer
     """
@@ -318,13 +312,13 @@ class ViewerRasterLayer(ViewerLayer):
         """
         Write all the information needed to re-open this layer
         """
-        dict = {'type': 'raster'}
-        fileobj.write(json.dumps(dict) + '\n')
+        dictn = {'type': 'raster'}
+        fileobj.write(json.dumps(dictn) + '\n')
 
-        dict = {'filename': self.filename, 'update': self.updateAccess,
+        dictn = {'filename': self.filename, 'update': self.updateAccess,
             'stretch': self.stretch.toString(), 'displayed': self.displayed,
             'quiet': self.quiet}
-        fileobj.write(json.dumps(dict) + '\n')
+        fileobj.write(json.dumps(dictn) + '\n')
         self.lut.saveToFile(fileobj)
 
     def fromFile(self, fileobj, width, height):
@@ -333,19 +327,19 @@ class ViewerRasterLayer(ViewerLayer):
         assumes that the 'type' line has already been read.
         """
         line = fileobj.readline()
-        dict = json.loads(line)
+        dictn = json.loads(line)
 
-        filename = dict['filename']
-        self.quiet = dict['quiet']
-        self.displayed = dict['displayed']
+        filename = dictn['filename']
+        self.quiet = dictn['quiet']
+        self.displayed = dictn['displayed']
 
         ds = gdal.Open(filename)
 
-        stretch = viewerstretch.ViewerStretch.fromString(dict['stretch'])
+        stretch = viewerstretch.ViewerStretch.fromString(dictn['stretch'])
         lut = viewerLUT.ViewerLUT.createFromFile(fileobj, stretch)
 
         self.open(ds, width, height, stretch, lut)
-        self.changeUpdateAccess(dict['update'])  # won't do anything if already ro
+        self.changeUpdateAccess(dictn['update'])  # won't do anything if already ro
         
     def toLatLong(self, easting, northing):
         """
@@ -640,8 +634,8 @@ class ViewerRasterLayer(ViewerLayer):
 
                 # close this (writeable) file handle
                 del dataset
-            except RuntimeError:
-                raise viewererrors.InvalidDataset('Unable to save stretch to file')
+            except RuntimeError as  exc:
+                raise viewererrors.InvalidDataset('Unable to save stretch to file') from exc
             finally:
                 # attempt to open the file readonly again
                 self.gdalDataset = gdal.Open(self.filename)
@@ -671,9 +665,9 @@ class ViewerRasterLayer(ViewerLayer):
 
                 # close this (writeable) file handle
                 del dataset
-            except RuntimeError:
+            except RuntimeError as exc:
                 msg = 'Unable to delete stretch from file'
-                raise viewererrors.InvalidDataset(msg)
+                raise viewererrors.InvalidDataset(msg) from exc
             finally:
                 # attempt to open the file readonly again
                 self.gdalDataset = gdal.Open(self.filename)
@@ -716,7 +710,7 @@ class ViewerRasterLayer(ViewerLayer):
                 self.gdalDataset = gdal.Open(self.filename)
 
             self.updateAccess = update
-        except RuntimeError:
+        except RuntimeError as exc:
             if update:
                 # wanted to make updateable, but failed
                 # retry as read-only
@@ -725,7 +719,7 @@ class ViewerRasterLayer(ViewerLayer):
                     self.updateAccess = False
                 except RuntimeError:
                     msg = "Can't open dataset readonly" 
-                    raise IOError(msg)
+                    raise IOError(msg) from exc
 
                 # attributes handle will be stale...
                 if len(self.stretch.bands) == 1:
@@ -734,15 +728,14 @@ class ViewerRasterLayer(ViewerLayer):
 
                 # successfully reopened readonly
                 msg = 'Unable to change mode of dataset'
-                raise viewererrors.InvalidDataset(msg)
+                raise viewererrors.InvalidDataset(msg) from exc
 
-            else:
-                # wanted to open readonly, but that failed
-                # file can't exist any more
-                # app needs to exit since we don't have a dataset
-                self.gdalDataset = None
-                msg = "Can't open dataset readonly" 
-                raise IOError(msg)
+            # wanted to open readonly, but that failed
+            # file can't exist any more
+            # app needs to exit since we don't have a dataset
+            self.gdalDataset = None
+            msg = "Can't open dataset readonly" 
+            raise IOError(msg) from exc
 
         # attributes handle will be stale...
         if len(self.stretch.bands) == 1:
@@ -819,6 +812,8 @@ class ViewerRasterLayer(ViewerLayer):
         dspRastBottom = int(numpy.round(dspRastBottom))
         dspRastXSize = dspRastRight - dspRastLeft
         dspRastYSize = dspRastBottom - dspRastTop
+        dspLeftExtra = 0
+        dspTopExtra = 0
 
         if self.coordmgr.imgPixPerWinPix < 1:
             # need to calc 'extra' around the edge as we have partial pixels
@@ -1139,9 +1134,7 @@ class ViewerQueryPointLayer(ViewerLayer):
             pen = QPen()
             pen.setWidth(QUERY_CURSOR_WIDTH)
             paint = QPainter(self.image)
-            for senderid in self.queryPoints:
-                (easting, northing, color, size, cursor) = (
-                    self.queryPoints[senderid])
+            for _, (easting, northing, color, size, cursor) in self.queryPoints.items():
                 display = self.coordmgr.world2display(easting, northing)
                 if display is not None:
                     (dspX, dspY) = display
@@ -1161,6 +1154,12 @@ class ViewerQueryPointLayer(ViewerLayer):
                         paint.drawArc(dspX - size, dspY - size, 
                             size * 2, size * 2, 0, 16 * 360)
             paint.end()
+
+    def toFile(self, fileobj):
+        """
+        This doesn't make sense
+        """
+        raise NotImplementedError()
 
                 
 DEFAULT_VECTOR_COLOR = (255, 255, 0, 255)
@@ -1189,6 +1188,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.bFill = False
         self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
         self.fieldToLabel = None
+        self.labelColor = None
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1201,66 +1201,66 @@ class ViewerVectorLayer(ViewerLayer):
 
     def toFile(self, fileobj):
         "write information to re-create layer as JSON"
-        dict = {'type': 'vector'}
-        fileobj.write(json.dumps(dict) + '\n')
+        dictn = {'type': 'vector'}
+        fileobj.write(json.dumps(dictn) + '\n')
 
-        dict = {'filename': self.filename, 'displayed': self.displayed,
+        dictn = {'filename': self.filename, 'displayed': self.displayed,
             'quiet': self.quiet, 'filterSQL': self.sql, 
             'linewidth': self.linewidth, 'fill': self.bFill,
             'fieldToLabel': self.fieldToLabel}
         # the values out of getColorAsRGBATuple are numpy.uint8's
         # which confuses json. Convert to ints
-        dict['color'] = [int(x) for x in self.getColorAsRGBATuple()]
-        dict['labelColor'] = self.labelColor
+        dictn['color'] = [int(x) for x in self.getColorAsRGBATuple()]
+        dictn['labelColor'] = self.labelColor
 
         if self.isResultSet:
-            dict['origSQL'] = self.origSQL
+            dictn['origSQL'] = self.origSQL
         else:
-            dict['layerName'] = self.ogrLayer.GetName()
+            dictn['layerName'] = self.ogrLayer.GetName()
 
-        fileobj.write(json.dumps(dict) + '\n')
+        fileobj.write(json.dumps(dictn) + '\n')
 
     def fromFile(self, fileobj, width, height):
         """
         Initialise this instance of the class with information from json in fileobj
         """
         line = fileobj.readline()
-        dict = json.loads(line)
-        filename = dict['filename']
-        self.quiet = dict['quiet']
-        self.displayed = dict['displayed']
+        dictn = json.loads(line)
+        filename = dictn['filename']
+        self.quiet = dictn['quiet']
+        self.displayed = dictn['displayed']
 
         ds = ogr.Open(filename)
 
-        if 'origSQL' in dict:
+        if 'origSQL' in dictn:
             # result of a query
-            origSQL = dict['origSQL']
+            origSQL = dictn['origSQL']
             lyr = ds.ExecuteSQL(origSQL)
             isResultSet = True
         else:
             # a normal layer
-            lyr = ds.GetLayerByName(dict['layerName'])
+            lyr = ds.GetLayerByName(dictn['layerName'])
             origSQL = None
             isResultSet = False
 
-        colour = dict['color']
+        colour = dictn['color']
 
         self.open(ds, lyr, width, height, color=colour, resultSet=isResultSet,
             origSQL=origSQL)
 
-        sql = dict['filterSQL']
+        sql = dictn['filterSQL']
         if sql is not None:
             self.setSQL(sql)
         
         # cope with these not being in the file (added more recently)    
-        if 'fill' in dict:
-            self.bFill = dict['fill']
-        if 'fieldToLabel' in dict:
-            self.fieldToLabel = dict['fieldToLabel']
-        if 'labelColor' in dict:
-            self.labelColor = dict['labelColor']
+        if 'fill' in dictn:
+            self.bFill = dictn['fill']
+        if 'fieldToLabel' in dictn:
+            self.fieldToLabel = dictn['fieldToLabel']
+        if 'labelColor' in dictn:
+            self.labelColor = dictn['labelColor']
 
-        self.setLineWidth(dict['linewidth'])
+        self.setLineWidth(dictn['linewidth'])
         
     def setSQL(self, sql=None):
         "sets the sql attribute filter"
@@ -1472,7 +1472,6 @@ class ViewerVectorLayer(ViewerLayer):
 
     def getPropertiesInfo(self):
         "Return the properties as a PropertyInfo we can show the user"
-        from osgeo import ogr
         info = PropertyInfo()
 
         sr = self.ogrLayer.GetSpatialRef()
@@ -1591,7 +1590,7 @@ class LayerManager(QObject):
             # thread of the jobs
             self.queue = queue.Queue()
             # start the threads
-            for i in range(NUM_GETIMAGE_THREADS):
+            for _ in range(NUM_GETIMAGE_THREADS):
                 t = threading.Thread(target=_callGetImage,
                     args=(self.queue, ))
                 t.daemon = True  # so program exits even when threads running
@@ -1635,14 +1634,10 @@ class LayerManager(QObject):
                 else:
                     (left, top, right, bottom) = self.fullextent
                     (newleft, newtop, newright, newbottom) = extent
-                    if newleft < left:
-                        left = newleft
-                    if newtop > top:
-                        top = newtop
-                    if newright > right:
-                        right = newright
-                    if newbottom < bottom:
-                        bottom = newbottom
+                    left = min(left, newleft)
+                    top = max(top, newtop)
+                    right = max(right, newright)
+                    bottom = min(bottom, newbottom)
                     self.fullextent = (left, top, right, bottom)
 
     def setDisplaySize(self, width, height):
@@ -2004,11 +1999,11 @@ class LayerManager(QObject):
         Tries to read the json out of fileobj and reconstruct
         all the layers
         """
-        for n in range(nlayers):
+        for _ in range(nlayers):
             line = fileobj.readline()
-            dict = json.loads(line)
+            dictn = json.loads(line)
             # find the type of the layer
-            ltype = dict['type']
+            ltype = dictn['type']
             if ltype == 'raster':
                 layer = ViewerRasterLayer(self)
                 layer.fromFile(fileobj, width, height)

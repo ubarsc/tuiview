@@ -25,6 +25,9 @@ from . import plotwidget
 
 
 class PropertiesWindow(QDialog):
+    """
+    The properties window
+    """
     def __init__(self, parent, info):
         QDialog.__init__(self, parent)
         self.info = info

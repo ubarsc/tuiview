@@ -37,7 +37,7 @@ except TypeError:
 TICK_SIZE = 2  # pixels
 
 
-class PlotCurve(object):
+class PlotCurve:
     """
     Pass instances of these to PlotLineWidget.addCurve()
     xdata and ydata should be numpy arrays
@@ -55,7 +55,7 @@ class PlotCurve(object):
             self.pen.setColor(Qt.white)
 
 
-class PlotBars(object):
+class PlotBars:
     """
     Pass an instance of this to PlotBarWidget.setBars()
     data should be a numpy array containing the counts. minVal and maxVal
@@ -75,7 +75,7 @@ class PlotBars(object):
         self.fillColor = fillColor
 
 
-class PlotLabel(object):
+class PlotLabel:
     """
     Pass instances of these to PlotWidget.addLabel()
     xloc and yloc are in data units
@@ -96,7 +96,7 @@ class PlotLabel(object):
             self.pen.setColor(Qt.white)
 
 
-class PlotTick(object):
+class PlotTick:
     """
     Pass lists of these to PlotWidget.setXTicks and PlotWidget.setYTicks
     if flags is None either DEFAULT_YTICK_FLAGS or DEFAULT_XTICK_FLAGS
@@ -139,6 +139,9 @@ class PlotWidget(QWidget):
 
         #  fontmetrics
         self.fontMetrics = QFontMetrics(self.font())
+        
+        self.yrange = None
+        self.xrange = None
 
     def haveData(self):
         """
@@ -249,7 +252,7 @@ class PlotWidget(QWidget):
 
         tmp = mininterval
         intervals = [tmp]
-        for n in range(nIntervals):
+        for _ in range(nIntervals):
             tmp += newinterval
             intervals.append(tmp)
 
@@ -306,8 +309,7 @@ class PlotWidget(QWidget):
             txt = self.formatInterval(interval, ndp)
             textrect = self.fontMetrics.boundingRect(txt)
             txtwidth = textrect.width()
-            if txtwidth > maxwidth:
-                maxwidth = txtwidth
+            txtwidth = max(maxwidth, txtwidth)
         return int(maxwidth)
 
     def drawYTicks(self, paint, minYData, maxYData, yoffset, yscale, height):
@@ -458,8 +460,8 @@ class PlotWidget(QWidget):
         if self.haveData():
             minYData, maxYData = self.getYDataRange()
             minXData, maxXData = self.getXDataRange()
-            xrange = (maxXData - minXData)
-            yrange = (maxYData - minYData)
+            xrange = maxXData - minXData
+            yrange = maxYData - minYData
 
             # check we can draw lines 
             # - might still be a problem if range set by user
@@ -494,7 +496,7 @@ class PlotWidget(QWidget):
 
         paint.end()
 
-    def paintData(self, paint):
+    def paintData(self, paint, minXData, minYData, xoffset, xscale, yoffset, yscale):
         """
         To be implemented in sublass
         """
@@ -552,14 +554,12 @@ class PlotLineWidget(PlotWidget):
             minYData = self.curves[0].ydata.min()
             for curve in self.curves[1:]:
                 my = curve.ydata.min()
-                if my < minYData:
-                    minYData = my
+                minYData = min(minYData, my)
         if maxYData is None:
             maxYData = self.curves[0].ydata.max()
             for curve in self.curves[1:]:
                 my = curve.ydata.max()
-                if my > maxYData:
-                    maxYData = my
+                maxYData = max(maxYData, my)
 
         if (maxYData - minYData) == 0:
             # make range +/- 20%
@@ -579,14 +579,12 @@ class PlotLineWidget(PlotWidget):
             minXData = self.curves[0].xdata.min()
             for curve in self.curves[1:]:
                 mx = curve.xdata.min()
-                if mx < minXData:
-                    minXData = mx
+                minXData = min(minXData, mx)
         if maxXData is None:
             maxXData = self.curves[0].xdata.max()
             for curve in self.curves[1:]:
                 mx = curve.xdata.max()
-                if mx > maxXData:
-                    maxXData = mx
+                maxXData = max(maxXData, mx)
 
         if (maxXData - minXData) == 0:
             # make range +/- 20%
@@ -692,8 +690,7 @@ class PlotBarWidget(PlotWidget):
         tlxs = (tlxs - minXData) * xscale + xoffset
         tlxs += 1  # otherwise left most bar gets clobbered by axis
         width = int(tlxs[1] - tlxs[0])
-        if width < 1:
-            width = 1
+        width = max(width, 1)
 
         for height, tlx in zip(heights, tlxs):
             tlx = int(tlx)

@@ -19,9 +19,9 @@ Module that contains the VectorQueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PySide6.QtWidgets import QDockWidget, QAction, QWidget, QToolBar
+from PySide6.QtWidgets import QDockWidget, QWidget, QToolBar
 from PySide6.QtWidgets import QVBoxLayout, QTreeWidget, QTreeWidgetItem
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Signal
 
 

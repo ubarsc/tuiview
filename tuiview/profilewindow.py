@@ -21,11 +21,14 @@ Module that contains the ProfileDockWidget
 
 from PySide6.QtGui import QPen, QIcon
 from PySide6.QtWidgets import QDockWidget, QWidget, QToolBar, QVBoxLayout, QLabel
-from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QFileDialog
+from PySide6.QtGui import QAction, QPainter
 from PySide6.QtCore import Qt, Signal, QLocale
+from PySide6.QtPrintSupport import QPrinter
 import numpy
 
 from . import plotwidget
+from .plotscalingdialog import PlotScalingDialog
 
 
 class ProfileDockWidget(QDockWidget):
@@ -118,10 +121,7 @@ class ProfileDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt5.QtPrintSupport import QPrinter
-        from PyQt5.QtWidgets import QFileDialog
-        from PyQt5.QtGui import QPainter
-        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
+        fname, _ = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
@@ -197,9 +197,9 @@ class ProfileDockWidget(QDockWidget):
 
                 self.plotProfile(distance, data, profilemask, pen)
         
-                if minValue is None or bandMinValue < bandMinValue:
+                if minValue is None or minValue < bandMinValue:
                     minValue = bandMinValue
-                if maxValue is None or bandMaxValue > maxValue:
+                if maxValue is None or maxValue > bandMaxValue:
                     maxValue = bandMaxValue
         else:
             # greyscale
@@ -239,7 +239,6 @@ class ProfileDockWidget(QDockWidget):
         """
         Allows the user to change the Y axis scaling of the plot
         """
-        from .plotscalingdialog import PlotScalingDialog
         if self.dataRange is not None:
             minValue, maxValue = self.dataRange
             # should inherit type of minValue etc

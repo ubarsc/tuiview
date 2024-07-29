@@ -453,7 +453,12 @@ disable=raw-checker-failed,
         consider-using-get,
         trailing-newlines,
         consider-using-with,
-        too-many-arguments
+        too-many-arguments,
+        too-few-public-methods,
+        global-statement,
+        unspecified-encoding,
+        arguments-differ,
+        too-many-nested-blocks
         
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

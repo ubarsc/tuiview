@@ -25,6 +25,9 @@ NUM_SQL_ROWS = 4
 
 
 class VectorOpenDialog(QDialog):
+    """
+    Allows user to select which layer
+    """
     def __init__(self, parent, layerList):
         QDialog.__init__(self, parent)
         self.setWindowTitle('Open Vector Layer')

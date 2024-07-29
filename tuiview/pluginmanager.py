@@ -23,6 +23,7 @@ import os
 import sys
 import importlib.util
 import importlib.machinery
+import traceback
 
 PLUGINS_ENV = 'TUIVIEW_PLUGINS_PATH'
 PLUGINS_SUBDIR = 'plugins'
@@ -40,7 +41,10 @@ PLUGIN_ACTION_NEWVIEWER = 1
 PLUGIN_ACTION_NEWQUERY = 2
 
 
-class PluginManager(object):
+class PluginManager:
+    """
+    Manage the plugins
+    """
     def __init__(self):
         self.plugins = {}
         self.pluginNameIndex = 1
@@ -50,8 +54,7 @@ class PluginManager(object):
         Calls PLUGIN_ACTION_FN on each of the loaded plugins
         with the supplit PLUGIN_ACTION_* constant and a parameter
         """
-        for name in self.plugins.keys():
-            mod = self.plugins[name]
+        for _, mod in self.plugins.items():
             try:
                 action = getattr(mod, PLUGIN_ACTION_FN)
                 action(actioncode, param)
@@ -60,7 +63,6 @@ class PluginManager(object):
 
     @staticmethod
     def printTraceback(name):
-        import traceback
         print('Exception raised when calling plugin %s:' % name)
         (ttype, value, tb) = sys.exc_info()
         stack = traceback.extract_tb(tb)
@@ -132,7 +134,7 @@ class PluginManager(object):
                 name = getattr(mod, PLUGIN_NAME_FN)
                 modname = name()
             except Exception:
-                self.printTraceback(modname)
+                self.printTraceback(name)
                 return
             self.plugins[modname] = mod
             print('loaded plugin %s' % modname)

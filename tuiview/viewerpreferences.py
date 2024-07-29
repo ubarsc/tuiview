@@ -133,6 +133,13 @@ class ViewerPreferencesDialog(QDialog):
         self.setLayout(self.mainLayout)
 
         self.resize(400, 300)
+        
+        self.settingMouseWheelZoom = None
+        self.settingQueryOnlyDisplayed = None
+        self.settingPlotFontSize = None
+        self.settingBackgroundColor = None
+        self.settingMouseWheelZoom = None
+        self.settingArrangeLayersOpen = None
 
     def restoreFromSettings(self):
         """
