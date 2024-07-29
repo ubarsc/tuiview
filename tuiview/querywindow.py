@@ -18,15 +18,18 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
-from PyQt5.QtGui import QFontMetrics, QMouseEvent
-from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
-from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
-from PyQt5.QtWidgets import QToolButton, QComboBox
-from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
+from PySide6.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
+from PySide6.QtGui import QMouseEvent, QAction, QPainter
+from PySide6.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
+from PySide6.QtWidgets import QToolBar, QMessageBox, QHeaderView
+from PySide6.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
+from PySide6.QtWidgets import QToolButton, QComboBox, QInputDialog, QFileDialog
+from PySide6.QtCore import Signal, Qt, QAbstractTableModel
+from PySide6.QtPrintSupport import QPrinter
+
 import numpy
+from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 from .viewerstretch import VIEWER_MODE_COLORTABLE
@@ -37,6 +40,9 @@ from . import viewererrors
 from .viewerstrings import MESSAGE_TITLE
 from . import plotwidget
 from .viewerRAT import GDAL_COLTYPE_LOOKUP, GDAL_COLUSAGE_LOOKUP
+from .viewerLUT import ViewerLUT
+from .addcolumndialog import AddColumnDialog
+from .plotscalingdialog import PlotScalingDialog
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
@@ -601,7 +607,6 @@ class ThematicHorizontalHeader(QHeaderView):
     def contextMenuEvent(self, event):
         "Respond to context menu event"
         if self.thematic:
-            from osgeo.gdal import GFT_Real, GFT_String
             col = self.logicalIndexAt(event.pos())
             attributes = self.parent.lastLayer.attributes
 
@@ -648,7 +653,7 @@ class ThematicVerticalHeader(QHeaderView):
     model to handle selection. In thematic mode only, 
     otherwise behaves the same as the real thing.
     """
-    clicked = pyqtSignal(QMouseEvent, name='clicked')
+    clicked = Signal(QMouseEvent, name='clicked')
     "emitted when header clicked"
     
     def __init__(self, parent):
@@ -697,8 +702,7 @@ class QueryTableView(QTableView):
             pos = scroll.sliderPosition()
             step = scroll.singleStep()
             newpos = int(pos + dy * step)
-            if newpos < 0:
-                newpos = 0
+            newpos = max(newpos, 0)
             self.parent.thematicScrollBar.setSliderPosition(newpos)
             
     def mousePressEvent(self, e):
@@ -718,7 +722,7 @@ class QueryDockWidget(QDockWidget):
     signal from ViewerWidget. 
     """
     # signals
-    queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+    queryClosed = Signal(QDockWidget, name='queryClosed')
     "emitted when window closed"
 
     def __init__(self, parent, viewwidget):
@@ -818,13 +822,10 @@ class QueryDockWidget(QDockWidget):
         # text entered via keypad since last return
         self.keyboardData = None
 
-        # now make sure the size of the rows matches the font we are using
-        font = self.tableView.viewOptions().font
-        fm = QFontMetrics(font)
         # add 3 pixels as some platforms (Windows, Solaris) need a few more
         # as the vertical header has a 'box' around it and font 
         # ends up squashed otherwise
-        height = fm.height() + 3
+        height = self.tableView.rowHeight(0) + 3
         # default height actually controlled by headers
         # don't worry about QItemDelegate etc
         self.tableView.verticalHeader().setDefaultSectionSize(height)
@@ -1142,10 +1143,7 @@ class QueryDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt5.QtGui import QPainter
-        from PyQt5.QtPrintSupport import QPrinter
-        from PyQt5.QtWidgets import QFileDialog
-        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
+        fname, _ = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
@@ -1162,7 +1160,6 @@ class QueryDockWidget(QDockWidget):
         """
         Allows the user to change the Y axis scaling of the plot
         """
-        from .plotscalingdialog import PlotScalingDialog
         if self.lastqi is not None:
             data = self.lastqi.data
         else:
@@ -1255,14 +1252,14 @@ Use the special columns:
             self.lastLayer.changeUpdateAccess(state)
             self.tableModel.doUpdate(True)
             self.setUIUpdateState(state)
-        except IOError:
+        except IOError as exc:
             msg = """TuiView was unable to re-open the dataset
 The file no longer exists or is inaccessible.
 The application will now exit."""
             # unfortunaltely we cannot display the messagebox
             # since Qt will still want to redraw the RAT 
             # which we don't have access to. So just exit
-            raise SystemExit(msg)
+            raise SystemExit(msg) from exc
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
             state = self.lastLayer.updateAccess
@@ -1347,8 +1344,6 @@ The application will now exit."""
         """
         User wants to add a column
         """
-        from .addcolumndialog import AddColumnDialog
-
         attributes = self.lastLayer.attributes
         dlg = AddColumnDialog(self)
         if dlg.exec_() == AddColumnDialog.Accepted:
@@ -1468,10 +1463,10 @@ Use the special columns:
             self.tableModel.doUpdate()
 
             # was a color table column?
-            if (col == attributes.redColumnIdx or 
-                    col == attributes.greenColumnIdx or
-                    col == attributes.blueColumnIdx or
-                    col == attributes.alphaColumnIdx):
+            if col in (attributes.redColumnIdx, 
+                    attributes.greenColumnIdx,
+                    attributes.blueColumnIdx,
+                    attributes.alphaColumnIdx):
                 self.updateColorTableInWidget()
 
             # is this a the lookup column?
@@ -1514,7 +1509,6 @@ Use the special columns:
         Allows the user to set the number of decimal places for
         float columns
         """
-        from PyQt5.QtWidgets import QInputDialog
         attributes = self.lastLayer.attributes
         currFormat = attributes.getFormat(colName)
         currDP = int(currFormat[2:-1])  # dodgy but should be ok
@@ -1530,7 +1524,6 @@ Use the special columns:
         Allows the user to specify a column to be used
         to lookup the color table
         """
-        from .viewerLUT import ViewerLUT
         attributes = self.lastLayer.attributes
         if colName == attributes.getLookupColName():
             # toggle off
@@ -1552,7 +1545,6 @@ Use the special columns:
                 tablename = list(tables.keys())[0]
             else:
                 # need to ask them which one
-                from PyQt5.QtWidgets import QInputDialog
                 (tablename, ok) = QInputDialog.getItem(self, MESSAGE_TITLE,
                     "Select color table", list(tables.keys()), editable=False)
                 if not ok:
@@ -1671,7 +1663,7 @@ Use the special columns:
             return
             
         # lineInfo is an instance of PolylineToolInfo
-        data, mask, distance = lineInfo.getProfile()
+        data, mask, _ = lineInfo.getProfile()
         # we only interested where mask == True
         idx = numpy.unique(data.compress(mask))
 
@@ -2021,10 +2013,9 @@ Use the special columns:
         User has pressed a key. See if we are recording keystrokes
         and updating attribute columns
         """
-        from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
         if self.keyboardData is not None:
             key = event.key()
-            if key == Qt.Key_Enter or key == Qt.Key_Return:
+            if key in (Qt.Key_Enter, Qt.Key_Return):
                 try:
                     attributes = self.lastLayer.attributes
                     colname = self.keyboardEditColumn

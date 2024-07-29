@@ -27,10 +27,11 @@ https://github.com/getify/JSON.minify
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import os
-import numpy
 import json
+import numpy
 
 from . import viewererrors
+from .minify_json import json_minify
 
 # environment variable we use to specify file
 # to load extra ramps from
@@ -274,7 +275,6 @@ def getRampsFromFile(fname):
     Read extra color ramps into our global RAMPS dictionary
     from specified file
     """
-    from .minify_json import json_minify
     # Read palette file
     palettesFobj = open(fname, "r")
     # Minify file contents
@@ -292,7 +292,7 @@ def getRampsFromFile(fname):
             msg = 'Invalid colour ramp structure'
             raise viewererrors.ColorRampException(msg)
 
-        if cur_name in RAMP.keys():
+        if cur_name in RAMP:
             # Quit - invalid colour scheme name
             msg = 'Duplicated colour ramp name'
             raise viewererrors.ColorRampException(msg)
@@ -372,10 +372,10 @@ def loadExtraRamps():
             # process palettes and append RAMP dict
             getRampsFromFile(palettesFile)
             HAVE_LOADED_EXTRA_RAMPS = True
-        except IOError:
+        except IOError as exc:
             # wasn't able to open file, set error
             msg = 'Unable to open %s' % palettesFile
-            raise viewererrors.ColorRampException(msg)
+            raise viewererrors.ColorRampException(msg) from exc
 
 
 def getRampsForDisplay():
@@ -385,16 +385,15 @@ def getRampsForDisplay():
     """
     # sort by stype
     rampDict = {}
-    for key in RAMP:
-        rampType = RAMP[key]['type']
+    for key, rampType in RAMP.items():
         if rampType in rampDict:
             rampDict[rampType].append(key)
         else:
             rampDict[rampType] = [key]
 
     display = []
-    for rampType in rampDict:
-        for name in rampDict[rampType]:
+    for rampType, names in rampDict.items():
+        for name in names:
             title = "%s (%s)" % (name, rampType)
             display.append((name, title))
             

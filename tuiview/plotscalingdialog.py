@@ -19,9 +19,9 @@ Module that contains the PlotScalingDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QCheckBox
-from PyQt5.QtWidgets import QSpinBox, QDoubleSpinBox, QPushButton, QVBoxLayout
-from PyQt5.QtCore import Qt
+from PySide6.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QCheckBox
+from PySide6.QtWidgets import QSpinBox, QDoubleSpinBox, QPushButton, QVBoxLayout
+from PySide6.QtCore import Qt
 import numpy
 
 

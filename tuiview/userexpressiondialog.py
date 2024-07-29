@@ -19,10 +19,10 @@ Contains the UserExpressionDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtWidgets import QTextEdit
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
-from PyQt5.QtGui import QPalette
-from PyQt5.QtCore import pyqtSignal, Qt
+from PySide6.QtWidgets import QTextEdit
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtGui import QPalette
+from PySide6.QtCore import Signal, Qt
 
 
 class UserExpressionDialog(QDialog):
@@ -31,11 +31,11 @@ class UserExpressionDialog(QDialog):
     Sends a signal with the expresson on Apply
     """
     # signals
-    newExpression = pyqtSignal(['QString'], ['QString', int], 
+    newExpression = Signal(['QString'], ['QString', int], 
                         name='newExpression')
     "emitted when a new expression is entered"
     # not used?
-    undoEdit = pyqtSignal('QObject', int, name='undoEdit')
+    undoEdit = Signal('QObject', int, name='undoEdit')
     "emitted when user wants to undo"
 
     def __init__(self, parent, col=None, undoObject=None):

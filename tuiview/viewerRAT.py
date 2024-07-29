@@ -23,7 +23,7 @@ import keyword
 import numpy
 import json
 from osgeo import gdal
-from PyQt5.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from . import viewererrors
 
@@ -96,9 +96,9 @@ class ViewerRAT(QObject):
     to read from GDAL. Also will apply a user expression.
     """
     # signals
-    newProgress = pyqtSignal('QString', name='newProgress')
-    newPercent = pyqtSignal(int, name='newPercent')
-    endProgress = pyqtSignal(name='endProgress')
+    newProgress = Signal('QString', name='newProgress')
+    newPercent = Signal(int, name='newPercent')
+    endProgress = Signal(name='endProgress')
 
     def __init__(self):
         QObject.__init__(self)

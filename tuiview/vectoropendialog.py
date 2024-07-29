@@ -17,14 +17,17 @@ Module that contains the VectorOpenDialog class
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
-from PyQt5.QtWidgets import QButtonGroup, QComboBox, QTextEdit, QPushButton
-from PyQt5.QtGui import QFontMetrics
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
+from PySide6.QtWidgets import QButtonGroup, QComboBox, QTextEdit, QPushButton
+from PySide6.QtGui import QFontMetrics
 
 NUM_SQL_ROWS = 4
 
 
 class VectorOpenDialog(QDialog):
+    """
+    Allows user to select which layer
+    """
     def __init__(self, parent, layerList):
         QDialog.__init__(self, parent)
         self.setWindowTitle('Open Vector Layer')

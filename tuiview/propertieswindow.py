@@ -17,14 +17,17 @@ Module that contains the PropertiesWindow class
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton
-from PyQt5.QtWidgets import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
-from PyQt5.QtWidgets import QComboBox, QScrollArea
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton
+from PySide6.QtWidgets import QGroupBox, QLabel, QGridLayout, QTabWidget, QWidget
+from PySide6.QtWidgets import QComboBox, QScrollArea
 
 from . import plotwidget
 
 
 class PropertiesWindow(QDialog):
+    """
+    The properties window
+    """
     def __init__(self, parent, info):
         QDialog.__init__(self, parent)
         self.info = info

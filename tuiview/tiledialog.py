@@ -19,8 +19,8 @@ Contains the TileDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QPushButton
-from PyQt5.QtWidgets import QSpinBox, QLabel
+from PySide6.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QSpinBox, QLabel
 
 
 class TileDialog(QDialog):

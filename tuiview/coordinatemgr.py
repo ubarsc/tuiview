@@ -21,7 +21,7 @@ in the raster
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
-class CoordManager(object):
+class CoordManager:
     """
     base class for the layer's coordmgr instance. Derived separately
     for vector and raster layers.
@@ -105,7 +105,7 @@ class VectorCoordManager(CoordManager):
         """
         CoordManager.setDisplaySize(self, width, height)
         if self.extent is not None:
-            (left, top, right, bottom) = self.extent
+            (left, top, _, _) = self.extent
             self.extent = (left, top, left + self.metersperpix * width, 
                 top - self.metersperpix * height)
 
@@ -157,7 +157,6 @@ class VectorCoordManager(CoordManager):
 
     def recalcBottomRight(self):
         "I don't think we need to do anything here"
-        pass
 
 
 class RasterCoordManager(CoordManager):

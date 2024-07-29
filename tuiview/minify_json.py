@@ -9,9 +9,10 @@ https://github.com/getify/JSON.minify
 '''
 
 import re
+import json  # requires Python 2.6+ to run tests
 
 
-def json_minify(json, strip_space=True):
+def json_minify(jsons, strip_space=True):
     tokenizer = re.compile(r'"|(/\*)|(\*/)|(//)|\n|\r')
     in_string = False
     in_multiline_comment = False
@@ -20,10 +21,10 @@ def json_minify(json, strip_space=True):
     new_str = []
     from_index = 0  # from is a keyword in Python
     
-    for match in re.finditer(tokenizer, json):
+    for match in re.finditer(tokenizer, jsons):
         
         if not in_multiline_comment and not in_singleline_comment:
-            tmp2 = json[from_index:match.start()]
+            tmp2 = jsons[from_index:match.start()]
             if not in_string and strip_space:
                 tmp2 = re.sub('[ \t\n\r]*', '', tmp2)  # replace only white space defined in standard
             new_str.append(tmp2)
@@ -31,7 +32,7 @@ def json_minify(json, strip_space=True):
         from_index = match.end()
         
         if match.group() == '"' and not in_multiline_comment and not in_singleline_comment:
-            escaped = re.search('(\\\\)*$', json[:match.start()])
+            escaped = re.search('(\\\\)*$', jsons[:match.start()])
             if not in_string or escaped is None or len(escaped.group()) % 2 == 0:
                 # start of string with ", or unescaped " character found to end string
                 in_string = not in_string
@@ -49,15 +50,15 @@ def json_minify(json, strip_space=True):
                 match.group() not in ['\n', '\r', ' ', '\t'] or not strip_space):
             new_str.append(match.group()) 
     
-    new_str.append(json[from_index:])
+    new_str.append(jsons[from_index:])
     return ''.join(new_str)
 
 
-if __name__ == '__main__':
-    import json  # requires Python 2.6+ to run tests
-    
-    def test_json(s):
-        return json.loads(json_minify(s))
+def test_json(s):
+    return json.loads(json_minify(s))
+
+
+def main():
     
     test1 = '''// this is a JSON file with comments
 {
@@ -112,3 +113,8 @@ something else */"blah"
     assert test_json(test4) == json.loads(test4_res), 'Failed test 4'
     if __debug__:  # Don't print passed message if the asserts didn't run
         print('Passed all tests')
+
+
+if __name__ == '__main__':
+    main()
+    
