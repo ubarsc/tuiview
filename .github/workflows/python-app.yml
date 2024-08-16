@@ -28,7 +28,7 @@ jobs:
     - name: Lint with pylint
       shell: bash -l {0}
       run: |
-        build/lib.*/tuiview/*.so tuiview/
+        cp build/lib.*/tuiview/*.so tuiview/
         pylint tuiview/*.py
     - name: Lint with flake8
       shell: bash -l {0}
