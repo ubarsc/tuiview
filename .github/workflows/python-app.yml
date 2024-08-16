@@ -20,7 +20,7 @@ jobs:
     - name: Install Dependencies
       shell: bash -l {0}
       run: |
-        sudo apt-get install libegl1
+        sudo apt-get install libegl1 mesa-utils
         conda install pylint flake8 gdal pyside6
     - name: Test Build
       shell: bash -l {0}
