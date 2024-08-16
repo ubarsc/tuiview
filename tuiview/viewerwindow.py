@@ -53,7 +53,7 @@ from . import stretchdialog
 from . import layerwindow
 from . import vectoropendialog
 from . import viewerstretch
-from . import viewerresources  # pylint: disable=unused-import
+from . import viewerresources  # noqa pylint: disable=unused-import
 from .tiledialog import TileDialog
 from .viewerstrings import MESSAGE_TITLE
 from . import TUIVIEW_VERSION
