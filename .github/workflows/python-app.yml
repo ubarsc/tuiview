@@ -20,6 +20,7 @@ jobs:
     - name: Install Dependencies
       shell: bash -l {0}
       run: |
+        apt-get install libgl1
         conda install pylint flake8 gdal pyside6
     - name: Test Build
       shell: bash -l {0}
