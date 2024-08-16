@@ -634,7 +634,7 @@ class ViewerRasterLayer(ViewerLayer):
 
                 # close this (writeable) file handle
                 del dataset
-            except RuntimeError as  exc:
+            except RuntimeError as exc:
                 raise viewererrors.InvalidDataset('Unable to save stretch to file') from exc
             finally:
                 # attempt to open the file readonly again

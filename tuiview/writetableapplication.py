@@ -90,8 +90,8 @@ def printTables(fname):
         print("Name\tSize")
         print("------------------------")
 
-        for name in tables:
-            (size, bands) = tables[name].shape
+        for name, val in tables.items():
+            size, _ = val.shape
             print("%s\t%s" % (name, size))
 
     del ds
@@ -116,7 +116,7 @@ def addTable(source, name, dest):
     nodata_rgba = (0, 0, 0, 0)
     nan_rgba = (0, 0, 0, 0)
     lutobj = ViewerLUT()
-    lut, bi = lutobj.loadColorTable(rat, nodata_rgba, nodata_rgba, nan_rgba)
+    lut, _ = lutobj.loadColorTable(rat, nodata_rgba, nodata_rgba, nan_rgba)
 
     destds = gdal.Open(dest, gdal.GA_Update)
     if destds is None:

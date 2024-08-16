@@ -21,18 +21,19 @@ jobs:
       shell: bash -l {0}
       run: |
         conda install pylint flake8 gdal pyside6
+    - name: Test Build
+      shell: bash -l {0}
+      run: |
+        pip install .        
     - name: Lint with pylint
       shell: bash -l {0}
       run: |
+        build/lib.*/tuiview/*.so tuiview/
         pylint tuiview/*.py
     - name: Lint with flake8
       shell: bash -l {0}
       run: |
         flake8
-    - name: Test Build
-      shell: bash -l {0}
-      run: |
-        pip install .        
 
   build-windows:
     name: Test Windows

@@ -265,7 +265,7 @@ def _bresenhamlines(start, end, max_iter):
     """
     if max_iter == -1:
         max_iter = numpy.amax(numpy.amax(numpy.abs(end - start), axis=1))
-    npts, dim = start.shape
+    _, dim = start.shape
     nslope = _bresenhamline_nslope(end - start)
 
     # steps to iterate on
