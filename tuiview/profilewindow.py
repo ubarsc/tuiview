@@ -29,6 +29,7 @@ import numpy
 
 from . import plotwidget
 from .plotscalingdialog import PlotScalingDialog
+from .viewertoolclasses import PolylineToolInfo
 
 
 class ProfileDockWidget(QDockWidget):

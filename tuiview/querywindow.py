@@ -1235,7 +1235,7 @@ Use the special columns:
 'queryrow' is the currently queried row and
 'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
-        dlg.newExpression['QString'].connect(self.newSelectUserExpression)
+        dlg.newExpression[str].connect(self.newSelectUserExpression)
         dlg.show()
         
     def previousSelected(self):
@@ -1373,7 +1373,7 @@ Use the special columns:
 'isselected' for the currently selected rows and
 'queryrow' is the currently queried row"""
         dlg.setHint(hint)
-        dlg.newExpression['QString', int].connect(self.newEditUserExpression)
+        dlg.newExpression[str, int].connect(self.newEditUserExpression)
 
         # should be modal?
         dlg.show()

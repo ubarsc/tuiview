@@ -31,11 +31,11 @@ class UserExpressionDialog(QDialog):
     Sends a signal with the expresson on Apply
     """
     # signals
-    newExpression = Signal(['QString'], ['QString', int], 
+    newExpression = Signal((str,), (str, int), 
                         name='newExpression')
     "emitted when a new expression is entered"
     # not used?
-    undoEdit = Signal('QObject', int, name='undoEdit')
+    undoEdit = Signal(str, int, name='undoEdit')
     "emitted when user wants to undo"
 
     def __init__(self, parent, col=None, undoObject=None):
@@ -100,10 +100,10 @@ Use the special column 'row' for the row number.""")
         "Sends a signal with the expression"
         expression = self.exprEdit.toPlainText()
         if self.col is None:
-            self.newExpression['QString'].emit(expression)
+            self.newExpression[str].emit(expression)
         else:
             # include column
-            self.newExpression['QString', int].emit(expression, self.col)
+            self.newExpression[str, int].emit(expression, self.col)
 
     def undo(self):
         "sends a signal with the undo object"

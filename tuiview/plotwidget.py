@@ -309,7 +309,7 @@ class PlotWidget(QWidget):
             txt = self.formatInterval(interval, ndp)
             textrect = self.fontMetrics.boundingRect(txt)
             txtwidth = textrect.width()
-            txtwidth = max(maxwidth, txtwidth)
+            maxwidth = max(maxwidth, txtwidth)
         return int(maxwidth)
 
     def drawYTicks(self, paint, minYData, maxYData, yoffset, yscale, height):

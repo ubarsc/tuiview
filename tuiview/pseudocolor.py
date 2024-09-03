@@ -385,7 +385,8 @@ def getRampsForDisplay():
     """
     # sort by stype
     rampDict = {}
-    for key, rampType in RAMP.items():
+    for key, rampTypeDict in RAMP.items():
+        rampType = rampTypeDict['type']
         if rampType in rampDict:
             rampDict[rampType].append(key)
         else:
