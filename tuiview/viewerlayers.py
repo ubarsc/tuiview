@@ -823,13 +823,13 @@ class ViewerRasterLayer(ViewerLayer):
             (dspRastAbsRight, dspRastAbsBottom) = (
                 self.coordmgr.pixel2display(
                     numpy.ceil(pixRight), numpy.ceil(pixBottom)))
-            dspLeftExtra = ((dspRastLeft - dspRastAbsLeft) /
+            dspLeftExtra = int((dspRastLeft - dspRastAbsLeft) /
                 fullrespixperovpix)
-            dspTopExtra = ((dspRastTop - dspRastAbsTop) /
+            dspTopExtra = int((dspRastTop - dspRastAbsTop) /
                 fullrespixperovpix)
-            dspRightExtra = ((dspRastAbsRight - dspRastRight) /
+            dspRightExtra = int((dspRastAbsRight - dspRastRight) /
                 fullrespixperovpix)
-            dspBottomExtra = ((dspRastAbsBottom - dspRastBottom) / 
+            dspBottomExtra = int((dspRastAbsBottom - dspRastBottom) / 
                 fullrespixperovpix)
             # be aware rounding errors
             dspRightExtra = max(dspRightExtra, 0)
