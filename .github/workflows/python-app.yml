@@ -16,7 +16,6 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v2
       with:
         miniforge-version: latest
-        miniforge-variant: Mambaforge
     - name: Install Dependencies
       shell: bash -l {0}
       run: |
