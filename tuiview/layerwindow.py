@@ -95,7 +95,7 @@ class LayerItemModel(QAbstractListModel):
         if role == Qt.CheckStateRole:
             state = value
             layer = self.getLayer(index)
-            state = state == Qt.Checked
+            state = Qt.CheckState(state) == Qt.Checked
             self.viewwidget.layers.setDisplayedState(layer, state)
 
             # redraw
@@ -353,7 +353,7 @@ class LayerListView(QListView):
             linewidth = layer.getLineWidth()            
                 
             linewidth, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
-                "Enter line width", value=linewidth, min=0, max=100)
+                "Enter line width", value=linewidth, minValue=0, maxValue=100)
             if ok:
                 layer.setLineWidth(linewidth)
                 layer.getImage()
@@ -371,7 +371,7 @@ class LayerListView(QListView):
             crossHairSize = layer.getHalfCrossSize()
                 
             crossHairSize, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
-                "Enter half crosshair size", value=crossHairSize, min=0, max=100)
+                "Enter half crosshair size", value=crossHairSize, minValue=0, maxValue=100)
             if ok:
                 layer.setHalfCrossSize(crossHairSize)
                 layer.getImage()

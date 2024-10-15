@@ -23,7 +23,7 @@ from PySide6.QtGui import QMouseEvent, QAction, QPainter
 from PySide6.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PySide6.QtWidgets import QToolBar, QMessageBox, QHeaderView
-from PySide6.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
+from PySide6.QtWidgets import QStyle, QTabWidget, QScrollBar
 from PySide6.QtWidgets import QToolButton, QComboBox, QInputDialog, QFileDialog
 from PySide6.QtCore import Signal, Qt, QAbstractTableModel
 from PySide6.QtPrintSupport import QPrinter
@@ -47,6 +47,8 @@ from .plotscalingdialog import PlotScalingDialog
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
+QUERYWIDGET_DEFAULT_SELECTCOLOR = QColor(Qt.darkBlue)
+QUERYWIDGET_DEFAULT_SELECTTEXT = QColor(Qt.white)
 
 RAT_CACHE_CHUNKSIZE = 1000
 
@@ -101,6 +103,8 @@ class ThematicTableModel(QAbstractTableModel):
         self.attCache = attributes.getCacheObject(RAT_CACHE_CHUNKSIZE) 
         self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
         self.highlightRow = -1
+        self.selectBrush = QBrush(QUERYWIDGET_DEFAULT_SELECTCOLOR)
+        self.selectText = QBrush(QUERYWIDGET_DEFAULT_SELECTTEXT)
         self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
 
         self.geomChanged()    
@@ -157,8 +161,7 @@ class ThematicTableModel(QAbstractTableModel):
         self.scroll.sliderPosition() again, but for selection this 
         doesn't work as they may have started the selection then scrolled
         down and ended the selection so we need to know the slider position
-        for each index. This is espcially useful for the ItemDelegate
-        which otherwise has no way of knowing what the scroll position was
+        for each index. 
         
         The other obvious thing to do is to add the slider position onto the
         current row, but things get weird as sometimes Qt passes me a row
@@ -238,9 +241,9 @@ class ThematicTableModel(QAbstractTableModel):
             self.headerDataChanged.emit(Qt.Horizontal, 0, 
                         self.columnCount(None) - 1)
                         
-        if updateVertHeader:
-            self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
-
+        # for some reason in Qt6 things don't get repainted at all unless we do this
+        self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
+            
     def setHighlightRow(self, row):
         """
         Called by setupTableThematic to indicate 
@@ -362,10 +365,20 @@ class ThematicTableModel(QAbstractTableModel):
 
         # convert back to a row within the file
         row = index.internalId() + index.row()
-        if role == Qt.BackgroundRole and row == self.highlightRow:
-            return self.highlightBrush
+        if role == Qt.BackgroundRole:
+            if row == self.highlightRow:
+                return self.highlightBrush
+            if (self.parent.selectionArray is not None and
+                    row < self.parent.selectionArray.shape[0] and
+                    self.parent.selectionArray[row]):
+                return self.selectBrush
+        elif (role == Qt.ForegroundRole and 
+                self.parent.selectionArray is not None and
+                row < self.parent.selectionArray.shape[0] and
+                self.parent.selectionArray[row]):
+            return self.selectText
 
-        if role == Qt.DisplayRole: 
+        elif role == Qt.DisplayRole: 
             column = index.column()
             if self.attributes.hasColorTable:
                 if column == 0:
@@ -394,8 +407,7 @@ class ThematicTableModel(QAbstractTableModel):
             else:
                 return None
 
-        else:
-            return None
+        return None
 
 
 class ContinuousTableModel(QAbstractTableModel):
@@ -437,7 +449,7 @@ class ContinuousTableModel(QAbstractTableModel):
         if updateHorizHeader:
             self.headerDataChanged.emit(Qt.Horizontal, 0, 
                         self.rowCount(None) - 1)
-
+                        
     def rowCount(self, parent):
         "returns the number of rows"
         return len(self.bandNames)
@@ -502,28 +514,6 @@ class ContinuousTableModel(QAbstractTableModel):
 
         else:
             return None
-
-
-class ThematicItemDelegate(QStyledItemDelegate):
-    """
-    Because we can't override the isSelected method of the modelselection
-    we draw the selected state via the item delegate paint method as needed
-    """
-    def __init__(self, parent):
-        QStyledItemDelegate.__init__(self, parent)
-        self.parent = parent
-
-    def paint(self, painter, option, index):
-        "Paint method - paint as selected if needed"
-        row = index.internalId() + index.row()
-        
-        if (self.parent.selectionArray is not None and
-                row < self.parent.selectionArray.shape[0] and
-                self.parent.selectionArray[row]):
-            option.state |= QStyle.State_Selected
-        # shouldn't have to un-select as nothing should be selected
-        # according to the model
-        QStyledItemDelegate.paint(self, painter, option, index)
 
 
 MOVE_LEFT = 0
@@ -795,11 +785,6 @@ class QueryDockWidget(QDockWidget):
         # the model - this is None by default - changed if 
         # it is a thematic view
         self.tableModel = None
-        # the delegate - this renders the rows with optional selection
-        # style. Ideally we would overried the selection model but
-        # QItemSelectionModel.isSelected not virtual...
-        self.tableDelegate = ThematicItemDelegate(self)
-        self.tableView.setItemDelegate(self.tableDelegate)
 
         # our numpy array that contains the selections
         # None by default and for Continuous
@@ -827,7 +812,6 @@ class QueryDockWidget(QDockWidget):
         # ends up squashed otherwise
         height = self.tableView.rowHeight(0) + 3
         # default height actually controlled by headers
-        # don't worry about QItemDelegate etc
         self.tableView.verticalHeader().setDefaultSectionSize(height)
 
         self.plotWidget = plotwidget.PlotLineWidget(self)
@@ -1200,7 +1184,7 @@ class QueryDockWidget(QDockWidget):
             self.viewwidget.highlightValues(self.highlightColor,
                                 self.selectionArray)
         
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.curSel = None
         self.tableModel.doUpdate()
 
@@ -1216,7 +1200,7 @@ class QueryDockWidget(QDockWidget):
             self.viewwidget.highlightValues(self.highlightColor,
                                 self.selectionArray)
 
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.doUpdate()
 
     def showUserExpression(self):
@@ -1256,7 +1240,7 @@ Use the special columns:
             msg = """TuiView was unable to re-open the dataset
 The file no longer exists or is inaccessible.
 The application will now exit."""
-            # unfortunaltely we cannot display the messagebox
+            # unfortunately we cannot display the messagebox
             # since Qt will still want to redraw the RAT 
             # which we don't have access to. So just exit
             raise SystemExit(msg) from exc
@@ -1334,7 +1318,7 @@ The application will now exit."""
             self.scrollToFirstSelected()
 
             self.updateToolTip()
-            # so we repaint and our itemdelegate gets called
+            # so we repaint
             self.tableModel.doUpdate()
 
         except viewererrors.UserExpressionError as e:
@@ -1647,7 +1631,7 @@ Use the special columns:
 
         self.scrollToFirstSelected()
         self.updateToolTip()
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.doUpdate()
 
         # so keyboard entry etc works
@@ -1682,7 +1666,7 @@ Use the special columns:
 
         self.scrollToFirstSelected()
         self.updateToolTip()
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.doUpdate()
 
         # so keyboard entry etc works
@@ -1890,7 +1874,7 @@ Use the special columns:
 
             self.scrollToFirstSelected()
             self.updateToolTip()
-            # so we repaint and our itemdelegate gets called
+            # so we repaint
             self.tableModel.doUpdate()
 
             # so keyboard entry etc works
