@@ -19,13 +19,13 @@ Module that contains the QueryDockWidget
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from PySide6.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
-from PySide6.QtGui import QMouseEvent, QAction, QPainter
+from PySide6.QtGui import QMouseEvent, QAction, QPainter, QPageLayout
 from PySide6.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
 from PySide6.QtWidgets import QToolBar, QMessageBox, QHeaderView
 from PySide6.QtWidgets import QStyle, QTabWidget, QScrollBar
 from PySide6.QtWidgets import QToolButton, QComboBox, QInputDialog, QFileDialog
-from PySide6.QtCore import Signal, Qt, QAbstractTableModel
+from PySide6.QtCore import Signal, Qt, QAbstractTableModel, QPoint
 from PySide6.QtPrintSupport import QPrinter
 
 import numpy
@@ -1131,13 +1131,13 @@ class QueryDockWidget(QDockWidget):
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
-            printer.setOrientation(QPrinter.Landscape)
+            printer.setPageOrientation(QPageLayout.Landscape)
             printer.setColorMode(QPrinter.Color)
             printer.setOutputFileName(fname)
             printer.setResolution(96)
             painter = QPainter()
             painter.begin(printer)
-            self.plotWidget.render(painter)
+            self.plotWidget.render(painter, QPoint())
             painter.end()
 
     def onPlotScaling(self):

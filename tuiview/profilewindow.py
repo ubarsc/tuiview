@@ -22,8 +22,8 @@ Module that contains the ProfileDockWidget
 from PySide6.QtGui import QPen, QIcon
 from PySide6.QtWidgets import QDockWidget, QWidget, QToolBar, QVBoxLayout, QLabel
 from PySide6.QtWidgets import QFileDialog
-from PySide6.QtGui import QAction, QPainter
-from PySide6.QtCore import Qt, Signal, QLocale
+from PySide6.QtGui import QAction, QPainter, QPageLayout
+from PySide6.QtCore import Qt, Signal, QLocale, QPoint
 from PySide6.QtPrintSupport import QPrinter
 import numpy
 
@@ -125,13 +125,13 @@ class ProfileDockWidget(QDockWidget):
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
-            printer.setOrientation(QPrinter.Landscape)
+            printer.setPageOrientation(QPageLayout.Landscape)
             printer.setColorMode(QPrinter.Color)
             printer.setOutputFileName(fname)
             printer.setResolution(96)
             painter = QPainter()
             painter.begin(printer)
-            self.plotWidget.render(painter)
+            self.plotWidget.render(painter, QPoint())
             painter.end()
 
     def plotProfile(self, xdata, ydata, mask, pen):
