@@ -19,8 +19,8 @@ Supporting classes for tools in the ViewerWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QPolygon, QPolygonF
-from PyQt5.QtCore import Qt, QPoint, QPointF
+from PySide6.QtGui import QPolygon, QPolygonF
+from PySide6.QtCore import Qt, QPoint, QPointF
 import numpy
 from osgeo import ogr
 
@@ -28,13 +28,13 @@ from .viewerLUT import MASK_IMAGE_VALUE
 from . import vectorrasterizer
 
 
-class ToolInfo(QPolygon):
+class ToolInfo:
     """
     Class derived from QPolygon that contains the poly
     that the user selected, but has some other methods
     """
     def __init__(self, pointList, layer, modifiers):
-        QPolygon.__init__(self, pointList)
+        self.poly = QPolygon(pointList)
         self.layer = layer  # topmost raster
         self.modifiers = modifiers  # input modifiers
 
@@ -46,7 +46,7 @@ class ToolInfo(QPolygon):
         Return a polygon of world coords
         """
         wldList = []
-        for pt in self:
+        for pt in self.poly:
             wldx, wldy = self.layer.coordmgr.display2world(pt.x(), pt.y())
             wldList.append(QPointF(wldx, wldy))
 
@@ -102,7 +102,7 @@ class PolygonToolInfo(ToolInfo):
         size = len(self)
         xDsp = numpy.empty((size,), dtype=float)
         yDsp = numpy.empty((size,), dtype=float)
-        for idx, p in enumerate(self):
+        for idx, p in enumerate(self.poly):
             xDsp[idx] = p.x()
             yDsp[idx] = p.y()
             
@@ -126,7 +126,7 @@ class PolygonToolInfo(ToolInfo):
         """
         # Create ring
         ring = ogr.Geometry(ogr.wkbLinearRing)
-        for pt in self:
+        for pt in self.poly:
             wldx, wldy = self.layer.coordmgr.display2world(pt.x(), pt.y())
             ring.AddPoint(wldx, wldy)
 
@@ -145,11 +145,11 @@ class PolylineToolInfo(ToolInfo):
         ToolInfo.__init__(self, pointList, layer, modifiers)
 
     def getProfile(self):
-        lastPoint = self[0]
+        lastPoint = self.poly[0]
         # bresenhamline does not include the very first point
         profile = numpy.array([[lastPoint.x(), lastPoint.y()]])
         distance = numpy.array([0.0])
-        for pt in self[1:]:
+        for pt in self.poly.sliced(1):
             # need to be 2-d arrays for some reason
             start = numpy.array([[lastPoint.x(), lastPoint.y()]])
             end = numpy.array([[pt.x(), pt.y()]])
@@ -205,7 +205,7 @@ class PolylineToolInfo(ToolInfo):
         Return a ogr.Geometry instance
         """
         geom = ogr.Geometry(ogr.wkbLineString)
-        for pt in self:
+        for pt in self.poly:
             wldx, wldy = self.layer.coordmgr.display2world(pt.x(), pt.y())
             geom.AddPoint(wldx, wldy)
         return geom
@@ -265,7 +265,7 @@ def _bresenhamlines(start, end, max_iter):
     """
     if max_iter == -1:
         max_iter = numpy.amax(numpy.amax(numpy.abs(end - start), axis=1))
-    npts, dim = start.shape
+    _, dim = start.shape
     nslope = _bresenhamline_nslope(end - start)
 
     # steps to iterate on

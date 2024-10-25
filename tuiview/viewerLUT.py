@@ -21,15 +21,17 @@ amongst other things
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
-import numpy
 import json
-from PyQt5.QtGui import QImage
-from PyQt5.QtCore import QObject, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox
+from PySide6.QtGui import QImage
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QMessageBox
+import numpy
 from osgeo import gdal
 from . import viewererrors
 from . import viewerstretch
 from .viewerstrings import MESSAGE_TITLE
+from . import pseudocolor
+from .viewerRAT import ViewerRAT
 
 gdal.UseExceptions()
 
@@ -78,7 +80,7 @@ def GDALProgressFunc(value, string, lutobject):
     lutobject.newPercent.emit(percent)
 
 
-class BandLUTInfo(object):
+class BandLUTInfo:
     """
     Class that holds information about a band's LUT
     """
@@ -122,11 +124,11 @@ class ViewerLUT(QObject):
     data and stretched data
     """
     # signals
-    newProgress = pyqtSignal('QString', name='newProgress')
+    newProgress = Signal('QString', name='newProgress')
     "emitted when a new progress bar is needed"
-    newPercent = pyqtSignal(int, name='newPercent')
+    newPercent = Signal(int, name='newPercent')
     "emitted when a new percent value is available"
-    endProgress = pyqtSignal(name='endProgress')
+    endProgress = Signal(name='endProgress')
     "emitted when progress finished"
 
     def __init__(self):
@@ -328,7 +330,7 @@ class ViewerLUT(QObject):
             lutobj.bandinfo = bi
             lutobj.lut = numpy.empty((bi.lutsize + VIEWER_LUT_EXTRA, 4), 
                 numpy.uint8, 'C')
-            for n in range(len(RGBA_CODES)):
+            for _ in range(len(RGBA_CODES)):
                 s = fileobj.readline()
                 rep = json.loads(s)
                 code = rep['code']
@@ -338,7 +340,7 @@ class ViewerLUT(QObject):
         else:
             # rgb
             lutobj.bandinfo = {}
-            for n in range(len(RGB_CODES)):
+            for _ in range(len(RGB_CODES)):
                 s = fileobj.readline()
                 bi = BandLUTInfo.fromString(s)
                 s = fileobj.readline()
@@ -408,7 +410,6 @@ class ViewerLUT(QObject):
                     gdaldataset.GetMetadataItem(VIEWER_LUT_SURROGATE_KEY))
                 if (obj is not None and surrogateString is not None and 
                         surrogateString != ''):
-                    from .viewerRAT import ViewerRAT
                     surrogateInfo = json.loads(surrogateString)
                     name = surrogateInfo['colname']
                     gdalband = gdaldataset.GetRasterBand(stretch.bands[0])
@@ -615,11 +616,9 @@ class ViewerLUT(QObject):
             nstddev = stretch.stretchparam[0]
 
             stretchMin = mean - (nstddev * stdDev)
-            if stretchMin < minVal:
-                stretchMin = minVal
+            stretchMin = max(stretchMin, minVal)
             stretchMax = mean + (nstddev * stdDev)
-            if stretchMax > maxVal:
-                stretchMax = maxVal
+            stretchMax = min(stretchMax, maxVal)
 
         elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
 
@@ -681,10 +680,10 @@ class ViewerLUT(QObject):
             try:
                 lut[stretchMin:stretchMax] = numpy.linspace(0, 255, 
                                                 num=stretchRange)
-            except ValueError:
+            except ValueError as exc:
                 # make more useful error message
                 msg = "Length of Attribute Table doesn't match range of data"
-                raise ValueError(msg)
+                raise ValueError(msg) from exc
             # 0 and 255 outside this range
             lut[0:stretchMin] = 0
             lut[stretchMax:] = 255
@@ -820,7 +819,7 @@ class ViewerLUT(QObject):
                 self.endProgress.emit()
         else:
             # local stats - use numpy on localdata
-            histo, bins = numpy.histogram(localdata, numBins)
+            histo, _ = numpy.histogram(localdata, numBins)
 
         return histo
 
@@ -965,7 +964,6 @@ class ViewerLUT(QObject):
                 background_value)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR:
-            from . import pseudocolor
             # make sure we have any other ramps loaded
             pseudocolor.loadExtraRamps()
 

@@ -51,7 +51,7 @@ VIEWER_DEFAULT_HISTMAX = 0.01
 VIEWER_DEFAULT_NOCOLOR = (0, 0, 0, 0)
 
 
-class ViewerStretch(object):
+class ViewerStretch:
     """
     Class that represents the stretch. 
     Use the methods here to set the type of
@@ -249,7 +249,7 @@ VIEWER_COMP_GT = 1  # greater than
 VIEWER_COMP_EQ = 2  # equal
 
 
-class StretchRule(object):
+class StretchRule:
     """
     Class that represents a 'rule' and a stretch
     to be applied when that rule matches.

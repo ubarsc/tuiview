@@ -1,4 +1,4 @@
-name: Flake8 Lint And Test Build
+name: PyLint And Test Build
 
 on:
   push:
@@ -16,19 +16,25 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v2
       with:
         miniforge-version: latest
-        miniforge-variant: Mambaforge
     - name: Install Dependencies
       shell: bash -l {0}
       run: |
-        conda install flake8 gdal
-    - name: Lint with flake8
-      shell: bash -l {0}
-      run: |
-        flake8 tuiview
+        sudo apt-get install libegl1 libglu1-mesa
+        conda install pylint flake8 gdal pyside6
     - name: Test Build
       shell: bash -l {0}
       run: |
         pip install .        
+    - name: Lint with pylint
+      shell: bash -l {0}
+      run: |
+        python -c 'from PySide6.QtGui import QImage'
+        cp build/lib.*/tuiview/*.so tuiview/
+        pylint tuiview/*.py
+    - name: Lint with flake8
+      shell: bash -l {0}
+      run: |
+        flake8
 
   build-windows:
     name: Test Windows
@@ -43,11 +49,7 @@ jobs:
     - name: Install Dependencies
       shell: bash -el {0}
       run: |
-        conda install flake8 gdal
-    - name: Lint with flake8
-      shell: bash -el {0}
-      run: |
-        flake8 tuiview
+        conda install gdal
     - name: Test Build
       shell: bash -el {0}
       run: |

@@ -20,19 +20,20 @@ and StretchDefaultsDialog classes
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtWidgets import QDialog, QFormLayout, QGridLayout, QVBoxLayout
-from PyQt5.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QAction, QLabel
-from PyQt5.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
-from PyQt5.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
-from PyQt5.QtWidgets import QToolButton, QColorDialog, QMessageBox
-from PyQt5.QtGui import QIcon, QPixmap, QColor
-from PyQt5.QtCore import QSettings, Qt
-import json
 import os
+import json
+from PySide6.QtWidgets import QDialog, QFormLayout, QGridLayout, QVBoxLayout
+from PySide6.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QLabel
+from PySide6.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
+from PySide6.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
+from PySide6.QtWidgets import QToolButton, QColorDialog, QMessageBox
+from PySide6.QtGui import QIcon, QPixmap, QColor, QAction
+from PySide6.QtCore import QSettings, Qt
 
 from . import viewerstretch
 from . import pseudocolor
 from .viewerstrings import MESSAGE_TITLE
+from . import viewerwindow
 
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),
@@ -458,7 +459,7 @@ class StretchLayout(QFormLayout):
         Updates other GUI elements as needed
         """
         mode = self.modeCombo.itemData(index)
-        greenredEnabled = (mode == viewerstretch.VIEWER_MODE_RGB)
+        greenredEnabled = mode == viewerstretch.VIEWER_MODE_RGB
         self.greenWidget.setEnabled(greenredEnabled)
         self.blueWidget.setEnabled(greenredEnabled)
         if greenredEnabled:
@@ -1032,7 +1033,7 @@ class StretchDockWidget(QDockWidget):
         """
         Export stretch and Lookup Table to JSON text
         """
-        fname, filter = QFileDialog.getSaveFileName(self, 
+        fname, _ = QFileDialog.getSaveFileName(self, 
                     "Select file to save stretch and lookup table into",
                     os.getcwd(), STRETCH_FILTER)
         if fname != "":
@@ -1046,15 +1047,13 @@ class StretchDockWidget(QDockWidget):
         Import stretch and lookup table from file where these have already 
         been saved
         """
-        from . import viewerwindow
-
         viewerwindow.populateFilters()       
         dlg = QFileDialog(self)
         dlg.setNameFilters(viewerwindow.GDAL_FILTERS)
         dlg.setFileMode(QFileDialog.ExistingFile)
         # set last dir
-        dir = os.path.dirname(self.layer.filename)
-        dlg.setDirectory(dir)
+        dirn = os.path.dirname(self.layer.filename)
+        dlg.setDirectory(dirn)
 
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
@@ -1076,7 +1075,7 @@ class StretchDockWidget(QDockWidget):
         """
         Import stretch and lookup table from text file saved by exportToText()
         """
-        fname, filter = QFileDialog.getOpenFileName(self, 
+        fname, _ = QFileDialog.getOpenFileName(self, 
                     "Select file containing stretch and lookup table",
                     os.getcwd(), STRETCH_FILTER)
         if fname != "":

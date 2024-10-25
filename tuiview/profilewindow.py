@@ -19,13 +19,16 @@ Module that contains the ProfileDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QPen, QIcon
-from PyQt5.QtWidgets import QDockWidget, QWidget, QToolBar, QVBoxLayout, QLabel
-from PyQt5.QtWidgets import QAction
-from PyQt5.QtCore import Qt, pyqtSignal, QLocale
+from PySide6.QtGui import QPen, QIcon
+from PySide6.QtWidgets import QDockWidget, QWidget, QToolBar, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QFileDialog
+from PySide6.QtGui import QAction, QPainter, QPageLayout
+from PySide6.QtCore import Qt, Signal, QLocale, QPoint
+from PySide6.QtPrintSupport import QPrinter
 import numpy
 
 from . import plotwidget
+from .plotscalingdialog import PlotScalingDialog
 
 
 class ProfileDockWidget(QDockWidget):
@@ -33,7 +36,7 @@ class ProfileDockWidget(QDockWidget):
     Dockable window that is a combined profile and ruler
     """
     # signals
-    profileClosed = pyqtSignal(QDockWidget, name='profileClosed')
+    profileClosed = Signal(QDockWidget, name='profileClosed')
     "emitted when Window closed"
 
     def __init__(self, parent, viewwidget):
@@ -118,20 +121,17 @@ class ProfileDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt5.QtPrintSupport import QPrinter
-        from PyQt5.QtWidgets import QFileDialog
-        from PyQt5.QtGui import QPainter
-        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
+        fname, _ = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
-            printer.setOrientation(QPrinter.Landscape)
+            printer.setPageOrientation(QPageLayout.Landscape)
             printer.setColorMode(QPrinter.Color)
             printer.setOutputFileName(fname)
             printer.setResolution(96)
             painter = QPainter()
             painter.begin(printer)
-            self.plotWidget.render(painter)
+            self.plotWidget.render(painter, QPoint())
             painter.end()
 
     def plotProfile(self, xdata, ydata, mask, pen):
@@ -197,9 +197,9 @@ class ProfileDockWidget(QDockWidget):
 
                 self.plotProfile(distance, data, profilemask, pen)
         
-                if minValue is None or bandMinValue < bandMinValue:
+                if minValue is None or minValue < bandMinValue:
                     minValue = bandMinValue
-                if maxValue is None or bandMaxValue > maxValue:
+                if maxValue is None or maxValue > bandMaxValue:
                     maxValue = bandMaxValue
         else:
             # greyscale
@@ -239,7 +239,6 @@ class ProfileDockWidget(QDockWidget):
         """
         Allows the user to change the Y axis scaling of the plot
         """
-        from .plotscalingdialog import PlotScalingDialog
         if self.dataRange is not None:
             minValue, maxValue = self.dataRange
             # should inherit type of minValue etc

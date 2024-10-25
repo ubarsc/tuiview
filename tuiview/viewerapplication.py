@@ -21,12 +21,13 @@ Module contains the ViewerApplication class
 
 import sys
 import argparse
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from . import archivereader
 from . import geolinkedviewers
 from . import viewerstretch
 from .viewerstrings import MESSAGE_TITLE
+from .viewerwidget import GeolinkInfo
 
 # True if we can't print to stderr etc
 # (because we have been started in "GUI" mode on Windows)
@@ -330,7 +331,6 @@ class ViewerApplication(QApplication):
 
         # goto a location
         if cmdargs.goto is not None:
-            from tuiview.viewerwidget import GeolinkInfo
             arr = cmdargs.goto.split(',')
             if len(arr) != 3:
                 msg = "goto usage: 'easting,northing,factor'"

@@ -18,15 +18,18 @@ Module that contains the QueryDockWidget
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
-from PyQt5.QtGui import QFontMetrics, QMouseEvent
-from PyQt5.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
-from PyQt5.QtWidgets import QToolBar, QAction, QMessageBox, QHeaderView
-from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QTabWidget, QScrollBar
-from PyQt5.QtWidgets import QToolButton, QComboBox
-from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel
+from PySide6.QtGui import QPixmap, QBrush, QDoubleValidator, QIcon, QPen, QColor
+from PySide6.QtGui import QMouseEvent, QAction, QPainter, QPageLayout
+from PySide6.QtWidgets import QDockWidget, QTableView, QColorDialog, QMenu
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLineEdit, QWidget
+from PySide6.QtWidgets import QToolBar, QMessageBox, QHeaderView
+from PySide6.QtWidgets import QStyle, QTabWidget, QScrollBar
+from PySide6.QtWidgets import QToolButton, QComboBox, QInputDialog, QFileDialog
+from PySide6.QtCore import Signal, Qt, QAbstractTableModel, QPoint
+from PySide6.QtPrintSupport import QPrinter
+
 import numpy
+from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
 
 from .viewerstretch import VIEWER_MODE_RGB, VIEWER_MODE_GREYSCALE
 from .viewerstretch import VIEWER_MODE_COLORTABLE
@@ -37,10 +40,15 @@ from . import viewererrors
 from .viewerstrings import MESSAGE_TITLE
 from . import plotwidget
 from .viewerRAT import GDAL_COLTYPE_LOOKUP, GDAL_COLUSAGE_LOOKUP
+from .viewerLUT import ViewerLUT
+from .addcolumndialog import AddColumnDialog
+from .plotscalingdialog import PlotScalingDialog
 
 QUERYWIDGET_DEFAULT_CURSORCOLOR = Qt.white
 QUERYWIDGET_DEFAULT_CURSORSIZE = 8
 QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR = QColor(Qt.yellow)
+QUERYWIDGET_DEFAULT_SELECTCOLOR = QColor(Qt.darkBlue)
+QUERYWIDGET_DEFAULT_SELECTTEXT = QColor(Qt.white)
 
 RAT_CACHE_CHUNKSIZE = 1000
 
@@ -95,6 +103,8 @@ class ThematicTableModel(QAbstractTableModel):
         self.attCache = attributes.getCacheObject(RAT_CACHE_CHUNKSIZE) 
         self.highlightBrush = QBrush(QUERYWIDGET_DEFAULT_HIGHLIGHTCOLOR)
         self.highlightRow = -1
+        self.selectBrush = QBrush(QUERYWIDGET_DEFAULT_SELECTCOLOR)
+        self.selectText = QBrush(QUERYWIDGET_DEFAULT_SELECTTEXT)
         self.lookupColIcon = QIcon(":/viewer/images/arrowup.png")
 
         self.geomChanged()    
@@ -151,8 +161,7 @@ class ThematicTableModel(QAbstractTableModel):
         self.scroll.sliderPosition() again, but for selection this 
         doesn't work as they may have started the selection then scrolled
         down and ended the selection so we need to know the slider position
-        for each index. This is espcially useful for the ItemDelegate
-        which otherwise has no way of knowing what the scroll position was
+        for each index. 
         
         The other obvious thing to do is to add the slider position onto the
         current row, but things get weird as sometimes Qt passes me a row
@@ -232,9 +241,9 @@ class ThematicTableModel(QAbstractTableModel):
             self.headerDataChanged.emit(Qt.Horizontal, 0, 
                         self.columnCount(None) - 1)
                         
-        if updateVertHeader:
-            self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
-
+        # for some reason in Qt6 things don't get repainted at all unless we do this
+        self.headerDataChanged.emit(Qt.Vertical, 0, self.rowCount(None) - 1)
+            
     def setHighlightRow(self, row):
         """
         Called by setupTableThematic to indicate 
@@ -356,10 +365,20 @@ class ThematicTableModel(QAbstractTableModel):
 
         # convert back to a row within the file
         row = index.internalId() + index.row()
-        if role == Qt.BackgroundRole and row == self.highlightRow:
-            return self.highlightBrush
+        if role == Qt.BackgroundRole:
+            if row == self.highlightRow:
+                return self.highlightBrush
+            if (self.parent.selectionArray is not None and
+                    row < self.parent.selectionArray.shape[0] and
+                    self.parent.selectionArray[row]):
+                return self.selectBrush
+        elif (role == Qt.ForegroundRole and 
+                self.parent.selectionArray is not None and
+                row < self.parent.selectionArray.shape[0] and
+                self.parent.selectionArray[row]):
+            return self.selectText
 
-        if role == Qt.DisplayRole: 
+        elif role == Qt.DisplayRole: 
             column = index.column()
             if self.attributes.hasColorTable:
                 if column == 0:
@@ -388,8 +407,7 @@ class ThematicTableModel(QAbstractTableModel):
             else:
                 return None
 
-        else:
-            return None
+        return None
 
 
 class ContinuousTableModel(QAbstractTableModel):
@@ -431,7 +449,7 @@ class ContinuousTableModel(QAbstractTableModel):
         if updateHorizHeader:
             self.headerDataChanged.emit(Qt.Horizontal, 0, 
                         self.rowCount(None) - 1)
-
+                        
     def rowCount(self, parent):
         "returns the number of rows"
         return len(self.bandNames)
@@ -496,28 +514,6 @@ class ContinuousTableModel(QAbstractTableModel):
 
         else:
             return None
-
-
-class ThematicItemDelegate(QStyledItemDelegate):
-    """
-    Because we can't override the isSelected method of the modelselection
-    we draw the selected state via the item delegate paint method as needed
-    """
-    def __init__(self, parent):
-        QStyledItemDelegate.__init__(self, parent)
-        self.parent = parent
-
-    def paint(self, painter, option, index):
-        "Paint method - paint as selected if needed"
-        row = index.internalId() + index.row()
-        
-        if (self.parent.selectionArray is not None and
-                row < self.parent.selectionArray.shape[0] and
-                self.parent.selectionArray[row]):
-            option.state |= QStyle.State_Selected
-        # shouldn't have to un-select as nothing should be selected
-        # according to the model
-        QStyledItemDelegate.paint(self, painter, option, index)
 
 
 MOVE_LEFT = 0
@@ -601,7 +597,6 @@ class ThematicHorizontalHeader(QHeaderView):
     def contextMenuEvent(self, event):
         "Respond to context menu event"
         if self.thematic:
-            from osgeo.gdal import GFT_Real, GFT_String
             col = self.logicalIndexAt(event.pos())
             attributes = self.parent.lastLayer.attributes
 
@@ -648,7 +643,7 @@ class ThematicVerticalHeader(QHeaderView):
     model to handle selection. In thematic mode only, 
     otherwise behaves the same as the real thing.
     """
-    clicked = pyqtSignal(QMouseEvent, name='clicked')
+    clicked = Signal(QMouseEvent, name='clicked')
     "emitted when header clicked"
     
     def __init__(self, parent):
@@ -697,8 +692,7 @@ class QueryTableView(QTableView):
             pos = scroll.sliderPosition()
             step = scroll.singleStep()
             newpos = int(pos + dy * step)
-            if newpos < 0:
-                newpos = 0
+            newpos = max(newpos, 0)
             self.parent.thematicScrollBar.setSliderPosition(newpos)
             
     def mousePressEvent(self, e):
@@ -718,7 +712,7 @@ class QueryDockWidget(QDockWidget):
     signal from ViewerWidget. 
     """
     # signals
-    queryClosed = pyqtSignal(QDockWidget, name='queryClosed')
+    queryClosed = Signal(QDockWidget, name='queryClosed')
     "emitted when window closed"
 
     def __init__(self, parent, viewwidget):
@@ -791,11 +785,6 @@ class QueryDockWidget(QDockWidget):
         # the model - this is None by default - changed if 
         # it is a thematic view
         self.tableModel = None
-        # the delegate - this renders the rows with optional selection
-        # style. Ideally we would overried the selection model but
-        # QItemSelectionModel.isSelected not virtual...
-        self.tableDelegate = ThematicItemDelegate(self)
-        self.tableView.setItemDelegate(self.tableDelegate)
 
         # our numpy array that contains the selections
         # None by default and for Continuous
@@ -818,15 +807,11 @@ class QueryDockWidget(QDockWidget):
         # text entered via keypad since last return
         self.keyboardData = None
 
-        # now make sure the size of the rows matches the font we are using
-        font = self.tableView.viewOptions().font
-        fm = QFontMetrics(font)
         # add 3 pixels as some platforms (Windows, Solaris) need a few more
         # as the vertical header has a 'box' around it and font 
         # ends up squashed otherwise
-        height = fm.height() + 3
+        height = self.tableView.rowHeight(0) + 3
         # default height actually controlled by headers
-        # don't worry about QItemDelegate etc
         self.tableView.verticalHeader().setDefaultSectionSize(height)
 
         self.plotWidget = plotwidget.PlotLineWidget(self)
@@ -1142,27 +1127,23 @@ class QueryDockWidget(QDockWidget):
         Save the plot as a file. Either .pdf or .ps QPrinter
         chooses format based on extension.
         """
-        from PyQt5.QtGui import QPainter
-        from PyQt5.QtPrintSupport import QPrinter
-        from PyQt5.QtWidgets import QFileDialog
-        fname, filter = QFileDialog.getSaveFileName(self, "Plot File", 
+        fname, _ = QFileDialog.getSaveFileName(self, "Plot File", 
                     filter="PDF (*.pdf);;Postscript (*.ps)")
         if fname != '':
             printer = QPrinter()
-            printer.setOrientation(QPrinter.Landscape)
+            printer.setPageOrientation(QPageLayout.Landscape)
             printer.setColorMode(QPrinter.Color)
             printer.setOutputFileName(fname)
             printer.setResolution(96)
             painter = QPainter()
             painter.begin(printer)
-            self.plotWidget.render(painter)
+            self.plotWidget.render(painter, QPoint())
             painter.end()
 
     def onPlotScaling(self):
         """
         Allows the user to change the Y axis scaling of the plot
         """
-        from .plotscalingdialog import PlotScalingDialog
         if self.lastqi is not None:
             data = self.lastqi.data
         else:
@@ -1203,7 +1184,7 @@ class QueryDockWidget(QDockWidget):
             self.viewwidget.highlightValues(self.highlightColor,
                                 self.selectionArray)
         
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.curSel = None
         self.tableModel.doUpdate()
 
@@ -1219,7 +1200,7 @@ class QueryDockWidget(QDockWidget):
             self.viewwidget.highlightValues(self.highlightColor,
                                 self.selectionArray)
 
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.doUpdate()
 
     def showUserExpression(self):
@@ -1238,7 +1219,7 @@ Use the special columns:
 'queryrow' is the currently queried row and
 'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
-        dlg.newExpression['QString'].connect(self.newSelectUserExpression)
+        dlg.newExpression[str].connect(self.newSelectUserExpression)
         dlg.show()
         
     def previousSelected(self):
@@ -1255,14 +1236,14 @@ Use the special columns:
             self.lastLayer.changeUpdateAccess(state)
             self.tableModel.doUpdate(True)
             self.setUIUpdateState(state)
-        except IOError:
+        except IOError as exc:
             msg = """TuiView was unable to re-open the dataset
 The file no longer exists or is inaccessible.
 The application will now exit."""
-            # unfortunaltely we cannot display the messagebox
+            # unfortunately we cannot display the messagebox
             # since Qt will still want to redraw the RAT 
             # which we don't have access to. So just exit
-            raise SystemExit(msg)
+            raise SystemExit(msg) from exc
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
             state = self.lastLayer.updateAccess
@@ -1337,7 +1318,7 @@ The application will now exit."""
             self.scrollToFirstSelected()
 
             self.updateToolTip()
-            # so we repaint and our itemdelegate gets called
+            # so we repaint
             self.tableModel.doUpdate()
 
         except viewererrors.UserExpressionError as e:
@@ -1347,8 +1328,6 @@ The application will now exit."""
         """
         User wants to add a column
         """
-        from .addcolumndialog import AddColumnDialog
-
         attributes = self.lastLayer.attributes
         dlg = AddColumnDialog(self)
         if dlg.exec_() == AddColumnDialog.Accepted:
@@ -1378,7 +1357,7 @@ Use the special columns:
 'isselected' for the currently selected rows and
 'queryrow' is the currently queried row"""
         dlg.setHint(hint)
-        dlg.newExpression['QString', int].connect(self.newEditUserExpression)
+        dlg.newExpression[str, int].connect(self.newEditUserExpression)
 
         # should be modal?
         dlg.show()
@@ -1468,10 +1447,10 @@ Use the special columns:
             self.tableModel.doUpdate()
 
             # was a color table column?
-            if (col == attributes.redColumnIdx or 
-                    col == attributes.greenColumnIdx or
-                    col == attributes.blueColumnIdx or
-                    col == attributes.alphaColumnIdx):
+            if col in (attributes.redColumnIdx, 
+                    attributes.greenColumnIdx,
+                    attributes.blueColumnIdx,
+                    attributes.alphaColumnIdx):
                 self.updateColorTableInWidget()
 
             # is this a the lookup column?
@@ -1514,7 +1493,6 @@ Use the special columns:
         Allows the user to set the number of decimal places for
         float columns
         """
-        from PyQt5.QtWidgets import QInputDialog
         attributes = self.lastLayer.attributes
         currFormat = attributes.getFormat(colName)
         currDP = int(currFormat[2:-1])  # dodgy but should be ok
@@ -1530,7 +1508,6 @@ Use the special columns:
         Allows the user to specify a column to be used
         to lookup the color table
         """
-        from .viewerLUT import ViewerLUT
         attributes = self.lastLayer.attributes
         if colName == attributes.getLookupColName():
             # toggle off
@@ -1552,7 +1529,6 @@ Use the special columns:
                 tablename = list(tables.keys())[0]
             else:
                 # need to ask them which one
-                from PyQt5.QtWidgets import QInputDialog
                 (tablename, ok) = QInputDialog.getItem(self, MESSAGE_TITLE,
                     "Select color table", list(tables.keys()), editable=False)
                 if not ok:
@@ -1655,7 +1631,7 @@ Use the special columns:
 
         self.scrollToFirstSelected()
         self.updateToolTip()
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.doUpdate()
 
         # so keyboard entry etc works
@@ -1671,7 +1647,7 @@ Use the special columns:
             return
             
         # lineInfo is an instance of PolylineToolInfo
-        data, mask, distance = lineInfo.getProfile()
+        data, mask, _ = lineInfo.getProfile()
         # we only interested where mask == True
         idx = numpy.unique(data.compress(mask))
 
@@ -1690,7 +1666,7 @@ Use the special columns:
 
         self.scrollToFirstSelected()
         self.updateToolTip()
-        # so we repaint and our itemdelegate gets called
+        # so we repaint
         self.tableModel.doUpdate()
 
         # so keyboard entry etc works
@@ -1898,7 +1874,7 @@ Use the special columns:
 
             self.scrollToFirstSelected()
             self.updateToolTip()
-            # so we repaint and our itemdelegate gets called
+            # so we repaint
             self.tableModel.doUpdate()
 
             # so keyboard entry etc works
@@ -2021,10 +1997,9 @@ Use the special columns:
         User has pressed a key. See if we are recording keystrokes
         and updating attribute columns
         """
-        from osgeo.gdal import GFT_Real, GFT_Integer, GFT_String
         if self.keyboardData is not None:
             key = event.key()
-            if key == Qt.Key_Enter or key == Qt.Key_Return:
+            if key in (Qt.Key_Enter, Qt.Key_Return):
                 try:
                     attributes = self.lastLayer.attributes
                     colname = self.keyboardEditColumn

@@ -19,11 +19,11 @@ Module that contains the ViewerPreferences class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
-from PyQt5.QtWidgets import QPushButton, QGroupBox, QButtonGroup, QLabel
-from PyQt5.QtWidgets import QSpinBox, QCheckBox
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import QSettings, Qt
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
+from PySide6.QtWidgets import QPushButton, QGroupBox, QButtonGroup, QLabel
+from PySide6.QtWidgets import QSpinBox, QCheckBox
+from PySide6.QtGui import QColor
+from PySide6.QtCore import QSettings, Qt
 from .stretchdialog import ColorButton
 from .plotwidget import DEFAULT_FONT_SIZE
 
@@ -133,6 +133,13 @@ class ViewerPreferencesDialog(QDialog):
         self.setLayout(self.mainLayout)
 
         self.resize(400, 300)
+        
+        self.settingMouseWheelZoom = None
+        self.settingQueryOnlyDisplayed = None
+        self.settingPlotFontSize = None
+        self.settingBackgroundColor = None
+        self.settingMouseWheelZoom = None
+        self.settingArrangeLayersOpen = None
 
     def restoreFromSettings(self):
         """

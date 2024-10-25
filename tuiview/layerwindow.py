@@ -18,10 +18,10 @@ Module that contains the LayerWindow class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PyQt5.QtGui import QIcon, QColor
-from PyQt5.QtWidgets import QDockWidget, QListView, QMenu, QAbstractItemView
-from PyQt5.QtWidgets import QAction, QInputDialog, QColorDialog
-from PyQt5.QtCore import QAbstractListModel, Qt, pyqtSignal
+from PySide6.QtGui import QIcon, QColor, QAction
+from PySide6.QtWidgets import QDockWidget, QListView, QMenu, QAbstractItemView
+from PySide6.QtWidgets import QInputDialog, QColorDialog
+from PySide6.QtCore import QAbstractListModel, Qt, Signal
 
 from . import viewerlayers
 from . import stretchdialog
@@ -95,7 +95,7 @@ class LayerItemModel(QAbstractListModel):
         if role == Qt.CheckStateRole:
             state = value
             layer = self.getLayer(index)
-            state = state == Qt.Checked
+            state = Qt.CheckState(state) == Qt.Checked
             self.viewwidget.layers.setDisplayedState(layer, state)
 
             # redraw
@@ -353,7 +353,7 @@ class LayerListView(QListView):
             linewidth = layer.getLineWidth()            
                 
             linewidth, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
-                "Enter line width", value=linewidth, min=0, max=100)
+                "Enter line width", value=linewidth, minValue=0, maxValue=100)
             if ok:
                 layer.setLineWidth(linewidth)
                 layer.getImage()
@@ -371,7 +371,7 @@ class LayerListView(QListView):
             crossHairSize = layer.getHalfCrossSize()
                 
             crossHairSize, ok = QInputDialog.getInt(self, MESSAGE_TITLE, 
-                "Enter half crosshair size", value=crossHairSize, min=0, max=100)
+                "Enter half crosshair size", value=crossHairSize, minValue=0, maxValue=100)
             if ok:
                 layer.setHalfCrossSize(crossHairSize)
                 layer.getImage()
@@ -464,7 +464,7 @@ class LayerWindow(QDockWidget):
     Contains a list view
     """
     # signals
-    layerWindowClosed = pyqtSignal('QDockWidget', name='layerWindowClosed')
+    layerWindowClosed = Signal('QDockWidget', name='layerWindowClosed')
     "signal emitted when window closed"
 
     def __init__(self, parent, viewwidget):

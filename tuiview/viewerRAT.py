@@ -19,11 +19,13 @@ Contains the ViewerRAT class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import sys
+import traceback
+import json
 import keyword
 import numpy
-import json
 from osgeo import gdal
-from PyQt5.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from . import viewererrors
 
@@ -62,9 +64,6 @@ def formatException(code):
     """
     Formats an exception for display and returns string
     """
-    import sys
-    import traceback
-  
     # extract the current traceback and turn it into a list
     (ttype, value, tb) = sys.exc_info()
     stack = traceback.extract_tb(tb)
@@ -96,9 +95,21 @@ class ViewerRAT(QObject):
     to read from GDAL. Also will apply a user expression.
     """
     # signals
-    newProgress = pyqtSignal('QString', name='newProgress')
-    newPercent = pyqtSignal(int, name='newPercent')
-    endProgress = pyqtSignal(name='endProgress')
+    newProgress = Signal('QString', name='newProgress')
+    newPercent = Signal(int, name='newPercent')
+    endProgress = Signal(name='endProgress')
+    columnNames = None  # list
+    columnTypes = None  # dict
+    columnUsages = None  # dict
+    columnFormats = None  # dict
+    lookupColName = None  # string
+    gdalRAT = None  # object
+    redColumnIdx = None  # int
+    greenColumnIdx = None  # int
+    blueColumnIdx = None  # int
+    alphaColumnIdx = None  # int
+    hasColorTable = False
+    attributeData = None
 
     def __init__(self):
         QObject.__init__(self)
@@ -491,9 +502,9 @@ class ViewerRAT(QObject):
 
             try:
                 resultSub = eval(expression, globaldict)
-            except Exception:
+            except Exception as exc:
                 msg = formatException(expression)
-                raise viewererrors.UserExpressionSyntaxError(msg)
+                raise viewererrors.UserExpressionSyntaxError(msg) from exc
 
             # check type of result
             if not isinstance(resultSub, numpy.ndarray):
@@ -529,6 +540,7 @@ class ViewerRAT(QObject):
         done = False
         isScalar = False  # user code returns a scalar - we 
         # can take shortcuts since not all the cols need to be read
+        resultSub = None
 
         while currRow < nrows and not done:
 
@@ -552,9 +564,9 @@ class ViewerRAT(QObject):
                     # all calls should be the same
                     try:
                         resultSub = eval(expression, globaldict)
-                    except Exception:
+                    except Exception as exc:
                         msg = formatException(expression)
-                        raise viewererrors.UserExpressionSyntaxError(msg)
+                        raise viewererrors.UserExpressionSyntaxError(msg) from exc
 
                 cache.updateColumn(colName, resultSub, isselected)
 
@@ -629,7 +641,7 @@ class ViewerRAT(QObject):
         return columns, name
 
 
-class RATCache(object):
+class RATCache:
     """
     Class that caches a 'chunk' of the RAT
     """

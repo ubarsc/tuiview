@@ -24,22 +24,45 @@ import os
 import sys
 import glob
 import traceback
-from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QDialog
-from PyQt5.QtWidgets import QMessageBox, QProgressBar, QToolButton
-from PyQt5.QtWidgets import QMenu, QLineEdit, QPushButton
-from PyQt5.QtGui import QIcon, QColor, QImage
-from PyQt5.QtCore import QSettings, QSize, QPoint, pyqtSignal, Qt
-from PyQt5.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QDialog
+from PySide6.QtWidgets import QMessageBox, QProgressBar, QToolButton
+from PySide6.QtWidgets import QMenu, QLineEdit, QPushButton, QInputDialog
+from PySide6.QtGui import QIcon, QColor, QImage, QAction
+from PySide6.QtCore import QSettings, QSize, QPoint, Signal, Qt
+from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6 import __version__ as PYSIDE_VERSION_STR
+from PySide6.QtCore import __version__ as QT_VERSION_STR
+from numpy import version as numpyVersion
+from osgeo import gdal
+from osgeo import ogr
+from osgeo.gdal import __version__ as gdalVersion
+from osgeo.gdal import DMD_LONGNAME, DMD_EXTENSION
 
-from . import viewerresources  # noqa
+from .vectorrasterizer import (FONT_FAMILY, FONT_POINTSIZE, 
+        FONT_WEIGHT, FONT_ITALIC)
 from . import archivereader
 from . import viewerwidget
 from . import viewererrors
 from . import querywindow
+from . import viewerpreferences
+from . import viewerLUT
+from . import propertieswindow
+from . import profilewindow
+from . import vectorquerywindow
+from . import stretchdialog
+from . import layerwindow
+from . import vectoropendialog
+from . import viewerstretch
+from . import viewerresources  # noqa pylint: disable=unused-import
+from .tiledialog import TileDialog
 from .viewerstrings import MESSAGE_TITLE
+from . import TUIVIEW_VERSION
+
+gdal.UseExceptions()
+ogr.UseExceptions()
 
 # set to True to see traceback when file open fails
-SHOW_TRACEBACK = (os.getenv('TUIVIEW_SHOW_TRACEBACK', '0') == '1')
+SHOW_TRACEBACK = os.getenv('TUIVIEW_SHOW_TRACEBACK', '0') == '1'
 
 DEFAULT_XSIZE = 400
 DEFAULT_YSIZE = 400
@@ -73,7 +96,6 @@ def createFilter(driver):
     Given a GDAL driver, creates the Qt QFileDialog
     compatible filter for the file type
     """
-    from osgeo.gdal import DMD_LONGNAME, DMD_EXTENSION
     drivermeta = driver.GetMetadata()
     name = 'Image Files'
     if DMD_LONGNAME in drivermeta:
@@ -95,7 +117,6 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
     all the GDAL supported files.
     If a default driver is specified it goes first on the list
     """
-    from osgeo import gdal
     global GDAL_FILTERS
     # only bother if it hasn't been populated already
     if GDAL_FILTERS is None:
@@ -187,20 +208,23 @@ class ViewerWindow(QMainWindow):
     contained in the 'viewwidget' attribute.
     """
     # signals
-    newWindowSig = pyqtSignal(name='newWindow')
+    newWindowSig = Signal(name='newWindow')
     "new window created"
-    tileWindowsSig = pyqtSignal(int, int, object, name='tileWindows')
+    tileWindowsSig = Signal(int, int, object, name='tileWindows')
     "user has requested that the windows are tiles"
-    newQueryWindowSig = pyqtSignal(querywindow.QueryDockWidget,
+    newQueryWindowSig = Signal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
     "user has opened a new query window"
-    closeAllWindowsSig = pyqtSignal(name='closeAllWindows')
+    closeAllWindowsSig = Signal(name='closeAllWindows')
     "close all tuiview windows"
     # Don't know how to specify file objects...
-    writeViewersState = pyqtSignal(object, name='writeViewersState')
+    writeViewersState = Signal(object, name='writeViewersState')
     "write viewer state to a file"
-    readViewersState = pyqtSignal(object, name='readViewersState')
+    readViewersState = Signal(object, name='readViewersState')
     "read viewer state from a tile"
+    
+    backgroundColor = None
+    mouseWheelZoom = None
 
     def __init__(self):
         QMainWindow.__init__(self)
@@ -619,16 +643,16 @@ class ViewerWindow(QMainWindow):
         # Actions just for keyboard shortcuts
 
         self.moveUpAct = QAction(self, triggered=self.moveUp)
-        self.moveUpAct.setShortcut(Qt.CTRL + Qt.Key_Up)
+        self.moveUpAct.setShortcut(Qt.CTRL | Qt.Key_Up)
 
         self.moveDownAct = QAction(self, triggered=self.moveDown)
-        self.moveDownAct.setShortcut(Qt.CTRL + Qt.Key_Down)
+        self.moveDownAct.setShortcut(Qt.CTRL | Qt.Key_Down)
 
         self.moveLeftAct = QAction(self, triggered=self.moveLeft)
-        self.moveLeftAct.setShortcut(Qt.CTRL + Qt.Key_Left)
+        self.moveLeftAct.setShortcut(Qt.CTRL | Qt.Key_Left)
 
         self.moveRightAct = QAction(self, triggered=self.moveRight)
-        self.moveRightAct.setShortcut(Qt.CTRL + Qt.Key_Right)
+        self.moveRightAct.setShortcut(Qt.CTRL | Qt.Key_Right)
 
         self.addAction(self.moveUpAct)
         self.addAction(self.moveDownAct)
@@ -739,7 +763,6 @@ class ViewerWindow(QMainWindow):
         dialog to allow number to be selected, then send signal
         to GeolinkedViewers class (if there is one!)
         """
-        from .tiledialog import TileDialog
         winHandle = self.windowHandle()
         screen = winHandle.screen()
         name = None
@@ -755,7 +778,6 @@ class ViewerWindow(QMainWindow):
         """
         Show the default stretch dialog
         """
-        from . import stretchdialog
         dlg = stretchdialog.StretchDefaultsDialog(self)
         dlg.exec_()
 
@@ -772,14 +794,14 @@ class ViewerWindow(QMainWindow):
         # set last dir
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is not None:
-            dir = os.path.dirname(layer.filename)
-            if dir == '':
-                dir = os.getcwd()
+            dirn = os.path.dirname(layer.filename)
+            if dirn == '':
+                dirn = os.getcwd()
         else:
             # or cwd
-            dir = os.getcwd()
+            dirn = os.getcwd()
 
-        dlg.setDirectory(dir)
+        dlg.setDirectory(dirn)
 
         if dlg.exec_() == QDialog.Accepted:
             file_list = dlg.selectedFiles()
@@ -798,14 +820,14 @@ class ViewerWindow(QMainWindow):
         # set last dir
         layer = self.viewwidget.layers.getTopVectorLayer()
         if layer is not None:
-            dir = os.path.dirname(layer.filename)
-            if dir == '':
-                dir = os.getcwd()
+            dirn = os.path.dirname(layer.filename)
+            if dirn == '':
+                dirn = os.getcwd()
         else:
             # or cwd
-            dir = os.getcwd()
+            dirn = os.getcwd()
 
-        dlg.setDirectory(dir)
+        dlg.setDirectory(dirn)
 
         if dlg.exec_() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
@@ -825,17 +847,16 @@ class ViewerWindow(QMainWindow):
             # or cwd
             olddir = os.getcwd()
 
-        dir = QFileDialog.getExistingDirectory(self, "Choose vector directory",
+        dirn = QFileDialog.getExistingDirectory(self, "Choose vector directory",
             directory=olddir,
             options=QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
-        if dir != "":
-            self.addVectorInternal(dir)
+        if dirn != "":
+            self.addVectorInternal(dirn)
 
     def addVectorDB(self):
         """
         Add a vector from a database - ask user for connection string
         """
-        from PyQt5.QtWidgets import QInputDialog
         (con, ok) = QInputDialog.getText(self, MESSAGE_TITLE, 
                                 "Enter OGR connection string (without quotes)")
         if ok and con != "":
@@ -847,7 +868,6 @@ class ViewerWindow(QMainWindow):
         Attempts to find the default stretch that matches the
         given gdal dataset. Returns None on failure.
         """
-        from . import stretchdialog
         stretch = None
         defaultList = stretchdialog.StretchDefaultsDialog.fromSettings()
         for rule in defaultList:
@@ -865,7 +885,6 @@ class ViewerWindow(QMainWindow):
         """
         lut = None
         # first open the dataset
-        from osgeo import gdal
         try:
             gdal.PushErrorHandler('CPLQuietErrorHandler')
             gdaldataset = gdal.Open(fname)
@@ -881,14 +900,12 @@ class ViewerWindow(QMainWindow):
 
         if stretch is None:
             # first see if it has a stretch saved in the file
-            from . import viewerstretch
             stretch = viewerstretch.ViewerStretch.readFromGDAL(gdaldataset)
             if stretch is None:
                 # ok was none, read in the default stretches
                 stretch = self.findDefaultStretchForDataset(gdaldataset)
             else:
                 # if there was a stretch, see if we can read a LUT also
-                from . import viewerLUT
                 lut = viewerLUT.ViewerLUT.createFromGDAL(gdaldataset, stretch)
 
             # couldn't find anything. Tell user and
@@ -958,14 +975,13 @@ File will now be opened using default stretch""")
         Open OGR dataset and layer and tell widget to add it 
         to the list of layers
         """
-        from osgeo import ogr
         isResultSet = False
         try:
             ds = ogr.Open(str(path))
             if ds is None:
                 msg = 'Unable to open %s' % path
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
-                return
+                return None, None
                 
             if layername is not None:
                 lyr = ds.GetLayerByName(layername)
@@ -976,26 +992,24 @@ File will now be opened using default stretch""")
                 numLayers = ds.GetLayerCount()
                 if numLayers == 0:
                     raise IOError("no valid layers")
-                else:
-                    from . import vectoropendialog
-                    layerNames = []
-                    for n in range(ds.GetLayerCount()):
-                        name = ds.GetLayer(n).GetName()
-                        layerNames.append(name)
+                layerNames = []
+                for n in range(ds.GetLayerCount()):
+                    name = ds.GetLayer(n).GetName()
+                    layerNames.append(name)
 
-                    dlg = vectoropendialog.VectorOpenDialog(self, layerNames)
-                    if dlg.exec_() == QDialog.Accepted:
-                        if dlg.isNamedLayer():
-                            layername = dlg.getSelectedLayer()
-                            lyr = ds.GetLayerByName(layername)
-                        else:
-                            sql = dlg.getSQL()
-                            lyr = ds.ExecuteSQL(sql)
-                            if lyr is None:
-                                raise IOError("Invalid SQL")                                
-                            isResultSet = True
+                dlg = vectoropendialog.VectorOpenDialog(self, layerNames)
+                if dlg.exec_() == QDialog.Accepted:
+                    if dlg.isNamedLayer():
+                        layername = dlg.getSelectedLayer()
+                        lyr = ds.GetLayerByName(layername)
                     else:
-                        return None, None
+                        sql = dlg.getSQL()
+                        lyr = ds.ExecuteSQL(sql)
+                        if lyr is None:
+                            raise IOError("Invalid SQL")                                
+                        isResultSet = True
+                else:
+                    return None, None
                 
             self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet,
                                         origSQL=sql, label=label)
@@ -1037,7 +1051,6 @@ File will now be opened using default stretch""")
         """
         Toggle the LayerWindow
         """
-        from . import layerwindow
         if self.layerWindow is None:
             self.layerWindow = layerwindow.LayerWindow(self, self.viewwidget)
             self.addDockWidget(Qt.LeftDockWidgetArea, self.layerWindow)
@@ -1054,7 +1067,6 @@ File will now be opened using default stretch""")
         """
         Show the edit stretch dock window
         """
-        from . import stretchdialog
         # should it just be visible layers?
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is None:
@@ -1269,7 +1281,6 @@ File will now be opened using default stretch""")
         Create a new VectorQueryDockWidget and connect signals
         and increment our count of these windows
         """
-        from . import vectorquerywindow
         queryDock = vectorquerywindow.VectorQueryDockWidget(self)
         self.addDockWidget(Qt.BottomDockWidgetArea, queryDock)
         queryDock.setFloating(True)  # detach so it isn't docked by default
@@ -1326,7 +1337,6 @@ File will now be opened using default stretch""")
                         id(self))
 
     def newProfile(self):
-        from . import profilewindow
         profileDock = profilewindow.ProfileDockWidget(self, self.viewwidget)
         self.addDockWidget(Qt.TopDockWidgetArea, profileDock)
         profileDock.setFloating(True)  # detach so it isn't docked by default
@@ -1362,7 +1372,6 @@ File will now be opened using default stretch""")
         """
         Show the properties dialog
         """
-        from . import propertieswindow
         layer = self.viewwidget.layers.getTopLayer()
         if layer is not None:
             info = layer.getPropertiesInfo()
@@ -1388,10 +1397,10 @@ File will now be opened using default stretch""")
         imageFilter = "Images (*.png *.xpm *.jpg *.tif)"
         geotiffFilter = "Geotiff file (*.tif)"
         
-        fname, filter = QFileDialog.getSaveFileName(self, "Image File", 
+        fname, filtern = QFileDialog.getSaveFileName(self, "Image File", 
                         filter=';;'.join([imageFilter, geotiffFilter]))
         if fname != '':
-            if filter == imageFilter:
+            if filtern == imageFilter:
                 self.saveCurrentViewInternal(fname)
             else:
                 self.saveCurrentViewInternalGDAL(fname, 'GTiff', 
@@ -1418,7 +1427,7 @@ File will now be opened using default stretch""")
                 if layer is not None:
                     metresperwinpix = (layer.coordmgr.imgPixPerWinPix * 
                         layer.coordmgr.geotransform[1])
-                    (left, top, right, bottom) = (
+                    (left, top, _, _) = (
                         layer.coordmgr.getWorldExtent())
 
                     worldfObj = open(worldfname, 'w')
@@ -1439,7 +1448,6 @@ File will now be opened using default stretch""")
         Like saveCurrentViewInternal but saves as a georeferenced
         image file using GDAL
         """
-        from . import viewerLUT
         layer = self.viewwidget.layers.getTopRasterLayer()
         if layer is not None:
             # first grab it out of the widget
@@ -1454,13 +1462,6 @@ File will now be opened using default stretch""")
         """
         Show author and version info
         """
-        from . import TUIVIEW_VERSION
-        from PyQt5.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
-        from osgeo.gdal import __version__ as gdalVersion
-        from numpy import version as numpyVersion
-        from .vectorrasterizer import (FONT_FAMILY, FONT_POINTSIZE, 
-                FONT_WEIGHT, FONT_ITALIC)
-
         msg = """<p align='center'>TuiView<br><br>
 By Sam Gillingham, Neil Flood, Pete Bunting, James Shepherd, <br>
 Pierre Roudier, Tony Gill, Robin Wilson, Dan Clewley, Dale Peters,<br>
@@ -1474,7 +1475,7 @@ Pennsylvania State University.<br><br>
 Version: %s<br>
 Installed in: %s<br>
 GDAL Version: %s<br>
-PyQt Version: %s<br>
+PySide Version: %s<br>
 Qt Version: %s<br>
 Python Version: %s<br>
 Numpy Version: %s<br>
@@ -1485,12 +1486,12 @@ Label Font Information: %s<br></p>
                     sys.version_info.micro)
         fontInfo = "%s %d %d %d" % (FONT_FAMILY, FONT_POINTSIZE, 
                 FONT_WEIGHT, FONT_ITALIC)
-        msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYQT_VERSION_STR, 
+        msg = msg % (TUIVIEW_VERSION, appDir, gdalVersion, PYSIDE_VERSION_STR, 
                 QT_VERSION_STR, pyVer, numpyVersion.version, fontInfo)
 
         # centre each line - doesn't work very well due to font
         msgLines = msg.split('\n')
-        maxLine = max([len(line) for line in msgLines])
+        maxLine = max(len(line) for line in msgLines)
         centredMsgs = []
         for line in msgLines:
             leftSpaces = int((maxLine - len(line)) / 2.0)
@@ -1558,7 +1559,6 @@ Label Font Information: %s<br></p>
         """
         Display the preferences dialog
         """
-        from . import viewerpreferences
         viewPref = viewerpreferences.ViewerPreferencesDialog(self)
         if viewPref.exec_() == QDialog.Accepted:
 
@@ -1581,15 +1581,15 @@ Label Font Information: %s<br></p>
         # set last dir
         layer = self.viewwidget.layers.getTopLayer()
         if layer is not None:
-            dir = os.path.dirname(layer.filename)
-            if dir == '':
-                dir = os.getcwd()
+            dirn = os.path.dirname(layer.filename)
+            if dirn == '':
+                dirn = os.getcwd()
         else:
             # or cwd
-            dir = os.getcwd()
-        fname, filter= QFileDialog.getSaveFileName(self, 
+            dirn = os.getcwd()
+        fname, _ = QFileDialog.getSaveFileName(self, 
                     "Select file to save state into",
-                    dir, "TuiView State .tuiview (*.tuiview)")
+                    dirn, "TuiView State .tuiview (*.tuiview)")
 
         if fname != "":
             fileobj = open(fname, 'w')
@@ -1603,14 +1603,14 @@ Label Font Information: %s<br></p>
         # set last dir
         layer = self.viewwidget.layers.getTopLayer()
         if layer is not None:
-            dir = os.path.dirname(layer.filename)
-            if dir == '':
-                dir = os.getcwd()
+            dirn = os.path.dirname(layer.filename)
+            if dirn == '':
+                dirn = os.getcwd()
         else:
             # or cwd
-            dir = os.getcwd()
-        fname, filter = QFileDialog.getOpenFileName(self, "Select file to restore state from",
-                    dir, "TuiView State .tuiview (*.tuiview)")
+            dirn = os.getcwd()
+        fname, _ = QFileDialog.getOpenFileName(self, "Select file to restore state from",
+                    dirn, "TuiView State .tuiview (*.tuiview)")
 
         if fname != "":
             fileobj = open(fname)

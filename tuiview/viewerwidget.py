@@ -22,9 +22,9 @@ zooming and panning etc.
 
 import json
 import numpy
-from PyQt5.QtWidgets import QAbstractScrollArea, QRubberBand, QApplication
-from PyQt5.QtGui import QPainter, QCursor, QPixmap, QPainterPath, QPen
-from PyQt5.QtCore import Qt, QRect, QSize, QPoint, pyqtSignal
+from PySide6.QtWidgets import QAbstractScrollArea, QRubberBand, QApplication
+from PySide6.QtGui import QPainter, QCursor, QPixmap, QPainterPath, QPen
+from PySide6.QtCore import Qt, QRect, QSize, QPoint, Signal
 
 from . import viewererrors
 from . import viewerlayers
@@ -36,7 +36,7 @@ MIN_SELECTION_SIZE_PX = 9  # minimum number of pixels (on display) for a 'valid'
 # (non-zero) selection
 
 
-class QueryInfo(object):
+class QueryInfo:
     """
     Container class for the information passed in the locationSelected
     signal.
@@ -54,7 +54,7 @@ class QueryInfo(object):
         self.modifiers = modifiers
 
 
-class GeolinkInfo(object):
+class GeolinkInfo:
     """
     Container class for the information passed in the geolinkMove
     and geolinkQueryPoint signals.
@@ -69,22 +69,22 @@ class GeolinkInfo(object):
         """
         Return as json
         """
-        dict = {'easting': self.easting, 'northing': self.northing, 
+        dictn = {'easting': self.easting, 'northing': self.northing, 
             'metresperwinpix': self.metresperwinpix}
-        return json.dumps(dict)
+        return json.dumps(dictn)
 
     @staticmethod
     def fromString(jstring):
         """
         Create an instance from json
         """
-        dict = json.loads(jstring)
-        obj = GeolinkInfo(0, dict['easting'], dict['northing'],
-                dict['metresperwinpix'])
+        dictn = json.loads(jstring)
+        obj = GeolinkInfo(0, dictn['easting'], dictn['northing'],
+                dictn['metresperwinpix'])
         return obj
 
 
-class ActiveToolChangedInfo(object):
+class ActiveToolChangedInfo:
     """
     Container class for info pass in the activeToolChanged signal
     """
@@ -110,31 +110,31 @@ class ViewerWidget(QAbstractScrollArea):
     images.
     """
     # signals
-    geolinkMove = pyqtSignal(GeolinkInfo, name='geolinkMove')
+    geolinkMove = Signal(GeolinkInfo, name='geolinkMove')
     "viewer moved, geolink the others"
-    geolinkQueryPoint = pyqtSignal(GeolinkInfo, 
-                                name='geolinkQueryPoint')
+    geolinkQueryPoint = Signal(GeolinkInfo, 
+                            name='geolinkQueryPoint')
     "viewer queried"
     # can't use ViewerWidget - use base class instead
-    layerAdded = pyqtSignal(QAbstractScrollArea, name='layerAdded')
+    layerAdded = Signal(QAbstractScrollArea, name='layerAdded')
     "layer added"
-    showStatusMessage = pyqtSignal('QString', 
-                                name='showStatusMessage')
+    showStatusMessage = Signal('QString', 
+                            name='showStatusMessage')
     "show new status message"
-    activeToolChanged = pyqtSignal(ActiveToolChangedInfo,
-                                name='activeToolChanged')
+    activeToolChanged = Signal(ActiveToolChangedInfo,
+                            name='activeToolChanged')
     "active tool has changed"
-    polygonCollected = pyqtSignal(PolygonToolInfo,
-                                name='polygonCollected')
+    polygonCollected = Signal(PolygonToolInfo,
+                            name='polygonCollected')
     "polygon has been collected"
-    polylineCollected = pyqtSignal(PolylineToolInfo,
-                                name='polylineCollected')
+    polylineCollected = Signal(PolylineToolInfo,
+                            name='polylineCollected')
     "line has been collected"
-    vectorLocationSelected = pyqtSignal(list,
+    vectorLocationSelected = Signal(list,
                                 viewerlayers.ViewerVectorLayer,
                                 name='vectorLocationSelected')
     "a location on a vector as been selected"
-    locationSelected = pyqtSignal(QueryInfo, name='locationSelected')
+    locationSelected = Signal(QueryInfo, name='locationSelected')
     "a location on a raster as been selected"
 
     def __init__(self, parent):
@@ -405,8 +405,7 @@ class ViewerWidget(QAbstractScrollArea):
         """
         # if the tool was line or polygon
         # now is the time to remove the outline from the widget
-        if (self.activeTool == VIEWER_TOOL_POLYGON or 
-                self.activeTool == VIEWER_TOOL_POLYLINE):
+        if self.activeTool in (VIEWER_TOOL_POLYGON, VIEWER_TOOL_POLYLINE):
             self.toolPoints = None
             self.toolPointsFinished = True
             # force repaint
@@ -500,7 +499,7 @@ class ViewerWidget(QAbstractScrollArea):
                                       "######aaaa###aaa"]))
             self.viewport().setCursor(self.vectorQueryCursor)
 
-        elif tool == VIEWER_TOOL_POLYGON or tool == VIEWER_TOOL_POLYLINE:
+        elif tool in (VIEWER_TOOL_POLYGON, VIEWER_TOOL_POLYLINE):
             if self.polygonCursor is None:
                 self.polygonCursor = QCursor(QPixmap(["16 16 3 1",
                                   "      c None",
@@ -701,8 +700,7 @@ class ViewerWidget(QAbstractScrollArea):
         QAbstractScrollArea.mousePressEvent(self, event)
         pos = event.pos()
 
-        if (self.activeTool == VIEWER_TOOL_ZOOMIN or 
-                self.activeTool == VIEWER_TOOL_ZOOMOUT):
+        if self.activeTool in (VIEWER_TOOL_ZOOMIN, VIEWER_TOOL_ZOOMOUT):
             if self.rubberBand is None:
                 self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
             self.rubberBand.setGeometry(QRect(pos, QSize()))
