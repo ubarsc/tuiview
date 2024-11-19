@@ -99,7 +99,7 @@ class PolygonToolInfo(ToolInfo):
         to the result)
         """
         # copy all the vertices so they can be used to fill in poly
-        size = len(self)
+        size = len(self.poly)
         xDsp = numpy.empty((size,), dtype=float)
         yDsp = numpy.empty((size,), dtype=float)
         for idx, p in enumerate(self.poly):

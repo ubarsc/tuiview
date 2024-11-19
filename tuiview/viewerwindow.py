@@ -1212,7 +1212,7 @@ File will now be opened using default stretch""")
             # if there is no query window currently open start one
             if self.queryWindowCount <= 0:
                 self.newQueryWindow()
-        else:
+        elif not self.suppressToolReset:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                     id(self))
 
@@ -1272,7 +1272,7 @@ File will now be opened using default stretch""")
             # if no window, start one
             if self.vectorQueryWindowCount <= 0:
                 self.newVectorQueryWindow()
-        else:
+        elif not self.suppressToolReset:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                         id(self))
 
@@ -1332,7 +1332,7 @@ File will now be opened using default stretch""")
             # if there is no query window currently open start one
             if self.profileWindowCount <= 0:
                 self.newProfile()
-        else:
+        elif not self.suppressToolReset:
             self.viewwidget.setActiveTool(viewerwidget.VIEWER_TOOL_NONE, 
                         id(self))
 
