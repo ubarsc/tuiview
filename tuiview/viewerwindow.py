@@ -27,7 +27,7 @@ import traceback
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QDialog
 from PySide6.QtWidgets import QMessageBox, QProgressBar, QToolButton
 from PySide6.QtWidgets import QMenu, QLineEdit, QPushButton, QInputDialog
-from PySide6.QtGui import QIcon, QColor, QImage, QAction
+from PySide6.QtGui import QIcon, QColor, QImage, QAction, QGuiApplication
 from PySide6.QtCore import QSettings, QSize, QPoint, Signal, Qt
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 from PySide6 import __version__ as PYSIDE_VERSION_STR
@@ -624,6 +624,12 @@ class ViewerWindow(QMainWindow):
         self.saveCurrentViewAct.setStatusTip(
             "Save the contents of the current display as an image file")
 
+        self.saveCurrentViewClipboardAct = QAction(self, 
+            triggered=self.saveCurrentViewClipboard)
+        self.saveCurrentViewClipboardAct.setText("Save Current Display to Clipboard")
+        self.saveCurrentViewClipboardAct.setStatusTip(
+            "Save the contents of the current display to the clipboard")
+
         self.saveCurrentViewersState = QAction(self, 
                             triggered=self.saveViewersState)
         self.saveCurrentViewersState.setText("Save State of All Viewers")
@@ -673,6 +679,7 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.tileWindowsAct)
         fileMenu.addAction(self.defaultStretchAct)
         fileMenu.addAction(self.saveCurrentViewAct)
+        fileMenu.addAction(self.saveCurrentViewClipboardAct)
         fileMenu.addAction(self.saveCurrentViewersState)
         fileMenu.addAction(self.loadCurrentViewersState)
         fileMenu.addAction(self.propertiesAct)
@@ -1405,6 +1412,16 @@ File will now be opened using default stretch""")
             else:
                 self.saveCurrentViewInternalGDAL(fname, 'GTiff', 
                     GTIFF_CREATION_OPTIONS)
+
+    def saveCurrentViewClipboard(self):
+        """
+        Saves the current view to the clipboard
+        """
+        # first grab it out of the widget
+        img = QImage(self.viewwidget.viewport().size(), QImage.Format_RGB32)
+        self.viewwidget.viewport().render(img)
+        clipboard = QGuiApplication.clipboard()
+        clipboard.setImage(img)
 
     def saveCurrentViewInternal(self, fname):
         """
