@@ -1619,7 +1619,7 @@ Use the special columns:
         self.storeLastSelection()
         
         # reset if they havent hit Ctrl
-        if not (polyInfo.getInputModifiers() & Qt.ControlModifier):
+        if not polyInfo.getInputModifiers() & Qt.ControlModifier:
             self.selectionArray.fill(False)
 
         # select rows found in poly
@@ -1654,7 +1654,7 @@ Use the special columns:
         self.storeLastSelection()
 
         # reset if they havent hit Ctrl
-        if not (lineInfo.getInputModifiers() & Qt.ControlModifier):
+        if not lineInfo.getInputModifiers() & Qt.ControlModifier:
             self.selectionArray.fill(False)
 
         # select rows found in line
@@ -1862,7 +1862,7 @@ Use the special columns:
             self.storeLastSelection()
             # reset if they havent hit Ctrl
             if (qi.modifiers is not None and 
-                    not (qi.modifiers & Qt.ControlModifier)):
+                    not qi.modifiers & Qt.ControlModifier):
                 self.selectionArray.fill(False)
 
             # select rows found in point
