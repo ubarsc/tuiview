@@ -56,7 +56,7 @@ def getGDALFlags():
     """
     Return the flags needed to link in GDAL as a dictionary
     """
-    from numpy import get_include as numpy_get_include
+    from numpy import get_include as numpy_get_include  # pylint: disable=C0415;
     extraargs = {}
     # don't use the deprecated numpy api
     extraargs['define_macros'] = [('NPY_NO_DEPRECATED_API', 'NPY_2_0_API_VERSION')]
@@ -82,7 +82,7 @@ def getGDALFlags():
     else:
         # Unix - can do better with actual flags using gdal-config
         extraargs['include_dirs'] = [numpy_get_include()]
-        import subprocess
+        import subprocess  # pylint: disable=C0415;
         try:
             cflags = subprocess.check_output(['gdal-config', '--cflags'])
             cflags = cflags.decode()
@@ -91,8 +91,8 @@ def getGDALFlags():
             ldflags = subprocess.check_output(['gdal-config', '--libs'])
             ldflags = ldflags.decode()
             extraargs['extra_link_args'] = ldflags.strip().split()
-        except (OSError, FileNotFoundError):
-            raise SystemExit("can't find gdal-config - GDAL development files need to be installed")
+        except (OSError, FileNotFoundError) as exc:
+            raise SystemExit("can't find gdal-config - GDAL development files need to be installed") from exc
     return extraargs
 
 
