@@ -46,14 +46,14 @@ def readData(fname):
             arr = line.strip().split(',')
             if ''.join(arr) == '':
                 break  # end of data
-            (name, numColors, ua, ub, uc, ud, r, g, b, type) = arr
+            (name, numColors, _, _, _, _, r, g, b, dtype) = arr
 
             if name != '':
                 lastName = name
             if numColors != '':
                 lastNumColors = numColors
-            if type != '':
-                lastType = type
+            if dtype != '':
+                lastType = dtype
 
             key = '_'.join([lastName, lastNumColors, lastType])
             if key in infoDict:
@@ -72,9 +72,9 @@ def findMaxColors(infoDict):
     """
     maxDict = {}
     for key in infoDict.keys():
-        (name, colors, type) = key.split('_')
+        (name, colors, dtype) = key.split('_')
         colors = int(colors)
-        maxKey = '_'.join((name, type))
+        maxKey = '_'.join((name, dtype))
         if maxKey in maxDict:
             if colors > maxDict[maxKey]:
                 maxDict[maxKey] = colors
@@ -82,10 +82,9 @@ def findMaxColors(infoDict):
             maxDict[maxKey] = colors
 
     retDict = {}
-    for key in maxDict:
-        (name, type) = key.split('_')
-        colors = maxDict[key]
-        infoKey = '_'.join([name, str(colors), type])
+    for key, colors in maxDict.items():
+        (name, dtype) = key.split('_')
+        infoKey = '_'.join([name, str(colors), dtype])
         data = infoDict[infoKey]
         retDict[key] = data
 
@@ -95,8 +94,8 @@ def findMaxColors(infoDict):
 def emitPythonCode(infoDict):
 
     for key in sorted(infoDict.keys()):
-        (name, type) = key.split('_')
-        print("RAMP['%s'] = {'author': '%s', 'comments': '%s', 'type': '%s'}" % (name, author, comments, type))
+        (name, dtype) = key.split('_')
+        print("RAMP['%s'] = {'author': '%s', 'comments': '%s', 'type': '%s'}" % (name, author, comments, dtype))
         # turn r,g,b tuples into list
         redList = []
         greenList = []

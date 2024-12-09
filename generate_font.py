@@ -17,18 +17,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+"""
+Simple script to generate tuifont.h
+"""
+
 import sys
 import argparse
-from PyQt5.QtWidgets import QApplication, QFontDialog
-from PyQt5.QtGui import QImage, QPainter, QColor, QFontMetrics, QPen, QFont
-from PyQt5.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QFontDialog
+from PySide6.QtGui import QImage, QPainter, QColor, QFontMetrics, QPen, QFont
+from PySide6.QtCore import Qt
 
 MIN_ASCII = 33
 MAX_ASCII = 126
 N_ASCII = (126 - 33) + 1
 IN_FONT = '2'
 OUT_FONT = '0'
-DFLT_OUTPATH = 'src/tuifont.h'
+DFLT_OUTPATH = 'c_src/tuifont.h'
 DFLT_THRESHOLD = 100
 
 
@@ -59,15 +63,15 @@ def getCmdArgs():
     return cmdargs
     
 
-def main(cmdargs):
+def main():
     """
     Main function
     """
-    app = QApplication(sys.argv)
-    app
+    app = QApplication(sys.argv)  # pylint: disable=W0612; # noqa
+    cmdargs = getCmdArgs()
     
     if cmdargs.family is None:
-        font, ok = QFontDialog.getFont()
+        ok, font = QFontDialog.getFont()
         if not ok:
             return
     else:
@@ -114,18 +118,15 @@ def main(cmdargs):
             # only interested in negative values - they extend outside of horizontalAdvance
             if leftBearing < 0:
                 leftBearing = abs(leftBearing)
-                if leftBearing > maxLeftBearing:
-                    maxLeftBearing = leftBearing
+                maxLeftBearing = max(maxLeftBearing, leftBearing)
                 
             rightBearing = fm.rightBearing(val)
             if rightBearing < 0:
                 rightBearing = abs(rightBearing)
-                if rightBearing > maxRightBearing:
-                    maxRightBearing = rightBearing
+                maxRightBearing = max(maxRightBearing, rightBearing)
                 
             advance = fm.horizontalAdvance(val)
-            if advance > maxAdvance:
-                maxAdvance = advance
+            maxAdvance = max(maxAdvance, advance)
             f.write('{{ {}, {}, {} }} /* {} */'.format(leftBearing, 
                     advance, rightBearing, val))
             if n != (N_ASCII - 1):
@@ -182,6 +183,5 @@ def main(cmdargs):
 
 
 if __name__ == '__main__':
-    cmdargs = getCmdArgs()
-    main(cmdargs)
+    main()
 
