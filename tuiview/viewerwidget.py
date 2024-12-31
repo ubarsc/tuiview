@@ -250,7 +250,8 @@ class ViewerWidget(QAbstractScrollArea):
         self.layerAdded.emit(self)
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, color=None, 
-            resultSet=False, origSQL=None, label=None, quiet=False):
+            resultSet=False, origSQL=None, label=None, quiet=False,
+            toProj=None):
         """
         Add the vector given by the ogrDataSource and its dependent 
         ogrLayer to the stack of images.
@@ -260,7 +261,8 @@ class ViewerWidget(QAbstractScrollArea):
             color = viewerlayers.DEFAULT_VECTOR_COLOR
 
         self.layers.addVectorLayer(ogrDataSource, ogrLayer, size.width(), 
-                    size.height(), color, resultSet, origSQL, label, quiet)
+                    size.height(), color, resultSet, origSQL, label, quiet,
+                    toProj)
         self.viewport().update()
         self.updateScrollBars()
 
