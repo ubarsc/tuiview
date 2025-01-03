@@ -828,7 +828,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     const char *pszLabelText = NULL;
     OGRGeometryH hCentroid = NULL, hMidPoint = NULL, hExtentGeom, hExtentRing;
     OGRwkbGeometryType geomType;
-    OGRCoordinateTransformationH hTransform = NULL;
+    OGRCoordinateTransformationH hTransform = NULL, hTransformInv = NULL;
     OGRSpatialReferenceH hSRSource, hSRDest = NULL;
     PyObject *pPythonSR = NULL; /* Type of osr.SpatialReference */
     NPY_BEGIN_THREADS_DEF;
@@ -908,20 +908,21 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
             return NULL;
         }
         
-        /* Get lat/long in the old x,y order */
-        OSRSetAxisMappingStrategy(hSRDest, OAMS_TRADITIONAL_GIS_ORDER);
-        
         hTransform = OCTNewCoordinateTransformation(hSRSource, hSRDest);
         if( hTransform == NULL )
         {
             PyErr_SetString(GETSTATE(self)->error, "Unable to create transform" );
-            OSRDestroySpatialReference(hSRDest);
             return NULL;
         }
         
-        /* Transform takes a copy */
-        OSRDestroySpatialReference(hSRDest);
-        /* hSRSource owned by layer */
+        /* For reprjecting the bounds */
+        hTransformInv = OCTNewCoordinateTransformation(hSRDest, hSRSource);
+        if( hTransformInv == NULL )
+        {
+            OCTDestroyCoordinateTransformation(hTransform);
+            PyErr_SetString(GETSTATE(self)->error, "Unable to create inverse transform" );
+            return NULL;
+        }
     }
 
     /* Always release GIL as we don't know number of features/how big the WKBs are */
@@ -939,6 +940,12 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[1] + dPixSize);
     hExtentGeom = OGR_G_CreateGeometry(wkbPolygon);
     OGR_G_AddGeometryDirectly(hExtentGeom, hExtentRing);
+    
+    if( hTransformInv != NULL )
+    {
+        /* Convert back to the source coords */
+        OGR_G_Transform(hExtentGeom, hTransformInv);
+    }
 
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
@@ -1045,7 +1052,8 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     OGR_G_DestroyGeometry(hExtentGeom);
     if( hTransform != NULL )
     {
-        OGR_GeomTransformer_Destroy(hTransform);
+        OCTDestroyCoordinateTransformation(hTransform);
+        OCTDestroyCoordinateTransformation(hTransformInv);
     }
     
     VectorWriter_destroy(pWriter);
