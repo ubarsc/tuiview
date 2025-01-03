@@ -1029,7 +1029,6 @@ File will now be opened using default stretch""")
                         isResultSet = True
                         
                     toProj = dlg.getToProj()
-                    print('toProj', type(toProj))
                 else:
                     return None, None
                 

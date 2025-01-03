@@ -109,7 +109,6 @@ class VectorOpenDialog(QDialog):
         self.setLayout(self.mainLayout)
         
     def layerChanged(self, index):
-        print('layerChanged')
         if self.layerNameRadio.isChecked():
             if self.projList[index] is None:
                 self.projCheck.setCheckState(Qt.Unchecked)
