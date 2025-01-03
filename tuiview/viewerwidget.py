@@ -261,8 +261,8 @@ class ViewerWidget(QAbstractScrollArea):
             color = viewerlayers.DEFAULT_VECTOR_COLOR
 
         self.layers.addVectorLayer(ogrDataSource, ogrLayer, size.width(), 
-                    size.height(), color, resultSet, origSQL, label, quiet,
-                    toProj)
+            size.height(), color, resultSet, origSQL, label, quiet,
+            toProj)
         self.viewport().update()
         self.updateScrollBars()
 
