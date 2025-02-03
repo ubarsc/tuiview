@@ -708,7 +708,8 @@ class ViewerLUT(QObject):
             gdal.ErrorReset()
             # allow approxstats
             stats = gdalband.GetStatistics(1, 0)
-            if stats == [0, 0, 0, -1] or gdal.GetLastErrorNo() != gdal.CE_None:
+            if (stats is None or stats == [0, 0, 0, -1] or
+                    gdal.GetLastErrorNo() != gdal.CE_None):
                 # need to actually calculate them
                 gdal.ErrorReset()
                 self.newProgress.emit("Calculating Statistics...")
@@ -724,7 +725,7 @@ class ViewerLUT(QObject):
 
                 self.endProgress.emit()
 
-                if (stats == [0, 0, 0, -1] or 
+                if (stats is None or stats == [0, 0, 0, -1] or
                         gdal.GetLastErrorNo() != gdal.CE_None):
                     msg = 'unable to calculate statistics'
                     raise viewererrors.StatisticsError(msg)
