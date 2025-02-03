@@ -12,13 +12,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps: 
-    - uses: actions/checkout@v2
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: actions/checkout@v4
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         miniforge-version: latest
     - name: Install Dependencies
       shell: bash -l {0}
       run: |
+        sudo apt-get update
         sudo apt-get install libegl1 libglu1-mesa
         conda install pylint flake8 gdal pyside6
     - name: Test Build
@@ -41,11 +42,10 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v2
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: actions/checkout@v4
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         miniforge-version: latest
-        miniforge-variant: Mambaforge
     - name: Install Dependencies
       shell: bash -el {0}
       run: |
