@@ -1189,6 +1189,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.halfCrossSize = vectorrasterizer.HALF_CROSS_SIZE
         self.fieldToLabel = None
         self.labelColor = None
+        self.toProj = None  # osr.SpatialReference
 
     def __del__(self):
         # unfortunately this isn't called when the viewer
@@ -1342,7 +1343,7 @@ class ViewerVectorLayer(ViewerLayer):
 
     def open(self, ogrDataSource, ogrLayer, width, height, extent=None,
             color=DEFAULT_VECTOR_COLOR, resultSet=False, origSQL=None, 
-            label=None):
+            label=None, toProj=None):
         """
         Use the supplied datasource and layer for accessing vector data
         keeps a reference to the datasource and layer
@@ -1359,6 +1360,7 @@ class ViewerVectorLayer(ViewerLayer):
         self.isResultSet = resultSet
         self.origSQL = origSQL
         self.fieldToLabel = label
+        self.toProj = toProj
 
         self.coordmgr.setDisplaySize(width, height)
         bbox = ogrLayer.GetExtent()
@@ -1420,7 +1422,7 @@ class ViewerVectorLayer(ViewerLayer):
         # rasterizeOutlines burns in 1 for outline, 0 otherwise
         data = vectorrasterizer.rasterizeLayer(self.ogrLayer, extent, 
                     xsize, ysize, self.linewidth, self.sql, self.bFill,
-                    self.fieldToLabel, self.halfCrossSize)
+                    self.fieldToLabel, self.halfCrossSize, self.toProj)
 
         # do our lookup
         bgra = self.lut[data]
@@ -1698,7 +1700,7 @@ class LayerManager(QObject):
 
     def addVectorLayer(self, ogrDataSource, ogrLayer, width, height, 
             color=DEFAULT_VECTOR_COLOR, resultSet=False,
-            origSQL=None, label=None, quiet=False):
+            origSQL=None, label=None, quiet=False, toProj=None):
         """
         Add a vector layer. See ViewerVectorLayer.open for more info on params
         """
@@ -1711,7 +1713,7 @@ class LayerManager(QObject):
         layer = ViewerVectorLayer()
         layer.quiet = quiet
         layer.open(ogrDataSource, ogrLayer, width, height, extent, color, 
-            resultSet, origSQL, label)
+            resultSet, origSQL, label, toProj)
 
         self.addLayer(layer)
 
