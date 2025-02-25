@@ -839,7 +839,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
             &pPythonLayer, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, 
             &pszSQLFilter, &bFill, &pszLabel, &nHalfCrossSize, &pPythonSR))
         return NULL;
-
+        
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
     if( pPtr == NULL )
         return NULL;
@@ -951,7 +951,13 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     /* set the spatial filter to the extent */
-    OGR_L_SetSpatialFilter(hOGRLayer, hExtentGeom);
+    hSRSource = OGR_L_GetSpatialRef(hOGRLayer);
+    if( (hSRSource != NULL) && (!OSRIsGeographic(hSRSource)) )
+    {
+        /* Note: do this only if it is NOT a geographic CS - doesn't seem to work properly with lat/long */
+        /* Prime meridian etc seems to cause a problem */
+        OGR_L_SetSpatialFilter(hOGRLayer, hExtentGeom);
+    }
     /* set the attribute filter (if None/NULL resets) */
     OGR_L_SetAttributeFilter(hOGRLayer, pszSQLFilter);
     
@@ -959,7 +965,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
 
     nCurrWKBSize = 0;
     pCurrWKB = NULL;
-
+    
     while( ( hFeature = OGR_L_GetNextFeature(hOGRLayer)) != NULL )
     {
         hGeometry = OGR_F_GetGeometryRef(hFeature);
