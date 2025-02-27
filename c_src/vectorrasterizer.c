@@ -24,6 +24,7 @@
 #include <stdlib.h>
 
 #include "ogr_api.h"
+#include "ogr_srs_api.h"
 
 #include "tuifont.h"
 
@@ -827,15 +828,18 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     const char *pszLabelText = NULL;
     OGRGeometryH hCentroid = NULL, hMidPoint = NULL, hExtentGeom, hExtentRing;
     OGRwkbGeometryType geomType;
+    OGRCoordinateTransformationH hTransform = NULL, hTransformInv = NULL;
+    OGRSpatialReferenceH hSRSource, hSRDest = NULL;
+    PyObject *pPythonSR = NULL; /* Type of osr.SpatialReference */
     NPY_BEGIN_THREADS_DEF;
 
     char *kwlist[] = {"ogrlayer", "boundingbox", "xsize", "ysize", 
-            "linewidth", "sql", "fill", "label", "halfCrossSize", NULL};
-    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|izi:rasterizeLayer", kwlist, 
+            "linewidth", "sql", "fill", "label", "halfCrossSize", "spatialRef", NULL};
+    if( !PyArg_ParseTupleAndKeywords(args, kwds, "OOiiiz|iziO:rasterizeLayer", kwlist, 
             &pPythonLayer, &pBBoxObject, &nXSize, &nYSize, &nLineWidth, 
-            &pszSQLFilter, &bFill, &pszLabel, &nHalfCrossSize))
+            &pszSQLFilter, &bFill, &pszLabel, &nHalfCrossSize, &pPythonSR))
         return NULL;
-
+        
     pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonLayer, GETSTATE(self)->error);
     if( pPtr == NULL )
         return NULL;
@@ -889,9 +893,41 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         hCentroid = OGR_G_CreateGeometry(wkbPoint);
     }
 
+    /* Transform */
+    if( pPythonSR != Py_None )
+    {
+        pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonSR, GETSTATE(self)->error);
+        if( pPtr == NULL )
+            return NULL;
+        hSRDest = (OGRSpatialReferenceH)pPtr;
+        
+        hSRSource = OGR_L_GetSpatialRef(hOGRLayer);
+        if( hSRSource == NULL )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "No source spatial reference available");
+            return NULL;
+        }
+        
+        hTransform = OCTNewCoordinateTransformation(hSRSource, hSRDest);
+        if( hTransform == NULL )
+        {
+            PyErr_SetString(GETSTATE(self)->error, "Unable to create transform" );
+            return NULL;
+        }
+        
+        /* For reprjecting the bounds */
+        hTransformInv = OCTNewCoordinateTransformation(hSRDest, hSRSource);
+        if( hTransformInv == NULL )
+        {
+            OCTDestroyCoordinateTransformation(hTransform);
+            PyErr_SetString(GETSTATE(self)->error, "Unable to create inverse transform" );
+            return NULL;
+        }
+    }
+
     /* Always release GIL as we don't know number of features/how big the WKBs are */
     NPY_BEGIN_THREADS;
-
+    
     /* Used to call OGR_L_SetSpatialFilterRect but since we need the bounding box for  */
     /* the intersection for labels we do this here */
     hExtentRing = OGR_G_CreateGeometry(wkbLinearRing);
@@ -904,12 +940,24 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     OGR_G_AddPoint_2D(hExtentRing, adExtents[0] - dPixSize, adExtents[1] + dPixSize);
     hExtentGeom = OGR_G_CreateGeometry(wkbPolygon);
     OGR_G_AddGeometryDirectly(hExtentGeom, hExtentRing);
+    
+    if( hTransformInv != NULL )
+    {
+        /* Convert back to the source coords */
+        OGR_G_Transform(hExtentGeom, hTransformInv);
+    }
 
     /* set up the object that does the writing */
     pWriter = VectorWriter_create((PyArrayObject*)pOutArray, adExtents, nLineWidth, bFill, nHalfCrossSize);
     
     /* set the spatial filter to the extent */
-    OGR_L_SetSpatialFilter(hOGRLayer, hExtentGeom);
+    hSRSource = OGR_L_GetSpatialRef(hOGRLayer);
+    if( (hSRSource != NULL) && (!OSRIsGeographic(hSRSource)) )
+    {
+        /* Note: do this only if it is NOT a geographic CS - doesn't seem to work properly with lat/long */
+        /* Prime meridian etc seems to cause a problem */
+        OGR_L_SetSpatialFilter(hOGRLayer, hExtentGeom);
+    }
     /* set the attribute filter (if None/NULL resets) */
     OGR_L_SetAttributeFilter(hOGRLayer, pszSQLFilter);
     
@@ -917,12 +965,18 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
 
     nCurrWKBSize = 0;
     pCurrWKB = NULL;
-
+    
     while( ( hFeature = OGR_L_GetNextFeature(hOGRLayer)) != NULL )
     {
         hGeometry = OGR_F_GetGeometryRef(hFeature);
         if( hGeometry != NULL )
         {
+            /* Reproject? */
+            if( hTransform != NULL )
+            {
+                OGR_G_Transform(hGeometry, hTransform);
+            }
+        
             if( nLabelFieldIdx != -1 )
             {
                 /* If we are going to label, we need to intersect */
@@ -1002,6 +1056,11 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         OGR_G_DestroyGeometry(hCentroid);
     }
     OGR_G_DestroyGeometry(hExtentGeom);
+    if( hTransform != NULL )
+    {
+        OCTDestroyCoordinateTransformation(hTransform);
+        OCTDestroyCoordinateTransformation(hTransformInv);
+    }
     
     VectorWriter_destroy(pWriter);
     NPY_END_THREADS;
@@ -1480,7 +1539,7 @@ static PyObject* vectorrasterizer_printText(PyObject *self, PyObject *args, PyOb
 static PyMethodDef VectorRasterizerMethods[] = {
     {"rasterizeLayer", (PyCFunction)vectorrasterizer_rasterizeLayer, METH_VARARGS | METH_KEYWORDS, 
 "read an OGR dataset and vectorize outlines to numpy array:\n"
-"call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"
+"call signature: arr = rasterizeLayer(ogrlayer, boundingbox, xsize, ysize, linewidth, sql, fill=False, halfCrossSize=HALF_CROSS_SIZE, sr=None)\n"
 "where:\n"
 "  ogrlayer is an instance of ogr.Layer\n"
 "  boundingbox is a sequence that contains (tlx, tly, brx, bry)\n"
@@ -1488,7 +1547,8 @@ static PyMethodDef VectorRasterizerMethods[] = {
 "  linewidth is the width of the line\n"
 "  sql is the attribute filter. Pass None or SQL string\n"
 "  fill is an optional argument that determines if polygons are filled in\n"
-"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."},
+"  halfCrossSize is an optional argument that controls the size of the crosses drawn for points. Defaults to the value of HALF_CROSS_SIZE."
+"  sr is an optional argument of type osr.SpatialReference to specify what projection to convert the vector to before rasterizing"},
     {"rasterizeFeature", (PyCFunction)vectorrasterizer_rasterizeFeature, METH_VARARGS | METH_KEYWORDS, 
 "read an OGR feature and vectorize outlines to numpy array:\n"
 "call signature: arr = rasterizeFeature(ogrfeature, boundingbox, xsize, ysize, linewidth, fill=False, halfCrossSize=HALF_CROSS_SIZE)\n"

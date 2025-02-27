@@ -19,19 +19,27 @@ Module that contains the VectorOpenDialog class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QRadioButton
 from PySide6.QtWidgets import QButtonGroup, QComboBox, QTextEdit, QPushButton
-from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import QCheckBox
+from PySide6.QtGui import QFontMetrics, Qt
 
 NUM_SQL_ROWS = 4
+
+PROJ_ASKUSER = 0
+PROJ_NO = 1
+PROJ_YES = 2
 
 
 class VectorOpenDialog(QDialog):
     """
     Allows user to select which layer
     """
-    def __init__(self, parent, layerList):
+    def __init__(self, parent, layerList, projList, spatialRef, reproj=PROJ_ASKUSER):
         QDialog.__init__(self, parent)
         self.setWindowTitle('Open Vector Layer')
         self.layerList = layerList
+        self.projList = projList
+        self.spatialRef = spatialRef
+        self.reproj = reproj
 
         self.layerTypeButtonGroup = QButtonGroup()  # enforces exclusivity
         self.layerNameRadio = QRadioButton("Layer Name")
@@ -63,6 +71,25 @@ class VectorOpenDialog(QDialog):
         self.sqlLayout.addWidget(self.sqlText)
 
         self.mainLayout.addLayout(self.sqlLayout)
+        
+        self.projCheck = QCheckBox("Reproject to match")
+        self.mainLayout.addWidget(self.projCheck)
+        if self.spatialRef is None:
+            self.projCheck.setCheckState(Qt.Unchecked)
+            self.projCheck.setEnabled(False)
+        elif self.reproj == PROJ_YES:
+            self.projCheck.setCheckState(Qt.Checked)
+            self.projCheck.setEnabled(False)
+        elif self.reproj == PROJ_NO:
+            self.projCheck.setCheckState(Qt.Unchecked)
+            self.projCheck.setEnabled(False)
+        else:
+            # depends on the value in the layer combo
+            self.nameCombo.currentIndexChanged.connect(self.layerChanged)
+            
+        # trigger signal now
+        self.nameCombo.setCurrentIndex(0)
+        self.layerChanged(0)
 
         # ok and cancel buttons
         self.okButton = QPushButton(self)
@@ -80,6 +107,21 @@ class VectorOpenDialog(QDialog):
         self.mainLayout.addLayout(self.buttonLayout)
 
         self.setLayout(self.mainLayout)
+        
+    def layerChanged(self, index):
+        if self.layerNameRadio.isChecked():
+            if self.projList[index] is None:
+                self.projCheck.setCheckState(Qt.Unchecked)
+                self.projCheck.setEnabled(False)
+            else:
+                same = self.spatialRef.IsSame(self.projList[index])
+                if same:
+                    self.projCheck.setCheckState(Qt.Unchecked)
+                else:
+                    self.projCheck.setCheckState(Qt.Checked)
+                self.projCheck.setEnabled(True)
+        else:
+            self.projCheck.setEnabled(True)
 
     def typeToggled(self, checked):
         "signal handler for change of state"
@@ -96,4 +138,10 @@ class VectorOpenDialog(QDialog):
     def getSQL(self):
         "return the SQL text entered"
         return self.sqlText.toPlainText()
-
+        
+    def getToProj(self):
+        "Return the projection to reproject vectors to. Or None"
+        proj = None
+        if self.projCheck.checkState() == Qt.Checked:
+            proj = self.spatialRef
+        return proj
