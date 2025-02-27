@@ -1,3 +1,9 @@
+Version 1.3.1 (2025-02-28)
+--------------------------
+* Port generate_font.py to PySide6
+* Fix problem with GDAL >= 3.10 and files without statistics
+* Support reprojection of vectors to match the projection of the raster(s)
+
 Version 1.3.0 (2024-11-22)
 --------------------------
 * Port to Qt6/PySide6
