@@ -28,6 +28,7 @@ from . import geolinkedviewers
 from . import viewerstretch
 from .viewerstrings import MESSAGE_TITLE
 from .viewerwidget import GeolinkInfo
+from .vectoropendialog import PROJ_YES, PROJ_NO
 
 # True if we can't print to stderr etc
 # (because we have been started in "GUI" mode on Windows)
@@ -120,6 +121,9 @@ def getCmdargs():
     p.add_argument('--vectorlabel', action='append', dest="vectorlabels",
         help="Vector attributes to label. Can be specified multiple times " +
             "- once for each vector")
+    p.add_argument('--vectorreproj', action='append', choices=['yes', 'no'],
+        dest='vectorreproj', help="whether vector is reprojected to match " +
+            "raster. Can be specified multiple times - once for each vector")
     p.add_argument('-t', '--savedstate', 
         help="path to a .tuiview file with saved viewers state")
     # do this ourselves so we can show QMessageBox if GUI_MODE
@@ -275,6 +279,15 @@ class ViewerApplication(QApplication):
             msg = ('When specifying --vectorlabel you must also specify ' 
                 '--vector and one of --vectorlayer or --vectorsql')
             showMessageAndExit(msg)
+            
+        if (cmdargs.vectors is not None and cmdargs.vectorreproj is not None and
+                len(cmdargs.vectors) != len(cmdargs.vectorreproj)):
+            msg = 'If specified, you must pass one --vectorreproj per --vector'
+            showMessageAndExit(msg)
+
+        if cmdargs.vectorreproj is not None and cmdargs.vectors is None:
+            msg = 'When specifying --vectorreproj you must also specify --vector'
+            showMessageAndExit(msg)
 
         if len(cmdargs.filenames) == 0 and cmdargs.savedstate is None:
             self.viewers.newViewer()
@@ -320,8 +333,14 @@ class ViewerApplication(QApplication):
                     if cmdargs.vectorlabels is not None:
                         label = cmdargs.vectorlabels[idx]
                         
+                    reproj = PROJ_NO  # keep old behaviour of not reprojecting by default
+                    if (cmdargs.vectorreproj is not None and
+                            cmdargs.vectorreproj[idx] == 'yes'):
+                        reproj = PROJ_YES
+                        
                     layername, sql = viewer.addVectorInternal(vector, 
-                        layername=layername, sql=sql, label=label)
+                        layername=layername, sql=sql, label=label, 
+                        reproj=reproj)
                     if layername is None and sql is None:
                         # they canceled... break out of loop
                         userCancel = True

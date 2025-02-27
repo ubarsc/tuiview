@@ -977,7 +977,8 @@ File will now be opened using default stretch""")
         # allow the stretch to be edited
         self.stretchAct.setEnabled(True)
 
-    def addVectorInternal(self, path, layername=None, sql=None, label=None):
+    def addVectorInternal(self, path, layername=None, sql=None, label=None, 
+            reproj=vectoropendialog.PROJ_ASKUSER):
         """
         Open OGR dataset and layer and tell widget to add it 
         to the list of layers
@@ -990,21 +991,43 @@ File will now be opened using default stretch""")
                 QMessageBox.critical(self, MESSAGE_TITLE, msg)
                 return None, None
                 
+            toProj = None
+            projSet = False
+            lyr = None
+
+            rastLayer = self.viewwidget.layers.getTopRasterLayer()
+            sr = None
+            if rastLayer is not None:
+                sr = rastLayer.sr
+
             if layername is not None:
                 lyr = ds.GetLayerByName(layername)
             elif sql is not None:
                 lyr = ds.ExecuteSQL(sql)
-            else:
+                
+            if reproj == vectoropendialog.PROJ_YES:
+                toProj = sr
+                projSet = True
+            elif reproj == vectoropendialog.PROJ_NO:
+                # leave toProj as None
+                projSet = True
+                
+            if lyr is None or not projSet:
                 # ask them
                 numLayers = ds.GetLayerCount()
                 if numLayers == 0:
                     raise IOError("no valid layers")
                 layerNames = []
+                projections = []
                 for n in range(ds.GetLayerCount()):
-                    name = ds.GetLayer(n).GetName()
+                    lyr = ds.GetLayer(n)
+                    name = lyr.GetName()
                     layerNames.append(name)
+                    proj = lyr.GetSpatialRef()
+                    projections.append(proj)
 
-                dlg = vectoropendialog.VectorOpenDialog(self, layerNames)
+                dlg = vectoropendialog.VectorOpenDialog(self, layerNames, 
+                    projections, sr, reproj)
                 if dlg.exec_() == QDialog.Accepted:
                     if dlg.isNamedLayer():
                         layername = dlg.getSelectedLayer()
@@ -1015,11 +1038,13 @@ File will now be opened using default stretch""")
                         if lyr is None:
                             raise IOError("Invalid SQL")                                
                         isResultSet = True
+                        
+                    toProj = dlg.getToProj()
                 else:
                     return None, None
                 
             self.viewwidget.addVectorLayer(ds, lyr, resultSet=isResultSet,
-                                        origSQL=sql, label=label)
+                                        origSQL=sql, label=label, toProj=toProj)
 
         except Exception as e:
             if SHOW_TRACEBACK:
