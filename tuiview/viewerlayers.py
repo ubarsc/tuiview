@@ -1218,6 +1218,9 @@ class ViewerVectorLayer(ViewerLayer):
             dictn['origSQL'] = self.origSQL
         else:
             dictn['layerName'] = self.ogrLayer.GetName()
+            
+        if self.toProj is not None:
+            dictn['proj'] = self.toProj.ExportToWkt()
 
         fileobj.write(json.dumps(dictn) + '\n')
 
@@ -1244,10 +1247,15 @@ class ViewerVectorLayer(ViewerLayer):
             origSQL = None
             isResultSet = False
 
+        toProj = None            
+        if 'proj' in dictn:
+            toProj = osr.SpatialReference()
+            toProj.ImportFromWkt(dictn['proj'])
+
         colour = dictn['color']
 
         self.open(ds, lyr, width, height, color=colour, resultSet=isResultSet,
-            origSQL=origSQL)
+            origSQL=origSQL, toProj=toProj)
 
         sql = dictn['filterSQL']
         if sql is not None:

@@ -992,11 +992,27 @@ File will now be opened using default stretch""")
                 return None, None
                 
             toProj = None
+            projSet = False
+            lyr = None
+
+            rastLayer = self.viewwidget.layers.getTopRasterLayer()
+            sr = None
+            if rastLayer is not None:
+                sr = rastLayer.sr
+
             if layername is not None:
                 lyr = ds.GetLayerByName(layername)
             elif sql is not None:
                 lyr = ds.ExecuteSQL(sql)
-            else:
+                
+            if reproj == vectoropendialog.PROJ_YES:
+                toProj = sr
+                projSet = True
+            elif reproj == vectoropendialog.PROJ_NO:
+                # leave toProj as None
+                projSet = True
+                
+            if lyr is None or not projSet:
                 # ask them
                 numLayers = ds.GetLayerCount()
                 if numLayers == 0:
@@ -1009,11 +1025,6 @@ File will now be opened using default stretch""")
                     layerNames.append(name)
                     proj = lyr.GetSpatialRef()
                     projections.append(proj)
-
-                rastLayer = self.viewwidget.layers.getTopRasterLayer()
-                sr = None
-                if rastLayer is not None:
-                    sr = rastLayer.sr
 
                 dlg = vectoropendialog.VectorOpenDialog(self, layerNames, 
                     projections, sr, reproj)
