@@ -517,37 +517,65 @@ class ViewerLUT(QObject):
         jsonstring = json.dumps(jsondict)
         gdaldataset.SetMetadataItem(VIEWER_SURROGATE_CT_KEY, jsonstring)
 
-    def loadColorTable(self, rat, nodata_rgba, background_rgba, nan_rgba):
+    def loadColorTable(self, rat, nodata_rgba, background_rgba, nan_rgba, gdalband):
         """
         Creates a LUT for a single band using 
-        the RAT
+        the RAT (or colour table if RAT not present)
         """
-        if rat.hasColorTable:
+        if rat.hasRATColorTable or rat.hasOldStyleColorTable:
 
-            # read in the colour table as lut
-            ctcount = rat.getNumRows()
+            if rat.hasRATColorTable:
+                # read in the colour table as lut
+                ctcount = rat.getNumRows()
+    
+                # LUT is shape [lutsize,4] so we can index from a single 
+                # band and get the brga (native order)
+                # add for no data and background/nan
+                lut = numpy.empty((ctcount + VIEWER_LUT_EXTRA, 4), 
+                    numpy.uint8, 'C')
+    
+                # copy in from RAT
+                names = rat.getColumnNames()
+                self.newProgress.emit("Reading Colors...")
+    
+                redCol = rat.getEntireAttribute(names[rat.redColumnIdx])
+                self.newPercent.emit(25)
+    
+                greenCol = rat.getEntireAttribute(names[rat.greenColumnIdx])
+                self.newPercent.emit(50)
+    
+                blueCol = rat.getEntireAttribute(names[rat.blueColumnIdx])
+                self.newPercent.emit(75)
+    
+                alphaCol = rat.getEntireAttribute(names[rat.alphaColumnIdx])
+                self.endProgress.emit()
+            else:
+                # read in the colour table as lut
+                ct = gdalband.GetColorTable()
+                ctcount = ct.GetCount()
 
-            # LUT is shape [lutsize,4] so we can index from a single 
-            # band and get the brga (native order)
-            # add for no data and background/nan
-            lut = numpy.empty((ctcount + VIEWER_LUT_EXTRA, 4), 
-                numpy.uint8, 'C')
+                # LUT is shape [lutsize,4] so we can index from a single 
+                # band and get the brga (native order)
+                # add for no data and background/nan
+                lut = numpy.empty((ctcount + VIEWER_LUT_EXTRA, 4), 
+                    numpy.uint8, 'C')
 
-            # copy in from RAT
-            names = rat.getColumnNames()
-            self.newProgress.emit("Reading Colors...")
+                self.newProgress.emit("Reading Colors...")
+                redCol = numpy.empty((ctcount,), dtype=numpy.uint8)
+                greenCol = numpy.empty((ctcount,), dtype=numpy.uint8)
+                blueCol = numpy.empty((ctcount,), dtype=numpy.uint8)
+                alphaCol = numpy.empty((ctcount,), dtype=numpy.uint8)
+                for n in range(ctcount):
+                    entry = ct.GetColorEntry(n)
+                    redCol[n] = entry[0]
+                    greenCol[n] = entry[1]
+                    blueCol[n] = entry[2]
+                    alphaCol[n] = entry[3]
+                    if (ctcount % 10) == 0:
+                        # every 10 rows update progress
+                        self.newPercent.emit((n / ctcount) * 100)
 
-            redCol = rat.getEntireAttribute(names[rat.redColumnIdx])
-            self.newPercent.emit(25)
-
-            greenCol = rat.getEntireAttribute(names[rat.greenColumnIdx])
-            self.newPercent.emit(50)
-
-            blueCol = rat.getEntireAttribute(names[rat.blueColumnIdx])
-            self.newPercent.emit(75)
-
-            alphaCol = rat.getEntireAttribute(names[rat.alphaColumnIdx])
-            self.endProgress.emit()
+                self.endProgress.emit()
 
             cols = [redCol, greenCol, blueCol, alphaCol]
             for (col, code) in zip(cols, RGBA_CODES):
@@ -564,7 +592,7 @@ class ViewerLUT(QObject):
                 lut[nodata_index, lutindex] = nodatavalue
                 lut[background_index, lutindex] = backgroundvalue
                 lut[nan_index, lutindex] = nanvalue
-
+                
         else:
             msg = 'No color table present or file not thematic'
             raise viewererrors.InvalidColorTable(msg)
@@ -906,7 +934,8 @@ class ViewerLUT(QObject):
             self.lut, self.bandinfo = self.loadColorTable(rat, 
                                                 stretch.nodata_rgba, 
                                                 stretch.background_rgba,
-                                                stretch.nan_rgba)
+                                                stretch.nan_rgba,
+                                                gdalband)
 
         elif stretch.mode == viewerstretch.VIEWER_MODE_GREYSCALE:
             if len(stretch.bands) > 1:

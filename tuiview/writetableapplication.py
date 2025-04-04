@@ -116,7 +116,7 @@ def addTable(source, name, dest):
     nodata_rgba = (0, 0, 0, 0)
     nan_rgba = (0, 0, 0, 0)
     lutobj = ViewerLUT()
-    lut, _ = lutobj.loadColorTable(rat, nodata_rgba, nodata_rgba, nan_rgba)
+    lut, _ = lutobj.loadColorTable(rat, nodata_rgba, nodata_rgba, nan_rgba, sourceband)
 
     destds = gdal.Open(dest, gdal.GA_Update)
     if destds is None:

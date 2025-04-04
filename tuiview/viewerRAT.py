@@ -108,7 +108,8 @@ class ViewerRAT(QObject):
     greenColumnIdx = None  # int
     blueColumnIdx = None  # int
     alphaColumnIdx = None  # int
-    hasColorTable = False
+    hasRATColorTable = False
+    hasOldStyleColorTable = False
     attributeData = None
 
     def __init__(self):
@@ -225,7 +226,8 @@ class ViewerRAT(QObject):
         self.greenColumnIdx = None  # int
         self.blueColumnIdx = None  # int
         self.alphaColumnIdx = None  # int
-        self.hasColorTable = False
+        self.hasRATColorTable = False
+        self.hasOldStyleColorTable = False 
 
     def addColumn(self, colname, coltype):
         """
@@ -334,17 +336,17 @@ class ViewerRAT(QObject):
             prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
             if len(prefColOrder) > 0:
                 # rearrange our columns given this
-                self.arrangeColumnOrder(prefColOrder)
+                self.arrangeColumnOrder(prefColOrder, gdalband)
 
             # see if there is a colour table
-            self.findColorTableColumns()
+            self.findColorTableColumns(gdalband)
 
             # remember the lookup column if set (None if not)
             self.lookupColName = lookup
 
         self.endProgress.emit()
 
-    def findColorTableColumns(self):
+    def findColorTableColumns(self, gdalband):
         """
         Update the variables that define which are the columns
         in the colour table
@@ -363,12 +365,17 @@ class ViewerRAT(QObject):
             col += 1
 
         # if we have all the columns, we have a color table
-        self.hasColorTable = (self.redColumnIdx is not None and 
+        self.hasRATColorTable = (self.redColumnIdx is not None and 
                 self.greenColumnIdx is not None and 
                 self.blueColumnIdx is not None and
                 self.alphaColumnIdx is not None)
-
-    def arrangeColumnOrder(self, prefColOrder):
+                
+        self.hasOldStyleColorTable = False
+        if not self.hasRATColorTable:
+            ct = gdalband.GetColorTable()
+            self.hasOldStyleColorTable = ct is not None
+            
+    def arrangeColumnOrder(self, prefColOrder, gdalband):
         """
         rearrange self.columnNames given the preferred column
         order that is passed. Any columns not included
@@ -389,7 +396,7 @@ class ViewerRAT(QObject):
         self.columnNames = newColOrder
 
         # this needs to be updated
-        self.findColorTableColumns()
+        self.findColorTableColumns(gdalband)
         
     def getUserExpressionGlobals(self, cache, isselected, queryRow, 
                             lastselected=None, colNameList=None):
