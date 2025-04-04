@@ -298,51 +298,54 @@ class ViewerRAT(QObject):
         self.newProgress.emit("Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
         thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
-        if rat is not None and rat.GetRowCount() != 0 and thematic:
+        if thematic:
             # looks like we have attributes
             self.count += 1
-            self.columnNames = []
-            self.attributeData = {}
-            self.columnTypes = {}
-            self.columnUsages = {}
-            self.columnFormats = {}
-            self.gdalRAT = rat
 
-            # first get the column names
-            # we do this so we can preserve the order
-            # of the columns in the attribute table
-            ncols = rat.GetColumnCount()
-            percent_per_col = 100.0 / float(ncols)
-            for col in range(ncols):
-                colname = rat.GetNameOfCol(col)
-                self.columnNames.append(colname)
+            if rat is not None and rat.GetRowCount() != 0:
+                self.columnNames = []
+                self.attributeData = {}
+                self.columnTypes = {}
+                self.columnUsages = {}
+                self.columnFormats = {}
+                self.gdalRAT = rat
+    
+                # first get the column names
+                # we do this so we can preserve the order
+                # of the columns in the attribute table
+                ncols = rat.GetColumnCount()
+                percent_per_col = 100.0 / float(ncols)
+                for col in range(ncols):
+                    colname = rat.GetNameOfCol(col)
+                    self.columnNames.append(colname)
+    
+                    dtype = rat.GetTypeOfCol(col)
+                    self.columnTypes[colname] = dtype
+                    usage = rat.GetUsageOfCol(col)
+                    self.columnUsages[colname] = usage
+    
+                    # format depdendent on type
+                    if dtype == gdal.GFT_Integer:
+                        self.columnFormats[colname] = DEFAULT_INT_FMT
+                    elif dtype == gdal.GFT_Real:
+                        self.columnFormats[colname] = DEFAULT_FLOAT_FMT
+                    else:
+                        self.columnFormats[colname] = DEFAULT_STRING_FMT
+    
+                    self.newPercent.emit(col * percent_per_col)
+    
+                # read in a preferred column order (if any)
+                prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
+                if len(prefColOrder) > 0:
+                    # rearrange our columns given this
+                    self.arrangeColumnOrder(prefColOrder, gdalband)
 
-                dtype = rat.GetTypeOfCol(col)
-                self.columnTypes[colname] = dtype
-                usage = rat.GetUsageOfCol(col)
-                self.columnUsages[colname] = usage
-
-                # format depdendent on type
-                if dtype == gdal.GFT_Integer:
-                    self.columnFormats[colname] = DEFAULT_INT_FMT
-                elif dtype == gdal.GFT_Real:
-                    self.columnFormats[colname] = DEFAULT_FLOAT_FMT
-                else:
-                    self.columnFormats[colname] = DEFAULT_STRING_FMT
-
-                self.newPercent.emit(col * percent_per_col)
-
-            # read in a preferred column order (if any)
-            prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
-            if len(prefColOrder) > 0:
-                # rearrange our columns given this
-                self.arrangeColumnOrder(prefColOrder, gdalband)
+                # remember the lookup column if set (None if not)
+                self.lookupColName = lookup
 
             # see if there is a colour table
+            # do this if thematic even if there is no rat - may be a old style color table
             self.findColorTableColumns(gdalband)
-
-            # remember the lookup column if set (None if not)
-            self.lookupColName = lookup
 
         self.endProgress.emit()
 
@@ -351,18 +354,19 @@ class ViewerRAT(QObject):
         Update the variables that define which are the columns
         in the colour table
         """
-        col = 0
-        for colname in self.columnNames:
-            usage = self.columnUsages[colname]
-            if usage == gdal.GFU_Red:
-                self.redColumnIdx = col
-            elif usage == gdal.GFU_Green:
-                self.greenColumnIdx = col
-            elif usage == gdal.GFU_Blue:
-                self.blueColumnIdx = col
-            elif usage == gdal.GFU_Alpha:
-                self.alphaColumnIdx = col
-            col += 1
+        if self.columnNames is not None:
+            col = 0
+            for colname in self.columnNames:
+                usage = self.columnUsages[colname]
+                if usage == gdal.GFU_Red:
+                    self.redColumnIdx = col
+                elif usage == gdal.GFU_Green:
+                    self.greenColumnIdx = col
+                elif usage == gdal.GFU_Blue:
+                    self.blueColumnIdx = col
+                elif usage == gdal.GFU_Alpha:
+                    self.alphaColumnIdx = col
+                col += 1
 
         # if we have all the columns, we have a color table
         self.hasRATColorTable = (self.redColumnIdx is not None and 
