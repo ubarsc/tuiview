@@ -311,6 +311,11 @@ class StretchRule:
                             hasAlpha = True
 
                 match = hasRed and hasGreen and hasBlue and hasAlpha
+                
+                # fall back to use the old style color table if RAT colour columns not present
+                if not match:
+                    ct = gdalband.GetColorTable()
+                    match = ct is not None
         
         return match
 

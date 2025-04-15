@@ -262,7 +262,7 @@ class ThematicTableModel(QAbstractTableModel):
     def columnCount(self, parent):
         "number of columns"
         ncols = self.attributes.getNumColumns()
-        if self.attributes.hasColorTable:
+        if self.attributes.hasRATColorTable:
             ncols += 1
         return ncols
 
@@ -272,7 +272,7 @@ class ThematicTableModel(QAbstractTableModel):
         horizontal
         """
         if orientation == Qt.Horizontal:
-            if self.attributes.hasColorTable:
+            if self.attributes.hasRATColorTable:
                 if role == Qt.DisplayRole and section == 0:
                     return "Color"
                 section -= 1  # for below, to ignore the color col
@@ -380,7 +380,7 @@ class ThematicTableModel(QAbstractTableModel):
 
         elif role == Qt.DisplayRole: 
             column = index.column()
-            if self.attributes.hasColorTable:
+            if self.attributes.hasRATColorTable:
                 if column == 0:
                     return None  # no text
                 column -= 1  # for below to ignore the color col
@@ -402,7 +402,7 @@ class ThematicTableModel(QAbstractTableModel):
 
         elif role == Qt.DecorationRole:
             column = index.column()
-            if self.attributes.hasColorTable and column == 0:
+            if self.attributes.hasRATColorTable and column == 0:
                 return self.createColorIcon(row)
             else:
                 return None
@@ -600,7 +600,7 @@ class ThematicHorizontalHeader(QHeaderView):
             col = self.logicalIndexAt(event.pos())
             attributes = self.parent.lastLayer.attributes
 
-            if attributes.hasColorTable:
+            if attributes.hasRATColorTable:
                 if col == 0:
                     # do special handling for color column
                     action = self.colorPopup.exec_(event.globalPos())
