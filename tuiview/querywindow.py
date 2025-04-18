@@ -975,6 +975,12 @@ class QueryDockWidget(QDockWidget):
         self.expressionAction.setStatusTip("Select using an Expression")
         icon = QIcon(":/viewer/images/userexpression.png")
         self.expressionAction.setIcon(icon)
+        
+        self.exportToCSVAction = QAction(self, triggered=self.exportSelectedToCSV)
+        self.exportToCSVAction.setText("Export Selected Rows to CSV")
+        self.exportToCSVAction.setStatusTip("Export Selected Rows to CSV")
+        icon = QIcon(":/viewer/images/csv.png")
+        self.exportToCSVAction.setIcon(icon)
 
         self.unlockDatasetAction = QAction(self, toggled=self.unlockDataset)
         self.unlockDatasetAction.setText("Toggle &updates to dataset")
@@ -1048,6 +1054,7 @@ class QueryDockWidget(QDockWidget):
         self.toolBar.addAction(self.removeSelectionAction)
         self.toolBar.addAction(self.selectAllAction)
         self.toolBar.addAction(self.expressionAction)
+        self.toolBar.addAction(self.exportToCSVAction)
         self.toolBar.addAction(self.unlockDatasetAction)
         self.toolBar.addAction(self.addColumnAction)
         self.toolBar.addAction(self.saveColOrderAction)
@@ -1567,6 +1574,16 @@ Use the special columns:
 
         except viewererrors.InvalidDataset as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+            
+    def exportSelectedToCSV(self):
+        """
+        Save the selected rows to csv
+        """
+        fname, _ = QFileDialog.getSaveFileName(self, "CSV File", 
+                    filter="CSV (*.csv)")
+        if fname != '':
+            attributes = self.lastLayer.attributes
+            attributes.exportSelectedRowsToCSV(self.selectionArray, fname)
 
     def activeToolChanged(self, obj):
         """
