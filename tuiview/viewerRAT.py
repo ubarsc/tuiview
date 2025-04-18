@@ -600,7 +600,6 @@ class ViewerRAT(QObject):
 
         currRow = 0
         done = False
-        isScalar = False  # user code returns a scalar - we 
 
         with open(outDocCsv, 'wt+', newline='') as csvfile:
             csvout = csv.writer(csvfile, delimiter=',', quotechar='"', 

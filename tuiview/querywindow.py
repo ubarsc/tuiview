@@ -1585,7 +1585,6 @@ Use the special columns:
             attributes = self.lastLayer.attributes
             attributes.exportSelectedRowsToCSV(self.selectionArray, fname)
 
-
     def activeToolChanged(self, obj):
         """
         Called in response to the activeToolChanged signal
