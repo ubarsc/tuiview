@@ -20,6 +20,7 @@ Contains the ViewerRAT class
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
+import csv
 import traceback
 import json
 import keyword
@@ -413,7 +414,7 @@ class ViewerRAT(QObject):
 
         globaldict = {}
         # give them access to 'row' which is the row number
-        globaldict['row'] = numpy.arange(self.getNumRows())
+        globaldict['row'] = numpy.arange(cache.currStartRow, cache.currStartRow + cache.length)
         # access to 'queryrow' with is the currently queried row
         globaldict['queryrow'] = queryRow
         # give them access to 'isselected' which is the currently
@@ -586,6 +587,54 @@ class ViewerRAT(QObject):
 
             currRow += DEFAULT_CACHE_SIZE
             self.newPercent.emit(int((currRow / nrows) * 100))
+
+        self.endProgress.emit()
+        
+    def exportSelectedRowsToCSV(self, isselected, outDocCsv):
+        """
+        Export an selected rows to the names csv file
+        """
+        self.newProgress.emit("Exporting to CSV...")
+        cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
+        nrows = self.getNumRows()
+
+        currRow = 0
+        done = False
+
+        with open(outDocCsv, 'wt+', newline='') as csvfile:
+            csvout = csv.writer(csvfile, delimiter=',', quotechar='"', 
+                quoting=csv.QUOTE_MINIMAL)
+                
+            # header
+            col_names = ['row']
+            col_names.extend(self.columnNames)
+            csvout.writerow(col_names)
+
+            while currRow < nrows and not done:
+                # guess the length
+                isselectedSub = isselected[currRow:currRow + DEFAULT_CACHE_SIZE]
+    
+                if isselectedSub.any():
+                    cache.setStartRow(currRow)
+                    length = cache.getLength()
+                    isselectedSub = isselected[currRow:currRow + length]
+                    rowSub = numpy.arange(currRow, currRow + length)
+                    
+                    cols_to_write = [rowSub[isselectedSub]]
+                    cols_to_format = [DEFAULT_INT_FMT]
+                    for col_name in self.columnNames:
+                        cols_to_write.append(cache.cacheDict[col_name][isselectedSub])
+                        cols_to_format.append(self.columnFormats[col_name])
+                        
+                    for idx in range(cols_to_write[0].shape[0]):
+                        row = []
+                        for col, fmt in zip(cols_to_write, cols_to_format):
+                            val = col[idx]
+                            row.append(fmt % val)                                    
+                        csvout.writerow(row)
+    
+                currRow += DEFAULT_CACHE_SIZE
+                self.newPercent.emit(int((currRow / nrows) * 100))
 
         self.endProgress.emit()
 
