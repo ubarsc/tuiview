@@ -32,6 +32,7 @@ VIEWER_MODE_COLORTABLE = 1
 VIEWER_MODE_GREYSCALE = 2
 VIEWER_MODE_RGB = 3
 VIEWER_MODE_PSEUDOCOLOR = 4
+VIEWER_MODE_RGBA = 5
 
 # how to stretch an image
 VIEWER_STRETCHMODE_DEFAULT = 0
@@ -39,14 +40,18 @@ VIEWER_STRETCHMODE_NONE = 1  # color table, or pre stretched data
 VIEWER_STRETCHMODE_LINEAR = 2
 VIEWER_STRETCHMODE_STDDEV = 3
 VIEWER_STRETCHMODE_HIST = 4
+# below only valid with VIEWER_MODE_RGB/VIEWER_MODE_RGBA
+VIEWER_STRETCHMODE_LINEAR_VAR = 5  # like VIEWER_STRETCHMODE_LINEAR, but min/max varies between bands
+VIEWER_STRETCHMODE_STDDEV_VAR = 6  # like VIEWER_STRETCHMODE_STDDEV, but stddev varies between bands
+VIEWER_STRETCHMODE_HIST_VAR = 7  # like VIEWER_STRETCHMODE_HIST, but min/max varies between bands
 
 # for storing a stretch within a file
 VIEWER_STRETCH_METADATA_KEY = 'VIEWER_STRETCH'
 
 # default stretchparams
 VIEWER_DEFAULT_STDDEV = 2.0
-VIEWER_DEFAULT_HISTMIN = 0.025
-VIEWER_DEFAULT_HISTMAX = 0.01
+VIEWER_DEFAULT_HISTMIN = 0.1
+VIEWER_DEFAULT_HISTMAX = 0.9
 
 VIEWER_DEFAULT_NOCOLOR = (0, 0, 0, 0)
 
@@ -95,6 +100,10 @@ class ViewerStretch:
     def setRGB(self):
         "Display 3 bands as RGB"
         self.mode = VIEWER_MODE_RGB
+        
+    def setRGBA(self):
+        "Display 4 bands as RGBA"
+        self.mode = VIEWER_MODE_RGBA
 
     def setNoStretch(self):
         "Don't do a stretch - data is already stretched"
@@ -103,21 +112,58 @@ class ViewerStretch:
     def setLinearStretch(self, minVal=None, maxVal=None):
         """
         Just stretch linearly between min and max values
-        if None, range of the data used
+        if None, range of the data used. Just for single
+        band, or all bands the same
         """
         self.stretchmode = VIEWER_STRETCHMODE_LINEAR
         self.stretchparam = (minVal, maxVal)
+        
+    def setLinearStretchVar(self, minMaxList):
+        """
+        Like setLinearStretch, but uses a list of (min, max) tuples
+        - one for each band
+        """
+        if len(minMaxList) != len(self.bands):
+            raise viewererrors.InvalidStretch("must pass list the same length as bands")
+        if self.mode != VIEWER_MODE_RGB and self.mode != VIEWER_MODE_RGBA:
+            raise viewererrors.InvalidStretch("Var stretch only available for RGB and RGBA")
+        self.stretchmode = VIEWER_STRETCHMODE_LINEAR_VAR
+        self.stretchparam = minMaxList
 
     def setStdDevStretch(self, stddev=VIEWER_DEFAULT_STDDEV):
         "Do a standard deviation stretch"
         self.stretchmode = VIEWER_STRETCHMODE_STDDEV
         self.stretchparam = (stddev,)
+        
+    def setStdDevStretchVar(self, stddevList):
+        """
+        Like setStdDevStretch, but uses a list of stddevs
+        - one for each band
+        """
+        if len(stddevList) != len(self.bands):
+            raise viewererrors.InvalidStretch("must pass list the same length as bands")
+        if self.mode != VIEWER_MODE_RGB and self.mode != VIEWER_MODE_RGBA:
+            raise viewererrors.InvalidStretch("Var stretch only available for RGB and RGBA")
+        self.stretchmode = VIEWER_STRETCHMODE_STDDEV_VAR
+        self.stretchparam = stddevList
 
     def setHistStretch(self, minVal=VIEWER_DEFAULT_HISTMIN, 
             maxVal=VIEWER_DEFAULT_HISTMAX):
         "Do a histogram stretch"
         self.stretchmode = VIEWER_STRETCHMODE_HIST
         self.stretchparam = (minVal, maxVal)
+        
+    def setHistStretchVar(self, minMaxList):
+        """
+        List setHistStretch, but uses a list of (min, max) tuples
+        - one for each band
+        """
+        if len(minMaxList) != len(self.bands):
+            raise viewererrors.InvalidStretch("must pass list the same length as bands")
+        if self.mode != VIEWER_MODE_RGB and self.mode != VIEWER_MODE_RGBA:
+            raise viewererrors.InvalidStretch("Var stretch only available for RGB and RGBA")
+        self.stretchmode = VIEWER_STRETCHMODE_HIST_VAR
+        self.stretchparam = minMaxList
 
     def setNoDataRGBA(self, rgba):
         "Set the RGBA to display No Data values as"
