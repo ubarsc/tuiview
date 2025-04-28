@@ -125,7 +125,7 @@ class ViewerStretch:
         """
         if len(minMaxList) != len(self.bands):
             raise viewererrors.InvalidStretch("must pass list the same length as bands")
-        if self.mode != VIEWER_MODE_RGB and self.mode != VIEWER_MODE_RGBA:
+        if self.mode not in [VIEWER_MODE_RGB, VIEWER_MODE_RGBA]:
             raise viewererrors.InvalidStretch("Var stretch only available for RGB and RGBA")
         self.stretchmode = VIEWER_STRETCHMODE_LINEAR_VAR
         self.stretchparam = minMaxList
@@ -142,7 +142,7 @@ class ViewerStretch:
         """
         if len(stddevList) != len(self.bands):
             raise viewererrors.InvalidStretch("must pass list the same length as bands")
-        if self.mode != VIEWER_MODE_RGB and self.mode != VIEWER_MODE_RGBA:
+        if self.mode not in [VIEWER_MODE_RGB, VIEWER_MODE_RGBA]:
             raise viewererrors.InvalidStretch("Var stretch only available for RGB and RGBA")
         self.stretchmode = VIEWER_STRETCHMODE_STDDEV_VAR
         self.stretchparam = stddevList
@@ -160,7 +160,7 @@ class ViewerStretch:
         """
         if len(minMaxList) != len(self.bands):
             raise viewererrors.InvalidStretch("must pass list the same length as bands")
-        if self.mode != VIEWER_MODE_RGB and self.mode != VIEWER_MODE_RGBA:
+        if self.mode not in [VIEWER_MODE_RGB, VIEWER_MODE_RGBA]:
             raise viewererrors.InvalidStretch("Var stretch only available for RGB and RGBA")
         self.stretchmode = VIEWER_STRETCHMODE_HIST_VAR
         self.stretchparam = minMaxList

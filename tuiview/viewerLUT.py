@@ -626,8 +626,8 @@ class ViewerLUT(QObject):
 
         # code below sets stretchMin and stretchMax
 
-        if (stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR or
-                stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR):
+        if (stretch.stretchmode in [viewerstretch.VIEWER_STRETCHMODE_LINEAR, 
+                viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR]):
             # stretch between reported min and max if they
             # have given us None as the range, otherwise use
             # the specified range
@@ -645,8 +645,8 @@ class ViewerLUT(QObject):
             else:
                 stretchMax = reqMax
                 
-        elif (stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV or
-                stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR):
+        elif (stretch.stretchmode in [viewerstretch.VIEWER_STRETCHMODE_STDDEV,
+                viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR]):
             # linear stretch n std deviations from the mean
             if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR:
                 nstddev = stretch.stretchparam[bandIdx]
@@ -658,8 +658,8 @@ class ViewerLUT(QObject):
             stretchMax = mean + (nstddev * stdDev)
             stretchMax = min(stretchMax, maxVal)
 
-        elif (stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST or
-                stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST_VAR):
+        elif (stretch.stretchmode in [viewerstretch.VIEWER_STRETCHMODE_HIST,
+                viewerstretch.VIEWER_STRETCHMODE_HIST_VAR]):
 
             histo = (
                 self.getHistogramWithProgress(gdalband, minVal, maxVal, localdata))
