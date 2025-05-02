@@ -844,8 +844,9 @@ class ViewerRasterLayer(ViewerLayer):
         mask[dataslice] = viewerLUT.MASK_IMAGE_VALUE  # 0 where there is data
         nodata_mask = None
 
-        if len(self.stretch.bands) == 3:
-            # rgb
+        nbands = len(self.stretch.bands)
+        if nbands == 3 or nbands == 4:
+            # rgb or rgba
             datalist = []
             for bandnum in self.stretch.bands:
                 band = self.gdalDataset.GetRasterBand(bandnum)
@@ -894,7 +895,10 @@ class ViewerRasterLayer(ViewerLayer):
                     mask)
 
             # apply LUT
-            self.image = self.lut.applyLUTRGB(datalist, mask)
+            if nbands == 3:
+                self.image = self.lut.applyLUTRGB(datalist, mask)
+            else:
+                self.image = self.lut.applyLUTRGBA(datalist, mask)
 
         else:
             # must be single band

@@ -877,7 +877,7 @@ class ViewerLUT(QObject):
         """
         # clobber the backup lut - any hightlights happen afresh
         self.backuplut = None
-
+        
         if (stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or 
                 stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT):
             msg = 'must set mode and stretchmode'
@@ -900,7 +900,7 @@ class ViewerLUT(QObject):
         else:
             # global stretch
             localdata = None
-            localdatalist = (None, None, None)
+            localdatalist = (None, None, None, None)
 
         # are we loading the LUT from an external file instead?
         try:
@@ -1186,7 +1186,7 @@ class ViewerLUT(QObject):
                 self.bandinfo[code] = bandinfo
 
                 self.lut[lutindex] = lut
-
+                
         else:
             msg = 'unsupported display mode'
             raise viewererrors.InvalidParameters(msg)
@@ -1324,6 +1324,59 @@ class ViewerLUT(QObject):
         alpha[mask == MASK_BACKGROUND_VALUE] = background_value
         bgra[..., lutindex] = alpha
 
+        # turn into QImage
+        # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
+        # is faster. Not sure what this means
+        image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32)
+        image.viewerdata = datalist 
+        # so we have the data if we want to calculate stats etc
+        image.viewermask = mask
+        return image
+
+
+    def applyLUTRGBA(self, datalist, mask):
+        """
+        Apply LUT to 4 bands of imagery
+        passed as a list of arrays.
+        Return a QImage
+        """
+        winysize, winxsize = datalist[0].shape
+
+        # create blank array to stretch into
+        bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8, 'C')
+        for (data, code) in zip(datalist, RGBA_CODES):
+            lutindex = CODE_TO_LUTINDEX[code]
+            bandinfo = self.bandinfo[code]
+
+            # work out where the NaN's are if float
+            if numpy.issubdtype(data.dtype, numpy.floating):
+                nanmask = numpy.isnan(data)
+            else:
+                nanmask = None
+
+            # convert to float for maths below
+            data = data.astype(numpy.floating)
+            # in case data outside range of stretch
+            numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
+            
+            # apply scaling in place
+            numpy.add(data, bandinfo.offset, out=data)
+            numpy.divide(data, bandinfo.scale, out=data)
+
+            # can only do lookups with integer data
+            data = data.astype(numpy.integer)
+
+            # set NaN values back to LUT=nandata if data originally float
+            if nanmask is not None:
+                data[nanmask] = bandinfo.nan_index
+
+            # mask no data and background
+            data[mask == MASK_NODATA_VALUE] = bandinfo.nodata_index
+            data[mask == MASK_BACKGROUND_VALUE] = bandinfo.background_index
+
+            # do the lookup
+            bgra[..., lutindex] = self.lut[lutindex][data]
+        
         # turn into QImage
         # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
         # is faster. Not sure what this means
