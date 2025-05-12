@@ -1333,7 +1333,6 @@ class ViewerLUT(QObject):
         image.viewermask = mask
         return image
 
-
     def applyLUTRGBA(self, datalist, mask):
         """
         Apply LUT to 4 bands of imagery
