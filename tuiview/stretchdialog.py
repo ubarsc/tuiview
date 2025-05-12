@@ -236,9 +236,11 @@ class StretchLayout(QFormLayout):
         Called when the 'Statistics Min' or Max box is checked
         """
         for spin_box, stats in self.paramsMinList:
-            spin_box.setEnabled(stats.checkState() != Qt.Checked)
+            if stats.isEnabled():
+                spin_box.setEnabled(stats.checkState() != Qt.Checked)
         for spin_box, stats in self.paramsMaxList:
-            spin_box.setEnabled(stats.checkState() != Qt.Checked)
+            if stats.isEnabled():
+                spin_box.setEnabled(stats.checkState() != Qt.Checked)
 
     def updateStretch(self, stretch):
         """
@@ -331,7 +333,10 @@ class StretchLayout(QFormLayout):
             nbands = 3
         elif mode == viewerstretch.VIEWER_MODE_RGBA:
             nbands = 4
-        
+
+        # Note: set enabled on stats tick box first - changing checkState
+        # triggers statsChanged, but this ignores tick boxes that have
+        # been disabled
         if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
             spin_box, stats = self.paramsMinList[0]
             spin_box.setEnabled(True)
@@ -347,13 +352,13 @@ class StretchLayout(QFormLayout):
             
             for spin_box, stats in self.paramsMinList[1:]:
                 spin_box.setEnabled(False)
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
             for spin_box, stats in self.paramsMaxList:
                 spin_box.setEnabled(False)
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR:
             
@@ -364,8 +369,8 @@ class StretchLayout(QFormLayout):
                 spin_box.setRange(0, 10)
                 spin_box.setSingleStep(0.1)
                 spin_box.setToolTip("Number of Standard Deviations")
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
                 if stddev is not None:
                     spin_box.setValue(stddev)
                 else:
@@ -373,8 +378,8 @@ class StretchLayout(QFormLayout):
 
             for spin_box, stats in self.paramsMaxList:
                 spin_box.setEnabled(False)
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
             spin_box, stats = self.paramsMinList[0]
@@ -386,8 +391,8 @@ class StretchLayout(QFormLayout):
             else:
                 spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN)
             spin_box.setToolTip("Minimum Proportion of Histogram")
-            stats.setCheckState(Qt.Unchecked)
             stats.setEnabled(False)
+            stats.setCheckState(Qt.Unchecked)
             
             for spin_box, stats in self.paramsMinList[1:]:
                 spin_box.setEnabled(False)
@@ -395,6 +400,7 @@ class StretchLayout(QFormLayout):
                 stats.setEnabled(False)
 
             spin_box, stats = self.paramsMaxList[0]
+            spin_box.setEnabled(True)
             spin_box.setRange(0, 1)
             spin_box.setSingleStep(0.005)
             if stretchparam is not None:
@@ -402,13 +408,13 @@ class StretchLayout(QFormLayout):
             else:
                 spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
             spin_box.setToolTip("Maximum Proportion of Histogram")
-            stats.setCheckState(Qt.Unchecked)
             stats.setEnabled(False)
+            stats.setCheckState(Qt.Unchecked)
             
             for spin_box, stats in self.paramsMaxList[1:]:
                 spin_box.setEnabled(False)
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST_VAR:
 
@@ -420,8 +426,8 @@ class StretchLayout(QFormLayout):
                 spin_box.setRange(0, 10)
                 spin_box.setSingleStep(0.1)
                 spin_box.setToolTip("Minimum Proportion of Histogram")
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
                 if minVal is not None:
                     spin_box.setValue(minVal)
                 else:
@@ -432,32 +438,32 @@ class StretchLayout(QFormLayout):
                 spin_box.setRange(0, 10)
                 spin_box.setSingleStep(0.1)
                 spin_box.setToolTip("Maximum Proportion of Histogram")
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
                 if maxVal is not None:
                     spin_box.setValue(maxVal)
                 else:
                     spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
 
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
-
             spin_box, stats = self.paramsMinList[0]
-            spin_box.setEnabled(True)
             spin_box.setRange(-2**32, 2**32)
             spin_box.setSingleStep(1)
             if stretchparam is not None:
                 spin_box.setValue(stretchparam[0])
+                spin_box.setEnabled(True)
                 stats.setCheckState(Qt.Unchecked)
             else:
                 spin_box.setValue(0)
+                spin_box.setEnabled(False)
                 stats.setCheckState(Qt.Checked)
             spin_box.setToolTip("Minimum value")
             stats.setEnabled(True)
             
             for spin_box, stats in self.paramsMinList[1:]:
                 spin_box.setEnabled(False)
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
             spin_box, stats = self.paramsMaxList[0]
             spin_box.setRange(-2**32, 2**32)
@@ -465,16 +471,18 @@ class StretchLayout(QFormLayout):
             if stretchparam is not None:
                 spin_box.setValue(stretchparam[1])
                 stats.setCheckState(Qt.Unchecked)
+                spin_box.setEnabled(True)
             else:
                 spin_box.setValue(0)
                 stats.setCheckState(Qt.Checked)
-            spin_box.setToolTip("Maximum value")
+                spin_box.setEnabled(False)
             stats.setEnabled(True)
+            spin_box.setToolTip("Maximum value")
             
             for spin_box, stats in self.paramsMaxList[1:]:
                 spin_box.setEnabled(False)
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
         elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR:
 
@@ -482,20 +490,20 @@ class StretchLayout(QFormLayout):
                 stretchparam = [(None, None)] * len(self.paramsMinList) 
 
             for idx, ((minVal, maxVal), (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMinList)):
-                spin_box.setEnabled(idx < nbands)
                 spin_box.setRange(-2**32, 2**32)
                 spin_box.setSingleStep(1)
                 spin_box.setToolTip("Minimum value")
                 stats.setEnabled(idx < nbands)
                 if minVal is not None:
+                    spin_box.setEnabled(idx < nbands)
                     spin_box.setValue(minVal)
                     stats.setCheckState(Qt.Unchecked)
                 else:
                     spin_box.setValue(0)
                     stats.setCheckState(Qt.Checked)
+                    spin_box.setEnabled(False)
 
             for idx, ((minVal, maxVal), (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMaxList)):
-                spin_box.setEnabled(idx < nbands)
                 spin_box.setRange(-2**32, 2**32)
                 spin_box.setSingleStep(1)
                 spin_box.setToolTip("Maximum value")
@@ -504,22 +512,24 @@ class StretchLayout(QFormLayout):
                 if maxVal is not None:
                     spin_box.setValue(maxVal)
                     stats.setCheckState(Qt.Unchecked)
+                    spin_box.setEnabled(idx < nbands)
                 else:
                     spin_box.setValue(0)
                     stats.setCheckState(Qt.Checked)
+                    spin_box.setEnabled(False)
 
         else:
             # no stretch
             for spin_box, stats in self.paramsMinList:
                 spin_box.setEnabled(False)
                 spin_box.setToolTip("")
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
             for spin_box, stats in self.paramsMaxList:
                 spin_box.setEnabled(False)
                 spin_box.setToolTip("")
-                stats.setCheckState(Qt.Unchecked)
                 stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
     def createSpinBands(self, parent):
         """
@@ -1184,7 +1194,7 @@ class StretchDockWidget(QDockWidget):
             if SHOW_TRACEBACK:
                 traceback.print_exc()
             else:
-                QMessageBox.critical(parent, MESSAGE_TITLE, str(e))
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onApply(self):
         """
@@ -1198,7 +1208,7 @@ class StretchDockWidget(QDockWidget):
             if SHOW_TRACEBACK:
                 traceback.print_exc()
             else:
-                QMessageBox.critical(parent, MESSAGE_TITLE, str(e))
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onSave(self):
         """

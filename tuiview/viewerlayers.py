@@ -845,7 +845,7 @@ class ViewerRasterLayer(ViewerLayer):
         nodata_mask = None
 
         nbands = len(self.stretch.bands)
-        if nbands == 3 or nbands == 4:
+        if nbands in (3, 4):
             # rgb or rgba
             datalist = []
             for bandnum in self.stretch.bands:
