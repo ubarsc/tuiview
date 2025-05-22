@@ -232,9 +232,12 @@ class ViewerLUT(QObject):
                 fileobj.write('%s\n' % json.dumps(rep))
         else:
             # rgb
-            rep = {'nbands': 3}
+            rep = {'nbands': 4}
             fileobj.write('%s\n' % json.dumps(rep))
-            for code in RGB_CODES:
+            codes = RGB_CODES
+            if 'alpha' in self.bandinfo:
+                codes = RGBA_CODES
+            for code in codes:
                 lutindex = CODE_TO_LUTINDEX[code]
                 bi = self.bandinfo[code]
 
@@ -276,7 +279,9 @@ class ViewerLUT(QObject):
         else:
             # rgb - NB writing into band metadata results in corruption 
             # use dataset instead
-            for code in RGB_CODES:
+            if 'alpha' in self.bandinfo:
+                codes = RGBA_CODES
+            for code in codes:
                 string = self.bandinfo[code].toString()
                 key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
                 gdaldataset.SetMetadataItem(key, string)
@@ -287,11 +292,12 @@ class ViewerLUT(QObject):
                 gdaldataset.SetMetadataItem(key, string)
 
             # do alpha seperately as there is no bandinfo
-            code = 'alpha'
-            lutindex = CODE_TO_LUTINDEX[code]
-            string = json.dumps(self.lut[lutindex].tolist())
-            key = VIEWER_LUT_METADATA_KEY + '_' + code
-            gdaldataset.SetMetadataItem(key, string)
+            if 'alpha' not in self.bandinfo:
+                code = 'alpha'
+                lutindex = CODE_TO_LUTINDEX[code]
+                string = json.dumps(self.lut[lutindex].tolist())
+                key = VIEWER_LUT_METADATA_KEY + '_' + code
+                gdaldataset.SetMetadataItem(key, string)
 
     @staticmethod
     def deleteFromGDAL(gdaldataset):
@@ -338,10 +344,12 @@ class ViewerLUT(QObject):
                 lutindex = CODE_TO_LUTINDEX[code]
                 lutobj.lut[..., lutindex] = lut
         else:
-            # rgb
+            # rgb/rgba
             lutobj.bandinfo = {}
-            for _ in range(len(RGB_CODES)):
+            for _ in range(len(RGBA_CODES)):
                 s = fileobj.readline()
+                if s == '':
+                    break
                 bi = BandLUTInfo.fromString(s)
                 s = fileobj.readline()
                 rep = json.loads(s)
@@ -359,17 +367,18 @@ class ViewerLUT(QObject):
 
             # now do alpha seperately - 255 for all except 
             # no data and background
-            # (this isn't stored in the file)
+            # (in the RGB case this isn't stored in the file)
             alphaindex = CODE_TO_LUTINDEX['alpha']
-            lutobj.lut[alphaindex].fill(255)
-            rgbindex = CODE_TO_RGBINDEX['alpha']
-            bandinfo = lutobj.bandinfo['red']  # just to get the index for nan, nodata etc
-            nodata_value = stretch.nodata_rgba[rgbindex]
-            background_value = stretch.background_rgba[rgbindex]
-            nan_value = stretch.nan_rgba[rgbindex]
-            lutobj.lut[alphaindex, bandinfo.nodata_index] = nodata_value
-            lutobj.lut[alphaindex, bandinfo.background_index] = background_value
-            lutobj.lut[alphaindex, bandinfo.nan_index] = nan_value
+            if alphaindex not in lutobj.lut:
+                lutobj.lut[alphaindex].fill(255)
+                rgbindex = CODE_TO_RGBINDEX['alpha']
+                bandinfo = lutobj.bandinfo['red']  # just to get the index for nan, nodata etc
+                nodata_value = stretch.nodata_rgba[rgbindex]
+                background_value = stretch.background_rgba[rgbindex]
+                nan_value = stretch.nan_rgba[rgbindex]
+                lutobj.lut[alphaindex, bandinfo.nodata_index] = nodata_value
+                lutobj.lut[alphaindex, bandinfo.background_index] = background_value
+                lutobj.lut[alphaindex, bandinfo.nan_index] = nan_value
 
         return lutobj
 
@@ -431,9 +440,9 @@ class ViewerLUT(QObject):
                         obj.surrogateLUTName = None  # show error?
 
         else:
-            # rgb
+            # rgb/rgba
             infos = []
-            for code in RGB_CODES:
+            for code in RGBA_CODES:
                 key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
                 bistring = gdaldataset.GetMetadataItem(key)
                 if bistring is not None and bistring != '':
@@ -441,17 +450,38 @@ class ViewerLUT(QObject):
                     lutstring = gdaldataset.GetMetadataItem(key)
                     if lutstring is not None and lutstring != '':
                         infos.append((bistring, lutstring))
-            # do alpha separately as there is no band info
-            code = 'alpha'
-            key = VIEWER_LUT_METADATA_KEY + '_' + code
-            alphalutstring = gdaldataset.GetMetadataItem(key)
 
-            if (len(infos) == 3 and alphalutstring is not None and
-                    alphalutstring != ''):
-                # ok we got all the data
+            if len(infos) == 3:
+                # RGB
+                # do alpha separately as there is no band info
+                code = 'alpha'
+                key = VIEWER_LUT_METADATA_KEY + '_' + code
+                alphalutstring = gdaldataset.GetMetadataItem(key)
+                
+                if alphalutstring is not None and alphalutstring != '':
+                    # ok we got all the data
+                    obj = ViewerLUT()
+                    obj.bandinfo = {}
+                    for (info, code) in zip(infos, RGB_CODES):
+                        lutindex = CODE_TO_LUTINDEX[code]
+                        (bistring, lutstring) = info
+                        obj.bandinfo[code] = BandLUTInfo.fromString(bistring)
+    
+                        if obj.lut is None:
+                            size = obj.bandinfo[code].lutsize + VIEWER_LUT_EXTRA
+                            obj.lut = numpy.empty((4, size), numpy.uint8, 'C')
+                        lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
+                        obj.lut[lutindex] = lut
+                    # now alpha
+                    code = 'alpha'
+                    lutindex = CODE_TO_LUTINDEX[code]
+                    lut = numpy.fromiter(json.loads(alphalutstring), numpy.uint8)
+                    obj.lut[lutindex] = lut
+            elif len(infos) == 4:
+                # RGBA
                 obj = ViewerLUT()
                 obj.bandinfo = {}
-                for (info, code) in zip(infos, RGB_CODES):
+                for (info, code) in zip(infos, RGBA_CODES):
                     lutindex = CODE_TO_LUTINDEX[code]
                     (bistring, lutstring) = info
                     obj.bandinfo[code] = BandLUTInfo.fromString(bistring)
@@ -461,11 +491,6 @@ class ViewerLUT(QObject):
                         obj.lut = numpy.empty((4, size), numpy.uint8, 'C')
                     lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
                     obj.lut[lutindex] = lut
-                # now alpha
-                code = 'alpha'
-                lutindex = CODE_TO_LUTINDEX[code]
-                lut = numpy.fromiter(json.loads(alphalutstring), numpy.uint8)
-                obj.lut[lutindex] = lut
 
         return obj
 

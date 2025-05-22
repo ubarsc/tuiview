@@ -20,6 +20,7 @@ this module contains the LayerManager and related classes
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import os
+import io
 import json
 import threading
 import queue
@@ -30,7 +31,6 @@ from osgeo import osr
 from osgeo import ogr
 from PySide6.QtGui import QImage, QPainter, QPen
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtWidgets import QMessageBox
 
 from . import viewerRAT
 from . import viewerLUT
@@ -38,7 +38,6 @@ from . import viewerstretch
 from . import coordinatemgr
 from . import viewererrors
 from . import vectorrasterizer
-from .viewerstrings import MESSAGE_TITLE
 
 # number of threads to call layer.getImage on - only raster layers supported
 NUM_GETIMAGE_THREADS = os.getenv('TUIVIEW_GETIMAGE_THREADS', '1')
@@ -677,17 +676,22 @@ class ViewerRasterLayer(ViewerLayer):
         Exports the current stretch and lookup table to a 
         JSON formatted text file
         """
-        try:
-            fileobj = open(fname, 'w')
-
+        with open(fname, 'w') as fileobj:
             stretchstr = self.stretch.toString()
             fileobj.write("%s\n" % stretchstr)
 
             self.lut.saveToFile(fileobj)
-
-            fileobj.close()
-        except Exception as e:
-            QMessageBox.critical(None, MESSAGE_TITLE, str(e))
+            
+    def exportStretchandLUTToString(self):
+        """
+        Exports the current stretch and lookup table to a 
+        JSON string
+        """
+        buf = io.StringIO()
+        stretchstr = self.stretch.toString()
+        buf.write("%s\n" % stretchstr)
+        self.lut.saveToFile(buf)
+        return buf.getvalue()
 
     def changeUpdateAccess(self, update):
         """

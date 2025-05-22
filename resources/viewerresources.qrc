@@ -48,6 +48,8 @@
 	<file>properties.png</file>
 	<file>lock.png</file>
     <file>csv.png</file>
+    <file>copy.png</file>
+    <file>paste.png</file>
     </qresource>
 </RCC>
 

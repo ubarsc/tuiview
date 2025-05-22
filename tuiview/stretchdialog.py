@@ -28,7 +28,7 @@ from PySide6.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QLabel
 from PySide6.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
 from PySide6.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
 from PySide6.QtWidgets import QToolButton, QColorDialog, QMessageBox
-from PySide6.QtGui import QIcon, QPixmap, QColor, QAction
+from PySide6.QtGui import QIcon, QPixmap, QColor, QAction, QGuiApplication
 from PySide6.QtCore import QSettings, Qt
 
 from . import viewerstretch
@@ -1150,6 +1150,12 @@ class StretchDockWidget(QDockWidget):
         self.exportToTextAction.setStatusTip(
             "Export current Stretch and Lookup Table to Text file")
         self.exportToTextAction.setIcon(QIcon(":/viewer/images/savetext.png"))
+        
+        self.exportToClipboardAction = QAction(self, triggered=self.exportToClipboard)
+        self.exportToClipboardAction.setText("Export Stretch to Clipboard")
+        self.exportToClipboardAction.setStatusTip(
+            "Export Current Stretch to Clipboard")
+        self.exportToClipboardAction.setIcon(QIcon(":/viewer/images/copy.png"))
 
         self.importFromGDALAction = QAction(self, triggered=self.importFromGDAL)
         self.importFromGDALAction.setText(
@@ -1164,6 +1170,12 @@ class StretchDockWidget(QDockWidget):
         self.importFromTextAction.setStatusTip(
             "Import Stretch and Lookup Table saved in text file and apply")
         self.importFromTextAction.setIcon(QIcon(":/viewer/images/opentext.png"))
+        
+        self.importFromClipboardAction = QAction(self, triggered=self.importFromClipboard)
+        self.importFromClipboardAction.setText("Import Stretch from clipboard")
+        self.importFromClipboardAction.setStatusTip(
+            "Import Stretch and Lookup table to clipboard")
+        self.importFromClipboardAction.setIcon(QIcon(":/viewer/images/paste.png"))
 
     def setupToolbar(self):
         """
@@ -1176,8 +1188,10 @@ class StretchDockWidget(QDockWidget):
         self.toolBar.addAction(self.saveAction)
         self.toolBar.addAction(self.deleteAction)
         self.toolBar.addAction(self.exportToTextAction)
+        self.toolBar.addAction(self.exportToClipboardAction)
         self.toolBar.addAction(self.importFromGDALAction)
         self.toolBar.addAction(self.importFromTextAction)
+        self.toolBar.addAction(self.importFromClipboardAction)
         
     def onApplyAll(self):
         """
@@ -1245,6 +1259,22 @@ class StretchDockWidget(QDockWidget):
                 self.layer.exportStretchandLUTToText(fname)
             except Exception as e:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+                
+    def exportToClipboard(self):
+        """
+        Export the stretch and LUT to the clipboard
+        """
+        data = self.layer.exportStretchandLUTToString()
+        clipboard = QGuiApplication.clipboard()
+        clipboard.setText(data)
+        
+    def importFromClipboard(self):
+        """
+        Import the stretch and LUT from the clipboard
+        """
+        clipboard = QGuiApplication.clipboard()
+        data = clipboard.text()
+        self.layer.importStretchAndLUTFromString(data)        
 
     def importFromGDAL(self):
         """
