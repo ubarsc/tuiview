@@ -279,6 +279,7 @@ class ViewerLUT(QObject):
         else:
             # rgb - NB writing into band metadata results in corruption 
             # use dataset instead
+            codes = RGB_CODES
             if 'alpha' in self.bandinfo:
                 codes = RGBA_CODES
             for code in codes:
