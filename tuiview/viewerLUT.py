@@ -20,6 +20,7 @@ amongst other things
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import io
 import sys
 import json
 from PySide6.QtGui import QImage
@@ -329,6 +330,7 @@ class ViewerLUT(QObject):
         lutobj = ViewerLUT()
         s = fileobj.readline()
         rep = json.loads(s)
+        print(s)
         nbands = rep['nbands']
         if nbands == 1:
             # color table
@@ -931,11 +933,11 @@ class ViewerLUT(QObject):
         # are we loading the LUT from an external file instead?
         try:
             if stretch.readLUTFromText is not None:
-                # first line describes the stretch - ignore
-                fileobj = open(stretch.readLUTFromText)
-                fileobj.readline()
-                lut = self.createFromFile(fileobj, stretch)
-                fileobj.close()
+                with open(stretch.readLUTFromText) as fileobj:
+                    # first line describes the stretch - ignore
+                    fileobj.readline()
+                    lut = self.createFromFile(fileobj, stretch)
+                    fileobj.close()
                 if lut is None:
                     msg = 'No stretch and lookup table in this file'
                     raise viewererrors.InvalidDataset(msg)
@@ -949,6 +951,17 @@ class ViewerLUT(QObject):
                 if lut is None:
                     msg = 'No stretch and lookup table in this file'
                     raise viewererrors.InvalidDataset(msg)
+                self.lut = lut.lut
+                self.bandinfo = lut.bandinfo
+                return
+            elif stretch.readLUTFromString is not None:
+                with io.StringIO(stretch.readLUTFromString) as fileobj:
+                    # first line describes the stretch - ignore
+                    fileobj.readline()
+                    lut = self.createFromFile(fileobj, stretch)
+                    if lut is None:
+                        msg = 'No lookup found in string'
+                        raise viewererrors.InvalidDataset(msg)
                 self.lut = lut.lut
                 self.bandinfo = lut.bandinfo
                 return

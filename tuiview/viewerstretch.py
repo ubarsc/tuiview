@@ -19,6 +19,7 @@ Module that contains ViewerStretch and StretchRule classes
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import io
 import copy
 import json
 from osgeo import gdal
@@ -78,6 +79,7 @@ class ViewerStretch:
         # file to read LUT out of
         self.readLUTFromGDAL = None  # if not None, path to GDAL dataset 
         # to read LUT out of
+        self.readLUTFromString = None  # if not None, string with LUT
 
     def setBands(self, bands):
         "Set the bands to use. bands should be a tuple of 1-based ints"
@@ -192,6 +194,10 @@ class ViewerStretch:
     def setLUTFromGDAL(self, fname):
         "Read LUT from specified GDAL dataset"
         self.readLUTFromGDAL = fname
+        
+    def setLUTFromString(self, s):
+        "Read LUT from string"
+        self.readLUTFromString = s
 
     def toString(self):
         """
@@ -212,9 +218,8 @@ class ViewerStretch:
         setLUTFromText called with this file also
         since .stretch files contain both
         """
-        fileobj = open(fname)
-        s = fileobj.readline()
-        fileobj.close()
+        with open(fname) as fileobj:
+            s = fileobj.readline()
         stretch = ViewerStretch.fromString(s)
         stretch.setLUTFromText(fname)
         return stretch
@@ -232,6 +237,17 @@ class ViewerStretch:
         del gdaldataset
         if stretch is not None:
             stretch.setLUTFromGDAL(fname)
+        return stretch
+        
+    @staticmethod
+    def fromStringWithLUT(stretchAndLUT):
+        """
+        stretchAndLUT contains the stretch and LUT
+        """
+        with io.StringIO(stretchAndLUT) as fileobj:
+            s = fileobj.readline()
+        stretch = ViewerStretch.fromString(s)
+        stretch.setLUTFromString(stretchAndLUT)
         return stretch
     
     @staticmethod

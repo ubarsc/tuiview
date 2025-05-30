@@ -1274,7 +1274,13 @@ class StretchDockWidget(QDockWidget):
         """
         clipboard = QGuiApplication.clipboard()
         data = clipboard.text()
-        self.layer.importStretchAndLUTFromString(data)        
+        try:
+            stretch = viewerstretch.ViewerStretch.fromStringWithLUT(data)
+            self.viewwidget.setNewStretch(stretch, self.layer)
+        
+            self.stretchLayout.updateStretch(stretch)
+        except Exception as e:
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def importFromGDAL(self):
         """
