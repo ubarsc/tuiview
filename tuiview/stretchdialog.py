@@ -29,7 +29,7 @@ from PySide6.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
 from PySide6.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
 from PySide6.QtWidgets import QToolButton, QColorDialog, QMessageBox
 from PySide6.QtGui import QIcon, QPixmap, QColor, QAction, QGuiApplication
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QSettings, Qt, Signal
 
 from . import viewerstretch
 from . import pseudocolor
@@ -1069,6 +1069,10 @@ class StretchDockWidget(QDockWidget):
     Class that has a StretchLayout as a dockable window
     with apply and save buttons
     """
+    # signals
+    stretchClosed = Signal(QDockWidget, name='stretchClosed')
+    "emitted when window closed"
+    
     def __init__(self, parent, viewwidget, layer):
         title = "Stretch: %s" % layer.title
         QDockWidget.__init__(self, title, parent)
@@ -1327,4 +1331,10 @@ class StretchDockWidget(QDockWidget):
 
             except Exception as e:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+
+    def closeEvent(self, event):
+        """
+        Window is being closed - inform parent window
+        """
+        self.stretchClosed.emit(self)
 

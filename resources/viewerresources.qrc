@@ -50,6 +50,7 @@
     <file>csv.png</file>
     <file>copy.png</file>
     <file>paste.png</file>
+    <file>stretch.png</file>
     </qresource>
 </RCC>
 
