@@ -22,29 +22,36 @@ and StretchDefaultsDialog classes
 
 import os
 import json
+import traceback
 from PySide6.QtWidgets import QDialog, QFormLayout, QGridLayout, QVBoxLayout
 from PySide6.QtWidgets import QHBoxLayout, QComboBox, QToolBar, QLabel
 from PySide6.QtWidgets import QPushButton, QGroupBox, QDockWidget, QFileDialog
 from PySide6.QtWidgets import QTabWidget, QWidget, QSpinBox, QDoubleSpinBox, QCheckBox
 from PySide6.QtWidgets import QToolButton, QColorDialog, QMessageBox
-from PySide6.QtGui import QIcon, QPixmap, QColor, QAction
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QIcon, QPixmap, QColor, QAction, QGuiApplication
+from PySide6.QtCore import QSettings, Qt, Signal
 
 from . import viewerstretch
 from . import pseudocolor
 from .viewerstrings import MESSAGE_TITLE
 from . import viewerwindow
 
+SHOW_TRACEBACK = os.getenv('TUIVIEW_SHOW_TRACEBACK', '0') == '1'
+
 # strings for the combo boxes and their values
 MODE_DATA = (("Color Table", viewerstretch.VIEWER_MODE_COLORTABLE),
     ("Greyscale", viewerstretch.VIEWER_MODE_GREYSCALE),
     ("PseudoColor", viewerstretch.VIEWER_MODE_PSEUDOCOLOR),
-    ("RGB", viewerstretch.VIEWER_MODE_RGB))
+    ("RGB", viewerstretch.VIEWER_MODE_RGB),
+    ("RGBA", viewerstretch.VIEWER_MODE_RGBA))
 
 STRETCH_DATA = (("None", viewerstretch.VIEWER_STRETCHMODE_NONE),
     ("Linear", viewerstretch.VIEWER_STRETCHMODE_LINEAR),
+    ("Linear bands vary", viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR),
     ("Standard Deviation", viewerstretch.VIEWER_STRETCHMODE_STDDEV),
-    ("Histogram", viewerstretch.VIEWER_STRETCHMODE_HIST))
+    ("Standard Deviation bands vary", viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR),
+    ("Histogram", viewerstretch.VIEWER_STRETCHMODE_HIST),
+    ("Histogram bands vary", viewerstretch.VIEWER_STRETCHMODE_HIST_VAR))
 
 DEFAULT_STRETCH_KEY = 'DefaultStretch'
 
@@ -130,7 +137,10 @@ class StretchLayout(QFormLayout):
         try:
             pseudocolor.loadExtraRamps()
         except Exception as e:
-            QMessageBox.critical(parent, MESSAGE_TITLE, str(e))
+            if SHOW_TRACEBACK:
+                traceback.print_exc()
+            else:
+                QMessageBox.critical(parent, MESSAGE_TITLE, str(e))
 
         # populate combo - sort by type
         for (name, display) in pseudocolor.getRampsForDisplay():
@@ -152,7 +162,38 @@ class StretchLayout(QFormLayout):
             self.createComboBands(gdaldataset, parent)
 
         self.addRow("Bands", self.bandLayout)
+        
+        # the parameters of the stretch
+        self.paramsLayout = QVBoxLayout()
+        
+        self.paramsMinLayout = QHBoxLayout()
+        self.paramsMinList = []
+        for _ in range(4):
+            spin_box = QDoubleSpinBox(parent)
+            spin_box.setDecimals(3)
+            self.paramsMinLayout.addWidget(spin_box)
+            stats = QCheckBox(parent)
+            stats.setText("Statistics Min")
+            stats.stateChanged.connect(self.statsChanged)
+            self.paramsMinLayout.addWidget(stats)
+            self.paramsMinList.append((spin_box, stats))
 
+        self.paramsMaxLayout = QHBoxLayout()
+        self.paramsMaxList = []
+        for _ in range(4):
+            spin_box = QDoubleSpinBox(parent)
+            spin_box.setDecimals(3)
+            self.paramsMaxLayout.addWidget(spin_box)
+            stats = QCheckBox(parent)
+            stats.setText("Statistics Max")
+            stats.stateChanged.connect(self.statsChanged)
+            self.paramsMaxLayout.addWidget(stats)
+            self.paramsMaxList.append((spin_box, stats))
+            
+        self.paramsLayout.addLayout(self.paramsMinLayout)
+        self.paramsLayout.addLayout(self.paramsMaxLayout)
+        self.addRow("Stretch Params", self.paramsLayout)
+        
         # create the combo for the type of stretch
         self.stretchLayout = QHBoxLayout()
         self.stretchCombo = QComboBox(parent)
@@ -163,67 +204,43 @@ class StretchLayout(QFormLayout):
 
         self.stretchLayout.addWidget(self.stretchCombo)
 
-        # create the spin boxes for the std devs or hist min and max
-        self.stretchParam1 = QDoubleSpinBox(parent)
-        self.stretchParam1.setDecimals(3)
-        self.stretchParam1Stats = QCheckBox(parent)
-        self.stretchParam1Stats.setText("Statistics Min")
-
-        self.stretchParam1Stats.stateChanged.connect(self.param1StatsChanged)
-
-        self.stretchParam2 = QDoubleSpinBox(parent)
-        self.stretchParam2.setDecimals(3)
-        self.stretchParam2Stats = QCheckBox(parent)
-        self.stretchParam2Stats.setText("Statistics Max")
-
-        self.stretchParam2Stats.stateChanged.connect(self.param2StatsChanged)
-
-        self.stretchLayout.addWidget(self.stretchParam1)
-        self.stretchLayout.addWidget(self.stretchParam1Stats)
-        self.stretchLayout.addWidget(self.stretchParam2)
-        self.stretchLayout.addWidget(self.stretchParam2Stats)
-
-        self.addRow("Stretch", self.stretchLayout)
-
         # now for no data, background and NaN
-        self.fixedColorLayout = QHBoxLayout()
         self.nodataLabel = QLabel(parent)
         self.nodataLabel.setText("No Data")
-        self.fixedColorLayout.addWidget(self.nodataLabel)
-        self.fixedColorLayout.setAlignment(self.nodataLabel, Qt.AlignRight)
+        self.stretchLayout.addWidget(self.nodataLabel)
+        self.stretchLayout.setAlignment(self.nodataLabel, Qt.AlignRight)
         self.nodataButton = ColorButton(parent)
-        self.fixedColorLayout.addWidget(self.nodataButton)
+        self.stretchLayout.addWidget(self.nodataButton)
 
         self.backgroundLabel = QLabel(parent)
         self.backgroundLabel.setText("Background")
-        self.fixedColorLayout.addWidget(self.backgroundLabel)
-        self.fixedColorLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
+        self.stretchLayout.addWidget(self.backgroundLabel)
+        self.stretchLayout.setAlignment(self.backgroundLabel, Qt.AlignRight)
         self.backgroundButton = ColorButton(parent)
-        self.fixedColorLayout.addWidget(self.backgroundButton)
+        self.stretchLayout.addWidget(self.backgroundButton)
 
         self.NaNLabel = QLabel(parent)
         self.NaNLabel.setText("NaN")
-        self.fixedColorLayout.addWidget(self.NaNLabel)
-        self.fixedColorLayout.setAlignment(self.NaNLabel, Qt.AlignRight)
+        self.stretchLayout.addWidget(self.NaNLabel)
+        self.stretchLayout.setAlignment(self.NaNLabel, Qt.AlignRight)
         self.NaNButton = ColorButton(parent)
-        self.fixedColorLayout.addWidget(self.NaNButton)
+        self.stretchLayout.addWidget(self.NaNButton)
 
-        self.addRow("Fixed Colors", self.fixedColorLayout)
+        self.addRow("Stretch", self.stretchLayout)
 
         # set state of GUI for this stretch
         self.updateStretch(stretch)
 
-    def param1StatsChanged(self, state):
+    def statsChanged(self, state):
         """
-        Called when the 'Statistics Min' box is checked
+        Called when the 'Statistics Min' or Max box is checked
         """
-        self.stretchParam1.setEnabled(state != Qt.Checked)
-
-    def param2StatsChanged(self, state):
-        """
-        Called when the 'Statistics Max' box is checked
-        """
-        self.stretchParam2.setEnabled(state != Qt.Checked)
+        for spin_box, stats in self.paramsMinList:
+            if stats.isEnabled():
+                spin_box.setEnabled(stats.checkState() != Qt.Checked)
+        for spin_box, stats in self.paramsMaxList:
+            if stats.isEnabled():
+                spin_box.setEnabled(stats.checkState() != Qt.Checked)
 
     def updateStretch(self, stretch):
         """
@@ -244,7 +261,7 @@ class StretchLayout(QFormLayout):
         state = stretch.mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
         self.rampCombo.setEnabled(state)
 
-        # set the bands depending on if we are RGB or not
+        # set the bands depending on if we are RGB/RGBA or not
         if stretch.mode == viewerstretch.VIEWER_MODE_RGB:
             self.redWidget.setToolTip("Red")
             self.greenWidget.setToolTip("Green")
@@ -258,11 +275,31 @@ class StretchLayout(QFormLayout):
                 self.redWidget.setCurrentIndex(r - 1)
                 self.greenWidget.setCurrentIndex(g - 1)
                 self.blueWidget.setCurrentIndex(b - 1)
+            self.alphaWidget.setEnabled(False)
+            
+        elif stretch.mode == viewerstretch.VIEWER_MODE_RGBA:
+            self.redWidget.setToolTip("Red")
+            self.greenWidget.setToolTip("Green")
+            self.blueWidget.setToolTip("Blue")
+            self.alphaWidget.setToolTip("Alpha")
+            (r, g, b, a) = stretch.bands
+            if isinstance(self.redWidget, QSpinBox):
+                self.redWidget.setValue(r)
+                self.greenWidget.setValue(g)
+                self.blueWidget.setValue(b)
+                self.alphaWidget.setValue(a)
+            else:
+                self.redWidget.setCurrentIndex(r - 1)
+                self.greenWidget.setCurrentIndex(g - 1)
+                self.blueWidget.setCurrentIndex(b - 1)
+                self.alphaWidget.setCurrentIndex(a - 1)
+            self.alphaWidget.setEnabled(True)
 
         else:
             self.redWidget.setToolTip("Displayed Band")
             self.greenWidget.setEnabled(False)
             self.blueWidget.setEnabled(False)
+            self.alphaWidget.setEnabled(False)
 
             if isinstance(self.redWidget, QSpinBox):
                 self.redWidget.setValue(stretch.bands[0])
@@ -277,67 +314,222 @@ class StretchLayout(QFormLayout):
         state = stretch.mode != viewerstretch.VIEWER_MODE_COLORTABLE
         self.stretchCombo.setEnabled(state)
 
-        if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
-            self.stretchParam2.setEnabled(False)
-            self.stretchParam1Stats.setEnabled(False)
-            self.stretchParam2Stats.setEnabled(False)
-            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1.setRange(0, 10)
-            self.stretchParam1.setSingleStep(0.1)
-            self.stretchParam1.setValue(stretch.stretchparam[0])
-            self.stretchParam1.setToolTip("Number of Standard Deviations")
-        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
-            self.stretchParam1Stats.setEnabled(False)
-            self.stretchParam2Stats.setEnabled(False)
-            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1.setRange(0, 1)
-            self.stretchParam1.setSingleStep(0.005)
-            self.stretchParam1.setValue(stretch.stretchparam[0])
-            self.stretchParam1.setToolTip("Minimum Proportion of Histogram")
-            self.stretchParam2.setRange(0, 1)
-            self.stretchParam2.setSingleStep(0.005)
-            self.stretchParam2.setValue(stretch.stretchparam[1])
-            self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
-        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
-            self.stretchParam1Stats.setEnabled(True)
-            self.stretchParam2Stats.setEnabled(True)
-            self.stretchParam1.setRange(-2**32, 2**32)
-            self.stretchParam1.setSingleStep(1)
-
-            if stretch.stretchparam[0] is None:
-                self.stretchParam1Stats.setCheckState(Qt.Checked)
-            else:
-                self.stretchParam1.setValue(stretch.stretchparam[0])
-                self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1.setToolTip("Minimum Value")
-
-            self.stretchParam2.setRange(-2**32, 2**32)
-            self.stretchParam2.setSingleStep(1)
-
-            if stretch.stretchparam[1] is None:
-                self.stretchParam2Stats.setCheckState(Qt.Checked)
-            else:
-                self.stretchParam2.setValue(stretch.stretchparam[1])
-                self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-
-            self.stretchParam2.setToolTip("Maximum Value")
-        else:
-            # no stretch
-            self.stretchParam1.setEnabled(False)
-            self.stretchParam2.setEnabled(False)
-            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1Stats.setEnabled(False)
-            self.stretchParam2Stats.setEnabled(False)
-            self.stretchParam1.setToolTip("")
-            self.stretchParam2.setToolTip("")
+        # Set up GUI
+        self.setStretchMode(stretch.stretchmode, stretch.stretchparam)
 
         # nodata etc
         self.nodataButton.setColorAsRGBATuple(stretch.nodata_rgba)
         self.backgroundButton.setColorAsRGBATuple(stretch.background_rgba)
         self.NaNButton.setColorAsRGBATuple(stretch.nan_rgba)
+        
+    def setStretchMode(self, stretchmode, stretchparam=None):
+        """
+        Used by updateStretch() and stretchChanged() to update the GUI for the stretch
+        if stretchparam is None, then the stretch defaults are used
+        """
+        mode = self.modeCombo.currentData()
+        nbands = 1
+        if mode == viewerstretch.VIEWER_MODE_RGB:
+            nbands = 3
+        elif mode == viewerstretch.VIEWER_MODE_RGBA:
+            nbands = 4
+
+        # Note: set enabled on stats tick box first - changing checkState
+        # triggers statsChanged, but this ignores tick boxes that have
+        # been disabled
+        if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
+            spin_box, stats = self.paramsMinList[0]
+            spin_box.setEnabled(True)
+            spin_box.setRange(0, 10)
+            spin_box.setSingleStep(0.1)
+            stats.setCheckState(Qt.Unchecked)
+            stats.setEnabled(False)
+            if stretchparam is not None:
+                spin_box.setValue(stretchparam[0])
+            else:
+                spin_box.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV)
+            spin_box.setToolTip("Number of Standard Deviations")
+            
+            for spin_box, stats in self.paramsMinList[1:]:
+                spin_box.setEnabled(False)
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+
+            for spin_box, stats in self.paramsMaxList:
+                spin_box.setEnabled(False)
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR:
+            
+            if stretchparam is None:
+                stretchparam = [None] * len(self.paramsMinList) 
+            for idx, (stddev, (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMinList)):
+                spin_box.setEnabled(idx < nbands)
+                spin_box.setRange(0, 10)
+                spin_box.setSingleStep(0.1)
+                spin_box.setToolTip("Number of Standard Deviations")
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+                if stddev is not None:
+                    spin_box.setValue(stddev)
+                else:
+                    spin_box.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV)
+
+            for spin_box, stats in self.paramsMaxList:
+                spin_box.setEnabled(False)
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
+            spin_box, stats = self.paramsMinList[0]
+            spin_box.setEnabled(True)
+            spin_box.setRange(0, 1)
+            spin_box.setSingleStep(0.005)
+            if stretchparam is not None:
+                spin_box.setValue(stretchparam[0])
+            else:
+                spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN)
+            spin_box.setToolTip("Minimum Proportion of Histogram")
+            stats.setEnabled(False)
+            stats.setCheckState(Qt.Unchecked)
+            
+            for spin_box, stats in self.paramsMinList[1:]:
+                spin_box.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+                stats.setEnabled(False)
+
+            spin_box, stats = self.paramsMaxList[0]
+            spin_box.setEnabled(True)
+            spin_box.setRange(0, 1)
+            spin_box.setSingleStep(0.005)
+            if stretchparam is not None:
+                spin_box.setValue(stretchparam[1])
+            else:
+                spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
+            spin_box.setToolTip("Maximum Proportion of Histogram")
+            stats.setEnabled(False)
+            stats.setCheckState(Qt.Unchecked)
+            
+            for spin_box, stats in self.paramsMaxList[1:]:
+                spin_box.setEnabled(False)
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST_VAR:
+
+            if stretchparam is None:
+                stretchparam = [(None, None)] * len(self.paramsMinList) 
+
+            for idx, ((minVal, maxVal), (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMinList)):
+                spin_box.setEnabled(idx < nbands)
+                spin_box.setRange(0, 10)
+                spin_box.setSingleStep(0.1)
+                spin_box.setToolTip("Minimum Proportion of Histogram")
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+                if minVal is not None:
+                    spin_box.setValue(minVal)
+                else:
+                    spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN)
+
+            for idx, ((minVal, maxVal), (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMaxList)):
+                spin_box.setEnabled(idx < nbands)
+                spin_box.setRange(0, 10)
+                spin_box.setSingleStep(0.1)
+                spin_box.setToolTip("Maximum Proportion of Histogram")
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+                if maxVal is not None:
+                    spin_box.setValue(maxVal)
+                else:
+                    spin_box.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
+
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
+            spin_box, stats = self.paramsMinList[0]
+            spin_box.setRange(-2**32, 2**32)
+            spin_box.setSingleStep(1)
+            if stretchparam is not None:
+                spin_box.setValue(stretchparam[0])
+                spin_box.setEnabled(True)
+                stats.setCheckState(Qt.Unchecked)
+            else:
+                spin_box.setValue(0)
+                spin_box.setEnabled(False)
+                stats.setCheckState(Qt.Checked)
+            spin_box.setToolTip("Minimum value")
+            stats.setEnabled(True)
+            
+            for spin_box, stats in self.paramsMinList[1:]:
+                spin_box.setEnabled(False)
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+
+            spin_box, stats = self.paramsMaxList[0]
+            spin_box.setRange(-2**32, 2**32)
+            spin_box.setSingleStep(1)
+            if stretchparam is not None:
+                spin_box.setValue(stretchparam[1])
+                stats.setCheckState(Qt.Unchecked)
+                spin_box.setEnabled(True)
+            else:
+                spin_box.setValue(0)
+                stats.setCheckState(Qt.Checked)
+                spin_box.setEnabled(False)
+            stats.setEnabled(True)
+            spin_box.setToolTip("Maximum value")
+            
+            for spin_box, stats in self.paramsMaxList[1:]:
+                spin_box.setEnabled(False)
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+
+        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR:
+
+            if stretchparam is None:
+                stretchparam = [(None, None)] * len(self.paramsMinList) 
+
+            for idx, ((minVal, maxVal), (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMinList)):
+                spin_box.setRange(-2**32, 2**32)
+                spin_box.setSingleStep(1)
+                spin_box.setToolTip("Minimum value")
+                stats.setEnabled(idx < nbands)
+                if minVal is not None:
+                    spin_box.setEnabled(idx < nbands)
+                    spin_box.setValue(minVal)
+                    stats.setCheckState(Qt.Unchecked)
+                else:
+                    spin_box.setValue(0)
+                    stats.setCheckState(Qt.Checked)
+                    spin_box.setEnabled(False)
+
+            for idx, ((minVal, maxVal), (spin_box, stats)) in enumerate(zip(stretchparam, self.paramsMaxList)):
+                spin_box.setRange(-2**32, 2**32)
+                spin_box.setSingleStep(1)
+                spin_box.setToolTip("Maximum value")
+                stats.setCheckState(Qt.Unchecked)
+                stats.setEnabled(idx < nbands)
+                if maxVal is not None:
+                    spin_box.setValue(maxVal)
+                    stats.setCheckState(Qt.Unchecked)
+                    spin_box.setEnabled(idx < nbands)
+                else:
+                    spin_box.setValue(0)
+                    stats.setCheckState(Qt.Checked)
+                    spin_box.setEnabled(False)
+
+        else:
+            # no stretch
+            for spin_box, stats in self.paramsMinList:
+                spin_box.setEnabled(False)
+                spin_box.setToolTip("")
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
+            for spin_box, stats in self.paramsMaxList:
+                spin_box.setEnabled(False)
+                spin_box.setToolTip("")
+                stats.setEnabled(False)
+                stats.setCheckState(Qt.Unchecked)
 
     def createSpinBands(self, parent):
         """
@@ -357,6 +549,10 @@ class StretchLayout(QFormLayout):
         self.blueWidget = QSpinBox(parent)
         self.blueWidget.setRange(1, MAX_BAND_NUMBER)
         self.bandLayout.addWidget(self.blueWidget)
+        
+        self.alphaWidget = QSpinBox(parent)
+        self.alphaWidget.setRange(1, MAX_BAND_NUMBER)
+        self.bandLayout.addWidget(self.alphaWidget)
 
     def createComboBands(self, gdaldataset, parent):
         """
@@ -372,9 +568,13 @@ class StretchLayout(QFormLayout):
         self.blueWidget = QComboBox(parent)
         self.bandLayout.addWidget(self.blueWidget)
 
+        self.alphaWidget = QComboBox(parent)
+        self.bandLayout.addWidget(self.alphaWidget)
+
         self.populateComboFromDataset(self.redWidget, gdaldataset)
         self.populateComboFromDataset(self.greenWidget, gdaldataset)
         self.populateComboFromDataset(self.blueWidget, gdaldataset)
+        self.populateComboFromDataset(self.alphaWidget, gdaldataset)
 
     def populateComboFromDataset(self, combo, gdaldataset):
         """
@@ -410,16 +610,21 @@ class StretchLayout(QFormLayout):
         the current state of the GUI
         """
         obj = viewerstretch.ViewerStretch()
-        index = self.modeCombo.currentIndex()
-        obj.mode = self.modeCombo.itemData(index)
+        obj.mode = self.modeCombo.currentData()
 
-        bands = []
         value = self.getBandValue(self.redWidget)
-        bands.append(value)
+        bands = [value]
         if obj.mode == viewerstretch.VIEWER_MODE_RGB:
             value = self.getBandValue(self.greenWidget)
             bands.append(value)
             value = self.getBandValue(self.blueWidget)
+            bands.append(value)
+        elif obj.mode == viewerstretch.VIEWER_MODE_RGBA:
+            value = self.getBandValue(self.greenWidget)
+            bands.append(value)
+            value = self.getBandValue(self.blueWidget)
+            bands.append(value)
+            value = self.getBandValue(self.alphaWidget)
             bands.append(value)
         obj.setBands(tuple(bands))
 
@@ -428,24 +633,59 @@ class StretchLayout(QFormLayout):
             rampName = self.rampCombo.itemData(idx)
             obj.setPseudoColor(str(rampName))
 
-        index = self.stretchCombo.currentIndex()
-        obj.stretchmode = self.stretchCombo.itemData(index)
+        obj.stretchmode = self.stretchCombo.currentData()
         if obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
-            value = self.stretchParam1.value()
+            spin_box, stats = self.paramsMinList[0]
+            value = spin_box.value()
             obj.setStdDevStretch(value)
+        elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR:
+            values = []
+            for idx, (spin_box, stats) in enumerate(self.paramsMinList):
+                if idx >= len(bands):
+                    break
+                value = spin_box.value()
+                values.append(value)
+            obj.setStdDevStretchVar(values)
         elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
-            histmin = self.stretchParam1.value()
-            histmax = self.stretchParam2.value()
+            spin_box, stats = self.paramsMinList[0]
+            histmin = spin_box.value()
+            spin_box, stats = self.paramsMaxList[0]
+            histmax = spin_box.value()
             obj.setHistStretch(histmin, histmax)
+        elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST_VAR:
+            values = []
+            for idx, ((spin_box_min, _), (spin_box_max, _)) in enumerate(zip(self.paramsMinList, self.paramsMaxList)):
+                if idx >= len(bands):
+                    break
+                minVal = spin_box_min.value()
+                maxVal = spin_box_max.value()
+                values.append((minVal, maxVal))
+            obj.setHistStretchVar(values)
         elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
             # need to do something cleverer here with the special value
-            minVal = self.stretchParam1.value()
-            if self.stretchParam1Stats.checkState() == Qt.Checked:
+            spin_box, stats = self.paramsMinList[0]
+            minVal = spin_box.value()
+            if stats.checkState() == Qt.Checked:
                 minVal = None
-            maxVal = self.stretchParam2.value()
-            if self.stretchParam2Stats.checkState() == Qt.Checked:
+            spin_box, stats = self.paramsMaxList[0]
+            maxVal = spin_box.value()
+            if stats.checkState() == Qt.Checked:
                 maxVal = None
             obj.setLinearStretch(minVal, maxVal)
+        elif obj.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR:
+            # need to do something cleverer here with the special value
+            values = []
+            for idx, ((spin_box_min, stats_min), (spin_box_max, stats_max)) in enumerate(zip(self.paramsMinList, self.paramsMaxList)):
+                if idx >= len(bands):
+                    break
+                minVal = spin_box_min.value()
+                if stats_min.checkState() == Qt.Checked:
+                    minVal = None
+                maxVal = spin_box_max.value()
+                if stats_max.checkState() == Qt.Checked:
+                    maxVal = None
+                values.append((minVal, maxVal))
+            obj.setLinearStretchVar(values)
 
         obj.setNoDataRGBA(self.nodataButton.getColorAsRGBATuple())
         obj.setBackgroundRGBA(self.backgroundButton.getColorAsRGBATuple())
@@ -459,9 +699,12 @@ class StretchLayout(QFormLayout):
         Updates other GUI elements as needed
         """
         mode = self.modeCombo.itemData(index)
-        greenredEnabled = mode == viewerstretch.VIEWER_MODE_RGB
+        greenredEnabled = mode in [viewerstretch.VIEWER_MODE_RGB,
+            viewerstretch.VIEWER_MODE_RGBA]
+        alphaEnabled = mode == viewerstretch.VIEWER_MODE_RGBA
         self.greenWidget.setEnabled(greenredEnabled)
         self.blueWidget.setEnabled(greenredEnabled)
+        self.alphaWidget.setEnabled(alphaEnabled)
         if greenredEnabled:
             self.redWidget.setToolTip("Red")
             self.greenWidget.setToolTip("Green")
@@ -470,6 +713,10 @@ class StretchLayout(QFormLayout):
             self.redWidget.setToolTip("Displayed Band")
             self.greenWidget.setToolTip("")
             self.blueWidget.setToolTip("")
+        if alphaEnabled:
+            self.alphaWidget.setToolTip("Alpha")
+        else:
+            self.alphaWidget.setToolTip("")
 
         if mode == viewerstretch.VIEWER_MODE_COLORTABLE:
             # need to set stretch to none
@@ -479,66 +726,17 @@ class StretchLayout(QFormLayout):
 
         state = mode == viewerstretch.VIEWER_MODE_PSEUDOCOLOR
         self.rampCombo.setEnabled(state)
-
+        # to ensure the parameter items are correct for number of bands
+        stretchmode = self.stretchCombo.currentData()
+        self.setStretchMode(stretchmode)
+        
     def stretchChanged(self, index):
         """
         Called when user changed the stretch. 
         Updates other GUI elements as needed
         """
         stretchmode = self.stretchCombo.itemData(index)
-        if stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
-            self.stretchParam1.setEnabled(True)
-            self.stretchParam2.setEnabled(False)
-            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1Stats.setEnabled(False)
-            self.stretchParam2Stats.setEnabled(False)
-            self.stretchParam1.setRange(0, 10)
-            self.stretchParam1.setSingleStep(0.1)
-            # always set back to this default
-            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_STDDEV) 
-            self.stretchParam1.setToolTip("Number of Standard Deviations")
-            self.stretchParam2.setToolTip("")
-        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
-            self.stretchParam1.setEnabled(True)
-            self.stretchParam2.setEnabled(True)
-            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1Stats.setEnabled(False)
-            self.stretchParam2Stats.setEnabled(False)
-            self.stretchParam1.setRange(0, 1)
-            self.stretchParam1.setSingleStep(0.005)
-            self.stretchParam1.setToolTip("Minimum Proportion of Histogram")
-            self.stretchParam2.setRange(0, 1)
-            self.stretchParam2.setSingleStep(0.005)
-            self.stretchParam2.setToolTip("Maximum Proportion of Histogram")
-            # set back to these defaults
-            self.stretchParam1.setValue(viewerstretch.VIEWER_DEFAULT_HISTMIN) 
-            self.stretchParam2.setValue(viewerstretch.VIEWER_DEFAULT_HISTMAX)
-        elif stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
-            self.stretchParam1.setEnabled(True)
-            self.stretchParam2.setEnabled(True)
-            self.stretchParam1Stats.setEnabled(True)
-            self.stretchParam2Stats.setEnabled(True)
-            self.stretchParam1.setRange(-2**32, 2**32)
-            self.stretchParam1.setSingleStep(1)
-            self.stretchParam1.setToolTip("Minimum Value")
-            self.stretchParam2.setRange(-2**32, 2**32)
-            self.stretchParam2.setSingleStep(1)
-            self.stretchParam2.setToolTip("Maximum Value")
-            self.stretchParam1.setValue(0)  # set back to these defaults
-            self.stretchParam2.setValue(0)
-            self.stretchParam1Stats.setCheckState(Qt.Checked)
-            self.stretchParam2Stats.setCheckState(Qt.Checked)
-        else:
-            self.stretchParam1.setEnabled(False)
-            self.stretchParam2.setEnabled(False)
-            self.stretchParam1Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam2Stats.setCheckState(Qt.Unchecked)
-            self.stretchParam1Stats.setEnabled(False)
-            self.stretchParam2Stats.setEnabled(False)
-            self.stretchParam1.setToolTip("")
-            self.stretchParam2.setToolTip("")
+        self.setStretchMode(stretchmode)
 
 
 RULE_DATA = (("Number of Bands Less than", viewerstretch.VIEWER_COMP_LT),
@@ -871,6 +1069,10 @@ class StretchDockWidget(QDockWidget):
     Class that has a StretchLayout as a dockable window
     with apply and save buttons
     """
+    # signals
+    stretchClosed = Signal(QDockWidget, name='stretchClosed')
+    "emitted when window closed"
+    
     def __init__(self, parent, viewwidget, layer):
         title = "Stretch: %s" % layer.title
         QDockWidget.__init__(self, title, parent)
@@ -952,6 +1154,12 @@ class StretchDockWidget(QDockWidget):
         self.exportToTextAction.setStatusTip(
             "Export current Stretch and Lookup Table to Text file")
         self.exportToTextAction.setIcon(QIcon(":/viewer/images/savetext.png"))
+        
+        self.exportToClipboardAction = QAction(self, triggered=self.exportToClipboard)
+        self.exportToClipboardAction.setText("Export Stretch to Clipboard")
+        self.exportToClipboardAction.setStatusTip(
+            "Export Current Stretch to Clipboard")
+        self.exportToClipboardAction.setIcon(QIcon(":/viewer/images/copy.png"))
 
         self.importFromGDALAction = QAction(self, triggered=self.importFromGDAL)
         self.importFromGDALAction.setText(
@@ -966,6 +1174,12 @@ class StretchDockWidget(QDockWidget):
         self.importFromTextAction.setStatusTip(
             "Import Stretch and Lookup Table saved in text file and apply")
         self.importFromTextAction.setIcon(QIcon(":/viewer/images/opentext.png"))
+        
+        self.importFromClipboardAction = QAction(self, triggered=self.importFromClipboard)
+        self.importFromClipboardAction.setText("Import Stretch from clipboard")
+        self.importFromClipboardAction.setStatusTip(
+            "Import Stretch and Lookup table to clipboard")
+        self.importFromClipboardAction.setIcon(QIcon(":/viewer/images/paste.png"))
 
     def setupToolbar(self):
         """
@@ -978,8 +1192,10 @@ class StretchDockWidget(QDockWidget):
         self.toolBar.addAction(self.saveAction)
         self.toolBar.addAction(self.deleteAction)
         self.toolBar.addAction(self.exportToTextAction)
+        self.toolBar.addAction(self.exportToClipboardAction)
         self.toolBar.addAction(self.importFromGDALAction)
         self.toolBar.addAction(self.importFromTextAction)
+        self.toolBar.addAction(self.importFromClipboardAction)
         
     def onApplyAll(self):
         """
@@ -993,7 +1209,10 @@ class StretchDockWidget(QDockWidget):
                                                        islocalchecked)
             self.viewwidget.viewport().update()
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+            if SHOW_TRACEBACK:
+                traceback.print_exc()
+            else:
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onApply(self):
         """
@@ -1004,7 +1223,10 @@ class StretchDockWidget(QDockWidget):
         try:
             self.viewwidget.setNewStretch(stretch, self.layer, local)
         except Exception as e:
-            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+            if SHOW_TRACEBACK:
+                traceback.print_exc()
+            else:
+                QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def onSave(self):
         """
@@ -1041,6 +1263,28 @@ class StretchDockWidget(QDockWidget):
                 self.layer.exportStretchandLUTToText(fname)
             except Exception as e:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+                
+    def exportToClipboard(self):
+        """
+        Export the stretch and LUT to the clipboard
+        """
+        data = self.layer.exportStretchandLUTToString()
+        clipboard = QGuiApplication.clipboard()
+        clipboard.setText(data)
+        
+    def importFromClipboard(self):
+        """
+        Import the stretch and LUT from the clipboard
+        """
+        clipboard = QGuiApplication.clipboard()
+        data = clipboard.text()
+        try:
+            stretch = viewerstretch.ViewerStretch.fromStringWithLUT(data)
+            self.viewwidget.setNewStretch(stretch, self.layer)
+        
+            self.stretchLayout.updateStretch(stretch)
+        except Exception as e:
+            QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def importFromGDAL(self):
         """
@@ -1087,4 +1331,10 @@ class StretchDockWidget(QDockWidget):
 
             except Exception as e:
                 QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+
+    def closeEvent(self, event):
+        """
+        Window is being closed - inform parent window
+        """
+        self.stretchClosed.emit(self)
 

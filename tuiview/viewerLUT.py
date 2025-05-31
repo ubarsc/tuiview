@@ -20,6 +20,7 @@ amongst other things
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import io
 import sys
 import json
 from PySide6.QtGui import QImage
@@ -232,9 +233,12 @@ class ViewerLUT(QObject):
                 fileobj.write('%s\n' % json.dumps(rep))
         else:
             # rgb
-            rep = {'nbands': 3}
+            rep = {'nbands': 4}
             fileobj.write('%s\n' % json.dumps(rep))
-            for code in RGB_CODES:
+            codes = RGB_CODES
+            if 'alpha' in self.bandinfo:
+                codes = RGBA_CODES
+            for code in codes:
                 lutindex = CODE_TO_LUTINDEX[code]
                 bi = self.bandinfo[code]
 
@@ -276,7 +280,10 @@ class ViewerLUT(QObject):
         else:
             # rgb - NB writing into band metadata results in corruption 
             # use dataset instead
-            for code in RGB_CODES:
+            codes = RGB_CODES
+            if 'alpha' in self.bandinfo:
+                codes = RGBA_CODES
+            for code in codes:
                 string = self.bandinfo[code].toString()
                 key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
                 gdaldataset.SetMetadataItem(key, string)
@@ -287,11 +294,12 @@ class ViewerLUT(QObject):
                 gdaldataset.SetMetadataItem(key, string)
 
             # do alpha seperately as there is no bandinfo
-            code = 'alpha'
-            lutindex = CODE_TO_LUTINDEX[code]
-            string = json.dumps(self.lut[lutindex].tolist())
-            key = VIEWER_LUT_METADATA_KEY + '_' + code
-            gdaldataset.SetMetadataItem(key, string)
+            if 'alpha' not in self.bandinfo:
+                code = 'alpha'
+                lutindex = CODE_TO_LUTINDEX[code]
+                string = json.dumps(self.lut[lutindex].tolist())
+                key = VIEWER_LUT_METADATA_KEY + '_' + code
+                gdaldataset.SetMetadataItem(key, string)
 
     @staticmethod
     def deleteFromGDAL(gdaldataset):
@@ -322,6 +330,7 @@ class ViewerLUT(QObject):
         lutobj = ViewerLUT()
         s = fileobj.readline()
         rep = json.loads(s)
+        print(s)
         nbands = rep['nbands']
         if nbands == 1:
             # color table
@@ -338,10 +347,12 @@ class ViewerLUT(QObject):
                 lutindex = CODE_TO_LUTINDEX[code]
                 lutobj.lut[..., lutindex] = lut
         else:
-            # rgb
+            # rgb/rgba
             lutobj.bandinfo = {}
-            for _ in range(len(RGB_CODES)):
+            for _ in range(len(RGBA_CODES)):
                 s = fileobj.readline()
+                if s == '':
+                    break
                 bi = BandLUTInfo.fromString(s)
                 s = fileobj.readline()
                 rep = json.loads(s)
@@ -359,17 +370,18 @@ class ViewerLUT(QObject):
 
             # now do alpha seperately - 255 for all except 
             # no data and background
-            # (this isn't stored in the file)
+            # (in the RGB case this isn't stored in the file)
             alphaindex = CODE_TO_LUTINDEX['alpha']
-            lutobj.lut[alphaindex].fill(255)
-            rgbindex = CODE_TO_RGBINDEX['alpha']
-            bandinfo = lutobj.bandinfo['red']  # just to get the index for nan, nodata etc
-            nodata_value = stretch.nodata_rgba[rgbindex]
-            background_value = stretch.background_rgba[rgbindex]
-            nan_value = stretch.nan_rgba[rgbindex]
-            lutobj.lut[alphaindex, bandinfo.nodata_index] = nodata_value
-            lutobj.lut[alphaindex, bandinfo.background_index] = background_value
-            lutobj.lut[alphaindex, bandinfo.nan_index] = nan_value
+            if alphaindex not in lutobj.lut:
+                lutobj.lut[alphaindex].fill(255)
+                rgbindex = CODE_TO_RGBINDEX['alpha']
+                bandinfo = lutobj.bandinfo['red']  # just to get the index for nan, nodata etc
+                nodata_value = stretch.nodata_rgba[rgbindex]
+                background_value = stretch.background_rgba[rgbindex]
+                nan_value = stretch.nan_rgba[rgbindex]
+                lutobj.lut[alphaindex, bandinfo.nodata_index] = nodata_value
+                lutobj.lut[alphaindex, bandinfo.background_index] = background_value
+                lutobj.lut[alphaindex, bandinfo.nan_index] = nan_value
 
         return lutobj
 
@@ -431,9 +443,9 @@ class ViewerLUT(QObject):
                         obj.surrogateLUTName = None  # show error?
 
         else:
-            # rgb
+            # rgb/rgba
             infos = []
-            for code in RGB_CODES:
+            for code in RGBA_CODES:
                 key = VIEWER_BANDINFO_METADATA_KEY + '_' + code
                 bistring = gdaldataset.GetMetadataItem(key)
                 if bistring is not None and bistring != '':
@@ -441,17 +453,38 @@ class ViewerLUT(QObject):
                     lutstring = gdaldataset.GetMetadataItem(key)
                     if lutstring is not None and lutstring != '':
                         infos.append((bistring, lutstring))
-            # do alpha separately as there is no band info
-            code = 'alpha'
-            key = VIEWER_LUT_METADATA_KEY + '_' + code
-            alphalutstring = gdaldataset.GetMetadataItem(key)
 
-            if (len(infos) == 3 and alphalutstring is not None and
-                    alphalutstring != ''):
-                # ok we got all the data
+            if len(infos) == 3:
+                # RGB
+                # do alpha separately as there is no band info
+                code = 'alpha'
+                key = VIEWER_LUT_METADATA_KEY + '_' + code
+                alphalutstring = gdaldataset.GetMetadataItem(key)
+                
+                if alphalutstring is not None and alphalutstring != '':
+                    # ok we got all the data
+                    obj = ViewerLUT()
+                    obj.bandinfo = {}
+                    for (info, code) in zip(infos, RGB_CODES):
+                        lutindex = CODE_TO_LUTINDEX[code]
+                        (bistring, lutstring) = info
+                        obj.bandinfo[code] = BandLUTInfo.fromString(bistring)
+    
+                        if obj.lut is None:
+                            size = obj.bandinfo[code].lutsize + VIEWER_LUT_EXTRA
+                            obj.lut = numpy.empty((4, size), numpy.uint8, 'C')
+                        lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
+                        obj.lut[lutindex] = lut
+                    # now alpha
+                    code = 'alpha'
+                    lutindex = CODE_TO_LUTINDEX[code]
+                    lut = numpy.fromiter(json.loads(alphalutstring), numpy.uint8)
+                    obj.lut[lutindex] = lut
+            elif len(infos) == 4:
+                # RGBA
                 obj = ViewerLUT()
                 obj.bandinfo = {}
-                for (info, code) in zip(infos, RGB_CODES):
+                for (info, code) in zip(infos, RGBA_CODES):
                     lutindex = CODE_TO_LUTINDEX[code]
                     (bistring, lutstring) = info
                     obj.bandinfo[code] = BandLUTInfo.fromString(bistring)
@@ -461,11 +494,6 @@ class ViewerLUT(QObject):
                         obj.lut = numpy.empty((4, size), numpy.uint8, 'C')
                     lut = numpy.fromiter(json.loads(lutstring), numpy.uint8)
                     obj.lut[lutindex] = lut
-                # now alpha
-                code = 'alpha'
-                lutindex = CODE_TO_LUTINDEX[code]
-                lut = numpy.fromiter(json.loads(alphalutstring), numpy.uint8)
-                obj.lut[lutindex] = lut
 
         return obj
 
@@ -602,13 +630,15 @@ class ViewerLUT(QObject):
 
         return lut, bandinfo
 
-    def createStretchLUT(self, gdalband, stretch, lutsize, localdata=None):
+    def createStretchLUT(self, gdalband, stretch, lutsize, localdata=None, bandIdx=None):
         """
         Creates a LUT for a single band using the stretch
         method specified and returns it.
         If localdata is not None then it should be an array to calculate
         the stats from (ignore values should be already removed)
         Otherwise these will be calculated from the whole image using GDAL if needed.
+        If the stretch mode is one of the VIEWER_STRETCHMODE_*_VAR constants, then
+        bandIdx should be the index into the stretchparam list for this band (0-based).
         """
 
         if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_NONE:
@@ -624,11 +654,15 @@ class ViewerLUT(QObject):
 
         # code below sets stretchMin and stretchMax
 
-        if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR:
+        if (stretch.stretchmode in [viewerstretch.VIEWER_STRETCHMODE_LINEAR, 
+                viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR]):
             # stretch between reported min and max if they
             # have given us None as the range, otherwise use
             # the specified range
-            (reqMin, reqMax) = stretch.stretchparam
+            if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_LINEAR_VAR:
+                (reqMin, reqMax) = stretch.stretchparam[bandIdx]
+            else:
+                (reqMin, reqMax) = stretch.stretchparam
             if reqMin is None:
                 stretchMin = minVal
             else:
@@ -639,22 +673,30 @@ class ViewerLUT(QObject):
             else:
                 stretchMax = reqMax
                 
-        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV:
+        elif (stretch.stretchmode in [viewerstretch.VIEWER_STRETCHMODE_STDDEV,
+                viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR]):
             # linear stretch n std deviations from the mean
-            nstddev = stretch.stretchparam[0]
+            if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_STDDEV_VAR:
+                nstddev = stretch.stretchparam[bandIdx]
+            else:
+                nstddev = stretch.stretchparam[0]
 
             stretchMin = mean - (nstddev * stdDev)
             stretchMin = max(stretchMin, minVal)
             stretchMax = mean + (nstddev * stdDev)
             stretchMax = min(stretchMax, maxVal)
 
-        elif stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST:
+        elif (stretch.stretchmode in [viewerstretch.VIEWER_STRETCHMODE_HIST,
+                viewerstretch.VIEWER_STRETCHMODE_HIST_VAR]):
 
             histo = (
                 self.getHistogramWithProgress(gdalband, minVal, maxVal, localdata))
 
             sumPxl = sum(histo)
-            histmin, histmax = stretch.stretchparam
+            if stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_HIST_VAR:
+                histmin, histmax = stretch.stretchparam[bandIdx]
+            else:
+                histmin, histmax = stretch.stretchparam
             numBins = len(histo)
 
             bandLower = sumPxl * histmin
@@ -863,7 +905,7 @@ class ViewerLUT(QObject):
         """
         # clobber the backup lut - any hightlights happen afresh
         self.backuplut = None
-
+        
         if (stretch.mode == viewerstretch.VIEWER_MODE_DEFAULT or 
                 stretch.stretchmode == viewerstretch.VIEWER_STRETCHMODE_DEFAULT):
             msg = 'must set mode and stretchmode'
@@ -886,16 +928,16 @@ class ViewerLUT(QObject):
         else:
             # global stretch
             localdata = None
-            localdatalist = (None, None, None)
+            localdatalist = (None, None, None, None)
 
         # are we loading the LUT from an external file instead?
         try:
             if stretch.readLUTFromText is not None:
-                # first line describes the stretch - ignore
-                fileobj = open(stretch.readLUTFromText)
-                fileobj.readline()
-                lut = self.createFromFile(fileobj, stretch)
-                fileobj.close()
+                with open(stretch.readLUTFromText) as fileobj:
+                    # first line describes the stretch - ignore
+                    fileobj.readline()
+                    lut = self.createFromFile(fileobj, stretch)
+                    fileobj.close()
                 if lut is None:
                     msg = 'No stretch and lookup table in this file'
                     raise viewererrors.InvalidDataset(msg)
@@ -909,6 +951,17 @@ class ViewerLUT(QObject):
                 if lut is None:
                     msg = 'No stretch and lookup table in this file'
                     raise viewererrors.InvalidDataset(msg)
+                self.lut = lut.lut
+                self.bandinfo = lut.bandinfo
+                return
+            elif stretch.readLUTFromString is not None:
+                with io.StringIO(stretch.readLUTFromString) as fileobj:
+                    # first line describes the stretch - ignore
+                    fileobj.readline()
+                    lut = self.createFromFile(fileobj, stretch)
+                    if lut is None:
+                        msg = 'No lookup found in string'
+                        raise viewererrors.InvalidDataset(msg)
                 self.lut = lut.lut
                 self.bandinfo = lut.bandinfo
                 return
@@ -1071,7 +1124,7 @@ class ViewerLUT(QObject):
 
             # user supplies RGB
             zipdata = zip(stretch.bands, RGB_CODES, localdatalist)
-            for (band, code, localdata) in zipdata:
+            for bandIdx, (band, code, localdata) in enumerate(zipdata):
                 gdalband = dataset.GetRasterBand(band)
 
                 if gdalband.DataType == gdal.GDT_Byte:
@@ -1090,7 +1143,7 @@ class ViewerLUT(QObject):
                 lutindex = CODE_TO_LUTINDEX[code]
                 # create stretch for each band
                 lut, bandinfo = self.createStretchLUT(gdalband, stretch, 
-                                    lutsize, localdata)
+                                    lutsize, localdata, bandIdx)
 
                 # append the nodata and background+nan while we are at it
                 rgbindex = CODE_TO_RGBINDEX[code]
@@ -1125,7 +1178,54 @@ class ViewerLUT(QObject):
             self.lut[lutindex, nodata_index] = nodata_value
             self.lut[lutindex, background_index] = background_value
             self.lut[lutindex, nan_index] = nan_value
-            
+
+        elif stretch.mode == viewerstretch.VIEWER_MODE_RGBA:
+            if len(stretch.bands) != 4:
+                msg = 'must specify 4 bands when opening rgba'
+                raise viewererrors.InvalidParameters(msg)
+
+            self.bandinfo = {}
+            self.lut = None
+
+            # user supplies RGB
+            zipdata = zip(stretch.bands, RGBA_CODES, localdatalist)
+            for bandIdx, (band, code, localdata) in enumerate(zipdata):
+                gdalband = dataset.GetRasterBand(band)
+
+                if gdalband.DataType == gdal.GDT_Byte:
+                    lutsize = 256
+                else:
+                    lutsize = DEFAULT_LUTSIZE
+
+                if self.lut is None:
+                    # LUT is shape [4,lutsize]. We apply the stretch seperately
+                    # to each band. Order is RGBA 
+                    # (native order to make things easier)
+                    # plus 2 for no data and background
+                    self.lut = numpy.empty((4, lutsize + VIEWER_LUT_EXTRA), 
+                        numpy.uint8, 'C')
+
+                lutindex = CODE_TO_LUTINDEX[code]
+                # create stretch for each band
+                lut, bandinfo = self.createStretchLUT(gdalband, stretch, 
+                                    lutsize, localdata, bandIdx)
+
+                # append the nodata and background+nan while we are at it
+                rgbindex = CODE_TO_RGBINDEX[code]
+                nodata_value = stretch.nodata_rgba[rgbindex]
+                background_value = stretch.background_rgba[rgbindex]
+                nan_value = stretch.nan_rgba[rgbindex]
+                lut = numpy.append(lut, [nodata_value, background_value, 
+                    nan_value])
+
+                bandinfo.nodata_index = lutsize
+                bandinfo.background_index = lutsize + 1
+                bandinfo.nan_index = lutsize + 2
+
+                self.bandinfo[code] = bandinfo
+
+                self.lut[lutindex] = lut
+                
         else:
             msg = 'unsupported display mode'
             raise viewererrors.InvalidParameters(msg)
@@ -1263,6 +1363,58 @@ class ViewerLUT(QObject):
         alpha[mask == MASK_BACKGROUND_VALUE] = background_value
         bgra[..., lutindex] = alpha
 
+        # turn into QImage
+        # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
+        # is faster. Not sure what this means
+        image = QImage(bgra.data, winxsize, winysize, QImage.Format_ARGB32)
+        image.viewerdata = datalist 
+        # so we have the data if we want to calculate stats etc
+        image.viewermask = mask
+        return image
+
+    def applyLUTRGBA(self, datalist, mask):
+        """
+        Apply LUT to 4 bands of imagery
+        passed as a list of arrays.
+        Return a QImage
+        """
+        winysize, winxsize = datalist[0].shape
+
+        # create blank array to stretch into
+        bgra = numpy.empty((winysize, winxsize, 4), numpy.uint8, 'C')
+        for (data, code) in zip(datalist, RGBA_CODES):
+            lutindex = CODE_TO_LUTINDEX[code]
+            bandinfo = self.bandinfo[code]
+
+            # work out where the NaN's are if float
+            if numpy.issubdtype(data.dtype, numpy.floating):
+                nanmask = numpy.isnan(data)
+            else:
+                nanmask = None
+
+            # convert to float for maths below
+            data = data.astype(numpy.floating)
+            # in case data outside range of stretch
+            numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
+            
+            # apply scaling in place
+            numpy.add(data, bandinfo.offset, out=data)
+            numpy.divide(data, bandinfo.scale, out=data)
+
+            # can only do lookups with integer data
+            data = data.astype(numpy.integer)
+
+            # set NaN values back to LUT=nandata if data originally float
+            if nanmask is not None:
+                data[nanmask] = bandinfo.nan_index
+
+            # mask no data and background
+            data[mask == MASK_NODATA_VALUE] = bandinfo.nodata_index
+            data[mask == MASK_BACKGROUND_VALUE] = bandinfo.background_index
+
+            # do the lookup
+            bgra[..., lutindex] = self.lut[lutindex][data]
+        
         # turn into QImage
         # TODO there is a note in the docs saying Format_ARGB32_Premultiplied
         # is faster. Not sure what this means

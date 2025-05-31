@@ -114,6 +114,9 @@ class LayerListView(QListView):
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setupActions()
         self.setupMenu()
+        
+        # so we only open one of these 
+        self.stretchDock = None
 
     def setupActions(self):
         "Set up the actions for the popup menu"
@@ -440,9 +443,19 @@ class LayerListView(QListView):
             model = self.model()
             layer = model.getLayer(index)
 
-            stretchDock = stretchdialog.StretchDockWidget(self, 
+            if self.stretchDock is not None:
+                self.stretchDock.close()
+
+            self.stretchDock = stretchdialog.StretchDockWidget(self, 
                                 model.viewwidget, layer)
-            model.viewwindow.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
+            model.viewwindow.addDockWidget(Qt.TopDockWidgetArea, self.stretchDock)
+            self.stretchDock.stretchClosed.connect(self.stretchClosed)
+
+    def stretchClosed(self, stretchDock):
+        """
+        Stretch dock window has been closed. 
+        """
+        self.stretchDock = None
 
     def properties(self):
         "Show the properties for the layer"

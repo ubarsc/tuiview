@@ -284,6 +284,9 @@ class ViewerWindow(QMainWindow):
         # that tool being enabled. As oppossed to user unclicking
         # the tool
         self.suppressToolReset = False
+        
+        # our stretch dock for this window, if exists
+        self.stretchDock = None
 
     def resizeForWidgetSize(self, xsize, ysize):
         """
@@ -461,10 +464,12 @@ class ViewerWindow(QMainWindow):
         self.defaultStretchAct.setStatusTip("Set default stretches")
         self.defaultStretchAct.setShortcut("CTRL+D")
 
-        self.stretchAct = QAction(self, triggered=self.editStretch)
+        self.stretchAct = QAction(self, toggled=self.editStretch)
         self.stretchAct.setText("S&tretch")
         self.stretchAct.setStatusTip("Edit current stretch")
         self.stretchAct.setShortcut("CTRL+T")
+        self.stretchAct.setCheckable(True)
+        self.stretchAct.setIcon(QIcon(":/viewer/images/stretch.png"))
         self.stretchAct.setEnabled(False)  # until a file is opened
 
         self.panAct = QAction(self, toggled=self.pan)
@@ -738,6 +743,7 @@ class ViewerWindow(QMainWindow):
         viewToolbar.addAction(self.zoomNativeAct)
         viewToolbar.addAction(self.zoomFullExtAct)
         viewToolbar.addAction(self.followExtentAct)
+        viewToolbar.addAction(self.stretchAct)
 
         toolToolbar = self.addToolBar("Tools")
         toolToolbar.addAction(self.queryAct)
@@ -1095,21 +1101,32 @@ File will now be opened using default stretch""")
             self.removeDockWidget(self.layerWindow)
             self.layerWindow = None
 
-    def editStretch(self):
+    def editStretch(self, checked):
         """
         Show the edit stretch dock window
         """
-        # should it just be visible layers?
-        layer = self.viewwidget.layers.getTopRasterLayer()
-        if layer is None:
-            QMessageBox.critical(self, MESSAGE_TITLE, "No raster layer available")
-        else:
-            stretchDock = stretchdialog.StretchDockWidget(self, 
-                                self.viewwidget, layer)
-            self.addDockWidget(Qt.TopDockWidgetArea, stretchDock)
-            # this works to prevent it trying to dock when dragging
-            # but double click still works
-            stretchDock.setAllowedAreas(Qt.NoDockWidgetArea) 
+        if checked:
+            # should it just be visible layers?
+            layer = self.viewwidget.layers.getTopRasterLayer()
+            if layer is None:
+                QMessageBox.critical(self, MESSAGE_TITLE, "No raster layer available")
+            else:
+                self.stretchDock = stretchdialog.StretchDockWidget(self, 
+                                    self.viewwidget, layer)
+                self.addDockWidget(Qt.TopDockWidgetArea, self.stretchDock)
+                self.stretchDock.stretchClosed.connect(self.stretchClosed)
+                # this works to prevent it trying to dock when dragging
+                # but double click still works
+                self.stretchDock.setAllowedAreas(Qt.NoDockWidgetArea)
+        elif self.stretchDock is not None:
+            self.stretchDock.close()
+
+    def stretchClosed(self, stretchDock):
+        """
+        Stretch dock window has been closed. Set action to unchecked
+        """
+        self.stretchAct.setChecked(False)
+        self.stretchDock = None
 
     def disableTools(self, ignoreTool=None):
         """
@@ -1256,6 +1273,8 @@ File will now be opened using default stretch""")
         if self.queryWindowCount > 0:
             self.viewwidget.locationSelected.disconnect(queryDock.locationSelected)
             self.queryWindowCount -= 1
+            if self.queryWindowCount == 0:
+                self.queryAct.setChecked(False)
 
     def newQueryWindow(self):
         """
