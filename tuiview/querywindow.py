@@ -332,9 +332,13 @@ class ThematicTableModel(QAbstractTableModel):
         """
         Returns the colour icon for the given row
         """
+        col = None
         if row < self.attributes.getNumRows():
             self.attCache.autoScrollToIncludeRow(row)
     
+            redVal = None
+            greenVal = None
+            blueVal = None
             if self.attributes.hasRATColorTable:
                 names = self.attributes.getColumnNames()
                 name = names[self.attributes.redColumnIdx]
@@ -349,8 +353,10 @@ class ThematicTableModel(QAbstractTableModel):
                 redVal, greenVal, blueVal, _ = self.attributes.getOldStyleColorTableRGBA(row)
     
             # ignore alpha as we want to see it
-            col = safeCreateColor(redVal, greenVal, blueVal)
-        else:
+            if redVal is not None and greenVal is not None and blueVal is not None:
+                col = safeCreateColor(redVal, greenVal, blueVal)
+                
+        if col is None:
             col = QColor(255, 255, 255)
     
         pixmap = QPixmap(64, 24)
