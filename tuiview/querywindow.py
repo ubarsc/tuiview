@@ -262,7 +262,7 @@ class ThematicTableModel(QAbstractTableModel):
     def columnCount(self, parent):
         "number of columns"
         ncols = self.attributes.getNumColumns()
-        if self.attributes.hasRATColorTable:
+        if self.attributes.hasRATColorTable or self.attributes.hasOldStyleColorTable:
             ncols += 1
         return ncols
 
@@ -272,7 +272,7 @@ class ThematicTableModel(QAbstractTableModel):
         horizontal
         """
         if orientation == Qt.Horizontal:
-            if self.attributes.hasRATColorTable:
+            if self.attributes.hasRATColorTable or self.attributes.hasOldStyleColorTable:
                 if role == Qt.DisplayRole and section == 0:
                     return "Color"
                 section -= 1  # for below, to ignore the color col
@@ -332,22 +332,31 @@ class ThematicTableModel(QAbstractTableModel):
         """
         Returns the colour icon for the given row
         """
+        col = None
         if row < self.attributes.getNumRows():
             self.attCache.autoScrollToIncludeRow(row)
     
-            names = self.attributes.getColumnNames()
-            name = names[self.attributes.redColumnIdx]
-            redVal = self.attCache.getValueFromCol(name, row)
-    
-            name = names[self.attributes.greenColumnIdx]
-            greenVal = self.attCache.getValueFromCol(name, row)
-    
-            name = names[self.attributes.blueColumnIdx]
-            blueVal = self.attCache.getValueFromCol(name, row)
+            redVal = None
+            greenVal = None
+            blueVal = None
+            if self.attributes.hasRATColorTable:
+                names = self.attributes.getColumnNames()
+                name = names[self.attributes.redColumnIdx]
+                redVal = self.attCache.getValueFromCol(name, row)
+        
+                name = names[self.attributes.greenColumnIdx]
+                greenVal = self.attCache.getValueFromCol(name, row)
+        
+                name = names[self.attributes.blueColumnIdx]
+                blueVal = self.attCache.getValueFromCol(name, row)
+            elif self.attributes.hasOldStyleColorTable:
+                redVal, greenVal, blueVal, _ = self.attributes.getOldStyleColorTableRGBA(row)
     
             # ignore alpha as we want to see it
-            col = safeCreateColor(redVal, greenVal, blueVal)
-        else:
+            if redVal is not None and greenVal is not None and blueVal is not None:
+                col = safeCreateColor(redVal, greenVal, blueVal)
+                
+        if col is None:
             col = QColor(255, 255, 255)
     
         pixmap = QPixmap(64, 24)
@@ -380,7 +389,7 @@ class ThematicTableModel(QAbstractTableModel):
 
         elif role == Qt.DisplayRole: 
             column = index.column()
-            if self.attributes.hasRATColorTable:
+            if self.attributes.hasRATColorTable or self.attributes.hasOldStyleColorTable:
                 if column == 0:
                     return None  # no text
                 column -= 1  # for below to ignore the color col
@@ -402,7 +411,8 @@ class ThematicTableModel(QAbstractTableModel):
 
         elif role == Qt.DecorationRole:
             column = index.column()
-            if self.attributes.hasRATColorTable and column == 0:
+            if ((self.attributes.hasRATColorTable or self.attributes.hasOldStyleColorTable) and 
+                    column == 0):
                 return self.createColorIcon(row)
             else:
                 return None
@@ -601,6 +611,7 @@ class ThematicHorizontalHeader(QHeaderView):
             attributes = self.parent.lastLayer.attributes
 
             if attributes.hasRATColorTable:
+                # note: not doing anything on old school colors
                 if col == 0:
                     # do special handling for color column
                     action = self.colorPopup.exec_(event.globalPos())
@@ -608,9 +619,17 @@ class ThematicHorizontalHeader(QHeaderView):
                         self.parent.editColor()
                     return
                 col -= 1  # to ignore color col for below
+            elif attributes.hasOldStyleColorTable:
+                if col == 0:
+                    return
+                col -= 1  # to ignore color col for below
 
             # work out whether this is float column
-            colName = attributes.getColumnNames()[col]
+            cols = attributes.getColumnNames()
+            if len(cols) == 0:
+                # old style colors
+                return
+            colName = cols[col]
             colType = attributes.getType(colName)
             self.setDPAction.setEnabled(colType == GFT_Real)
             self.setLookupAction.setEnabled(colType != GFT_String)
@@ -875,7 +894,8 @@ class QueryDockWidget(QDockWidget):
         layer = viewwidget.layers.getTopRasterLayer()
         if layer is not None:
             if (len(layer.stretch.bands) == 1 and 
-                    layer.attributes.hasAttributes()):
+                    (layer.attributes.hasAttributes() or 
+                    layer.attributes.hasOldStyleColorTable)):
                 self.setupTableThematic(None, layer)
             else:
                 self.setupTableContinuous(None, layer)
@@ -1328,7 +1348,7 @@ The application will now exit."""
             # so we repaint
             self.tableModel.doUpdate()
 
-        except viewererrors.UserExpressionError as e:
+        except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def addColumn(self):
@@ -1409,13 +1429,13 @@ Use the special columns:
             attributes.setColumnToConstant(redname, red, self.selectionArray)
 
             green = newcolor.green()
-            attributes.setColumnToConstant(redname, green, self.selectionArray)
+            attributes.setColumnToConstant(greenname, green, self.selectionArray)
 
             blue = newcolor.blue()
-            attributes.setColumnToConstant(redname, blue, self.selectionArray)
+            attributes.setColumnToConstant(bluename, blue, self.selectionArray)
 
             alpha = newcolor.alpha()
-            attributes.setColumnToConstant(redname, alpha, self.selectionArray)
+            attributes.setColumnToConstant(alphaname, alpha, self.selectionArray)
 
             # so we repaint and new values get shown
             self.tableModel.doUpdate()
@@ -1466,7 +1486,7 @@ Use the special columns:
                 col = attributes.getEntireAttribute(colname)
                 self.viewwidget.setColorTableLookup(col, colname)
 
-        except viewererrors.UserExpressionError as e:
+        except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
 
     def moveColumn(self, col, code):
@@ -1916,7 +1936,8 @@ Use the special columns:
 
             # do the attribute thing if there is only one band
             # and we have attributes
-            if nbands == 1 and qi.layer.attributes.hasAttributes():
+            if nbands == 1 and (qi.layer.attributes.hasAttributes() or 
+                    qi.layer.attributes.hasOldStyleColorTable):
                 self.setupTableThematic(qi.data, qi.layer)
             else:
                 # otherwise the multi band table

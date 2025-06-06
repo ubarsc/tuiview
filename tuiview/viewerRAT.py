@@ -111,6 +111,7 @@ class ViewerRAT(QObject):
     alphaColumnIdx = None  # int
     hasRATColorTable = False
     hasOldStyleColorTable = False
+    gdalColorTable = None  # object (if hasOldStyleColorTable)
     attributeData = None
 
     def __init__(self):
@@ -127,7 +128,10 @@ class ViewerRAT(QObject):
 
     def getColumnNames(self):
         "return the column names"
-        return self.columnNames
+        if self.columnNames is not None:
+            return self.columnNames
+        else:
+            return []
 
     def getSaneColumnNames(self, colNameList=None):
         """
@@ -137,6 +141,8 @@ class ViewerRAT(QObject):
         sane = []
         if colNameList is None:
             colNameList = self.columnNames
+        if colNameList is None:
+            return sane
         for colName in colNameList:
             if keyword.iskeyword(colName):
                 # append an underscore. 
@@ -176,8 +182,14 @@ class ViewerRAT(QObject):
         "get the number of rows"
         if self.columnNames is not None and len(self.columnNames) > 0:
             return self.gdalRAT.GetRowCount()
+        elif self.gdalColorTable is not None:
+            return self.gdalColorTable.GetCount()
         else:
             return 0
+            
+    def getOldStyleColorTableRGBA(self, i):
+        "Returns a ColorEntry for an old style color table entry"
+        return self.gdalColorTable.GetColorEntry(i)
 
     def getCacheObject(self, chunkSize):
         """
@@ -229,6 +241,7 @@ class ViewerRAT(QObject):
         self.alphaColumnIdx = None  # int
         self.hasRATColorTable = False
         self.hasOldStyleColorTable = False 
+        self.gdalColorTable = None  # object
 
     def addColumn(self, colname, coltype):
         """
@@ -298,8 +311,10 @@ class ViewerRAT(QObject):
         # have rat and thematic?
         self.newProgress.emit("Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
-        thematic = gdalband.GetMetadataItem('LAYER_TYPE') == 'thematic'
-        if thematic:
+        layerType = gdalband.GetMetadataItem('LAYER_TYPE')
+        # we now treat 'old style' color table as indicative as thematic also
+        colorTable = gdalband.GetColorTable()
+        if (layerType is not None and layerType == 'thematic') or colorTable is not None:
             # looks like we have attributes
             self.count += 1
 
@@ -350,7 +365,7 @@ class ViewerRAT(QObject):
 
         self.endProgress.emit()
 
-    def findColorTableColumns(self, gdalband):
+    def findColorTableColumns(self, gdalband=None):
         """
         Update the variables that define which are the columns
         in the colour table
@@ -374,11 +389,16 @@ class ViewerRAT(QObject):
                 self.greenColumnIdx is not None and 
                 self.blueColumnIdx is not None and
                 self.alphaColumnIdx is not None)
-                
-        self.hasOldStyleColorTable = False
-        if not self.hasRATColorTable:
-            ct = gdalband.GetColorTable()
-            self.hasOldStyleColorTable = ct is not None
+             
+        if gdalband is not None:
+            # only need to update hasOldStyleColorTable if we have a band
+            # (ie during initialisation)  
+            self.hasOldStyleColorTable = False
+            if not self.hasRATColorTable:
+                ct = gdalband.GetColorTable()
+                if ct is not None:
+                    self.hasOldStyleColorTable = True
+                    self.gdalColorTable = ct
             
     def arrangeColumnOrder(self, prefColOrder, gdalband):
         """
@@ -737,6 +757,9 @@ class RATCache:
         name or a list of names, then just the named one(s) will
         be update.
         """
+        if self.gdalRAT is None:
+            # old syle color table
+            return
         rowCount = self.gdalRAT.GetRowCount()
         self.length = self.chunkSize
         if (self.currStartRow + self.length) > rowCount:
