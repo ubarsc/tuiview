@@ -613,6 +613,10 @@ class ThematicHorizontalHeader(QHeaderView):
                         self.parent.editColor()
                     return
                 col -= 1  # to ignore color col for below
+            elif attributes.hasOldStyleColorTable:
+                if col == 0:
+                    return
+                col -= 1  # to ignore color col for below
 
             # work out whether this is float column
             cols = attributes.getColumnNames()

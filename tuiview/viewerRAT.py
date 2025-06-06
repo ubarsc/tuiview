@@ -365,7 +365,7 @@ class ViewerRAT(QObject):
 
         self.endProgress.emit()
 
-    def findColorTableColumns(self, gdalband):
+    def findColorTableColumns(self, gdalband=None):
         """
         Update the variables that define which are the columns
         in the colour table
@@ -389,13 +389,16 @@ class ViewerRAT(QObject):
                 self.greenColumnIdx is not None and 
                 self.blueColumnIdx is not None and
                 self.alphaColumnIdx is not None)
-                
-        self.hasOldStyleColorTable = False
-        if not self.hasRATColorTable:
-            ct = gdalband.GetColorTable()
-            if ct is not None:
-                self.hasOldStyleColorTable = True
-                self.gdalColorTable = ct
+             
+        if gdalband is not None:
+            # only need to update hasOldStyleColorTable if we have a band
+            # (ie during initialisation)  
+            self.hasOldStyleColorTable = False
+            if not self.hasRATColorTable:
+                ct = gdalband.GetColorTable()
+                if ct is not None:
+                    self.hasOldStyleColorTable = True
+                    self.gdalColorTable = ct
             
     def arrangeColumnOrder(self, prefColOrder, gdalband):
         """
