@@ -1,3 +1,12 @@
+Version 1.3.2 (2025-06-20)
+--------------------------
+* Treat files with a ColorTable as thematic and show these colours in the Query Window alongside RAT columns if present. Note: these colours can't currently be edited.
+* Fix editing of RAT colours
+* Add functionality to export a CSV of exported RAT rows
+* Improve Stretch Window. Support RGBA images and allow different bands to have different stretch parameters. Note: .stretch files created with these additional features will not be able to be used by earlier versions of Tuiview
+* Allow clipboard copying and pasting if stretches between windows. Add an icon to open the stretch window on the main window toolbar.
+* Improve the layer window so that it will open just one stretch window at a time
+
 Version 1.3.1 (2025-02-28)
 --------------------------
 * Port generate_font.py to PySide6
