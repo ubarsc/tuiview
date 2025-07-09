@@ -1246,7 +1246,7 @@ class ViewerLUT(QObject):
             nanmask = None
 
         # convert to float for maths below
-        data = data.astype(numpy.floating)
+        data = data.astype(float)
 
         # in case data outside range of stretch
         numpy.clip(data, self.bandinfo.min, self.bandinfo.max, out=data)
@@ -1320,7 +1320,7 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # convert to float for maths below
-            data = data.astype(numpy.floating)
+            data = data.astype(float)
             # in case data outside range of stretch
             numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
             
@@ -1393,7 +1393,7 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # convert to float for maths below
-            data = data.astype(numpy.floating)
+            data = data.astype(float)
             # in case data outside range of stretch
             numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
             
