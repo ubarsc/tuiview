@@ -777,7 +777,7 @@ class RATCache:
                 if data is None:
                     coltype = self.gdalRAT.GetTypeOfCol(col)
                     if coltype == gdal.GFT_Integer:
-                        data = numpy.zeros(self.length, dtype=numpy.integer)
+                        data = numpy.zeros(self.length, dtype=int)
                     elif coltype == gdal.GFT_Real:
                         data = numpy.zeros(self.length, dtype=float)
                     else:
@@ -862,7 +862,7 @@ class RATCache:
                     if numpy.isscalar(data):
                         data = int(data)
                     else:
-                        data = data.astype(numpy.integer)
+                        data = data.astype(int)
                 elif coltype == gdal.GFT_Real:
                     if numpy.isscalar(data):
                         data = float(data)
@@ -897,7 +897,7 @@ class RATCache:
             # all new data
             if numpy.isscalar(data):
                 if coltype == gdal.GFT_Integer:
-                    dataarr = numpy.empty(self.length, dtype=numpy.integer)
+                    dataarr = numpy.empty(self.length, dtype=int)
                     dataarr.fill(data)
                 elif coltype == gdal.GFT_Real:
                     dataarr = numpy.empty(self.length, dtype=float)

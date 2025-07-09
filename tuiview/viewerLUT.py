@@ -205,7 +205,7 @@ class ViewerLUT(QObject):
         if lookupArray is not None:
             if numpy.issubdtype(lookupArray.dtype, numpy.floating):
                 # round to int
-                lookupArray = lookupArray.round().astype(numpy.integer)
+                lookupArray = lookupArray.round().astype(int)
 
         self.surrogateLookupArray = lookupArray
         self.surrogateLookupArrayName = colName
@@ -1256,7 +1256,7 @@ class ViewerLUT(QObject):
         numpy.divide(data, self.bandinfo.scale, out=data)
         
         # can only do lookups with integer data
-        data = data.astype(numpy.integer)
+        data = data.astype(int)
 
         if nanmask is not None:
             # set NaN values back to LUT=nan if originally float
@@ -1329,7 +1329,7 @@ class ViewerLUT(QObject):
             numpy.divide(data, bandinfo.scale, out=data)
 
             # can only do lookups with integer data
-            data = data.astype(numpy.integer)
+            data = data.astype(int)
 
             # set NaN values back to LUT=nandata if data originally float
             if nanmask is not None:
@@ -1402,7 +1402,7 @@ class ViewerLUT(QObject):
             numpy.divide(data, bandinfo.scale, out=data)
 
             # can only do lookups with integer data
-            data = data.astype(numpy.integer)
+            data = data.astype(int)
 
             # set NaN values back to LUT=nandata if data originally float
             if nanmask is not None:
