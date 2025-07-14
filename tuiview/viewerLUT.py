@@ -110,6 +110,8 @@ class BandLUTInfo:
     def fromString(string):
         "Returns an instance of this class from a JSON string"
         rep = json.loads(string)
+        if 'scale' not in rep:
+            return None
         bi = BandLUTInfo(rep['scale'], rep['offset'], 
             rep['lutsize'], rep['min'], rep['max'],
             rep['nodata_index'], rep['background_index'])
@@ -330,7 +332,6 @@ class ViewerLUT(QObject):
         lutobj = ViewerLUT()
         s = fileobj.readline()
         rep = json.loads(s)
-        print(s)
         nbands = rep['nbands']
         if nbands == 1:
             # color table
@@ -350,10 +351,16 @@ class ViewerLUT(QObject):
             # rgb/rgba
             lutobj.bandinfo = {}
             for _ in range(len(RGBA_CODES)):
+                currpos = fileobj.tell()
                 s = fileobj.readline()
                 if s == '':
                     break
                 bi = BandLUTInfo.fromString(s)
+                if bi is None:
+                    # unread line - it's not a stretch component
+                    # likely RGB, not RGBA.
+                    fileobj.seek(currpos)
+                    break
                 s = fileobj.readline()
                 rep = json.loads(s)
                 code = rep['code']
