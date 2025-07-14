@@ -1,3 +1,8 @@
+Version 1.3.3 (2025-07-14)
+--------------------------
+* Fix problem with latest numpy
+* Fix problem with .tuiview files and RGB images
+
 Version 1.3.2 (2025-06-20)
 --------------------------
 * Treat files with a ColorTable as thematic and show these colours in the Query Window alongside RAT columns if present. Note: these colours can't currently be edited.
