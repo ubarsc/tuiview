@@ -110,6 +110,8 @@ class BandLUTInfo:
     def fromString(string):
         "Returns an instance of this class from a JSON string"
         rep = json.loads(string)
+        if 'scale' not in rep:
+            return None
         bi = BandLUTInfo(rep['scale'], rep['offset'], 
             rep['lutsize'], rep['min'], rep['max'],
             rep['nodata_index'], rep['background_index'])
@@ -205,7 +207,7 @@ class ViewerLUT(QObject):
         if lookupArray is not None:
             if numpy.issubdtype(lookupArray.dtype, numpy.floating):
                 # round to int
-                lookupArray = lookupArray.round().astype(numpy.integer)
+                lookupArray = lookupArray.round().astype(int)
 
         self.surrogateLookupArray = lookupArray
         self.surrogateLookupArrayName = colName
@@ -330,7 +332,6 @@ class ViewerLUT(QObject):
         lutobj = ViewerLUT()
         s = fileobj.readline()
         rep = json.loads(s)
-        print(s)
         nbands = rep['nbands']
         if nbands == 1:
             # color table
@@ -350,10 +351,16 @@ class ViewerLUT(QObject):
             # rgb/rgba
             lutobj.bandinfo = {}
             for _ in range(len(RGBA_CODES)):
+                currpos = fileobj.tell()
                 s = fileobj.readline()
                 if s == '':
                     break
                 bi = BandLUTInfo.fromString(s)
+                if bi is None:
+                    # unread line - it's not a stretch component
+                    # likely RGB, not RGBA.
+                    fileobj.seek(currpos)
+                    break
                 s = fileobj.readline()
                 rep = json.loads(s)
                 code = rep['code']
@@ -1246,7 +1253,7 @@ class ViewerLUT(QObject):
             nanmask = None
 
         # convert to float for maths below
-        data = data.astype(numpy.floating)
+        data = data.astype(float)
 
         # in case data outside range of stretch
         numpy.clip(data, self.bandinfo.min, self.bandinfo.max, out=data)
@@ -1256,7 +1263,7 @@ class ViewerLUT(QObject):
         numpy.divide(data, self.bandinfo.scale, out=data)
         
         # can only do lookups with integer data
-        data = data.astype(numpy.integer)
+        data = data.astype(int)
 
         if nanmask is not None:
             # set NaN values back to LUT=nan if originally float
@@ -1320,7 +1327,7 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # convert to float for maths below
-            data = data.astype(numpy.floating)
+            data = data.astype(float)
             # in case data outside range of stretch
             numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
             
@@ -1329,7 +1336,7 @@ class ViewerLUT(QObject):
             numpy.divide(data, bandinfo.scale, out=data)
 
             # can only do lookups with integer data
-            data = data.astype(numpy.integer)
+            data = data.astype(int)
 
             # set NaN values back to LUT=nandata if data originally float
             if nanmask is not None:
@@ -1393,7 +1400,7 @@ class ViewerLUT(QObject):
                 nanmask = None
 
             # convert to float for maths below
-            data = data.astype(numpy.floating)
+            data = data.astype(float)
             # in case data outside range of stretch
             numpy.clip(data, bandinfo.min, bandinfo.max, out=data)
             
@@ -1402,7 +1409,7 @@ class ViewerLUT(QObject):
             numpy.divide(data, bandinfo.scale, out=data)
 
             # can only do lookups with integer data
-            data = data.astype(numpy.integer)
+            data = data.astype(int)
 
             # set NaN values back to LUT=nandata if data originally float
             if nanmask is not None:
