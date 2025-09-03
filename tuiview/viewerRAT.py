@@ -463,20 +463,31 @@ class ViewerRAT(QObject):
         Work out what variable names are used in the given expression.
 
         Currently uses the ast module to parse the expression string, and
-        pick out anything which it thinks is a name.
+        pick out anything which it thinks is a variable name.
 
-        This works fine if the only names are column names, which is all we
-        currently allow. If, in the future, we implemented code to allow the
-        use of function calls within the expression, this would need some
-        refinement to separate function names from column names.
+        This will distinguish plain variable names from function names (which
+        are discarded).
 
         Returns a list of the variable name strings.
         """
-        varNamesUsed = []
+        nameSet = set()
+        functionSet = set()
+
         tree = ast.parse(expression)
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
-                varNamesUsed.append(node.id)
+                nameSet.add(node.id)
+            elif isinstance(node, ast.Call):
+                func = node.func
+                if isinstance(func, ast.Attribute):
+                    funcName = func.value.id
+                elif isinstance(func, ast.Name):
+                    funcName = func.id
+                functionSet.add(funcName)
+
+        # Variable names are those which are not also function calls
+        varNamesUsed = list(nameSet - functionSet)
+
         return varNamesUsed
 
     def evaluateUserSelectExpression(self, expression, isselected, queryRow, 
