@@ -465,6 +465,11 @@ class ViewerRAT(QObject):
         Currently uses the ast module to parse the expression string, and
         pick out anything which it thinks is a name.
 
+        This works fine if the only names are column names, which is all we
+        currently allow. If, in the future, we implemented code to allow the
+        use of function calls within the expression, this would need some
+        refinement to separate function names from column names.
+
         Returns a list of the variable name strings.
         """
         varNamesUsed = []
