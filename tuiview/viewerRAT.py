@@ -24,6 +24,7 @@ import csv
 import traceback
 import json
 import keyword
+import ast
 import numpy
 from osgeo import gdal
 from PySide6.QtCore import QObject, Signal
@@ -460,42 +461,17 @@ class ViewerRAT(QObject):
     def findVarNamesUsed(expression):
         """
         Work out what variable names are used in the given expression.
-        The variable names are those apart from the special ones provided
-        for in getUserExpressionGlobals(), and is intended to be just those
-        which might be column names. Returns a list of the variable name
-        strings.
+
+        Currently uses the ast module to parse the expression string, and
+        pick out anything which it thinks is a name.
+
+        Returns a list of the variable name strings.
         """
-        # Just for safety, should never try any where near this many times
-        MAX_TRIES = 10000
-
-        numTries = 0
-        ok = False
-        # Initialize a name space with the special names
-        varDict = {'row': 0, 'queryrow': 0, 'isselected': 0, 'lastselected': 0,
-                'numpy': numpy}
-        specialNames = list(varDict.keys())
-        while (not ok and numTries < MAX_TRIES):
-            try:
-                eval(expression, varDict)
-                ok = True
-            except NameError as e:
-                # Some name in the expression was not found. Find that name,
-                # and add it to the dictionary
-                msg = str(e)
-                varName = msg.split()[1].replace("'", "")
-                varDict[varName] = None
-            except Exception:
-                # Ignore all other exceptions. If we got this far, then we have
-                # fixed all the NameError exceptions, and so have all the
-                # required names
-                ok = True
-
-            numTries += 1
-
-        # The eval() call has added __builtins__, so remove it again.
-        # Also remove the special names we started with.
-        varNamesUsed = [varName for varName in list(varDict.keys())
-            if varName != "__builtins__" and varName not in specialNames]
+        varNamesUsed = []
+        tree = ast.parse(expression)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name):
+                varNamesUsed.append(node.id)
         return varNamesUsed
 
     def evaluateUserSelectExpression(self, expression, isselected, queryRow, 
