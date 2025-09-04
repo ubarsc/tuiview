@@ -303,66 +303,62 @@ class ViewerRAT(QObject):
     def readFromGDALBand(self, gdalband, gdaldataset):
         """
         Reads attributes from a GDAL band
-        Does nothing if no attribute table
-        or file not marked as thematic.
+        Does nothing if no attribute table or colour table
         """
         # reset vars
         self.clear()
         
-        # have rat and thematic?
+        # have rat?
         self.newProgress.emit("Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
-        layerType = gdalband.GetMetadataItem('LAYER_TYPE')
-        # we now treat 'old style' color table as indicative as thematic also
-        colorTable = gdalband.GetColorTable()
-        if (layerType is not None and layerType == 'thematic') or colorTable is not None:
+        if rat is not None and rat.GetRowCount() != 0:
             # looks like we have attributes
             self.count += 1
 
-            if rat is not None and rat.GetRowCount() != 0:
-                self.columnNames = []
-                self.attributeData = {}
-                self.columnTypes = {}
-                self.columnUsages = {}
-                self.columnFormats = {}
-                self.gdalRAT = rat
-    
-                # first get the column names
-                # we do this so we can preserve the order
-                # of the columns in the attribute table
-                ncols = rat.GetColumnCount()
-                percent_per_col = 100.0 / float(ncols)
-                for col in range(ncols):
-                    colname = rat.GetNameOfCol(col)
-                    self.columnNames.append(colname)
-    
-                    dtype = rat.GetTypeOfCol(col)
-                    self.columnTypes[colname] = dtype
-                    usage = rat.GetUsageOfCol(col)
-                    self.columnUsages[colname] = usage
-    
-                    # format depdendent on type
-                    if dtype == gdal.GFT_Integer:
-                        self.columnFormats[colname] = DEFAULT_INT_FMT
-                    elif dtype == gdal.GFT_Real:
-                        self.columnFormats[colname] = DEFAULT_FLOAT_FMT
-                    else:
-                        self.columnFormats[colname] = DEFAULT_STRING_FMT
-    
-                    self.newPercent.emit(col * percent_per_col)
-    
-                # read in a preferred column order (if any)
-                prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
-                if len(prefColOrder) > 0:
-                    # rearrange our columns given this
-                    self.arrangeColumnOrder(prefColOrder, gdalband)
+            self.columnNames = []
+            self.attributeData = {}
+            self.columnTypes = {}
+            self.columnUsages = {}
+            self.columnFormats = {}
+            self.gdalRAT = rat
 
-                # remember the lookup column if set (None if not)
-                self.lookupColName = lookup
+            # first get the column names
+            # we do this so we can preserve the order
+            # of the columns in the attribute table
+            ncols = rat.GetColumnCount()
+            percent_per_col = 100.0 / float(ncols)
+            for col in range(ncols):
+                colname = rat.GetNameOfCol(col)
+                self.columnNames.append(colname)
 
-            # see if there is a colour table
-            # do this if thematic even if there is no rat - may be a old style color table
-            self.findColorTableColumns(gdalband)
+                dtype = rat.GetTypeOfCol(col)
+                self.columnTypes[colname] = dtype
+                usage = rat.GetUsageOfCol(col)
+                self.columnUsages[colname] = usage
+
+                # format depdendent on type
+                if dtype == gdal.GFT_Integer:
+                    self.columnFormats[colname] = DEFAULT_INT_FMT
+                elif dtype == gdal.GFT_Real:
+                    self.columnFormats[colname] = DEFAULT_FLOAT_FMT
+                else:
+                    self.columnFormats[colname] = DEFAULT_STRING_FMT
+
+                self.newPercent.emit(col * percent_per_col)
+
+            # read in a preferred column order (if any)
+            prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
+            if len(prefColOrder) > 0:
+                # rearrange our columns given this
+                self.arrangeColumnOrder(prefColOrder, gdalband)
+
+            # remember the lookup column if set (None if not)
+            self.lookupColName = lookup
+
+        # see if there is a colour table
+        # do this if thematic even if there is no rat - may be a old style color table
+        # Do this even when rat is None so colours in the colour table get seen
+        self.findColorTableColumns(gdalband)
 
         self.endProgress.emit()
 
