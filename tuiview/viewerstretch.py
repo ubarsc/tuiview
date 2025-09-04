@@ -349,11 +349,9 @@ class StretchRule:
             # table in the specified band
             gdalband = gdaldataset.GetRasterBand(self.ctband)
             layerType = gdalband.GetMetadataItem('LAYER_TYPE')
-            # we now treat 'old style' color table as indicative as thematic also
-            colorTable = gdalband.GetColorTable()
             match = False
             # only check if file is thematic anyway
-            if (layerType is not None and layerType == 'thematic') or colorTable is not None:
+            if layerType is not None and layerType == 'thematic':
                 # we really need to check only that the RAT
                 # reports that we have the right columns
                 hasRed = False
@@ -378,6 +376,8 @@ class StretchRule:
                 
                 # fall back to use the old style color table if RAT colour columns not present
                 if not match:
+                    # we now treat 'old style' color table as indicative as thematic also
+                    colorTable = gdalband.GetColorTable()
                     match = colorTable is not None
         
         return match
