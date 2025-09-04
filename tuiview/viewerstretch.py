@@ -358,19 +358,17 @@ class StretchRule:
                 hasGreen = False
                 hasBlue = False
                 hasAlpha = False
-                rat = gdalband.GetDefaultRAT()
-                if rat is not None:
-                    ncols = rat.GetColumnCount()
-                    for col in range(ncols):
-                        usage = rat.GetUsageOfCol(col)
-                        if usage == gdal.GFU_Red:
-                            hasRed = True
-                        elif usage == gdal.GFU_Green:
-                            hasGreen = True
-                        elif usage == gdal.GFU_Blue:
-                            hasBlue = True
-                        elif usage == gdal.GFU_Alpha:
-                            hasAlpha = True
+                ncols = rat.GetColumnCount()
+                for col in range(ncols):
+                    usage = rat.GetUsageOfCol(col)
+                    if usage == gdal.GFU_Red:
+                        hasRed = True
+                    elif usage == gdal.GFU_Green:
+                        hasGreen = True
+                    elif usage == gdal.GFU_Blue:
+                        hasBlue = True
+                    elif usage == gdal.GFU_Alpha:
+                        hasAlpha = True
 
                 match = hasRed and hasGreen and hasBlue and hasAlpha
             if not match:
