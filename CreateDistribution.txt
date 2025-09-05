@@ -10,17 +10,12 @@ How to create a distribution of TuiView.
 5. Create the distribution tarball, using
        python setup.py sdist --formats=gztar,zip
    This creates both a tar.gz and a zip, under a subdirectory called dist
-   This also ensures that the .bat files needed on Windows are included
-   when creating the tarball on Linux.
-6. Create checksums of each of these, e.g.
-       sha256sum tuiview-1.2.3.tar.gz > tuiview-1.2.3.tar.gz.sha256
-       sha256sum tuiview-1.2.3.zip > tuiview-1.2.3.zip.sha256
-7. Go to the https://github.com/ubarsc/tuiview/releases page, and create a 
+6. Go to the https://github.com/ubarsc/tuiview/releases page, and create a 
    new release by pressing "Draft a new release". 
    You should fill in the following:
        Tag version: tuiview-A.B.C
        Release Title: Version A.B.C
-       Upload files: Add the tar.gz and zip files, and their sha256 checksum files. 
+       Upload files: Add the tar.gz and zip files. 
        Click "Publish release"
        
 
