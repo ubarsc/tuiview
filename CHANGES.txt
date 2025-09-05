@@ -1,3 +1,11 @@
+Version 1.3.4 (2025-09-05)
+--------------------------
+* Fix problems selecting by expression in the RAT where more than one column is used.
+* Fix a regression introduced in 1.3.2 causing files with large RATs to be slow to load.
+* Remove completely the need for datasets to be marked as thematic in the LAYER_TYPE 
+metadata entry before they will be displayed as thematic. They now need to either have
+1) a RAT with the colour columns or b) a colour table before they are treated as thematic.
+
 Version 1.3.3 (2025-07-14)
 --------------------------
 * Fix problem with latest numpy
