@@ -1756,7 +1756,15 @@ class LayerManager(QObject):
         Add the given layer
         """
         layer.getImage()
-        self.layers.append(layer)
+        if isinstance(layer, ViewerRasterLayer) and len(self.layers):
+            # instead of appending, insert before the top-most Vector layer(s)
+            for ii in range(len(self.layers)-1, -1, -1):
+                if isinstance(self.layers[ii], ViewerRasterLayer):
+                    ii += 1
+                    break
+            self.layers.insert(ii, layer)
+        else:
+            self.layers.append(layer)
 
         self.recalcFullExtent()
         self.layersChanged.emit()
