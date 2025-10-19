@@ -114,7 +114,9 @@ class VectorOpenDialog(QDialog):
                 self.projCheck.setCheckState(Qt.Unchecked)
                 self.projCheck.setEnabled(False)
             else:
-                same = self.spatialRef.IsSame(self.projList[index])
+                same = True
+                if self.spatialRef is not None:
+                    same = self.spatialRef.IsSame(self.projList[index])
                 if same:
                     self.projCheck.setCheckState(Qt.Unchecked)
                 else:
