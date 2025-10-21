@@ -971,19 +971,26 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         hGeometry = OGR_F_GetGeometryRef(hFeature);
         if( hGeometry != NULL )
         {
+            /* can't modify hGeometry as it is a reference. Clone first. */
+            hGeometry = OGR_G_Clone(hGeometry);
+
+            if( nLabelFieldIdx != -1 )
+            {
+                /* If we are going to label, we need to intersect */
+                /* if we are going to intersect, we might as well do it here */
+                /* to save some processing time 
+                Note: do this first, before transform */
+                OGRGeometryH hTempGeometry = OGR_G_Intersection(hGeometry, hExtentGeom);
+                OGR_G_DestroyGeometry(hGeometry);
+                hGeometry = hTempGeometry;
+            }
+            
             /* Reproject? */
             if( hTransform != NULL )
             {
                 OGR_G_Transform(hGeometry, hTransform);
             }
         
-            if( nLabelFieldIdx != -1 )
-            {
-                /* If we are going to label, we need to intersect */
-                /* if we are going to intersect, we might as well do it here */
-                /* to save some processing time */
-                hGeometry = OGR_G_Intersection(hGeometry, hExtentGeom);
-            }
 
             /* how big a buffer do we need? Grow if needed */
             nNewWKBSize = OGR_G_WkbSize(hGeometry);
@@ -1036,16 +1043,15 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
                 }
                 else 
                 {
+                    // TODO: OGR_G_Centroid won't necessarily return a point within the polygon...
                     if( OGR_G_Centroid(hGeometry, hCentroid) == OGRERR_NONE )
                     {
                         VectorWriter_drawLabel(pWriter, hCentroid, pszLabelText);
                     }
                 }
-                
-                /* If we labeled then we created a new intersection geometry */
-                /* so delete it here */
-                OGR_G_DestroyGeometry(hGeometry);
             }
+            /* we cloned the geom above */
+            OGR_G_DestroyGeometry(hGeometry);
         }
 
         OGR_F_Destroy(hFeature);

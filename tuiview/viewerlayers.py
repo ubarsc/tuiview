@@ -1455,6 +1455,13 @@ class ViewerVectorLayer(ViewerLayer):
         """
         # set the spatial filter
         halftolerance = tolerance / 2
+        if self.toProj is not None:
+            # convert easting and northing back to the projection of the file
+            sr = self.ogrLayer.GetSpatialRef()
+            if sr is not None:
+                transform = osr.CoordinateTransformation(self.toProj, sr)
+                easting, northing, _ = transform.TransformPoint(easting, northing)
+
         self.ogrLayer.SetSpatialFilterRect(easting - halftolerance, 
             northing + halftolerance, easting + halftolerance, 
             northing - halftolerance)
