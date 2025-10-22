@@ -255,11 +255,12 @@ class ViewerLayer:
         self.title = None  # basename of filename
         self.displayed = True  # use LayerManager.setDisplayedState
         self.quiet = False  # not displayed in title bar. Set when calling add*()
+        self.locked = False # locked layers stay at top and are not cycled on/off
 
     def getImage(self):
         "return a QImage with the data in it"
         raise NotImplementedError("Must implement in derived class")
-
+        
     def getPropertiesInfo(self):
         "Return the properties as a PropertyInfo instance we can show the user"
         raise NotImplementedError("Must implement in derived class")
@@ -316,7 +317,7 @@ class ViewerRasterLayer(ViewerLayer):
 
         dictn = {'filename': self.filename, 'update': self.updateAccess,
             'stretch': self.stretch.toString(), 'displayed': self.displayed,
-            'quiet': self.quiet}
+            'quiet': self.quiet, 'locked': self.locked }
         fileobj.write(json.dumps(dictn) + '\n')
         self.lut.saveToFile(fileobj)
 
@@ -331,6 +332,7 @@ class ViewerRasterLayer(ViewerLayer):
         filename = dictn['filename']
         self.quiet = dictn['quiet']
         self.displayed = dictn['displayed']
+        self.locked = dictn.get('locked',False)
 
         ds = gdal.Open(filename)
 
@@ -1216,7 +1218,7 @@ class ViewerVectorLayer(ViewerLayer):
         dictn = {'filename': self.filename, 'displayed': self.displayed,
             'quiet': self.quiet, 'filterSQL': self.sql, 
             'linewidth': self.linewidth, 'fill': self.bFill,
-            'fieldToLabel': self.fieldToLabel}
+            'fieldToLabel': self.fieldToLabel, 'locked': self.locked }
         # the values out of getColorAsRGBATuple are numpy.uint8's
         # which confuses json. Convert to ints
         dictn['color'] = [int(x) for x in self.getColorAsRGBATuple()]
@@ -1241,6 +1243,7 @@ class ViewerVectorLayer(ViewerLayer):
         filename = dictn['filename']
         self.quiet = dictn['quiet']
         self.displayed = dictn['displayed']
+        self.locked = dictn.get('locked',False)
 
         ds = ogr.Open(filename)
 
@@ -1763,10 +1766,10 @@ class LayerManager(QObject):
         Add the given layer
         """
         layer.getImage()
-        if isinstance(layer, ViewerRasterLayer) and len(self.layers):
-            # instead of appending, insert before the top-most Vector layer(s)
+        if len(self.layers):
+            # instead of appending, insert before the top-most locked layer(s)
             for ii in range(len(self.layers) - 1, -1, -1):
-                if isinstance(self.layers[ii], ViewerRasterLayer):
+                if not self.layers[ii].locked:
                     ii += 1
                     break
             self.layers.insert(ii, layer)
@@ -1823,7 +1826,7 @@ class LayerManager(QObject):
     def moveLayerToTop(self, layer):
         """
         Move layer to the end of the list so it is
-        rendererd last.
+        rendered last.
         """
         index = self.layers.index(layer)
         if index < len(self.layers) - 1:
@@ -1831,6 +1834,13 @@ class LayerManager(QObject):
             self.layers.append(layer)
             self.layersChanged.emit()
         self.updateTopFilename()
+
+    def setLockedState(self, layer, state):
+        """
+        Lock the layer at the top of the stack
+        so that new layers don't get displayed on top
+        """
+        layer.locked = state
 
     def setDisplayedState(self, layer, state):
         """
@@ -1841,14 +1851,14 @@ class LayerManager(QObject):
         layer.displayed = state
         self.updateTopFilename()
         self.layersChanged.emit()
-        
+
     def timeseriesForward(self):
         """
         Assume images are a stacked timeseries oldest
         to newest. Turn off the current topmost displayed
         """
         for layer in reversed(self.layers):
-            if layer.displayed:
+            if layer.displayed and not layer.locked:
                 self.setDisplayedState(layer, False)
                 break
 
@@ -1856,14 +1866,15 @@ class LayerManager(QObject):
         # are we all turned off?
         needReset = True
         for lyr in self.layers:
-            if lyr.displayed:
+            if lyr.displayed and not lyr.locked:
                 needReset = False
                 break
                 
         # then turn on again
         if needReset:
             for lyr in self.layers:
-                lyr.displayed = True
+                if not lyr.locked:
+                    lyr.displayed = True
             self.updateTopFilename()
 
         # layers have changed whatever above
@@ -1877,20 +1888,26 @@ class LayerManager(QObject):
         """
         allOn = True
         for layer in self.layers:
-            if not layer.displayed:
+            if not layer.displayed and not layer.locked:
                 allOn = False
                 break
                 
         if allOn and len(self.layers) > 0:
             # special case - reset to just top on
             for lyr in self.layers:
-                lyr.displayed = False
+                if not lyr.locked:
+                    lyr.displayed = False
             # display the top one again
-            self.setDisplayedState(self.layers[0], True)
+            for lyr in self.layers:
+                if not lyr.locked:
+                    self.setDisplayedState(lyr, True)
+                    break
             
         else:
             prevLayer = None
             for layer in reversed(self.layers):
+                if layer.locked:
+                    continue
                 if layer.displayed:
                     break
                 prevLayer = layer

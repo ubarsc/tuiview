@@ -148,6 +148,11 @@ class LayerListView(QListView):
         self.moveToTopAct.setText("Move To &Top")
         self.moveToTopAct.setStatusTip("Move selected layer top top")
         
+        self.lockLayerAct = QAction(self, triggered=self.lockLayer)
+        self.lockLayerAct.setText("&Lock Layer")
+        self.lockLayerAct.setStatusTip("Lock layer in stack")
+        self.lockLayerAct.setCheckable(True)
+
         self.changeColorAct = QAction(self, triggered=self.changeColor)
         self.changeColorAct.setText("Change &Color")
         self.changeColorAct.setStatusTip("Change color of vector layer")
@@ -195,6 +200,7 @@ class LayerListView(QListView):
         self.rasterPopupMenu.addAction(self.moveUpAct)
         self.rasterPopupMenu.addAction(self.moveDownAct)
         self.rasterPopupMenu.addAction(self.moveToTopAct)
+        self.rasterPopupMenu.addAction(self.lockLayerAct)
         self.rasterPopupMenu.addSeparator()
         self.rasterPopupMenu.addAction(self.editStretchAct)
         self.rasterPopupMenu.addAction(self.propertiesAct)
@@ -205,6 +211,7 @@ class LayerListView(QListView):
         self.vectorPopupMenu.addAction(self.moveUpAct)
         self.vectorPopupMenu.addAction(self.moveDownAct)
         self.vectorPopupMenu.addAction(self.moveToTopAct)
+        self.vectorPopupMenu.addAction(self.lockLayerAct)
         self.vectorPopupMenu.addSeparator()
         self.vectorPopupMenu.addAction(self.changeColorAct)
         self.vectorPopupMenu.addAction(self.setSQLAct)
@@ -225,6 +232,7 @@ class LayerListView(QListView):
 
             model = self.model()
             layer = model.getLayer(index)
+            self.lockLayerAct.setChecked(layer.locked)
             if isinstance(layer, viewerlayers.ViewerVectorLayer):
                 # sql gets enabled only if it is a full vector layer
                 # - not a single feature layer
@@ -301,6 +309,17 @@ class LayerListView(QListView):
             model.viewwidget.layers.moveLayerToTop(layer)
             model.viewwidget.viewport().update()
             
+    def lockLayer(self, locked):
+        "Lock/unlock the layer in the stack"
+        selected = self.selectedIndexes()
+        if len(selected) > 0:
+            index = selected[0]
+
+            model = self.model()
+            layer = model.getLayer(index)
+            model.viewwidget.layers.setLockedState(layer, locked)
+            model.viewwidget.viewport().update()
+
     def changeColor(self):
         "Change the color of the vector layer"
         selected = self.selectedIndexes()
