@@ -1766,7 +1766,7 @@ class LayerManager(QObject):
         Add the given layer
         """
         layer.getImage()
-        if len(self.layers):
+        if len(self.layers) > 0:
             # instead of appending, insert before the top-most locked layer(s)
             for ii in range(len(self.layers) - 1, -1, -1):
                 if not self.layers[ii].locked:
