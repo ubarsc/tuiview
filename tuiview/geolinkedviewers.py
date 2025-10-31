@@ -171,6 +171,8 @@ class GeolinkedViewers(QObject):
         newviewer.tileWindowsSig.connect(self.onTileWindows)
         # signal for new query window been opened
         newviewer.newQueryWindowSig.connect(self.onNewQueryWindow)
+        # signal for new stretch window been opened
+        newviewer.newStretchWindowSig.connect(self.onNewStretchWindow)
         # signal for closing all windows
         newviewer.closeAllWindowsSig.connect(self.closeAll)
         # signal for request to write viewers state to a file
@@ -208,6 +210,15 @@ class GeolinkedViewers(QObject):
         if self.pluginmanager is not None:
             self.pluginmanager.callAction(
                 pluginmanager.PLUGIN_ACTION_NEWQUERY, querywindow)
+
+    def onNewStretchWindow(self, stretchwindow):
+        """
+        Called when the viewer starts a new stretch window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWSTRETCH, stretchwindow)
 
     def getDesktopSize(self, screen):
         """

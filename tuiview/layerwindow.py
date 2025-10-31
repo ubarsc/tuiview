@@ -469,6 +469,7 @@ class LayerListView(QListView):
                                 model.viewwidget, layer)
             model.viewwindow.addDockWidget(Qt.TopDockWidgetArea, self.stretchDock)
             self.stretchDock.stretchClosed.connect(self.stretchClosed)
+            model.viewwindow.newStretchWindowSig.emit(self.stretchDock)
 
     def stretchClosed(self, stretchDock):
         """

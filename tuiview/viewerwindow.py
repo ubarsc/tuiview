@@ -215,6 +215,9 @@ class ViewerWindow(QMainWindow):
     newQueryWindowSig = Signal(querywindow.QueryDockWidget,
                             name='newQueryWindow')
     "user has opened a new query window"
+    newStretchWindowSig = Signal(stretchdialog.StretchDockWidget,
+                            name='newStretchWindow')
+    "user has opened a new stretch window"
     closeAllWindowsSig = Signal(name='closeAllWindows')
     "close all tuiview windows"
     # Don't know how to specify file objects...
@@ -1118,6 +1121,7 @@ File will now be opened using default stretch""")
                 # this works to prevent it trying to dock when dragging
                 # but double click still works
                 self.stretchDock.setAllowedAreas(Qt.NoDockWidgetArea)
+                self.newStretchWindowSig.emit(self.stretchDock)
         elif self.stretchDock is not None:
             self.stretchDock.close()
 
