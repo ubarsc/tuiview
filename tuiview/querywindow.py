@@ -900,6 +900,8 @@ class QueryDockWidget(QDockWidget):
             else:
                 self.setupTableContinuous(None, layer)
 
+        self.plugins = []
+
         # now update UI to show unlock state is false
         self.setUIUpdateState(False)
 

@@ -34,6 +34,7 @@ class VectorQueryDockWidget(QDockWidget):
 
     def __init__(self, parent):
         QDockWidget.__init__(self, "Vector Query", parent)
+        self.plugins = []
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()

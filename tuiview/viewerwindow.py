@@ -218,6 +218,15 @@ class ViewerWindow(QMainWindow):
     newStretchWindowSig = Signal(stretchdialog.StretchDockWidget,
                             name='newStretchWindow')
     "user has opened a new stretch window"
+    newLayerWindowSig = Signal(layerwindow.LayerWindow,
+                            name='newLayerWindow')
+    "user has opened a new layer window"
+    newProfileWindowSig = Signal(profilewindow.ProfileDockWidget,
+                            name='newProfileWindow')
+    "user has opened a new profile window"
+    newVectorQueryWindowSig = Signal(vectorquerywindow.VectorQueryDockWidget,
+                            name='newVectorQueryWindow')
+    "user has opened a new vector query window"
     closeAllWindowsSig = Signal(name='closeAllWindows')
     "close all tuiview windows"
     # Don't know how to specify file objects...
@@ -234,6 +243,7 @@ class ViewerWindow(QMainWindow):
         self.setWindowTitle(MESSAGE_TITLE)
         self.setWindowIcon(QIcon(":/viewer/images/tui.png"))
         self.viewwidget = viewerwidget.ViewerWidget(self)
+        self.plugins = []
 
         # connect to the signals emmitted by the LUT/RAT via the LayerManager
         # so we can update our progress bar
@@ -1099,6 +1109,7 @@ File will now be opened using default stretch""")
             # but double click still works
             self.layerWindow.setAllowedAreas(Qt.NoDockWidgetArea) 
             self.layerWindow.layerWindowClosed.connect(self.layerWindowClosed)
+            self.newLayerWindowSig.emit(self.layerWindow)
         else:
             # remove
             self.removeDockWidget(self.layerWindow)
@@ -1361,7 +1372,7 @@ File will now be opened using default stretch""")
 
         # emit the signal back to geolinked viewers so that 
         # any plugins can be informed
-        self.newQueryWindowSig.emit(queryDock)
+        self.newVectorQueryWindowSig.emit(queryDock)
 
     def vectorQueryClosed(self, queryDock):
         """
@@ -1410,6 +1421,8 @@ File will now be opened using default stretch""")
 
         # grab the signal the profileDock sends when it is closed
         profileDock.profileClosed.connect(self.profileClosed)
+        
+        self.newProfileWindowSig.emit(profileDock)
 
         # increment our count
         self.profileWindowCount += 1

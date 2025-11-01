@@ -42,6 +42,7 @@ class ProfileDockWidget(QDockWidget):
     def __init__(self, parent, viewwidget):
         QDockWidget.__init__(self, "Profile", parent)
         self.viewwidget = viewwidget
+        self.plugins = []
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()

@@ -504,6 +504,7 @@ class LayerWindow(QDockWidget):
         QDockWidget.__init__(self, "Layers", parent)
         self.viewwidget = viewwidget
         self.parent = parent
+        self.plugins = []
 
         # create the list view
         self.listView = LayerListView()
