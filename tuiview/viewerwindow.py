@@ -155,7 +155,7 @@ def populateFilters(defaultDriver=DEFAULT_DRIVER):
 
 class WildcardFileDialog(QFileDialog):
     """
-    Our version of the Qt Filedialog thathas an "Expand Wildcards" button.
+    Our version of the Qt Filedialog that has an "Expand Wildcards" button.
     """
     def __init__(self, parent):
         QFileDialog.__init__(self, parent)
