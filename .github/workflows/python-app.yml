@@ -21,7 +21,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install libegl1 libglu1-mesa
-        conda install pylint flake8 gdal pyside6 setuptools
+        conda install pylint=4.0.3 flake8 gdal pyside6 setuptools
     - name: Test Build
       shell: bash -l {0}
       run: |
@@ -31,7 +31,7 @@ jobs:
       run: |
         python -c 'from PySide6.QtGui import QImage'
         cp build/lib.*/tuiview/*.so tuiview/
-        pylint *.py tuiview/*.py || true
+        pylint *.py tuiview/*.py
     - name: Lint with flake8
       shell: bash -l {0}
       run: |
