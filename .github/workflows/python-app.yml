@@ -21,7 +21,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install libegl1 libglu1-mesa
-        conda install pylint flake8 gdal pyside6 setuptools
+        conda install pylint=3.3.9 flake8 gdal pyside6 setuptools
     - name: Test Build
       shell: bash -l {0}
       run: |

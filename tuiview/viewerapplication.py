@@ -21,6 +21,7 @@ Module contains the ViewerApplication class
 
 import sys
 import argparse
+import warnings
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from . import archivereader
@@ -374,6 +375,8 @@ class ViewerApplication(QApplication):
         Call.
         """
         self.pluginHandlers.append(handler)
+        warnings.warn("This method is deprecated. Please append to the plugins list on the window instead",
+            DeprecationWarning)
 
 
 def run():
@@ -382,4 +385,4 @@ def run():
     and have the command line parameters inspected etc and app run
     """
     app = ViewerApplication()
-    app.exec_()
+    app.exec()

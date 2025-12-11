@@ -1080,6 +1080,7 @@ class StretchDockWidget(QDockWidget):
         self.viewwidget = viewwidget
         self.layer = layer
         self.parent = parent
+        self.plugins = []
 
         # create a new widget that lives in the dock window
         self.dockWidget = QWidget()

@@ -46,6 +46,7 @@ class GeolinkedViewers(QObject):
         # need to keep a reference to keep the python objects alive
         # otherwise they are deleted before they are shown
         self.viewers = []
+        self.plugins = []
 
         # load plugins if asked
         if loadPlugins:
@@ -171,6 +172,14 @@ class GeolinkedViewers(QObject):
         newviewer.tileWindowsSig.connect(self.onTileWindows)
         # signal for new query window been opened
         newviewer.newQueryWindowSig.connect(self.onNewQueryWindow)
+        # signal for new stretch window been opened
+        newviewer.newStretchWindowSig.connect(self.onNewStretchWindow)
+        # signal for new layer window been opened
+        newviewer.newLayerWindowSig.connect(self.onNewLayerWindow)
+        # signal for new profile window been opened
+        newviewer.newProfileWindowSig.connect(self.onNewProfileWindow)
+        # signal for new vector query window been opened
+        newviewer.newVectorQueryWindowSig.connect(self.onNewVectorQueryWindow)
         # signal for closing all windows
         newviewer.closeAllWindowsSig.connect(self.closeAll)
         # signal for request to write viewers state to a file
@@ -208,6 +217,42 @@ class GeolinkedViewers(QObject):
         if self.pluginmanager is not None:
             self.pluginmanager.callAction(
                 pluginmanager.PLUGIN_ACTION_NEWQUERY, querywindow)
+
+    def onNewStretchWindow(self, stretchwindow):
+        """
+        Called when the viewer starts a new stretch window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWSTRETCH, stretchwindow)
+                
+    def onNewLayerWindow(self, layerwindow):
+        """
+        Called when the viewer starts a new layer window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWLAYER, layerwindow)
+    
+    def onNewProfileWindow(self, profilewindow):
+        """
+        Called when the viewer starts a new profile window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWPROFILE, profilewindow)
+                
+    def onNewVectorQueryWindow(self, vectorwindow):
+        """
+        Called when the viewer starts a new vector query window
+        """
+        # call any plugins
+        if self.pluginmanager is not None:
+            self.pluginmanager.callAction(
+                pluginmanager.PLUGIN_ACTION_NEWVECTORQUERY, vectorwindow)
 
     def getDesktopSize(self, screen):
         """

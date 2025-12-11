@@ -255,7 +255,7 @@ class ViewerLayer:
         self.title = None  # basename of filename
         self.displayed = True  # use LayerManager.setDisplayedState
         self.quiet = False  # not displayed in title bar. Set when calling add*()
-        self.locked = False # locked layers stay at top and are not cycled on/off
+        self.locked = False  # locked layers stay at top and are not cycled on/off
 
     def getImage(self):
         "return a QImage with the data in it"
@@ -317,7 +317,7 @@ class ViewerRasterLayer(ViewerLayer):
 
         dictn = {'filename': self.filename, 'update': self.updateAccess,
             'stretch': self.stretch.toString(), 'displayed': self.displayed,
-            'quiet': self.quiet, 'locked': self.locked }
+            'quiet': self.quiet, 'locked': self.locked}
         fileobj.write(json.dumps(dictn) + '\n')
         self.lut.saveToFile(fileobj)
 
@@ -332,7 +332,7 @@ class ViewerRasterLayer(ViewerLayer):
         filename = dictn['filename']
         self.quiet = dictn['quiet']
         self.displayed = dictn['displayed']
-        self.locked = dictn.get('locked',False)
+        self.locked = dictn.get('locked', False)
 
         ds = gdal.Open(filename)
 
@@ -1218,7 +1218,7 @@ class ViewerVectorLayer(ViewerLayer):
         dictn = {'filename': self.filename, 'displayed': self.displayed,
             'quiet': self.quiet, 'filterSQL': self.sql, 
             'linewidth': self.linewidth, 'fill': self.bFill,
-            'fieldToLabel': self.fieldToLabel, 'locked': self.locked }
+            'fieldToLabel': self.fieldToLabel, 'locked': self.locked}
         # the values out of getColorAsRGBATuple are numpy.uint8's
         # which confuses json. Convert to ints
         dictn['color'] = [int(x) for x in self.getColorAsRGBATuple()]
@@ -1243,7 +1243,7 @@ class ViewerVectorLayer(ViewerLayer):
         filename = dictn['filename']
         self.quiet = dictn['quiet']
         self.displayed = dictn['displayed']
-        self.locked = dictn.get('locked',False)
+        self.locked = dictn.get('locked', False)
 
         ds = ogr.Open(filename)
 
