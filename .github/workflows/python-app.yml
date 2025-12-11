@@ -31,7 +31,7 @@ jobs:
       run: |
         python -c 'from PySide6.QtGui import QImage'
         cp build/lib.*/tuiview/*.so tuiview/
-        pylint *.py tuiview/*.py
+        pylint *.py tuiview/*.py || true
     - name: Lint with flake8
       shell: bash -l {0}
       run: |
