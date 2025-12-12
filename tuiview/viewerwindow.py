@@ -27,6 +27,7 @@ import traceback
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QDialog
 from PySide6.QtWidgets import QMessageBox, QProgressBar, QToolButton
 from PySide6.QtWidgets import QMenu, QLineEdit, QPushButton, QInputDialog
+from PySide6.QtWidgets import QLabel, QSpinBox, QHBoxLayout
 from PySide6.QtGui import QIcon, QColor, QImage, QAction, QGuiApplication
 from PySide6.QtCore import QSettings, QSize, QPoint, Signal, Qt
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
@@ -202,6 +203,36 @@ class WildcardFileDialog(QFileDialog):
             self.fnameTextWidget.setText(' '.join(expandedList))
 
 
+class PeriodicSaveFileDialog(QFileDialog):
+    """
+    Our version of the Qt Filedialog that has "periodically save" at interval spin
+    """
+    def __init__(self, parent):
+        QFileDialog.__init__(self, parent)
+        # On Windows etc, ensure that the Qt dialog is used 
+        # so our logic for working with widgets works...
+        self.setOption(QFileDialog.DontUseNativeDialog)
+        # save
+        self.setAcceptMode(QFileDialog.AcceptSave)
+        
+        self.spin = QSpinBox(self)
+        self.spin.setSuffix("seconds")
+        self.spin.setSpecialValueText("Disabled")
+        self.spin.setRange(0, 3600)
+        self.spin.setSingleStep(10)
+        
+        self.label = QLabel(self)
+        self.label.setText("Periodic Save")
+        
+        self.periodicLayout = QHBoxLayout()
+        self.periodicLayout.addWidget(self.label)
+        self.periodicLayout.addWidget(self.spin)
+        
+        # add another row
+        layout = self.layout()
+        layout.addLayout(self.periodicLayout, layout.rowCount(), 1)
+
+
 class ViewerWindow(QMainWindow):
     """
     Main window for viewer application. The ViewerWidget is 
@@ -229,11 +260,12 @@ class ViewerWindow(QMainWindow):
     "user has opened a new vector query window"
     closeAllWindowsSig = Signal(name='closeAllWindows')
     "close all tuiview windows"
-    # Don't know how to specify file objects...
-    writeViewersState = Signal(object, name='writeViewersState')
+    writeViewersState = Signal(str, int, name='writeViewersState')
     "write viewer state to a file"
-    readViewersState = Signal(object, name='readViewersState')
+    readViewersState = Signal(str, name='readViewersState')
     "read viewer state from a tile"
+    cancelViewersStateTimer = Signal(name='cancelViewersStateTimer')
+    "cancel a previous viewer state save timer"
     
     backgroundColor = None
     mouseWheelZoom = None
@@ -659,6 +691,12 @@ class ViewerWindow(QMainWindow):
         self.loadCurrentViewersState.setText("Load State of Viewers")
         self.loadCurrentViewersState.setStatusTip(
             "Restore state of viewers previously saved")
+            
+        self.cancelSaveCurrentViewersStateTimer = QAction(self,
+                            triggered=self.cancelSaveViewerState)
+        self.cancelSaveCurrentViewersStateTimer.setText("Cancel Periodic Save Viewers")
+        self.cancelSaveCurrentViewersStateTimer.setStatusTip(
+            "Cancel periodically saving the viewer state")
 
         self.aboutAct = QAction(self, triggered=self.about)
         self.aboutAct.setText("&About")
@@ -699,6 +737,7 @@ class ViewerWindow(QMainWindow):
         fileMenu.addAction(self.saveCurrentViewAct)
         fileMenu.addAction(self.saveCurrentViewClipboardAct)
         fileMenu.addAction(self.saveCurrentViewersState)
+        fileMenu.addAction(self.cancelSaveCurrentViewersStateTimer)
         fileMenu.addAction(self.loadCurrentViewersState)
         fileMenu.addAction(self.propertiesAct)
         fileMenu.addAction(self.exitAct)
@@ -725,6 +764,7 @@ class ViewerWindow(QMainWindow):
         toolMenu.addAction(self.vectorQueryAct)
         toolMenu.addAction(self.newVectorQueryAct)
         toolMenu.addAction(self.profileAct)
+        toolMenu.addAction(self.newProfileAct)
         toolMenu.addAction(self.newProfileAct)
         toolMenu.addAction(self.flickerAct)
 
@@ -1665,14 +1705,18 @@ Label Font Information: %s<br></p>
         else:
             # or cwd
             dirn = os.getcwd()
-        fname, _ = QFileDialog.getSaveFileName(self, 
-                    "Select file to save state into",
-                    dirn, "TuiView State .tuiview (*.tuiview)")
 
-        if fname != "":
-            fileobj = open(fname, 'w')
-            self.writeViewersState.emit(fileobj)
-            fileobj.close()
+        dlg = PeriodicSaveFileDialog(self)
+        dlg.setNameFilters(["TuiView State .tuiview (*.tuiview)"])
+        dlg.setFileMode(QFileDialog.AnyFile)
+        dlg.setDirectory(dirn)
+
+        if dlg.exec_() == QDialog.Accepted:
+            filenames = dlg.selectedFiles()
+            if len(filenames) > 0:
+                repeat_secs = dlg.spin.value()
+                fname = filenames[0]
+                self.writeViewersState.emit(fname, repeat_secs)
 
     def loadViewersState(self):
         """
@@ -1691,7 +1735,17 @@ Label Font Information: %s<br></p>
                     dirn, "TuiView State .tuiview (*.tuiview)")
 
         if fname != "":
-            fileobj = open(fname)
-            self.readViewersState.emit(fileobj)
-            fileobj.close()
+            self.readViewersState.emit(fname)
+            
+    def saveViewersTimerActiveStateChanged(self, active):
+        """
+        Called in response to signal from geolinked viewers.
+        Enable or disable the action
+        """
+        self.cancelSaveCurrentViewersStateTimer.setEnabled(active)
 
+    def cancelSaveViewerState(self):
+        """
+        Cancel any running periodic viewer state saves
+        """
+        self.cancelViewersStateTimer.emit()

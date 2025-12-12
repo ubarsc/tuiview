@@ -310,9 +310,7 @@ class ViewerApplication(QApplication):
         # saved state
         if cmdargs.savedstate is not None:
             try:
-                fileobj = open(cmdargs.savedstate)
-                self.viewers.readViewersState(fileobj)
-                fileobj.close()
+                self.viewers.readViewersState(cmdargs.savedstate)
             except Exception as e:
                 showMessageAndExit(str(e))
 
