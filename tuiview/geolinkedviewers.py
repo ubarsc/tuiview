@@ -40,6 +40,8 @@ class GeolinkedViewers(QObject):
     newViewerCreated = Signal(viewerwindow.ViewerWindow, 
                         name='newViewerCreated')
     "signal emitted when a new viewer window is created"
+    stateRepeatActive = Signal(bool, name='stateRepeatChanged')
+    "signal emitted when a save state timer is active/not active"
 
     def __init__(self, loadPlugins=True):
         QObject.__init__(self)
@@ -65,6 +67,11 @@ class GeolinkedViewers(QObject):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.cleanUp)
         self.timer.start(10000)  # 10 secs
+        
+        # timer for saving the state periodically
+        self.saveStateTimer = QTimer(self)
+        self.saveStateTimer.timeout.connect(self.onSaveStateTimer)
+        self.saveStateTimerFilename = None
 
     @staticmethod
     def getViewerList(screen=None):
@@ -186,6 +193,12 @@ class GeolinkedViewers(QObject):
         newviewer.writeViewersState.connect(self.writeViewersState)
         # signal for request to read viewers state from file
         newviewer.readViewersState.connect(self.readViewersState)
+        # signal for canceling a viewer state write timer
+        newviewer.cancelViewersStateTimer.connect(self.cancelViewerStateTimer)
+        # subscribe the new viewer to the function that enables cancel menu item 
+        self.stateRepeatActive.connect(newviewer.saveViewersTimerActiveStateChanged)
+        # trigger it
+        newviewer.saveViewersTimerActiveStateChanged(self.saveStateTimer.isActive())
 
     def onNewWindow(self):
         """
@@ -365,127 +378,162 @@ class GeolinkedViewers(QObject):
             if id(viewer.viewwidget) != obj.senderid:
                 viewer.viewwidget.doGeolinkQueryPoint(obj.easting, obj.northing)
 
-    def writeViewersState(self, fileobj):
+    def writeViewersState(self, fname, repeat_secs, cancelTimer=True):
         """
         Gets the state of all the viewers (location, layers etc) as a json encoded
-        string and write it to fileobj
-        """
-        viewers = self.getViewerList()
-
-        # see if we can get a GeolinkInfo
-        # should all be the same since geolinked
-        geolinkStr = 'None'
-        for viewer in viewers:
-            info = viewer.viewwidget.getGeolinkInfo()
-            if info is not None:
-                geolinkStr = info.toString()
-                break
+        string and write it to fileobj.
         
-        s = json.dumps({'name': 'tuiview', 'nviewers': len(viewers), 
-                        'geolink': geolinkStr}) + '\n'
-        fileobj.write(s)
-        for viewer in viewers:
-            pos = viewer.pos()
-            # we have to be careful since not all layer types
-            # are saved. Must be a better way...
-            nlayers = 0
-            for layer in viewer.viewwidget.layers.layers:
-                if (not isinstance(layer, ViewerQueryPointLayer) and 
-                        not isinstance(layer, ViewerFeatureVectorLayer)):
-                    nlayers += 1
+        Pass repeat_secs=0 when no automatic timer needs to be set
+        
+        Set cancelTimer to True unless this function is being called from the timer. 
+        """
+        # stop timer now to prevent confusion
+        if cancelTimer:
+            self.saveStateTimer.stop()
+            self.saveStateTimerFilename = None
+            # for the case where they are doing a save but there is a timer running
+            # cancel that in the UI
+            self.stateRepeatActive.emit(False)
+        
+        viewers = self.getViewerList()
+        with open(fname, 'w') as fileobj:
 
-            viewerDict = {'nlayers': nlayers, 'x': pos.x(), 'y': pos.y(), 
-                'width': viewer.width(), 'height': viewer.height()}
-            winHandle = viewer.windowHandle()
-            # save which screen this is on
-            screen = winHandle.screen()
-            if screen is not None:
-                viewerDict['screen'] = screen.name()
-                
-            # querywindow situation
-            query_wins = viewer.findChildren(QueryDockWidget)
-            if len(query_wins) > 0:
-                query_win = query_wins[0]
-                # check it's visible - can still exist after hidden.
-                if query_win.isVisible():
-                    qpos = query_win.pos()
-                    query_win_data = {'x': qpos.x(), 'y': qpos.y(), 
-                        'width': query_win.width(), 'height': query_win.height()}
-                    if query_win.lastqi is not None:
-                        query_win_data['easting'] = query_win.lastqi.easting
-                        query_win_data['northing'] = query_win.lastqi.northing
-                    viewerDict['querywindow'] = query_win_data
-                
-            # TODO: maybe other dock widgets (profile etc?)
-                
-            s = json.dumps(viewerDict) + '\n'
+            # see if we can get a GeolinkInfo
+            # should all be the same since geolinked
+            geolinkStr = 'None'
+            for viewer in viewers:
+                info = viewer.viewwidget.getGeolinkInfo()
+                if info is not None:
+                    geolinkStr = info.toString()
+                    break
+            
+            s = json.dumps({'name': 'tuiview', 'nviewers': len(viewers), 
+                            'geolink': geolinkStr}) + '\n'
             fileobj.write(s)
-
-            # now get the layers to write themselves out
-            viewer.viewwidget.layers.toFile(fileobj)
-
-    def readViewersState(self, fileobj):
-        """
-        Reads viewer state from the fileobj and restores viewers 
-        """
-        headerDict = json.loads(fileobj.readline())
-        if 'name' not in headerDict or headerDict['name'] != 'tuiview':
-            raise ValueError('File not written by tuiview')
-
-        geolinkStr = headerDict['geolink']
-        if geolinkStr != 'None':
-            geolink = viewerwidget.GeolinkInfo.fromString(geolinkStr)
-        else:
-            geolink = None
-            
-        # get all the screens connected
-        screenDict = {}
-        screens = QApplication.screens()
-        for screen in screens:
-            screenDict[screen.name()] = screen
-            
-        # set this if we have a valid query window with a valid location
-        query_easting_northing = (None, None)
-        query_viewer = None  # so we can grab the last one
-
-        for _ in range(headerDict['nviewers']):
-            viewer = self.onNewWindow()
-            viewerDict = json.loads(fileobj.readline())
-
-            viewer.addLayersFromJSONFile(fileobj, viewerDict['nlayers'])
-            
-            if 'screen' in viewerDict:
+            for viewer in viewers:
+                pos = viewer.pos()
+                # we have to be careful since not all layer types
+                # are saved. Must be a better way...
+                nlayers = 0
+                for layer in viewer.viewwidget.layers.layers:
+                    if (not isinstance(layer, ViewerQueryPointLayer) and 
+                            not isinstance(layer, ViewerFeatureVectorLayer)):
+                        nlayers += 1
+    
+                viewerDict = {'nlayers': nlayers, 'x': pos.x(), 'y': pos.y(), 
+                    'width': viewer.width(), 'height': viewer.height()}
                 winHandle = viewer.windowHandle()
-                screenName = viewerDict['screen']
-                if screenName in screenDict:
-                    screen = screenDict[screenName]
-                    winHandle.setScreen(screen)
+                # save which screen this is on
+                screen = winHandle.screen()
+                if screen is not None:
+                    viewerDict['screen'] = screen.name()
+                    
+                # querywindow situation
+                query_wins = viewer.findChildren(QueryDockWidget)
+                if len(query_wins) > 0:
+                    query_win = query_wins[0]
+                    # check it's visible - can still exist after hidden.
+                    if query_win.isVisible():
+                        qpos = query_win.pos()
+                        query_win_data = {'x': qpos.x(), 'y': qpos.y(), 
+                            'width': query_win.width(), 'height': query_win.height()}
+                        if query_win.lastqi is not None:
+                            query_win_data['easting'] = query_win.lastqi.easting
+                            query_win_data['northing'] = query_win.lastqi.northing
+                        viewerDict['querywindow'] = query_win_data
+                    
+                # TODO: maybe other dock widgets (profile etc?)
+                    
+                s = json.dumps(viewerDict) + '\n'
+                fileobj.write(s)
+    
+                # now get the layers to write themselves out
+                viewer.viewwidget.layers.toFile(fileobj)
 
-            # do this last in case only makes sense on new window
-            viewer.move(viewerDict['x'], viewerDict['y'])
-            viewer.resize(viewerDict['width'], viewerDict['height'])
-            
-            # any sub windows?
-            if 'querywindow' in viewerDict:
-                query_win_data = viewerDict['querywindow']
-                # the best way to do this ended up by invoking the action
-                # as the button state ended up being correct etc
-                viewer.queryAct.setChecked(True)
-                # should be only one child of this type
-                qw = viewer.findChildren(QueryDockWidget)[0]
-                qw.move(query_win_data['x'], query_win_data['y'])
-                qw.resize(query_win_data['width'], query_win_data['height'])
-                # any location?
-                if 'easting' in query_win_data and 'northing' in query_win_data:
-                    query_easting_northing = (query_win_data['easting'], 
-                                query_win_data['northing'])
-                    query_viewer = viewer
+        # did they ask for periodic?
+        # (note timer stopped above)
+        if repeat_secs != 0:
+            self.saveStateTimerFilename = fname
+            self.saveStateTimer.start(repeat_secs * 1000)  # convert to milliseconds
+            self.stateRepeatActive.emit(True)
 
-        # do now so all the windows get it (using the last one)
-        qeasting, qnorthing = query_easting_northing
-        if qeasting is not None:
-            query_viewer.viewwidget.newQueryPoint(qeasting, qnorthing)
-
-        # set the location if any
-        if geolink is not None:
-            self.onMove(geolink)
+    def readViewersState(self, fname):
+        """
+        Reads viewer state from the fname and restores viewers 
+        """
+        with open(fname) as fileobj:
+            headerDict = json.loads(fileobj.readline())
+            if 'name' not in headerDict or headerDict['name'] != 'tuiview':
+                raise ValueError('File not written by tuiview')
+    
+            geolinkStr = headerDict['geolink']
+            if geolinkStr != 'None':
+                geolink = viewerwidget.GeolinkInfo.fromString(geolinkStr)
+            else:
+                geolink = None
+                
+            # get all the screens connected
+            screenDict = {}
+            screens = QApplication.screens()
+            for screen in screens:
+                screenDict[screen.name()] = screen
+                
+            # set this if we have a valid query window with a valid location
+            query_easting_northing = (None, None)
+            query_viewer = None  # so we can grab the last one
+    
+            for _ in range(headerDict['nviewers']):
+                viewer = self.onNewWindow()
+                viewerDict = json.loads(fileobj.readline())
+    
+                viewer.addLayersFromJSONFile(fileobj, viewerDict['nlayers'])
+                
+                if 'screen' in viewerDict:
+                    winHandle = viewer.windowHandle()
+                    screenName = viewerDict['screen']
+                    if screenName in screenDict:
+                        screen = screenDict[screenName]
+                        winHandle.setScreen(screen)
+    
+                # do this last in case only makes sense on new window
+                viewer.move(viewerDict['x'], viewerDict['y'])
+                viewer.resize(viewerDict['width'], viewerDict['height'])
+                
+                # any sub windows?
+                if 'querywindow' in viewerDict:
+                    query_win_data = viewerDict['querywindow']
+                    # the best way to do this ended up by invoking the action
+                    # as the button state ended up being correct etc
+                    viewer.queryAct.setChecked(True)
+                    # should be only one child of this type
+                    qw = viewer.findChildren(QueryDockWidget)[0]
+                    qw.move(query_win_data['x'], query_win_data['y'])
+                    qw.resize(query_win_data['width'], query_win_data['height'])
+                    # any location?
+                    if 'easting' in query_win_data and 'northing' in query_win_data:
+                        query_easting_northing = (query_win_data['easting'], 
+                                    query_win_data['northing'])
+                        query_viewer = viewer
+    
+            # do now so all the windows get it (using the last one)
+            qeasting, qnorthing = query_easting_northing
+            if qeasting is not None:
+                query_viewer.viewwidget.newQueryPoint(qeasting, qnorthing)
+    
+            # set the location if any
+            if geolink is not None:
+                self.onMove(geolink)
+                
+    def onSaveStateTimer(self):
+        """
+        Timer has triggered. Save file again, but don't do anything to the timer.
+        """
+        self.writeViewersState(self.saveStateTimerFilename, 0, False)
+                
+    def cancelViewerStateTimer(self):
+        """
+        One of the viewers cancelled the state timer
+        """
+        self.saveStateTimer.stop()
+        self.saveStateTimerFilename = None
+        self.stateRepeatActive.emit(False)
