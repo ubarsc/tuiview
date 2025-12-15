@@ -694,7 +694,7 @@ class ViewerWindow(QMainWindow):
             
         self.cancelSaveCurrentViewersStateTimer = QAction(self,
                             triggered=self.cancelSaveViewerState)
-        self.cancelSaveCurrentViewersStateTimer.setText("Cancel Periodic Save Viewers")
+        self.cancelSaveCurrentViewersStateTimer.setText("Cancel Periodic Save of Viewers State")
         self.cancelSaveCurrentViewersStateTimer.setStatusTip(
             "Cancel periodically saving the viewer state")
 
@@ -1710,13 +1710,23 @@ Label Font Information: %s<br></p>
         dlg.setNameFilters(["TuiView State .tuiview (*.tuiview)"])
         dlg.setFileMode(QFileDialog.AnyFile)
         dlg.setDirectory(dirn)
+        
+        # get last used value from settings
+        settings = QSettings()
+        settings.beginGroup('ViewerWindow')
+        last_val = int(settings.value('LastWindowStateSaveRepeat', 0))
+        dlg.spin.setValue(last_val)
 
         if dlg.exec_() == QDialog.Accepted:
             filenames = dlg.selectedFiles()
             if len(filenames) > 0:
                 repeat_secs = dlg.spin.value()
+                settings.setValue('LastWindowStateSaveRepeat', repeat_secs)
+                
                 fname = filenames[0]
                 self.writeViewersState.emit(fname, repeat_secs)
+                
+        settings.endGroup()
 
     def loadViewersState(self):
         """

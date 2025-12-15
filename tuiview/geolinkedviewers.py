@@ -41,7 +41,7 @@ class GeolinkedViewers(QObject):
                         name='newViewerCreated')
     "signal emitted when a new viewer window is created"
     stateRepeatActive = Signal(bool, name='stateRepeatChanged')
-    "signal emitted when a save state timer is active"
+    "signal emitted when a save state timer is active/not active"
 
     def __init__(self, loadPlugins=True):
         QObject.__init__(self)
@@ -381,12 +381,19 @@ class GeolinkedViewers(QObject):
     def writeViewersState(self, fname, repeat_secs, cancelTimer=True):
         """
         Gets the state of all the viewers (location, layers etc) as a json encoded
-        string and write it to fileobj
+        string and write it to fileobj.
+        
+        Pass repeat_secs=0 when no automatic timer needs to be set
+        
+        Set cancelTimer to True unless this function is being called from the timer. 
         """
-        print('save', fname, repeat_secs, cancelTimer)
         # stop timer now to prevent confusion
         if cancelTimer:
             self.saveStateTimer.stop()
+            self.saveStateTimerFilename = None
+            # for the case where they are doing a save but there is a timer running
+            # cancel that in the UI
+            self.stateRepeatActive.emit(False)
         
         viewers = self.getViewerList()
         with open(fname, 'w') as fileobj:
@@ -449,7 +456,6 @@ class GeolinkedViewers(QObject):
             self.saveStateTimerFilename = fname
             self.saveStateTimer.start(repeat_secs * 1000)  # convert to milliseconds
             self.stateRepeatActive.emit(True)
-            print('sart timer')
 
     def readViewersState(self, fname):
         """
@@ -522,7 +528,6 @@ class GeolinkedViewers(QObject):
         """
         Timer has triggered. Save file again, but don't do anything to the timer.
         """
-        print('saving on timer')
         self.writeViewersState(self.saveStateTimerFilename, 0, False)
                 
     def cancelViewerStateTimer(self):
