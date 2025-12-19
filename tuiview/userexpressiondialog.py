@@ -19,7 +19,7 @@ Contains the UserExpressionDialog class
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from PySide6.QtWidgets import QTextEdit
+from PySide6.QtWidgets import QTextEdit, QLabel, QSplitter, QWidget
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton
 from PySide6.QtGui import QPalette
 from PySide6.QtCore import Signal, Qt
@@ -31,25 +31,51 @@ class UserExpressionDialog(QDialog):
     Sends a signal with the expresson on Apply
     """
     # signals
-    newExpression = Signal((str,), (str, int), 
+    newExpression = Signal((str, str), (str, str, int), 
                         name='newExpression')
     "emitted when a new expression is entered"
-    # not used?
-    undoEdit = Signal(str, int, name='undoEdit')
-    "emitted when user wants to undo"
 
-    def __init__(self, parent, col=None, undoObject=None):
+    def __init__(self, parent, col=None):
         QDialog.__init__(self, parent)
         # if this is not none col included in signal
         self.col = col 
-        # if this is not none an undo button will be created
-        # and an undo signal sent
-        self.undoObject = undoObject
 
         self.setWindowTitle("Enter Expression")
 
-        self.exprEdit = QTextEdit(self)
+        self.splitter = QSplitter(self)
+        self.splitter.setOrientation(Qt.Vertical)
+        
+        self.importWidget = QWidget()
+        self.importLayout = QVBoxLayout()
+        self.importWidget.setLayout(self.importLayout)
+        
+        self.importLabel = QLabel()
+        self.importLabel.setText("Enter Imports")
+        self.importLayout.addWidget(self.importLabel)
+        
+        self.importEdit = QTextEdit()
+        self.importEdit.setAcceptRichText(False)
+        self.importLayout.addWidget(self.importEdit)
+
+        self.splitter.addWidget(self.importWidget)
+        
+        self.exprWidget = QWidget()
+        self.exprLayout = QVBoxLayout()
+        self.exprWidget.setLayout(self.exprLayout)
+        
+        self.exprLabel = QLabel()
+        self.exprLabel.setText("Enter Expression")
+        self.exprLayout.addWidget(self.exprLabel)
+
+        self.exprEdit = QTextEdit()
         self.exprEdit.setAcceptRichText(False)
+        self.exprLayout.addWidget(self.exprEdit)
+
+        self.splitter.addWidget(self.exprWidget)
+        
+        self.hintWidget = QWidget()
+        self.hintLayout = QVBoxLayout()
+        self.hintWidget.setLayout(self.hintLayout)
 
         self.hintEdit = QTextEdit(self)
         self.hintEdit.setText("""
@@ -59,11 +85,18 @@ For example '(a < 10) & (b > 1)'\n
 Any other numpy expressions also valid - columns are represented as 
 numpy arrays.
 Use the special column 'row' for the row number.""")
+
         self.hintEdit.setReadOnly(True)
         # make background gray
         palette = self.hintEdit.palette()
         palette.setColor(QPalette.Base, Qt.lightGray)
         self.hintEdit.setPalette(palette)
+        
+        self.hintLayout.addWidget(self.hintEdit)
+
+        self.splitter.addWidget(self.hintWidget)
+        
+        self.splitter.setSizes([1500, 3000, 3000])
 
         self.applyButton = QPushButton(self)
         self.applyButton.setText("Apply")
@@ -73,19 +106,10 @@ Use the special column 'row' for the row number.""")
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.applyButton)
-        
-        # if we have something to undo add a button
-        if undoObject is not None:
-            self.undoButton = QPushButton(self)
-            self.undoButton.setText("Undo")
-            self.buttonLayout.addWidget(self.undoButton)
-            self.undoButton.clicked.connect(self.undo)
-
         self.buttonLayout.addWidget(self.closeButton)
 
         self.mainLayout = QVBoxLayout(self)
-        self.mainLayout.addWidget(self.exprEdit)
-        self.mainLayout.addWidget(self.hintEdit)
+        self.mainLayout.addWidget(self.splitter)
         self.mainLayout.addLayout(self.buttonLayout)
         self.setLayout(self.mainLayout)
 
@@ -98,13 +122,10 @@ Use the special column 'row' for the row number.""")
 
     def applyExpression(self):
         "Sends a signal with the expression"
+        imports = self.importEdit.toPlainText()
         expression = self.exprEdit.toPlainText()
         if self.col is None:
-            self.newExpression[str].emit(expression)
+            self.newExpression[str, str].emit(imports, expression)
         else:
             # include column
-            self.newExpression[str, int].emit(expression, self.col)
-
-    def undo(self):
-        "sends a signal with the undo object"
-        self.undoEdit.emit(self.undoObject, self.col)
+            self.newExpression[str, str, int].emit(imports, expression, self.col)
