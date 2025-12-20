@@ -1237,16 +1237,18 @@ class QueryDockWidget(QDockWidget):
         Allow user to enter expression to select rows
         """
         dlg = UserExpressionDialog(self)
-        hint = """Hint: Enter an expression using column names 
-(ie 'col_a < 10'). Combine more complicated expressions with '&' and '|'.
-For example '(a < 10) & (b > 1)'\n
-Any other numpy expressions also valid - columns are represented as 
-numpy arrays.
-Use the special columns:
-'row' for the row number and 
-'isselected' for the currently selected rows
-'queryrow' is the currently queried row and
-'lastselected' is the previous selected rows"""
+        hint = (
+            "Hint: Enter an expression using column names " +
+            "(e.g. 'col_a < 10'). Combine more complicated expressions " +
+            "with '&' and '|'.\nFor example '(a < 10) & (b > 1)'\n" +
+            "Any other numpy expressions also valid - columns are represented " +
+            "as numpy arrays.\nThe following special columns " +
+            "are also available:\n" +
+            "  'row' for the row number\n" +
+            "  'isselected' for the currently selected rows\n" +
+            "  'queryrow' is the currently queried row\n" +
+            "  'lastselected' is the previous selected rows"
+        )
         dlg.setHint(hint)
         dlg.newExpression[str, str].connect(self.newSelectUserExpression)
         dlg.show()
