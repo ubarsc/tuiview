@@ -486,7 +486,7 @@ class ViewerRAT(QObject):
 
         return varNamesUsed
 
-    def evaluateUserSelectExpression(self, expression, isselected, queryRow, 
+    def evaluateUserSelectExpression(self, imports, expression, isselected, queryRow, 
             lastselected):
         """
         Evaluate a user expression for selection. 
@@ -500,6 +500,10 @@ class ViewerRAT(QObject):
         cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
         nrows = self.getNumRows()
         columnsUsed = self.findVarNamesUsed(expression)
+        
+        # do any imports
+        importsDict = {}
+        exec(imports, importsDict)
 
         # create the new selected array the full size of the rat
         # we will fill in each chunk as we go
@@ -519,6 +523,7 @@ class ViewerRAT(QObject):
             globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
                                 queryRow, lastselectedSub,
                                 colNameList=columnsUsed)
+            globaldict.update(importsDict)
 
             try:
                 resultSub = eval(expression, globaldict)
@@ -542,7 +547,7 @@ class ViewerRAT(QObject):
         self.endProgress.emit()
         return result
 
-    def evaluateUserEditExpression(self, colName, expression, isselected, 
+    def evaluateUserEditExpression(self, colName, imports, expression, isselected, 
             queryRow):
         """
         Evaluate a user expression for editing and apply result to rat
@@ -562,6 +567,10 @@ class ViewerRAT(QObject):
         # can take shortcuts since not all the cols need to be read
         resultSub = None
 
+        # do any imports
+        importsDict = {}
+        exec(imports, importsDict)
+
         while currRow < nrows and not done:
 
             # guess the length
@@ -578,6 +587,7 @@ class ViewerRAT(QObject):
                 isselectedSub = isselected[currRow:currRow + length]
                 globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
                                 queryRow)
+                globaldict.update(importsDict)
 
                 if not isScalar:
                     # can re-use the first result if scalar

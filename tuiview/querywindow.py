@@ -1248,7 +1248,7 @@ Use the special columns:
 'queryrow' is the currently queried row and
 'lastselected' is the previous selected rows"""
         dlg.setHint(hint)
-        dlg.newExpression[str].connect(self.newSelectUserExpression)
+        dlg.newExpression[str, str].connect(self.newSelectUserExpression)
         dlg.show()
         
     def previousSelected(self):
@@ -1320,7 +1320,7 @@ The application will now exit."""
         else:
             self.viewwidget.newQueryPoint(long=x, lat=y)
             
-    def newSelectUserExpression(self, expression):
+    def newSelectUserExpression(self, imports, expression):
         """
         Called in reponse to signal from UserExpressionDialog
         for selection
@@ -1330,7 +1330,7 @@ The application will now exit."""
             # get the numpy array with bools
             attributes = self.lastLayer.attributes
             queryRow = self.tableModel.highlightRow
-            result = attributes.evaluateUserSelectExpression(str(expression),
+            result = attributes.evaluateUserSelectExpression(imports, expression,
                                                 self.selectionArray, queryRow,
                                                 self.lastSelectionArray)
 
@@ -1386,7 +1386,7 @@ Use the special columns:
 'isselected' for the currently selected rows and
 'queryrow' is the currently queried row"""
         dlg.setHint(hint)
-        dlg.newExpression[str, int].connect(self.newEditUserExpression)
+        dlg.newExpression[str, str, int].connect(self.newEditUserExpression)
 
         # should be modal?
         dlg.show()
@@ -1455,7 +1455,7 @@ Use the special columns:
             # causes lut to be updated
             self.viewwidget.setNewStretch(stretch, self.lastLayer)
 
-    def newEditUserExpression(self, expression, col):
+    def newEditUserExpression(self, imports, expression, col):
         """
         Called in reponse to signal from UserExpressionDialog
         for editing
@@ -1470,7 +1470,7 @@ Use the special columns:
             queryRow = self.tableModel.highlightRow
             colname = attributes.getColumnNames()[col]
             attributes.evaluateUserEditExpression(colname, 
-                    str(expression), self.selectionArray, queryRow)
+                    imports, expression, self.selectionArray, queryRow)
 
             # so we repaint and new values get shown
             self.tableModel.doUpdate()
