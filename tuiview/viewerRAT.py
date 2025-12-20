@@ -447,7 +447,10 @@ class ViewerRAT(QObject):
         for colName, saneName in (
                 zip(colNameList, self.getSaneColumnNames(colNameList))):
             # use sane names so as not to confuse Python
-            globaldict[saneName] = cache.cacheDict[colName]
+            colArr = cache.cacheDict.get(colName)
+            if colArr is None:
+                raise ValueError(f"Unknown column name '{colName}'")
+            globaldict[saneName] = colArr
 
         # give them access to numpy
         globaldict['numpy'] = numpy
