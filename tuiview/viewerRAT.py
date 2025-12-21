@@ -447,14 +447,17 @@ class ViewerRAT(QObject):
         for colName, saneName in (
                 zip(colNameList, self.getSaneColumnNames(colNameList))):
             # use sane names so as not to confuse Python
-            globaldict[saneName] = cache.cacheDict[colName]
+            colArr = cache.cacheDict.get(colName)
+            if colArr is None:
+                raise ValueError(f"Unknown column name '{colName}'")
+            globaldict[saneName] = colArr
 
         # give them access to numpy
         globaldict['numpy'] = numpy
         return globaldict
 
     @staticmethod
-    def findVarNamesUsed(expression):
+    def findVarNamesUsed(expression, importedNames):
         """
         Work out what variable names are used in the given expression.
 
@@ -462,7 +465,8 @@ class ViewerRAT(QObject):
         pick out anything which it thinks is a variable name.
 
         This will distinguish plain variable names from function names (which
-        are discarded).
+        are discarded). Furthermore, any names which are found in the
+        importedNames set will be excluded as column names.
 
         Returns a list of the variable name strings.
         """
@@ -482,7 +486,7 @@ class ViewerRAT(QObject):
                 functionSet.add(funcName)
 
         # Variable names are those which are not also function calls
-        varNamesUsed = list(nameSet - functionSet)
+        varNamesUsed = list(nameSet - functionSet - importedNames)
 
         return varNamesUsed
 
@@ -499,11 +503,13 @@ class ViewerRAT(QObject):
         self.newProgress.emit("Evaluating User Expression...")
         cache = self.getCacheObject(DEFAULT_CACHE_SIZE)
         nrows = self.getNumRows()
-        columnsUsed = self.findVarNamesUsed(expression)
         
         # do any imports
         importsDict = {}
         exec(imports, importsDict)
+        importedNames = set(importsDict.keys())
+
+        columnsUsed = self.findVarNamesUsed(expression, importedNames)
 
         # create the new selected array the full size of the rat
         # we will fill in each chunk as we go
@@ -570,6 +576,9 @@ class ViewerRAT(QObject):
         # do any imports
         importsDict = {}
         exec(imports, importsDict)
+        importedNames = set(importsDict.keys())
+
+        columnsUsed = self.findVarNamesUsed(expression, importedNames)
 
         while currRow < nrows and not done:
 
@@ -580,13 +589,13 @@ class ViewerRAT(QObject):
                 if isScalar:
                     cache.setStartRow(currRow, colName)
                 else:
-                    cache.setStartRow(currRow)
+                    cache.setStartRow(currRow, (columnsUsed + [colName]))
                 length = cache.getLength()
 
                 # re do with correct length
                 isselectedSub = isselected[currRow:currRow + length]
                 globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
-                                queryRow)
+                                queryRow, colNameList=columnsUsed)
                 globaldict.update(importsDict)
 
                 if not isScalar:
