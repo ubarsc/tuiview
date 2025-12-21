@@ -589,7 +589,7 @@ class ViewerRAT(QObject):
                 if isScalar:
                     cache.setStartRow(currRow, colName)
                 else:
-                    cache.setStartRow(currRow)
+                    cache.setStartRow(currRow, (columnsUsed + [colName]))
                 length = cache.getLength()
 
                 # re do with correct length
