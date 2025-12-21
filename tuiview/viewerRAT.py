@@ -457,36 +457,27 @@ class ViewerRAT(QObject):
         return globaldict
 
     @staticmethod
-    def findVarNamesUsed(expression, importedNames):
+    def findVarNamesUsed(expression, saneColumnNames):
         """
         Work out what variable names are used in the given expression.
 
-        Currently uses the ast module to parse the expression string, and
+        Uses the ast module to parse the expression string, and
         pick out anything which it thinks is a variable name.
-
-        This will distinguish plain variable names from function names (which
-        are discarded). Furthermore, any names which are found in the
-        importedNames set will be excluded as column names.
+        Restricts to the sanitized column names given, so we remove
+        all the other names which might appear in a general expression.
 
         Returns a list of the variable name strings.
         """
         nameSet = set()
-        functionSet = set()
+        saneColumnNames = set(saneColumnNames)
 
         tree = ast.parse(expression)
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
                 nameSet.add(node.id)
-            elif isinstance(node, ast.Call):
-                func = node.func
-                if isinstance(func, ast.Attribute):
-                    funcName = func.value.id
-                elif isinstance(func, ast.Name):
-                    funcName = func.id
-                functionSet.add(funcName)
 
-        # Variable names are those which are not also function calls
-        varNamesUsed = list(nameSet - functionSet - importedNames)
+        # Column names are names which are also in saneColumnNames
+        varNamesUsed = list(nameSet.intersection(saneColumnNames))
 
         return varNamesUsed
 
@@ -507,9 +498,9 @@ class ViewerRAT(QObject):
         # do any imports
         importsDict = {}
         exec(imports, importsDict)
-        importedNames = set(importsDict.keys())
 
-        columnsUsed = self.findVarNamesUsed(expression, importedNames)
+        saneColumnNames = set(self.getSaneColumnNames())
+        columnsUsed = self.findVarNamesUsed(expression, saneColumnNames)
 
         # create the new selected array the full size of the rat
         # we will fill in each chunk as we go
@@ -576,9 +567,9 @@ class ViewerRAT(QObject):
         # do any imports
         importsDict = {}
         exec(imports, importsDict)
-        importedNames = set(importsDict.keys())
 
-        columnsUsed = self.findVarNamesUsed(expression, importedNames)
+        saneColumnNames = set(self.getSaneColumnNames())
+        columnsUsed = self.findVarNamesUsed(expression, saneColumnNames)
 
         while currRow < nrows and not done:
 
