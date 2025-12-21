@@ -576,6 +576,9 @@ class ViewerRAT(QObject):
         # do any imports
         importsDict = {}
         exec(imports, importsDict)
+        importedNames = set(importsDict.keys())
+
+        columnsUsed = self.findVarNamesUsed(expression, importedNames)
 
         while currRow < nrows and not done:
 
@@ -592,7 +595,7 @@ class ViewerRAT(QObject):
                 # re do with correct length
                 isselectedSub = isselected[currRow:currRow + length]
                 globaldict = self.getUserExpressionGlobals(cache, isselectedSub, 
-                                queryRow)
+                                queryRow, colNameList=columnsUsed)
                 globaldict.update(importsDict)
 
                 if not isScalar:
