@@ -1290,6 +1290,9 @@ The application will now exit."""
         self.saveColOrderAction.setEnabled(state)
         self.thematicHorizontalHeader.editColumnAction.setEnabled(state)
         self.thematicHorizontalHeader.setKeyboardEditAction.setEnabled(state)
+        self.thematicHorizontalHeader.setKeyboardEditAction.setChecked(False)  # always reset
+        self.keyboardEditColumn = None
+        self.keyboardData = None
         self.thematicHorizontalHeader.setColorAction.setEnabled(state)
 
     def scrollToFirstSelected(self):
@@ -2045,7 +2048,7 @@ Use the special columns:
                 try:
                     attributes = self.lastLayer.attributes
                     colname = self.keyboardEditColumn
-                    data = str(self.keyboardData)
+                    data = self.keyboardData
                     attributes.setColumnToConstant(colname, data, 
                                             self.selectionArray)
 
