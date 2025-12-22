@@ -342,6 +342,9 @@ class GeolinkedViewers(QObject):
             # remember that taskbar etc mean that we might not want 
             # to start at 0,0
             viewer.move(xloc, yloc)
+            
+            # raise it to the top in case it is behind other windows
+            viewer.raise_()
 
             xcount += 1
             if xcount >= nxside:
