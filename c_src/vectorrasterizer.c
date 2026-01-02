@@ -1034,7 +1034,15 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
                     (geomType == wkbMultiLineStringM) || (geomType == wkbMultiLineStringZM) )
                 {
                     /* confusingly, OGR_G_Value returns a new Geom, but OGR_G_Centroid re-uses an existing */
-                    hMidPoint = OGR_G_Value(hGeometry, OGR_G_Length(hGeometry) / 2);
+                    double dLength = OGR_G_Length(hGeometry);
+                    if( dLength > 0 )
+                    {
+                        hMidPoint = OGR_G_Value(hGeometry, dLength / 2);
+                    }
+                    else
+                    {
+                        hMidPoint = NULL;  /* OGR_G_Value crashes in this case */
+                    }
                     if( hMidPoint != NULL )
                     {
                         VectorWriter_drawLabel(pWriter, hMidPoint, pszLabelText);
