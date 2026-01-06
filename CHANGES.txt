@@ -1,4 +1,4 @@
-Version 1.3.6 (2026-01-02)
+Version 1.3.6 (2026-01-06)
 --------------------------
 * Plugin mechanism overhauled. Now all dockable window types can be hooked into
 * Allow the viewer state to be saved at a given interval
