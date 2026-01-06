@@ -112,6 +112,9 @@ Use the special column 'row' for the row number.""")
         self.mainLayout.addWidget(self.splitter)
         self.mainLayout.addLayout(self.buttonLayout)
         self.setLayout(self.mainLayout)
+        
+        # make sure the expression (not import) has focus
+        self.exprEdit.setFocus()
 
         self.closeButton.clicked.connect(self.close)
         self.applyButton.clicked.connect(self.applyExpression)

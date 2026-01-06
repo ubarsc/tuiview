@@ -1,3 +1,14 @@
+Version 1.3.6 (2026-01-06)
+--------------------------
+* Plugin mechanism overhauled. Now all dockable window types can be hooked into
+* Allow the viewer state to be saved at a given interval
+* Add an imports box to select by expression and edit column operations
+* Raise each window during a tiling operation so they come to the front of any other windows
+on the desktop.
+* Properly reset the keyboard edits to columns function so it doesn't continue to function after
+the file is taken out of edit mode.
+* Fix issue with labelling zero length lines
+
 Version 1.3.5 (2025-10-24)
 --------------------------
 * Add option to lock vector layers (PR #120) - see https://github.com/ubarsc/tuiview/wiki/Layer-Window#lock-layer
