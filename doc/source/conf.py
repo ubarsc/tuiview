@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 import tuiview          # noqa: E402
 
 autodoc_mock_imports = ['numpy', 'osgeo', 'gdal', 'osgeo.gdal', 
-    'tuiview.vectorrasterizer', 'PyQt5', 'PyQt5.QtWidgets',
-    'PyQt5.QtCore', 'PyQt5.QtGui']
+    'tuiview.vectorrasterizer', 'PySide6', 'PySide6.QtWidgets',
+    'PySide6.QtCore', 'PySide6.QtGui']
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
