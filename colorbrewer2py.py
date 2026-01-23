@@ -41,27 +41,28 @@ def readData(fname):
     lastType = None
     infoDict = {}
 
-    for line in open(fname):
-        if count != 0:
-            arr = line.strip().split(',')
-            if ''.join(arr) == '':
-                break  # end of data
-            (name, numColors, _, _, _, _, r, g, b, dtype) = arr
-
-            if name != '':
-                lastName = name
-            if numColors != '':
-                lastNumColors = numColors
-            if dtype != '':
-                lastType = dtype
-
-            key = '_'.join([lastName, lastNumColors, lastType])
-            if key in infoDict:
-                infoDict[key].append((r, g, b))
-            else:
-                infoDict[key] = [(r, g, b)]
-
-        count += 1
+    with open(fname) as fileobj:
+        for line in fileobj:
+            if count != 0:
+                arr = line.strip().split(',')
+                if ''.join(arr) == '':
+                    break  # end of data
+                (name, numColors, _, _, _, _, r, g, b, dtype) = arr
+    
+                if name != '':
+                    lastName = name
+                if numColors != '':
+                    lastNumColors = numColors
+                if dtype != '':
+                    lastType = dtype
+    
+                key = '_'.join([lastName, lastNumColors, lastType])
+                if key in infoDict:
+                    infoDict[key].append((r, g, b))
+                else:
+                    infoDict[key] = [(r, g, b)]
+    
+            count += 1
     return infoDict
 
 
