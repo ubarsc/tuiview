@@ -79,10 +79,9 @@ def zip_to_file(filepath):
     zip_file_list = []
     if zipfile.is_zipfile(filepath):
         try:
-            zip_file = zipfile.ZipFile(filepath)
-            zip_file_contents = ['/vsizip/{0}/{1}'.format(filepath, zip_info_object.filename) for zip_info_object in zip_file.filelist if zip_info_object.filename.endswith(ALLOWED_FILE_EXTENSIONS)]
-            zip_file_list.extend(zip_file_contents)
-            zip_file.close()
+            with zipfile.ZipFile(filepath) as zip_file:
+                zip_file_contents = ['/vsizip/{0}/{1}'.format(filepath, zip_info_object.filename) for zip_info_object in zip_file.filelist if zip_info_object.filename.endswith(ALLOWED_FILE_EXTENSIONS)]
+                zip_file_list.extend(zip_file_contents)
         except zipfile.BadZipfile:
             pass
 
