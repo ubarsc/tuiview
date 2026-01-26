@@ -1548,12 +1548,12 @@ File will now be opened using default stretch""")
                     (left, top, _, _) = (
                         layer.coordmgr.getWorldExtent())
 
-                    worldfObj = open(worldfname, 'w')
-                    worldfObj.write("%f\n" % metresperwinpix)
-                    worldfObj.write("0.0\n0.0\n")
-                    worldfObj.write("%f\n" % -metresperwinpix)
-                    worldfObj.write("%f\n" % (left + (metresperwinpix / 2.0)))
-                    worldfObj.write("%f\n" % (top + (metresperwinpix / 2.0)))
+                    with open(worldfname, 'w') as worldfObj:
+                        worldfObj.write("%f\n" % metresperwinpix)
+                        worldfObj.write("0.0\n0.0\n")
+                        worldfObj.write("%f\n" % -metresperwinpix)
+                        worldfObj.write("%f\n" % (left + (metresperwinpix / 2.0)))
+                        worldfObj.write("%f\n" % (top + (metresperwinpix / 2.0)))
             except IOError:
                 QMessageBox.critical(self, MESSAGE_TITLE,
                     "Unable to save world file: %s" % worldfname)

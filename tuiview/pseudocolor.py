@@ -276,11 +276,11 @@ def getRampsFromFile(fname):
     from specified file
     """
     # Read palette file
-    palettesFobj = open(fname, "r")
-    # Minify file contents
-    palsMinified = json_minify(palettesFobj.read())
-    # Loads palettes in a dict
-    pals = json.loads(palsMinified)
+    with open(fname, "r") as palettesFobj:
+        # Minify file contents
+        palsMinified = json_minify(palettesFobj.read())
+        # Loads palettes in a dict
+        pals = json.loads(palsMinified)
 
     # For each palette that's been detected
     for pal in pals:
