@@ -6,7 +6,7 @@ title: TuiView
 
 ![TuiView](tuiview.png)
 
-A PyQt-based lightweight Raster GIS
+A PySide/Qt-based lightweight Raster GIS
 
 | ![geolink](geolink_small.png) | ![plot](plot_small.png) | ![profile](profile_small.png) |
 | ![RAT](rat_small.png) | ![value](simple_small.png) | ![vector](vector_small.png) |
@@ -44,6 +44,12 @@ Download releases through git at [GitHub](https://github.com/ubarsc/tuiview).
 
 ## Documentation
 
-User Documentation is available in the [TuiView wiki](https://github.com/ubarsc/tuiview/wiki).
+Blog Posts are being made about aspects of using TuiView:
+- [Opening files and Tiling viewers with TuiView](https://ubarsc.github.io/tutorial/2026/01/07/tuiview-intro.html)
+- [Querying Continuous Raster Layers and Vectors with TuiView](https://ubarsc.github.io/tutorial/2026/01/16/tuiview-query.html)
+- [Querying Raster Layers with Raster Attribute Tables](https://ubarsc.github.io/tutorial/2026/01/21/tuiview-ratquery.html)
+- [Exploring TuiView plugins and developing your own](https://ubarsc.github.io/tutorial/2026/01/26/tuiview-plugins.html)
+
+Further User Documentation is available in the [TuiView wiki](https://github.com/ubarsc/tuiview/wiki).
 
 There is also [Developer's Documentation](https://tuiview.readthedocs.io/en/latest/) available.

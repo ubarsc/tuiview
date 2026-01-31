@@ -25,9 +25,15 @@ Binaries for Windows, Linux and Mac are available through [Conda](http://conda.p
 
 ## Source ##
 
-TuiView requires: Python >= 3.6, Numpy, GDAL and PyQt.
+TuiView requires: Python >= 3.6, Numpy, GDAL and PySide.
 Source available from [Download Page](https://github.com/ubarsc/tuiview/releases) or through git.
 
 # Documentation #
 
-Documentation is available in the [TuiView wiki](https://github.com/ubarsc/tuiview/wiki)
+Blog Posts are being made about aspects of using TuiView:
+- [Opening files and Tiling viewers with TuiView](https://ubarsc.github.io/tutorial/2026/01/07/tuiview-intro.html)
+- [Querying Continuous Raster Layers and Vectors with TuiView](https://ubarsc.github.io/tutorial/2026/01/16/tuiview-query.html)
+- [Querying Raster Layers with Raster Attribute Tables](https://ubarsc.github.io/tutorial/2026/01/21/tuiview-ratquery.html)
+- [Exploring TuiView plugins and developing your own](https://ubarsc.github.io/tutorial/2026/01/26/tuiview-plugins.html)
+
+Further documentation is available in the [TuiView wiki](https://github.com/ubarsc/tuiview/wiki)
