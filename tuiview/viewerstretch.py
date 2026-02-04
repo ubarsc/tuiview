@@ -350,7 +350,7 @@ class StretchRule:
             gdalband = gdaldataset.GetRasterBand(self.ctband)
 
             # ignore RAT if file is thematic - makes no sense 
-            isFloat = gdalband.DataType == gdal.GDT_Float32 or gdalband.DataType == gdal.GDT_Float64
+            isFloat = gdalband.DataType in (gdal.GDT_Float32, gdal.GDT_Float64)
 
             rat = gdalband.GetDefaultRAT()
             match = False
