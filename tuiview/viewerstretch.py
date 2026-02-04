@@ -341,7 +341,7 @@ class StretchRule:
         else:
             msg = 'invalid value for comparison'
             raise viewererrors.InvalidParameters(msg)
-            
+
         if (match and self.ctband is not None and
                 self.ctband <= gdaldataset.RasterCount):
             # we match the number of bands
