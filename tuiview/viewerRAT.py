@@ -314,48 +314,52 @@ class ViewerRAT(QObject):
         # ignore RAT if file is float - makes no sense 
         isFloat = gdalband.DataType in (gdal.GDT_Float32, gdal.GDT_Float64)
         if rat is not None and rat.GetRowCount() != 0 and not isFloat:
-            # looks like we have attributes
-            self.count += 1
-
-            self.columnNames = []
-            self.attributeData = {}
-            self.columnTypes = {}
-            self.columnUsages = {}
-            self.columnFormats = {}
-            self.gdalRAT = rat
-
-            # first get the column names
-            # we do this so we can preserve the order
-            # of the columns in the attribute table
+            # one final check - if there is just one column that
+            # is Histogram (like KEA often is) it is not counted as a RAT
             ncols = rat.GetColumnCount()
-            percent_per_col = 100.0 / float(ncols)
-            for col in range(ncols):
-                colname = rat.GetNameOfCol(col)
-                self.columnNames.append(colname)
-
-                dtype = rat.GetTypeOfCol(col)
-                self.columnTypes[colname] = dtype
-                usage = rat.GetUsageOfCol(col)
-                self.columnUsages[colname] = usage
-
-                # format depdendent on type
-                if dtype == gdal.GFT_Integer:
-                    self.columnFormats[colname] = DEFAULT_INT_FMT
-                elif dtype == gdal.GFT_Real:
-                    self.columnFormats[colname] = DEFAULT_FLOAT_FMT
-                else:
-                    self.columnFormats[colname] = DEFAULT_STRING_FMT
-
-                self.newPercent.emit(col * percent_per_col)
-
-            # read in a preferred column order (if any)
-            prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
-            if len(prefColOrder) > 0:
-                # rearrange our columns given this
-                self.arrangeColumnOrder(prefColOrder, gdalband)
-
-            # remember the lookup column if set (None if not)
-            self.lookupColName = lookup
+            if not (ncols == 1 and rat.GetNameOfCol(0) == 'Histogram'):
+            
+                # looks like we have attributes
+                self.count += 1
+    
+                self.columnNames = []
+                self.attributeData = {}
+                self.columnTypes = {}
+                self.columnUsages = {}
+                self.columnFormats = {}
+                self.gdalRAT = rat
+    
+                # first get the column names
+                # we do this so we can preserve the order
+                # of the columns in the attribute table
+                percent_per_col = 100.0 / float(ncols)
+                for col in range(ncols):
+                    colname = rat.GetNameOfCol(col)
+                    self.columnNames.append(colname)
+    
+                    dtype = rat.GetTypeOfCol(col)
+                    self.columnTypes[colname] = dtype
+                    usage = rat.GetUsageOfCol(col)
+                    self.columnUsages[colname] = usage
+    
+                    # format depdendent on type
+                    if dtype == gdal.GFT_Integer:
+                        self.columnFormats[colname] = DEFAULT_INT_FMT
+                    elif dtype == gdal.GFT_Real:
+                        self.columnFormats[colname] = DEFAULT_FLOAT_FMT
+                    else:
+                        self.columnFormats[colname] = DEFAULT_STRING_FMT
+    
+                    self.newPercent.emit(col * percent_per_col)
+    
+                # read in a preferred column order (if any)
+                prefColOrder, lookup = self.readColumnOrderFromGDAL(gdaldataset)
+                if len(prefColOrder) > 0:
+                    # rearrange our columns given this
+                    self.arrangeColumnOrder(prefColOrder, gdalband)
+    
+                # remember the lookup column if set (None if not)
+                self.lookupColName = lookup
 
         # see if there is a colour table
         # do this if thematic even if there is no rat - may be a old style color table
