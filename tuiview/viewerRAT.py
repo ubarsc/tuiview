@@ -311,7 +311,7 @@ class ViewerRAT(QObject):
         # have rat?
         self.newProgress.emit("Reading Attributes...")
         rat = gdalband.GetDefaultRAT()
-        # ignore RAT if file is thematic - makes no sense 
+        # ignore RAT if file is float - makes no sense 
         isFloat = gdalband.DataType in (gdal.GDT_Float32, gdal.GDT_Float64)
         if rat is not None and rat.GetRowCount() != 0 and not isFloat:
             # looks like we have attributes
