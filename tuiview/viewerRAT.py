@@ -317,7 +317,8 @@ class ViewerRAT(QObject):
             # one final check - if there is just one column that
             # is Histogram (like KEA often is) it is not counted as a RAT
             ncols = rat.GetColumnCount()
-            if not (ncols == 1 and rat.GetNameOfCol(0) == 'Histogram'):
+            if not (ncols == 1 and (rat.GetNameOfCol(0) == 'Histogram' or 
+                    rat.GetUsageOfCol(0) == gdal.GFU_PixelCount)):
             
                 # looks like we have attributes
                 self.count += 1
