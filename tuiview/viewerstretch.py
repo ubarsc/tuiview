@@ -348,10 +348,13 @@ class StretchRule:
             # but we need to check there is a color 
             # table in the specified band. Either via RAT or colour table
             gdalband = gdaldataset.GetRasterBand(self.ctband)
+
+            # ignore RAT if file is float - makes no sense 
+            isFloat = gdalband.DataType in (gdal.GDT_Float32, gdal.GDT_Float64)
+
             rat = gdalband.GetDefaultRAT()
             match = False
-            # only check if file is thematic anyway
-            if rat is not None:
+            if rat is not None and not isFloat:
                 # we really need to check only that the RAT
                 # reports that we have the right columns
                 hasRed = False
