@@ -10,7 +10,7 @@
 #
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "numpy"]
+requires = ["setuptools>=77.0.3", "wheel", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -21,7 +21,7 @@ authors = [
 ]
 description = "Simple Raster Viewer"
 readme = "README.md"
-license = {file = "LICENSE.txt"}
+license = "GPL-2.0-or-later"
 
 [project.scripts]
 tuiviewwritetable = "tuiview.writetableapplication:run"
