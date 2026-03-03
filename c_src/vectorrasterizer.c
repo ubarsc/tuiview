@@ -1051,7 +1051,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
                 else 
                 {
                     // OGR_G_Centroid won't necessarily return a point within the polygon...
-                    OGRGeometryH hCentroid = OGR_G_PointOnSurface(hGeometry);
+                    hCentroid = OGR_G_PointOnSurface(hGeometry);
                     if( hCentroid != NULL )
                     {
                         VectorWriter_drawLabel(pWriter, hCentroid, pszLabelText);
