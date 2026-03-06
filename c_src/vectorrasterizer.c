@@ -890,7 +890,6 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
             PyErr_SetString(GETSTATE(self)->error, "Unable to find requested field" );
             return NULL;
         }
-        hCentroid = OGR_G_CreateGeometry(wkbPoint);
     }
 
     /* Transform */
@@ -1051,10 +1050,12 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
                 }
                 else 
                 {
-                    // TODO: OGR_G_Centroid won't necessarily return a point within the polygon...
-                    if( OGR_G_Centroid(hGeometry, hCentroid) == OGRERR_NONE )
+                    // OGR_G_Centroid won't necessarily return a point within the polygon...
+                    hCentroid = OGR_G_PointOnSurface(hGeometry);
+                    if( hCentroid != NULL )
                     {
                         VectorWriter_drawLabel(pWriter, hCentroid, pszLabelText);
+                        OGR_G_DestroyGeometry(hCentroid);
                     }
                 }
             }
@@ -1065,10 +1066,6 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
         OGR_F_Destroy(hFeature);
     }
     free( pCurrWKB );
-    if( hCentroid != NULL )
-    {
-        OGR_G_DestroyGeometry(hCentroid);
-    }
     OGR_G_DestroyGeometry(hExtentGeom);
     if( hTransform != NULL )
     {
