@@ -240,7 +240,7 @@ class ViewerWidget(QAbstractScrollArea):
         size = self.viewport().size()
         self.layers.addRasterLayer(gdalDataset, size.width(), size.height(), 
                             stretch, lut, ignoreProjectionMismatch, quiet)
-        # get rid off tool points
+        # get rid of tool points
         self.toolPoints = None
         self.toolPointsFinished = True
 
