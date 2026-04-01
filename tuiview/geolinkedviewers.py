@@ -42,6 +42,8 @@ class GeolinkedViewers(QObject):
     "signal emitted when a new viewer window is created"
     stateRepeatActive = Signal(bool, name='stateRepeatChanged')
     "signal emitted when a save state timer is active/not active"
+    lastViewerClosed = Signal(name='lastViewerClosed')
+    "signal emitted when there are no viewers left"
 
     def __init__(self, loadPlugins=True):
         QObject.__init__(self)
@@ -104,6 +106,9 @@ class GeolinkedViewers(QObject):
         # they should now be cleaned up by Python and memory released
         self.viewers = [viewer for viewer in self.viewers 
             if viewer in activeviewers]
+        # workaround for app not closing under Wayland
+        if len(self.viewers) == 0:
+            self.lastViewerClosed.emit()
 
     def closeAll(self):
         """

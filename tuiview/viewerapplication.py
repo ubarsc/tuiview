@@ -236,6 +236,8 @@ class ViewerApplication(QApplication):
 
         loadplugins = cmdargs.loadplugins
         self.viewers = geolinkedviewers.GeolinkedViewers(loadplugins)
+        # workaround for app not closing under Wayland
+        self.viewers.lastViewerClosed.connect(self.quit)
 
         stretch = None
         if (cmdargs.modeSet and cmdargs.stretchModeSet and
