@@ -893,7 +893,7 @@ static PyObject *vectorrasterizer_rasterizeLayer(PyObject *self, PyObject *args,
     }
 
     /* Transform */
-    if( pPythonSR != Py_None )
+    if( (pPythonSR != NULL) && (pPythonSR != Py_None) )
     {
         pPtr = getUnderlyingPtrFromSWIGPyObject(pPythonSR, GETSTATE(self)->error);
         if( pPtr == NULL )
