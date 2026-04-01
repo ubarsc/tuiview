@@ -51,6 +51,8 @@ class GeolinkedViewers(QObject):
         # otherwise they are deleted before they are shown
         self.viewers = []
         self.plugins = []
+        # keep the last geolink info in case we need it
+        self.last_geolink_obj = None
 
         # load plugins if asked
         if loadPlugins:
@@ -178,6 +180,8 @@ class GeolinkedViewers(QObject):
         # the signal when a new query point is chosen
         # on a widget. Sends easting, northing and id() of the widget
         newviewer.viewwidget.geolinkQueryPoint.connect(self.onQuery)
+        # signal when a new layer is added
+        newviewer.viewwidget.layerAdded.connect(self.layerAdded)
         # signal for request for new window
         newviewer.newWindowSig.connect(self.onNewWindow)
         # signal for request for windows to be tiled
@@ -355,6 +359,18 @@ class GeolinkedViewers(QObject):
             if xcount >= nxside:
                 xcount = 0
                 ycount += 1
+                
+    def layerAdded(self, widget):
+        """
+        Called when a new layer is added. If it is the first
+        layer and there is a last_geolink_obj active, then 
+        send a doGeoLinkMove so it gets the location we are
+        working in
+        """
+        if len(widget.layers.layers) == 1 and self.last_geolink_obj is not None:
+            widget.doGeolinkMove(self.last_geolink_obj.easting, 
+                    self.last_geolink_obj.northing, 
+                    self.last_geolink_obj.metresperwinpix)
 
     def onMove(self, obj):
         """
@@ -373,6 +389,9 @@ class GeolinkedViewers(QObject):
 
             # paint any windows that are ready
             QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+            
+        # save it
+        self.last_geolink_obj = obj
 
     def onQuery(self, obj):
         """
