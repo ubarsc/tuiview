@@ -1,3 +1,18 @@
+Version 1.3.7 (2026-04-15)
+--------------------------
+* Add back missing icons
+* Use context manager wherever possible in the code
+* Don't allow float images to be thematic
+* Don't treat images with a single Histogram band to be 
+    thematic since this is how RIOS creates all images
+* Ensure labels are within the polygons they are for
+* Workaround problem on Wayland with process not exiting
+    once last window is closed
+* When opening the first file in the new viewer when geolinking
+    is active, zoom to the last geolinked position
+* Fix crash calling vectorasterizer without all the optional
+    arguments
+
 Version 1.3.6 (2026-01-06)
 --------------------------
 * Plugin mechanism overhauled. Now all dockable window types can be hooked into
