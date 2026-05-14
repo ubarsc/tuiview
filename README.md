@@ -35,5 +35,7 @@ Blog Posts are being made about aspects of using TuiView:
 - [Querying Continuous Raster Layers and Vectors with TuiView](https://ubarsc.github.io/tutorial/2026/01/16/tuiview-query.html)
 - [Querying Raster Layers with Raster Attribute Tables](https://ubarsc.github.io/tutorial/2026/01/21/tuiview-ratquery.html)
 - [Exploring TuiView plugins and developing your own](https://ubarsc.github.io/tutorial/2026/01/26/tuiview-plugins.html)
+- [Driving TuiView from Python](https://ubarsc.github.io/tutorial/2026/03/08/tuiview-from-python.html)
+- [Using Surrogate Colour Tables in TuiView](https://ubarsc.github.io/tutorial/2026/05/13/tuiviewwritetable.html)
 
 Further documentation is available in the [TuiView wiki](https://github.com/ubarsc/tuiview/wiki)
