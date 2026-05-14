@@ -29,6 +29,8 @@ jobs:
     - name: Lint with pylint
       shell: bash -l {0}
       run: |
+        which python
+        which pip
         python -c 'from PySide6.QtGui import QImage'
         cp build/lib.*/tuiview/*.so tuiview/
         pylint *.py tuiview/*.py
