@@ -1383,6 +1383,14 @@ class ViewerVectorLayer(ViewerLayer):
 
         self.coordmgr.setDisplaySize(width, height)
         bbox = ogrLayer.GetExtent()
+        
+        if toProj is not None:
+            # reproject
+            transform = osr.CoordinateTransformation(ogrLayer.GetSpatialRef(), toProj)
+            # minx maxx miny maxy to minx, miny maxx maxy
+            tr_bbox = transform.TransformBounds(bbox[0], bbox[2], bbox[1], bbox[3], 21)
+            bbox = tr_bbox[0], tr_bbox[2], tr_bbox[1], tr_bbox[3]
+        
         fullExtent = (bbox[0], bbox[3], bbox[1], bbox[2])
         self.coordmgr.setFullWorldExtent(fullExtent)
 
