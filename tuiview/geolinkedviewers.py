@@ -44,6 +44,8 @@ class GeolinkedViewers(QObject):
     "signal emitted when a save state timer is active/not active"
     lastViewerClosed = Signal(name='lastViewerClosed')
     "signal emitted when there are no viewers left"
+    onGeolinkMove = Signal(float, float, float, name='onGeolinkMove')
+    "signal emitted when there has been a geolinl"
 
     def __init__(self, loadPlugins=True):
         QObject.__init__(self)
@@ -389,6 +391,10 @@ class GeolinkedViewers(QObject):
 
             # paint any windows that are ready
             QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+
+        # lastly, any non-windows that have subscribed to the special signal
+        # ie. plugins 
+        self.onGeolinkMove.emit(obj.easting, obj.northing, obj.metresperwinpix)
             
         # save it
         self.last_geolink_obj = obj
