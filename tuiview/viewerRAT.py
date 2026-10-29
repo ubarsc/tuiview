@@ -21,6 +21,7 @@ Contains the ViewerRAT class
 
 import sys
 import csv
+import datetime
 import traceback
 import json
 import keyword
@@ -31,13 +32,18 @@ from PySide6.QtCore import QObject, Signal
 
 from . import viewererrors
 
+HAVE_TIMETIME = hasattr(gdal, 'GFT_DateTime')
+
 NEWCOL_INT = 0
 NEWCOL_FLOAT = 1
 NEWCOL_STRING = 2
+if HAVE_TIMETIME:
+    NEWCOL_DATETIME = 3
 
 DEFAULT_INT_FMT = "%d"
 DEFAULT_FLOAT_FMT = "%.2f"
 DEFAULT_STRING_FMT = "%s"
+DEFAULT_DATETIME_FMT = "datetime"  # special handling in elformat()
 
 VIEWER_COLUMN_ORDER_METADATA_KEY = 'VIEWER_COLUMN_ORDER'
 VIEWER_COLUMN_LOOKUP_METADATA_KEY = 'VIEWER_COLUMN_LOOKUP'
@@ -46,6 +52,8 @@ DEFAULT_CACHE_SIZE = 500000
 
 GDAL_COLTYPE_LOOKUP = {gdal.GFT_Integer: "Integer", 
         gdal.GFT_Real: "Floating point", gdal.GFT_String: "String"}
+if HAVE_TIMETIME:
+    GDAL_COLTYPE_LOOKUP[gdal.GFT_DateTime] = 'DateTime'
 GDAL_COLUSAGE_LOOKUP = {gdal.GFU_Generic: "General purpose field",
         gdal.GFU_PixelCount: "Histogram pixel count",
         gdal.GFU_Name: "Class name", gdal.GFU_Min: "Class range minimum",
@@ -60,6 +68,21 @@ GDAL_COLUSAGE_LOOKUP = {gdal.GFU_Generic: "General purpose field",
         gdal.GFU_GreenMax: "Color Range Green Maximum",
         gdal.GFU_BlueMax: "Color Range Blue Maximum",
         gdal.GFU_AlphaMax: "Color Range Alpha Maximum"}
+
+
+def elformat(fmt, val):
+    """
+    Format the specified value according to format
+    Just use the % operator, but special handling for datetime
+    """
+    if fmt == DEFAULT_DATETIME_FMT:
+        if val is None:
+            return ''
+        else:
+            # TODO: maybe configurable?
+            return val.isoformat()
+    else:
+        return fmt % val
 
 
 def formatException(code):
@@ -336,21 +359,27 @@ class ViewerRAT(QObject):
                 percent_per_col = 100.0 / float(ncols)
                 for col in range(ncols):
                     colname = rat.GetNameOfCol(col)
-                    self.columnNames.append(colname)
     
                     dtype = rat.GetTypeOfCol(col)
-                    self.columnTypes[colname] = dtype
-                    usage = rat.GetUsageOfCol(col)
-                    self.columnUsages[colname] = usage
     
                     # format depdendent on type
                     if dtype == gdal.GFT_Integer:
                         self.columnFormats[colname] = DEFAULT_INT_FMT
                     elif dtype == gdal.GFT_Real:
                         self.columnFormats[colname] = DEFAULT_FLOAT_FMT
-                    else:
+                    elif dtype == gdal.GFT_String:
                         self.columnFormats[colname] = DEFAULT_STRING_FMT
-    
+                    elif HAVE_TIMETIME and dtype == gdal.GFT_DateTime:
+                        self.columnFormats[colname] = DEFAULT_DATETIME_FMT
+                    else:
+                        # unknown - skip
+                        continue
+
+                    self.columnNames.append(colname)
+                    self.columnTypes[colname] = dtype
+                    usage = rat.GetUsageOfCol(col)
+                    self.columnUsages[colname] = usage
+
                     self.newPercent.emit(col * percent_per_col)
     
                 # read in a preferred column order (if any)
@@ -607,7 +636,7 @@ class ViewerRAT(QObject):
 
                 cache.updateColumn(colName, resultSub, isselected)
 
-                if numpy.isscalar(resultSub):
+                if numpy.isscalar(resultSub) or isinstance(datetime.datetime, resultSub):
                     isScalar = True
 
             currRow += DEFAULT_CACHE_SIZE
@@ -655,7 +684,7 @@ class ViewerRAT(QObject):
                         row = []
                         for col, fmt in zip(cols_to_write, cols_to_format):
                             val = col[idx]
-                            row.append(fmt % val)                                    
+                            row.append(elformat(fmt, val))                                    
                         csvout.writerow(row)
     
                 currRow += DEFAULT_CACHE_SIZE
@@ -831,7 +860,9 @@ class RATCache:
         Updates only done where selectionArray == True (for the subset we are caching)
         updates cache and data in file
         """
-        if not numpy.isscalar(data) and len(data) != self.length:
+        if (not numpy.isscalar(data) and 
+                not isinstance(data, datetime.datetime) and
+                len(data) != self.length):
             msg = 'data wrong length'
             raise viewererrors.AttributeTableTypeError(msg)
 
@@ -873,7 +904,7 @@ class RATCache:
                         data = float(data)
                     else:
                         data = data.astype(float)
-                else:
+                elif coltype == gdal.GFT_String:
                     if numpy.isscalar(data):
                         data = str(data)
                         # there is a slight probo here
@@ -889,6 +920,9 @@ class RATCache:
                         # this converts to a string array
                         # of the right dtype to handle data
                         data = numpy.array(data, dtype=str)
+                elif HAVE_TIMETIME and coltype == gdal.GFT_DateTime:
+                    print(data)
+                        
             except ValueError as e:
                 msg = str(e)
                 raise viewererrors.UserExpressionTypeError(msg)
@@ -907,10 +941,13 @@ class RATCache:
                 elif coltype == gdal.GFT_Real:
                     dataarr = numpy.empty(self.length, dtype=float)
                     dataarr.fill(data)
-                else:
+                elif coltype == gdal.GFT_String:
                     lendata = len(data)
                     vdtype = numpy.dtype('S%d' % lendata)
                     dataarr = numpy.empty(self.length, dtype=vdtype)
+                    dataarr.fill(data)
+                elif HAVE_TIMETIME and coltype == gdal.GFT_DateTime:
+                    dataarr = numpy.empty(self.length, dtype=object)
                     dataarr.fill(data)
 
                 data = dataarr
