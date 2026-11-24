@@ -42,8 +42,8 @@ class AddColumnDialog(QDialog):
         self.typeCombo.addItem("Floating Point", userdata)
         userdata = NEWCOL_STRING
         self.typeCombo.addItem("String", userdata)
-        if HAVE_TIMETIME:
-            userdata = NEWCOL_DATETIME
+        if HAVE_DATETIME:
+            userdata = NEWCOL_DATETIME  # noqa
             self.typeCombo.addItem("DateTime", userdata)
 
         self.nameEdit = QLineEdit()
