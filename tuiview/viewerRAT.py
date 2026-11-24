@@ -32,12 +32,12 @@ from PySide6.QtCore import QObject, Signal
 
 from . import viewererrors
 
-HAVE_TIMETIME = hasattr(gdal, 'GFT_DateTime')
+HAVE_DATETIME = hasattr(gdal, 'GFT_DateTime')
 
 NEWCOL_INT = 0
 NEWCOL_FLOAT = 1
 NEWCOL_STRING = 2
-if HAVE_TIMETIME:
+if HAVE_DATETIME:
     NEWCOL_DATETIME = 3
 
 DEFAULT_INT_FMT = "%d"
@@ -52,7 +52,7 @@ DEFAULT_CACHE_SIZE = 500000
 
 GDAL_COLTYPE_LOOKUP = {gdal.GFT_Integer: "Integer", 
         gdal.GFT_Real: "Floating point", gdal.GFT_String: "String"}
-if HAVE_TIMETIME:
+if HAVE_DATETIME:
     GDAL_COLTYPE_LOOKUP[gdal.GFT_DateTime] = 'DateTime'
 GDAL_COLUSAGE_LOOKUP = {gdal.GFU_Generic: "General purpose field",
         gdal.GFU_PixelCount: "Histogram pixel count",
@@ -369,7 +369,7 @@ class ViewerRAT(QObject):
                         self.columnFormats[colname] = DEFAULT_FLOAT_FMT
                     elif dtype == gdal.GFT_String:
                         self.columnFormats[colname] = DEFAULT_STRING_FMT
-                    elif HAVE_TIMETIME and dtype == gdal.GFT_DateTime:
+                    elif HAVE_DATETIME and dtype == gdal.GFT_DateTime:
                         self.columnFormats[colname] = DEFAULT_DATETIME_FMT
                     else:
                         # unknown - skip
@@ -636,7 +636,7 @@ class ViewerRAT(QObject):
 
                 cache.updateColumn(colName, resultSub, isselected)
 
-                if numpy.isscalar(resultSub) or isinstance(datetime.datetime, resultSub):
+                if numpy.isscalar(resultSub) or isinstance(resultSub, datetime.datetime):
                     isScalar = True
 
             currRow += DEFAULT_CACHE_SIZE
@@ -920,8 +920,12 @@ class RATCache:
                         # this converts to a string array
                         # of the right dtype to handle data
                         data = numpy.array(data, dtype=str)
-                elif HAVE_TIMETIME and coltype == gdal.GFT_DateTime:
-                    print(data)
+                elif HAVE_DATETIME and coltype == gdal.GFT_DateTime:
+                    # data is good as-is
+                    pass
+                else:
+                    # we don't support this type - should never get here
+                    return
                         
             except ValueError as e:
                 msg = str(e)
@@ -946,7 +950,7 @@ class RATCache:
                     vdtype = numpy.dtype('S%d' % lendata)
                     dataarr = numpy.empty(self.length, dtype=vdtype)
                     dataarr.fill(data)
-                elif HAVE_TIMETIME and coltype == gdal.GFT_DateTime:
+                elif HAVE_DATETIME and coltype == gdal.GFT_DateTime:
                     dataarr = numpy.empty(self.length, dtype=object)
                     dataarr.fill(data)
 
