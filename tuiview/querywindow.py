@@ -39,7 +39,7 @@ from .userexpressiondialog import UserExpressionDialog
 from . import viewererrors
 from .viewerstrings import MESSAGE_TITLE
 from . import plotwidget
-from .viewerRAT import GDAL_COLTYPE_LOOKUP, GDAL_COLUSAGE_LOOKUP
+from .viewerRAT import GDAL_COLTYPE_LOOKUP, GDAL_COLUSAGE_LOOKUP, elformat
 from .viewerLUT import ViewerLUT
 from .addcolumndialog import AddColumnDialog
 from .plotscalingdialog import PlotScalingDialog
@@ -407,7 +407,7 @@ class ThematicTableModel(QAbstractTableModel):
                 # other wise we get b'...' in Python3 
                 attr_val = attr_val.decode()
             fmt = self.attributes.getFormat(name)
-            return fmt % attr_val
+            return elformat(fmt, attr_val)
 
         elif role == Qt.DecorationRole:
             column = index.column()
@@ -1495,6 +1495,7 @@ Use the special columns:
 
         except Exception as e:
             QMessageBox.critical(self, MESSAGE_TITLE, str(e))
+            raise
 
     def moveColumn(self, col, code):
         """

@@ -21,8 +21,10 @@ Contains the AddColumnDialog class
 from PySide6.QtWidgets import QDialog, QFormLayout, QComboBox, QLineEdit
 from PySide6.QtWidgets import QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox
 
-from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING
+from .viewerRAT import NEWCOL_INT, NEWCOL_FLOAT, NEWCOL_STRING, HAVE_DATETIME
 from .viewerstrings import MESSAGE_TITLE
+if HAVE_DATETIME:
+    from .viewerRAT import NEWCOL_DATETIME  # noqa
 
 
 class AddColumnDialog(QDialog):
@@ -40,6 +42,9 @@ class AddColumnDialog(QDialog):
         self.typeCombo.addItem("Floating Point", userdata)
         userdata = NEWCOL_STRING
         self.typeCombo.addItem("String", userdata)
+        if HAVE_DATETIME:
+            userdata = NEWCOL_DATETIME  # noqa
+            self.typeCombo.addItem("DateTime", userdata)
 
         self.nameEdit = QLineEdit()
 
