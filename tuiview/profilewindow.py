@@ -251,7 +251,7 @@ class ProfileDockWidget(QDockWidget):
 
         dlg = PlotScalingDialog(self, self.plotScaling, data)
 
-        if dlg.exec_() == PlotScalingDialog.Accepted:
+        if dlg.exec() == PlotScalingDialog.Accepted:
             self.plotScaling = dlg.getScale()
             if self.lastPolyLine is not None:
                 self.newLine(self.lastPolyLine)

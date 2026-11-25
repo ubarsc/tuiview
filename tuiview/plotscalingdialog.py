@@ -44,15 +44,24 @@ class PlotScalingDialog(QDialog):
         floatingPoint = numpy.issubdtype(data.dtype, numpy.floating)
         if floatingPoint:
             info = numpy.finfo(data.dtype)
+            minVal, maxVal = info.min, info.max
         else:
             info = numpy.iinfo(data.dtype)
-
+            # Unfortunately, Qt uses a signed 32 bit number
+            # so we need to clamp to that. Perhaps there is a better way?
+            minVal, maxVal = info.min, info.max
+            s32info = numpy.iinfo(numpy.int32)
+            if minVal < s32info.min:
+                minVal = s32info.min
+            if maxVal > s32info.max:
+                maxVal = s32info.max
+            
         if floatingPoint:
             self.minValueSpin = QDoubleSpinBox()
-            self.minValueSpin.setRange(info.min, info.max)
+            self.minValueSpin.setRange(minVal, maxVal)
         else:
             self.minValueSpin = QSpinBox()
-            self.minValueSpin.setRange(info.min, info.max)
+            self.minValueSpin.setRange(minVal, maxVal)
         self.minAutoCheck.stateChanged.connect(self.onMinAuto)
 
         if minScale is None:
@@ -72,10 +81,10 @@ class PlotScalingDialog(QDialog):
 
         if floatingPoint:
             self.maxValueSpin = QDoubleSpinBox()
-            self.maxValueSpin.setRange(info.min, info.max)
+            self.maxValueSpin.setRange(minVal, maxVal)
         else:
             self.maxValueSpin = QSpinBox()
-            self.maxValueSpin.setRange(info.min, info.max)
+            self.maxValueSpin.setRange(minVal, maxVal)
         self.maxAutoCheck.stateChanged.connect(self.onMaxAuto)
 
         if maxScale is None:

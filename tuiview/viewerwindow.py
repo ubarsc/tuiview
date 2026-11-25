@@ -836,7 +836,7 @@ class ViewerWindow(QMainWindow):
             name = screen.name()
         
         dlg = TileDialog(self, name)
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             xnum, ynum = dlg.getValues()
             self.tileWindowsSig.emit(xnum, ynum, screen)
 
@@ -845,7 +845,7 @@ class ViewerWindow(QMainWindow):
         Show the default stretch dialog
         """
         dlg = stretchdialog.StretchDefaultsDialog(self)
-        dlg.exec_()
+        dlg.exec()
 
     def addRaster(self):
         """
@@ -869,7 +869,7 @@ class ViewerWindow(QMainWindow):
 
         dlg.setDirectory(dirn)
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             file_list = dlg.selectedFiles()
             for fname in archivereader.file_list_to_archive_strings(file_list):
                 self.addRasterInternal(fname)
@@ -895,7 +895,7 @@ class ViewerWindow(QMainWindow):
 
         dlg.setDirectory(dirn)
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
             self.addVectorInternal(fname)
 
@@ -1087,7 +1087,7 @@ File will now be opened using default stretch""")
 
                 dlg = vectoropendialog.VectorOpenDialog(self, layerNames, 
                     projections, sr, reproj)
-                if dlg.exec_() == QDialog.Accepted:
+                if dlg.exec() == QDialog.Accepted:
                     if dlg.isNamedLayer():
                         layername = dlg.getSelectedLayer()
                         lyr = ds.GetLayerByName(layername)
@@ -1678,7 +1678,7 @@ Label Font Information: %s<br></p>
         Display the preferences dialog
         """
         viewPref = viewerpreferences.ViewerPreferencesDialog(self)
-        if viewPref.exec_() == QDialog.Accepted:
+        if viewPref.exec() == QDialog.Accepted:
 
             # extract the mouse wheel setting
             self.mouseWheelZoom = viewPref.settingMouseWheelZoom
@@ -1717,7 +1717,7 @@ Label Font Information: %s<br></p>
         last_val = int(settings.value('LastWindowStateSaveRepeat', 0))
         dlg.spin.setValue(last_val)
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             filenames = dlg.selectedFiles()
             if len(filenames) > 0:
                 repeat_secs = dlg.spin.value()
