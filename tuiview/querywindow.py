@@ -614,7 +614,7 @@ class ThematicHorizontalHeader(QHeaderView):
                 # note: not doing anything on old school colors
                 if col == 0:
                     # do special handling for color column
-                    action = self.colorPopup.exec_(event.globalPos())
+                    action = self.colorPopup.exec(event.globalPos())
                     if action is self.setColorAction:
                         self.parent.editColor()
                     return
@@ -637,7 +637,7 @@ class ThematicHorizontalHeader(QHeaderView):
             colGotKeyboard = self.parent.keyboardEditColumn == colName
             self.setKeyboardEditAction.setChecked(colGotKeyboard)
 
-            action = self.popup.exec_(event.globalPos())
+            action = self.popup.exec(event.globalPos())
             if action is self.editColumnAction:
                 self.parent.editColumn(col)
             elif action is self.moveLeftAction:
@@ -1181,7 +1181,7 @@ class QueryDockWidget(QDockWidget):
 
         dlg = PlotScalingDialog(self, self.plotScaling, data)
 
-        if dlg.exec_() == PlotScalingDialog.Accepted:
+        if dlg.exec() == PlotScalingDialog.Accepted:
             self.plotScaling = dlg.getScale()
             if self.lastqi is not None:
                 self.updatePlot(self.lastqi, self.cursorColor)
@@ -1364,7 +1364,7 @@ The application will now exit."""
         """
         attributes = self.lastLayer.attributes
         dlg = AddColumnDialog(self)
-        if dlg.exec_() == AddColumnDialog.Accepted:
+        if dlg.exec() == AddColumnDialog.Accepted:
             dtype = dlg.getColumnType()
             colname = dlg.getColumnName()
             try:

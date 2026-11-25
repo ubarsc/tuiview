@@ -1300,7 +1300,7 @@ class StretchDockWidget(QDockWidget):
         dirn = os.path.dirname(self.layer.filename)
         dlg.setDirectory(dirn)
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             fname = dlg.selectedFiles()[0]
             fname = str(fname)
             try:

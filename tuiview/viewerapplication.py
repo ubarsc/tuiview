@@ -140,7 +140,7 @@ def getCmdargs():
                 "Get command line information by clicking 'Show Details...'",
                 QMessageBox.Ok)
             msgBox.setDetailedText(p.format_help())
-            msgBox.exec_()
+            msgBox.exec()
         else:
             p.print_help()
         sys.exit(1)
